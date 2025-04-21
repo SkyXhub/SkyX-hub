@@ -1,9 +1,9 @@
 --[[
     🌊 SkyX.lua - Premium Roblox Script Hub 🌊
     
-    A collection of ocean-themed game scripts and exploits for Roblox
+    A collection of black themed game scripts and exploits for Roblox
     Built for mobile performance with Swift and other script platforms
-    Features beautiful ocean UI theme across all components
+    Features beautiful black theme with bloom glow effects across all components
     
     Premium Access Features:
     - $5: Basic access to most popular scripts
@@ -11,22 +11,9 @@
     - $25: Reseller access with key generation (limit 5 basic keys)
 ]]
 
--- Check if running in a Roblox environment
-local isRobloxEnvironment = (function()
-    return type(game) == "userdata" and type(game.GetService) == "function"
-end)()
-
 -- Print startup message
-print("🌊 SkyX Premium Script Hub 🌊")
-print("Version 2.0 - Ocean Theme - Starting...")
-
-if not isRobloxEnvironment then
-    print("Warning: Not running in a Roblox environment!")
-    print("This script is designed to run within Roblox or a Roblox executor.")
-    print("Some features may not function outside of Roblox.")
-    print("\nTry running this script in a Roblox executor like Swift, Fluxus, or Hydrogen.")
-    return
-end
+print("⚡ SkyX Premium Script Hub ⚡")
+print("Version 2.0 - Black Bloom Edition - Starting...")
 
 -- Load Whitelist Key System
 local KeySystem
@@ -119,7 +106,7 @@ WindUI:SetTheme("BlackBloom")
 -- Function to show key verification window
 local function showKeyWindow()
     local keyWindow = WindUI:CreateWindow({
-        Title = "🌊 SkyX Premium Access 🌊",
+        Title = "⚡ SkyX Premium Access ⚡",
         Icon = "droplet",
         Author = "SkyX Scripts",
         Folder = "SkyXHub",
@@ -134,6 +121,9 @@ local function showKeyWindow()
         Title = "Key Verification",
         Icon = "key"
     })
+    
+    -- Add Window:SelectTab(keyTab) to ensure the tab is displayed
+    keyWindow:SelectTab(keyTab)
     
     -- Add description
     keyTab:Divider({
@@ -360,7 +350,7 @@ end
 function createMainWindow()
     -- Create the main window
     local Window = WindUI:CreateWindow({
-        Title = "🌊 SkyX SCRIPTS 🌊",
+        Title = "⚡ SkyX SCRIPTS ⚡",
         Icon = "droplet",
         Author = "SkyX Scripts",
         Folder = "SkyXHub",
@@ -402,14 +392,29 @@ function createMainWindow()
     -- Open welcome dialog
     WelcomeDialog:Open()
     
-    -- Create tabs with correct WindUI syntax (fixed)
-    local HomeTab = Window:CreateTab("Home", "rbxassetid://4483345998") -- Home icon
+    -- Create tabs with WindUI syntax
+    local HomeTab = Window:Tab({
+        Title = "Home", 
+        Icon = "home" -- Using Lucide icon
+    })
     
-    local ScriptsTab = Window:CreateTab("Game Scripts", "rbxassetid://4483345998") -- Game icon
+    local ScriptsTab = Window:Tab({
+        Title = "Game Scripts", 
+        Icon = "gamepad-2" -- Using Lucide icon
+    })
     
-    local UniversalTab = Window:CreateTab("Universal", "rbxassetid://4483345998") -- Globe icon
+    local UniversalTab = Window:Tab({
+        Title = "Universal", 
+        Icon = "globe" -- Using Lucide icon
+    })
     
-    local SettingsTab = Window:CreateTab("Settings", "rbxassetid://4483345998") -- Settings icon
+    local SettingsTab = Window:Tab({
+        Title = "Settings", 
+        Icon = "settings" -- Using Lucide icon
+    })
+    
+    -- Select the Home tab by default
+    Window:SelectTab(HomeTab)
     
     -- Home Tab Content
     HomeTab:Divider({
