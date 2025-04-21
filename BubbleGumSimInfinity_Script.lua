@@ -1,6 +1,6 @@
 --[[
     🌊 SkyX Hub - Murder Mystery 2 Script (Orion Version) 🌊
-    FIXED STABLE VERSION 2.12
+    FIXED STABLE VERSION 2.1
     
     Features:
     - Anti-TP Detection System
@@ -153,37 +153,82 @@ local function findMurderer()
     return murdererPlayer
 end
 
--- Function to find dropped gun in the workspace with improved detection
+-- Function to find dropped gun in the workspace with enhanced detection methods
 local function findDroppedGun()
-    -- Method 1: Check for standard Gun tool
-    for _, item in pairs(Workspace:GetDescendants()) do
-        if item.Name == "Gun" and item:IsA("Tool") then
+    -- Debug output for tracking
+    print("Searching for dropped gun...")
+    
+    -- Method 1: Check for direct Gun tool in workspace (most common)
+    for _, item in pairs(Workspace:GetChildren()) do
+        if item.Name == "Gun" and (item:IsA("Tool") or item:IsA("Model")) then
+            print("Found gun directly in workspace: " .. item:GetFullName())
             return item
         end
     end
     
-    -- Method 2: Check in specific areas like dropped items
-    local possibleContainers = {"DroppedItems", "Dropped", "Items", "GameItems"}
+    -- Method 2: Look for gun in all loaded models (more comprehensive)
+    for _, item in pairs(Workspace:GetDescendants()) do
+        if item.Name == "Gun" and (item:IsA("Tool") or item:IsA("Model") or item:IsA("Part") or item:IsA("MeshPart")) then
+            print("Found gun in workspace descendants: " .. item:GetFullName())
+            return item
+        end
+    end
+    
+    -- Method 3: Check in specific areas like dropped items
+    local possibleContainers = {"DroppedItems", "Dropped", "Items", "GameItems", "Folder", "Map"}
     for _, containerName in ipairs(possibleContainers) do
         local container = Workspace:FindFirstChild(containerName)
         if container then
             for _, item in pairs(container:GetDescendants()) do
-                if (item.Name == "Gun" or item.Name:lower():find("gun") or item.Name:lower():find("pistol")) and
-                   (item:IsA("Tool") or item:IsA("Model")) then
+                if (item.Name == "Gun" or item.Name:lower():find("gun") or item.Name:lower():find("pistol") or item.Name:lower():find("revolver")) and
+                   (item:IsA("Tool") or item:IsA("Model") or item:IsA("Part") or item:IsA("MeshPart")) then
+                    print("Found gun in container " .. containerName .. ": " .. item:GetFullName())
                     return item
                 end
             end
         end
     end
     
-    -- Method 3: Look for gun-like objects
+    -- Method 4: Look for objects with gun-like properties (mesh, etc.)
     for _, item in pairs(Workspace:GetDescendants()) do
-        if (item.Name:lower():find("gun") or item.Name:lower():find("pistol") or item.Name:lower():find("revolver")) and
-           (item:IsA("Tool") or item:IsA("Model")) then
+        if item:IsA("MeshPart") and (item.MeshId:find("gun") or item.MeshId:find("pistol") or item.MeshId:find("revolver")) then
+            print("Found gun by mesh ID: " .. item:GetFullName())
+            return item.Parent or item
+        end
+        
+        if item:IsA("Tool") or item:IsA("Model") then
+            -- Check for gun-like children
+            for _, child in pairs(item:GetDescendants()) do
+                if child:IsA("StringValue") and child.Name == "ToolType" and 
+                   (child.Value == "Gun" or child.Value:lower():find("gun")) then
+                    print("Found gun by ToolType value: " .. item:GetFullName())
+                    return item
+                end
+                
+                -- Check meshes of parts
+                if child:IsA("MeshPart") and 
+                   (child.MeshId:find("gun") or child.MeshId:find("pistol") or child.MeshId:find("revolver")) then
+                    print("Found gun by child mesh ID: " .. item:GetFullName())
+                    return item
+                end
+            end
+        end
+    end
+    
+    -- Method 5: Check for parts with certain characteristics common to the MM2 gun
+    for _, item in pairs(Workspace:GetDescendants()) do
+        if (item.Name:lower():find("gun") or 
+            item.Name:lower():find("pistol") or 
+            item.Name:lower():find("revolver") or
+            item.Name:lower():find("weapon") or
+            item.Name:lower():find("sheriff")) and
+            (item:IsA("Tool") or item:IsA("Model") or item:IsA("Part") or item:IsA("MeshPart")) then
+            print("Found gun-like object: " .. item:GetFullName())
             return item
         end
     end
     
+    print("No gun found in any location")
     return nil
 end
 
@@ -1240,33 +1285,72 @@ AdvancedTab:AddToggle({
                             end
                         -- Only try to get the gun if sheriff has died
                         elseif getgenv().SheriffDied then
-                            -- Look for dropped gun 
+                            -- Look for dropped gun with our improved function
                             getgenv().DroppedGun = findDroppedGun()
                             
                             -- If gun is dropped somewhere, get it
                             if getgenv().DroppedGun then
-                                local gunPosition
+                                local gunPosition = nil
                                 
-                                -- Handle different gun object types
-                                if getgenv().DroppedGun:IsA("Tool") and getgenv().DroppedGun:FindFirstChild("Handle") then
-                                    gunPosition = getgenv().DroppedGun.Handle.Position
-                                elseif getgenv().DroppedGun:IsA("BasePart") then
-                                    gunPosition = getgenv().DroppedGun.Position
-                                elseif getgenv().DroppedGun:IsA("Model") and 
-                                       getgenv().DroppedGun:FindFirstChildWhichIsA("BasePart") then
-                                    gunPosition = getgenv().DroppedGun:FindFirstChildWhichIsA("BasePart").Position
+                                -- Handle different gun object types (more comprehensive)
+                                if typeof(getgenv().DroppedGun) == "Instance" then
+                                    -- Case 1: Direct tool with handle
+                                    if getgenv().DroppedGun:IsA("Tool") and getgenv().DroppedGun:FindFirstChild("Handle") then
+                                        gunPosition = getgenv().DroppedGun.Handle.Position
+                                        print("Gun position found from Tool Handle")
+                                    
+                                    -- Case 2: Direct part
+                                    elseif getgenv().DroppedGun:IsA("BasePart") then
+                                        gunPosition = getgenv().DroppedGun.Position
+                                        print("Gun position found from BasePart")
+                                    
+                                    -- Case 3: Model with parts
+                                    elseif getgenv().DroppedGun:IsA("Model") then
+                                        -- Try to find primary part
+                                        if getgenv().DroppedGun.PrimaryPart then
+                                            gunPosition = getgenv().DroppedGun.PrimaryPart.Position
+                                            print("Gun position found from Model PrimaryPart")
+                                            
+                                        -- Or look for any part
+                                        elseif getgenv().DroppedGun:FindFirstChildWhichIsA("BasePart") then
+                                            gunPosition = getgenv().DroppedGun:FindFirstChildWhichIsA("BasePart").Position
+                                            print("Gun position found from Model's first BasePart")
+                                            
+                                        -- Deep search for handle or gun parts
+                                        else
+                                            for _, part in pairs(getgenv().DroppedGun:GetDescendants()) do
+                                                if part:IsA("BasePart") and 
+                                                   (part.Name == "Handle" or 
+                                                    part.Name:lower():find("gun") or 
+                                                    part.Name:lower():find("barrel")) then
+                                                    gunPosition = part.Position
+                                                    print("Gun position found from named part in descendants")
+                                                    break
+                                                end
+                                            end
+                                        end
+                                    end
+                                    
+                                    -- If we still don't have position, try one more method
+                                    if not gunPosition then
+                                        for _, part in pairs(getgenv().DroppedGun:GetDescendants()) do
+                                            if part:IsA("BasePart") then
+                                                gunPosition = part.Position
+                                                print("Gun position found from any descendant part")
+                                                break
+                                            end
+                                        end
+                                    end
                                 end
                                 
                                 if gunPosition then
-                                    -- Notify player
-                                    if math.random(1, 3) == 1 then -- Reduce notification spam
-                                        OrionLib:MakeNotification({
-                                            Name = "SkyX",
-                                            Content = "Sheriff died - Found gun! Collecting...",
-                                            Image = "rbxassetid://4483345998",
-                                            Time = 2
-                                        })
-                                    end
+                                    -- Always notify player when gun is found
+                                    OrionLib:MakeNotification({
+                                        Name = "SkyX",
+                                        Content = "Sheriff died - Found gun! Collecting...",
+                                        Image = "rbxassetid://4483345998",
+                                        Time = 2
+                                    })
                                     
                                     -- Store current position for returning if failed
                                     local originalPos = (LocalPlayer.Character and 
@@ -1274,34 +1358,90 @@ AdvancedTab:AddToggle({
                                                         LocalPlayer.Character.HumanoidRootPart.Position) or 
                                                         Vector3.new(0,0,0)
                                     
-                                    -- Use safe teleport to avoid detection
-                                    for attempt = 1, 5 do -- Multiple teleport attempts
-                                        safeTP(gunPosition + Vector3.new(0, attempt - 3, 0), true)
+                                    -- Pause briefly before teleporting
+                                    wait(0.2)
+                                    
+                                    -- Use DIRECT teleport first for immediate positioning
+                                    pcall(function()
+                                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                            -- Direct teleport to exact position
+                                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(gunPosition)
+                                        end
+                                    end)
+                                    
+                                    -- Wait to pick up the gun
+                                    wait(0.5)
+                                    
+                                    -- Use multiple teleport attempts with different heights and positions
+                                    local gotGun = false
+                                    for attempt = 1, 10 do -- Increased attempts
+                                        -- Try different heights and slight position variations
+                                        local offset = Vector3.new(
+                                            math.random(-1, 1) * 0.5, 
+                                            (attempt - 5) * 0.5,  -- Try different heights
+                                            math.random(-1, 1) * 0.5
+                                        )
                                         
-                                        -- Wait a bit to pick up the gun
-                                        wait(0.3)
+                                        -- Use direct teleport for better precision
+                                        pcall(function()
+                                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(gunPosition + offset)
+                                        end)
                                         
-                                        -- Check if we got the gun
+                                        -- Wait to pick up gun
+                                        wait(0.2)
+                                        
+                                        -- Check if we got it
                                         if (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun")) or
                                            (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) then
-                                            -- Successfully got gun
-                                            if math.random(1, 2) == 1 then
-                                                OrionLib:MakeNotification({
-                                                    Name = "SkyX",
-                                                    Content = "Successfully got the gun!",
-                                                    Image = "rbxassetid://4483345998",
-                                                    Time = 2
-                                                })
-                                            end
-                                            
-                                            -- Equip the gun automatically if it's in backpack
-                                            if LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun") then
-                                                LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
-                                            end
-                                            
+                                            gotGun = true
                                             break
                                         end
+                                        
+                                        -- Let the player know we're still trying
+                                        if attempt % 3 == 0 then
+                                            OrionLib:MakeNotification({
+                                                Name = "SkyX",
+                                                Content = "Still trying to get gun (Attempt " .. attempt .. ")",
+                                                Image = "rbxassetid://4483345998",
+                                                Time = 1
+                                            })
+                                        end
                                     end
+                                    
+                                    -- If we got the gun, let the player know
+                                    if gotGun then
+                                        OrionLib:MakeNotification({
+                                            Name = "SkyX",
+                                            Content = "Successfully got the gun!",
+                                            Image = "rbxassetid://4483345998",
+                                            Time = 2
+                                        })
+                                        
+                                        -- Equip it automatically
+                                        if LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun") then
+                                            LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
+                                        end
+                                    else
+                                        -- Let the player know we failed
+                                        OrionLib:MakeNotification({
+                                            Name = "SkyX",
+                                            Content = "Failed to pick up gun. Will keep trying...",
+                                            Image = "rbxassetid://4483345998",
+                                            Time = 2
+                                        })
+                                    end
+                                else
+                                    print("Found a gun object but couldn't get position")
+                                end
+                            else
+                                -- Occasionally mention that no gun was found
+                                if math.random(1, 4) == 1 then
+                                    OrionLib:MakeNotification({
+                                        Name = "SkyX",
+                                        Content = "Sheriff died but couldn't find gun. Still searching...",
+                                        Image = "rbxassetid://4483345998",
+                                        Time = 2
+                                    })
                                 end
                             end
                         end
