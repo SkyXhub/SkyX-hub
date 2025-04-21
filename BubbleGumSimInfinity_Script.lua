@@ -1,6 +1,6 @@
 --[[
     🌊 SkyX Hub - Murder Mystery 2 Script (Orion Version) 🌊
-    FIXED STABLE VERSION 2.1
+    FIXED STABLE VERSION 2.133
     
     Features:
     - Anti-TP Detection System
@@ -1116,7 +1116,7 @@ AdvancedTab:AddToggle({
     end
 })
 
--- Auto Get Gun and Kill Murderer (FIXED COMPREHENSIVE VERSION)
+-- Auto Get Gun and Kill Murderer (FIXED DIRECT SHERIFF TRACKING VERSION)
 AdvancedTab:AddToggle({
     Name = "Auto Get Gun & Kill Murderer (When Sheriff Dies)",
     Default = false,
@@ -1128,14 +1128,10 @@ AdvancedTab:AddToggle({
         if Value then
             OrionLib:MakeNotification({
                 Name = "SkyX",
-                Content = "Auto Get Gun & Kill Murderer Enabled! (Only activates after sheriff dies)",
+                Content = "Auto Get Gun & Kill Murderer Enabled! (Tracks sheriff directly)",
                 Image = "rbxassetid://4483345998",
                 Time = 3
             })
-            
-            -- Variables to track sheriff state
-            getgenv().LastKnownSheriff = nil
-            getgenv().SheriffDied = false
             
             -- Define or update shootAt function to fix issues
             getgenv().shootAt = function(target)
@@ -1200,37 +1196,209 @@ AdvancedTab:AddToggle({
                 end
             end
             
-            -- Start the main tracking and gun collection logic
+            -- Clear any existing connections
+            if getgenv().SheriffDeathConnection then
+                getgenv().SheriffDeathConnection:Disconnect()
+            end
+            
+            if getgenv().SheriffTrackerConnection then
+                getgenv().SheriffTrackerConnection:Disconnect()
+            end
+            
+            -- Variables to track sheriff state
+            getgenv().LastKnownSheriffPos = nil
+            getgenv().CurrentSheriff = nil
+            getgenv().ConnectedSheriffs = {}
+            
+            -- Direct functions for gun collection and murderer targeting
+            local function collectGunAtPosition(position)
+                if not position then return false end
+                
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Sheriff died! Collecting gun at last position...",
+                    Image = "rbxassetid://4483345998",
+                    Time = 2
+                })
+                
+                -- Direct teleport to sheriff's death position
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    -- Teleport to position with slight variations
+                    for attempt = 1, 10 do
+                        local offset = Vector3.new(
+                            math.random(-10, 10) * 0.1,
+                            math.random(0, 20) * 0.1, -- Try slightly higher up 
+                            math.random(-10, 10) * 0.1
+                        )
+                        
+                        pcall(function()
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(position + offset)
+                        end)
+                        
+                        -- Check if we got the gun
+                        wait(0.2)
+                        if (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun")) or
+                           (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) then
+                            
+                            -- Success!
+                            OrionLib:MakeNotification({
+                                Name = "SkyX",
+                                Content = "Successfully got the gun!",
+                                Image = "rbxassetid://4483345998",
+                                Time = 2
+                            })
+                            
+                            -- Equip gun automatically
+                            if LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun") then
+                                LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
+                            end
+                            
+                            return true
+                        end
+                        
+                        -- If still trying after several attempts, notify
+                        if attempt % 3 == 0 then
+                            OrionLib:MakeNotification({
+                                Name = "SkyX",
+                                Content = "Still trying to get the gun (attempt " .. attempt .. ")",
+                                Image = "rbxassetid://4483345998",
+                                Time = 1
+                            })
+                        end
+                    end
+                    
+                    -- Fallback: If we couldn't get the gun at the death position, try finding it
+                    local gun = findDroppedGun()
+                    if gun then
+                        -- Extract position
+                        local gunPosition = nil
+                        if gun:IsA("Tool") and gun:FindFirstChild("Handle") then
+                            gunPosition = gun.Handle.Position
+                        elseif gun:IsA("BasePart") then
+                            gunPosition = gun.Position
+                        elseif gun:IsA("Model") and gun:FindFirstChildWhichIsA("BasePart") then
+                            gunPosition = gun:FindFirstChildWhichIsA("BasePart").Position
+                        end
+                        
+                        if gunPosition then
+                            -- Try teleporting to the found gun
+                            OrionLib:MakeNotification({
+                                Name = "SkyX",
+                                Content = "Trying alternative gun position...",
+                                Image = "rbxassetid://4483345998",
+                                Time = 2
+                            })
+                            
+                            for i = 1, 5 do
+                                pcall(function()
+                                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(gunPosition + Vector3.new(0, i-2, 0))
+                                end)
+                                
+                                wait(0.2)
+                                if (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun")) or
+                                   (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) then
+                                    
+                                    -- Success!
+                                    OrionLib:MakeNotification({
+                                        Name = "SkyX",
+                                        Content = "Successfully got the gun from alternative position!",
+                                        Image = "rbxassetid://4483345998",
+                                        Time = 2
+                                    })
+                                    
+                                    -- Equip gun automatically
+                                    if LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun") then
+                                        LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
+                                    end
+                                    
+                                    return true
+                                end
+                            end
+                        end
+                    end
+                    
+                    OrionLib:MakeNotification({
+                        Name = "SkyX",
+                        Content = "Failed to get gun. Will try again on next update.",
+                        Image = "rbxassetid://4483345998",
+                        Time = 2
+                    })
+                    return false
+                end
+                return false
+            end
+            
+            -- Start the sheriff tracking system
             spawn(function()
                 while getgenv().AutoGetGunKillMurderer do
                     pcall(function()
-                        -- First, identify the murderer and sheriff with improved detection functions
+                        -- Update murderer for targeting
                         getgenv().CurrentMurderer = findMurderer()
-                        getgenv().CurrentSheriff = findSheriff()
                         
-                        -- Check if sheriff died or disappeared
-                        if getgenv().LastKnownSheriff and getgenv().LastKnownSheriff.Character then
-                            if not getgenv().CurrentSheriff or 
-                              (getgenv().LastKnownSheriff ~= getgenv().CurrentSheriff) or
-                              (getgenv().LastKnownSheriff.Character:FindFirstChild("Humanoid") and 
-                               getgenv().LastKnownSheriff.Character.Humanoid.Health <= 0) then
-                                -- Sheriff died or changed
-                                getgenv().SheriffDied = true
+                        -- Find current sheriff if we don't have one
+                        if not getgenv().CurrentSheriff then
+                            getgenv().CurrentSheriff = findSheriff()
+                            
+                            -- If we found a sheriff, set up death tracking
+                            if getgenv().CurrentSheriff and getgenv().CurrentSheriff.Character then
+                                -- Store position regularly to keep track of where the sheriff is
+                                local sheriffHRP = getgenv().CurrentSheriff.Character:FindFirstChild("HumanoidRootPart")
+                                if sheriffHRP then
+                                    getgenv().LastKnownSheriffPos = sheriffHRP.Position
+                                end
                                 
-                                -- Notify user
-                                OrionLib:MakeNotification({
-                                    Name = "SkyX",
-                                    Content = "Sheriff died! Activating gun collection...",
-                                    Image = "rbxassetid://4483345998",
-                                    Time = 2
-                                })
+                                -- Connect to humanoid died event
+                                local humanoid = getgenv().CurrentSheriff.Character:FindFirstChild("Humanoid")
+                                if humanoid and not getgenv().ConnectedSheriffs[getgenv().CurrentSheriff.Name] then
+                                    print("Connected to sheriff: " .. getgenv().CurrentSheriff.Name)
+                                    
+                                    -- Store latest position constantly
+                                    spawn(function()
+                                        while getgenv().CurrentSheriff and getgenv().CurrentSheriff.Character and
+                                              getgenv().AutoGetGunKillMurderer do
+                                            pcall(function()
+                                                local hrp = getgenv().CurrentSheriff.Character:FindFirstChild("HumanoidRootPart")
+                                                if hrp then
+                                                    getgenv().LastKnownSheriffPos = hrp.Position
+                                                end
+                                            end)
+                                            wait(0.5)
+                                        end
+                                    end)
+                                    
+                                    -- Set up death connection
+                                    local sheriffDeathConnection
+                                    sheriffDeathConnection = humanoid.Died:Connect(function()
+                                        if not getgenv().AutoGetGunKillMurderer then 
+                                            sheriffDeathConnection:Disconnect()
+                                            return 
+                                        end
+                                        
+                                        print("Sheriff died! Attempting gun collection...")
+                                        
+                                        -- We need to collect the gun IMMEDIATELY at death position
+                                        OrionLib:MakeNotification({
+                                            Name = "SkyX",
+                                            Content = "Sheriff died! Collecting gun...",
+                                            Image = "rbxassetid://4483345998",
+                                            Time = 2
+                                        })
+                                        
+                                        local sheriffPos = getgenv().LastKnownSheriffPos
+                                        if sheriffPos then
+                                            -- Try to collect the gun immediately at the death position
+                                            collectGunAtPosition(sheriffPos)
+                                        end
+                                        
+                                        -- Clean up
+                                        getgenv().CurrentSheriff = nil
+                                        sheriffDeathConnection:Disconnect()
+                                    end)
+                                    
+                                    -- Store connection in the sheriff tracking list
+                                    getgenv().ConnectedSheriffs[getgenv().CurrentSheriff.Name] = true
+                                end
                             end
-                        end
-                        
-                        -- Initial sheriff detection at round start
-                        if not getgenv().LastKnownSheriff and getgenv().CurrentSheriff then
-                            getgenv().LastKnownSheriff = getgenv().CurrentSheriff
-                            print("Sheriff identified: " .. getgenv().CurrentSheriff.Name)
                         end
                         
                         -- If I already have the gun, focus on shooting the murderer
@@ -1283,167 +1451,6 @@ AdvancedTab:AddToggle({
                                     end
                                 end
                             end
-                        -- Only try to get the gun if sheriff has died
-                        elseif getgenv().SheriffDied then
-                            -- Look for dropped gun with our improved function
-                            getgenv().DroppedGun = findDroppedGun()
-                            
-                            -- If gun is dropped somewhere, get it
-                            if getgenv().DroppedGun then
-                                local gunPosition = nil
-                                
-                                -- Handle different gun object types (more comprehensive)
-                                if typeof(getgenv().DroppedGun) == "Instance" then
-                                    -- Case 1: Direct tool with handle
-                                    if getgenv().DroppedGun:IsA("Tool") and getgenv().DroppedGun:FindFirstChild("Handle") then
-                                        gunPosition = getgenv().DroppedGun.Handle.Position
-                                        print("Gun position found from Tool Handle")
-                                    
-                                    -- Case 2: Direct part
-                                    elseif getgenv().DroppedGun:IsA("BasePart") then
-                                        gunPosition = getgenv().DroppedGun.Position
-                                        print("Gun position found from BasePart")
-                                    
-                                    -- Case 3: Model with parts
-                                    elseif getgenv().DroppedGun:IsA("Model") then
-                                        -- Try to find primary part
-                                        if getgenv().DroppedGun.PrimaryPart then
-                                            gunPosition = getgenv().DroppedGun.PrimaryPart.Position
-                                            print("Gun position found from Model PrimaryPart")
-                                            
-                                        -- Or look for any part
-                                        elseif getgenv().DroppedGun:FindFirstChildWhichIsA("BasePart") then
-                                            gunPosition = getgenv().DroppedGun:FindFirstChildWhichIsA("BasePart").Position
-                                            print("Gun position found from Model's first BasePart")
-                                            
-                                        -- Deep search for handle or gun parts
-                                        else
-                                            for _, part in pairs(getgenv().DroppedGun:GetDescendants()) do
-                                                if part:IsA("BasePart") and 
-                                                   (part.Name == "Handle" or 
-                                                    part.Name:lower():find("gun") or 
-                                                    part.Name:lower():find("barrel")) then
-                                                    gunPosition = part.Position
-                                                    print("Gun position found from named part in descendants")
-                                                    break
-                                                end
-                                            end
-                                        end
-                                    end
-                                    
-                                    -- If we still don't have position, try one more method
-                                    if not gunPosition then
-                                        for _, part in pairs(getgenv().DroppedGun:GetDescendants()) do
-                                            if part:IsA("BasePart") then
-                                                gunPosition = part.Position
-                                                print("Gun position found from any descendant part")
-                                                break
-                                            end
-                                        end
-                                    end
-                                end
-                                
-                                if gunPosition then
-                                    -- Always notify player when gun is found
-                                    OrionLib:MakeNotification({
-                                        Name = "SkyX",
-                                        Content = "Sheriff died - Found gun! Collecting...",
-                                        Image = "rbxassetid://4483345998",
-                                        Time = 2
-                                    })
-                                    
-                                    -- Store current position for returning if failed
-                                    local originalPos = (LocalPlayer.Character and 
-                                                        LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and
-                                                        LocalPlayer.Character.HumanoidRootPart.Position) or 
-                                                        Vector3.new(0,0,0)
-                                    
-                                    -- Pause briefly before teleporting
-                                    wait(0.2)
-                                    
-                                    -- Use DIRECT teleport first for immediate positioning
-                                    pcall(function()
-                                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                                            -- Direct teleport to exact position
-                                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(gunPosition)
-                                        end
-                                    end)
-                                    
-                                    -- Wait to pick up the gun
-                                    wait(0.5)
-                                    
-                                    -- Use multiple teleport attempts with different heights and positions
-                                    local gotGun = false
-                                    for attempt = 1, 10 do -- Increased attempts
-                                        -- Try different heights and slight position variations
-                                        local offset = Vector3.new(
-                                            math.random(-1, 1) * 0.5, 
-                                            (attempt - 5) * 0.5,  -- Try different heights
-                                            math.random(-1, 1) * 0.5
-                                        )
-                                        
-                                        -- Use direct teleport for better precision
-                                        pcall(function()
-                                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(gunPosition + offset)
-                                        end)
-                                        
-                                        -- Wait to pick up gun
-                                        wait(0.2)
-                                        
-                                        -- Check if we got it
-                                        if (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun")) or
-                                           (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) then
-                                            gotGun = true
-                                            break
-                                        end
-                                        
-                                        -- Let the player know we're still trying
-                                        if attempt % 3 == 0 then
-                                            OrionLib:MakeNotification({
-                                                Name = "SkyX",
-                                                Content = "Still trying to get gun (Attempt " .. attempt .. ")",
-                                                Image = "rbxassetid://4483345998",
-                                                Time = 1
-                                            })
-                                        end
-                                    end
-                                    
-                                    -- If we got the gun, let the player know
-                                    if gotGun then
-                                        OrionLib:MakeNotification({
-                                            Name = "SkyX",
-                                            Content = "Successfully got the gun!",
-                                            Image = "rbxassetid://4483345998",
-                                            Time = 2
-                                        })
-                                        
-                                        -- Equip it automatically
-                                        if LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun") then
-                                            LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
-                                        end
-                                    else
-                                        -- Let the player know we failed
-                                        OrionLib:MakeNotification({
-                                            Name = "SkyX",
-                                            Content = "Failed to pick up gun. Will keep trying...",
-                                            Image = "rbxassetid://4483345998",
-                                            Time = 2
-                                        })
-                                    end
-                                else
-                                    print("Found a gun object but couldn't get position")
-                                end
-                            else
-                                -- Occasionally mention that no gun was found
-                                if math.random(1, 4) == 1 then
-                                    OrionLib:MakeNotification({
-                                        Name = "SkyX",
-                                        Content = "Sheriff died but couldn't find gun. Still searching...",
-                                        Image = "rbxassetid://4483345998",
-                                        Time = 2
-                                    })
-                                end
-                            end
                         end
                     end)
                     wait(0.3) -- Short wait for better responsiveness
@@ -1451,23 +1458,24 @@ AdvancedTab:AddToggle({
             end)
             
             -- Reset variables when game ends or character dies
-            local function resetSheriffDeathState()
-                getgenv().SheriffDied = false
-                getgenv().LastKnownSheriff = nil
+            local function resetSheriffTracker()
+                getgenv().CurrentSheriff = nil
+                getgenv().LastKnownSheriffPos = nil
+                getgenv().ConnectedSheriffs = {}
             end
             
             -- Setup event listeners for round tracking
             local function setupEvents()
                 -- Reset on player death
                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                    LocalPlayer.Character.Humanoid.Died:Connect(resetSheriffDeathState)
+                    LocalPlayer.Character.Humanoid.Died:Connect(resetSheriffTracker)
                 end
                 
                 -- Reset on new character
                 LocalPlayer.CharacterAdded:Connect(function(char)
-                    resetSheriffDeathState()
+                    resetSheriffTracker()
                     if char:FindFirstChild("Humanoid") then
-                        char.Humanoid.Died:Connect(resetSheriffDeathState)
+                        char.Humanoid.Died:Connect(resetSheriffTracker)
                     end
                 end)
             end
@@ -1484,8 +1492,14 @@ AdvancedTab:AddToggle({
             })
             
             -- Reset tracking variables
-            getgenv().SheriffDied = false
-            getgenv().LastKnownSheriff = nil
+            getgenv().CurrentSheriff = nil
+            getgenv().LastKnownSheriffPos = nil
+            getgenv().ConnectedSheriffs = {}
+            
+            -- Clear connections
+            if getgenv().SheriffDeathConnection then
+                getgenv().SheriffDeathConnection:Disconnect()
+            end
         end
     end
 })
@@ -1517,6 +1531,118 @@ ESPTab:AddColorpicker({
 -- Teleport Tab with proper section
 TeleportTab:AddSection({
     Name = "Teleport Locations"
+})
+
+-- Teleport to Gun button
+TeleportTab:AddButton({
+    Name = "Teleport to Gun",
+    Callback = function()
+        -- Search for the gun using our comprehensive function
+        local gun = findDroppedGun()
+        
+        if gun then
+            local gunPosition = nil
+            
+            -- Extract position based on gun object type
+            if typeof(gun) == "Instance" then
+                -- Case 1: Direct tool with handle
+                if gun:IsA("Tool") and gun:FindFirstChild("Handle") then
+                    gunPosition = gun.Handle.Position
+                    
+                -- Case 2: Direct part
+                elseif gun:IsA("BasePart") then
+                    gunPosition = gun.Position
+                    
+                -- Case 3: Model with parts
+                elseif gun:IsA("Model") then
+                    -- Try to find primary part
+                    if gun.PrimaryPart then
+                        gunPosition = gun.PrimaryPart.Position
+                        
+                    -- Or look for any part
+                    elseif gun:FindFirstChildWhichIsA("BasePart") then
+                        gunPosition = gun:FindFirstChildWhichIsA("BasePart").Position
+                        
+                    -- Deep search for handle or gun parts
+                    else
+                        for _, part in pairs(gun:GetDescendants()) do
+                            if part:IsA("BasePart") and 
+                               (part.Name == "Handle" or 
+                                part.Name:lower():find("gun") or 
+                                part.Name:lower():find("barrel")) then
+                                gunPosition = part.Position
+                                break
+                            end
+                        end
+                    end
+                end
+                
+                -- If we still don't have position, try one more method
+                if not gunPosition then
+                    for _, part in pairs(gun:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            gunPosition = part.Position
+                            break
+                        end
+                    end
+                end
+            end
+            
+            if gunPosition then
+                -- Notify player
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Teleporting to Gun!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 2
+                })
+                
+                -- Direct teleport to gun
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    -- Try a direct teleport first
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(gunPosition + Vector3.new(0, 2, 0))
+                    
+                    -- Try a few different heights to make sure we get it
+                    spawn(function()
+                        for i = 1, 5 do
+                            wait(0.2)
+                            -- Only continue if we haven't got the gun yet
+                            if not (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) and
+                               not (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun")) then
+                                
+                                pcall(function()
+                                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(gunPosition + Vector3.new(0, i-2, 0))
+                                end)
+                            else
+                                -- Notify on successful pickup
+                                OrionLib:MakeNotification({
+                                    Name = "SkyX",
+                                    Content = "Successfully got the gun!",
+                                    Image = "rbxassetid://4483345998",
+                                    Time = 2
+                                })
+                                break
+                            end
+                        end
+                    end)
+                end
+            else
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Found gun object but couldn't get position",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "No gun found in the map",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
 })
 
 -- Teleport to Lobby
