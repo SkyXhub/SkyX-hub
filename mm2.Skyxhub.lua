@@ -1,159 +1,113 @@
--- Example script for using SkyXhub's Visual UI Library
--- This demonstrates the core features of the library
-
--- Load the Visual UI Library
-local Visual = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/Skyx/refs/heads/main/Visual.lua"))()
-
--- Set a global namehub (used in some versions of the UI)
+--[[
+⚡ SkyX Hub - Demo Script ⚡
+Black Bloom Edition v2.0
+]]
+g
 getgenv().namehub = "SkyX Hub"
 
--- Create the main window
-local window = Visual:Window({
-    title = "SkyX Hub",  -- Title displayed in the UI
-    size = UDim2.new(0, 700, 0, 430),  -- Default window size
-    position = UDim2.new(0.5, -350, 0.5, -215)  -- Centered position
+-- Load Visual UI library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/Skyx/refs/heads/main/Visual.lua"))()
+
+-- Initialize window with configuration
+local Window = Library:CreateWindow({
+    Name = "SkyX Hub", 
+    Title = "SkyX Premium", -- Used in header
+    Theme = "BlackBloom",   -- BlackBloom, Ocean, Dark, Light
+    Logo = "rbxassetid://10993237411", -- SkyX logo
+    KeySystem = true,
+    KeySettings = {
+        Title = "SkyX Premium",
+        Key = {"SkyX", "Premium123"},
+        Note = "Join our Discord: discord.gg/skyx"
+    }
 })
 
--- Create main tab
-local mainTab = window:Tab({
-    name = "Main"
-})
+-- Create main features tab
+local MainTab = Window:CreateTab("Main", "rbxassetid://7733799185") -- Home icon
 
--- Add a label to the main tab
-mainTab:Label({
-    text = "Welcome to SkyX Hub!",
-    size = 18  -- Text size
-})
+-- Create section in the tab
+local FeaturesSection = MainTab:CreateSection("Features")
 
 -- Add a button
-mainTab:Button({
-    text = "Click Me",
-    callback = function()
-        print("Button clicked!")
+FeaturesSection:CreateButton({
+    Name = "Kill All",
+    Callback = function()
+        print("Kill All executed!")
+        -- This would contain actual kill functionality in-game
     end
 })
 
--- Add a toggle
-mainTab:Toggle({
-    text = "Enable Feature",
-    default = false,  -- Initial state
-    flag = "feature_enabled",  -- Saves the state
-    callback = function(value)
-        print("Feature enabled:", value)
+-- Add a toggle with flag (saved between sessions)
+FeaturesSection:CreateToggle({
+    Name = "Auto Farm",
+    CurrentValue = false,
+    Flag = "AutoFarmEnabled", -- Will be saved in flags
+    Callback = function(Value)
+        print("Auto Farm set to:", Value)
+        -- This would enable/disable auto farming in-game
     end
 })
 
--- Add a slider
-mainTab:Slider({
-    text = "Speed",
-    min = 0,
-    max = 100,
-    default = 50,
-    flag = "speed_value",  -- Saves the value
-    callback = function(value)
-        print("Speed set to:", value)
+-- Create Player tab
+local PlayerTab = Window:CreateTab("Player", "rbxassetid://7743875962") -- Player icon
+
+-- Create section for player modifications
+local PlayerSection = PlayerTab:CreateSection("Character")
+
+-- Add walkspeed slider
+PlayerSection:CreateSlider({
+    Name = "Walk Speed",
+    Range = {16, 500},
+    Increment = 1,
+    CurrentValue = 16,
+    Flag = "WalkSpeed",
+    Callback = function(Value)
+        print("Walk Speed set to:", Value)
+        -- Would normally do: game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
     end
 })
 
--- Create a combat tab
-local combatTab = window:Tab({
-    name = "Combat"
-})
-
--- Add a section for Aimbot settings
-local aimbotSection = combatTab:Section({
-    title = "Aimbot"
-})
-
--- Add toggles to the aimbot section
-aimbotSection:Toggle({
-    text = "Enable Aimbot",
-    default = false,
-    flag = "aimbot_enabled",
-    callback = function(value)
-        print("Aimbot enabled:", value)
+-- Add jump power toggle
+PlayerSection:CreateToggle({
+    Name = "Infinite Jump",
+    CurrentValue = false,
+    Flag = "InfJumpEnabled",
+    Callback = function(Value)
+        print("Infinite Jump set to:", Value)
+        -- Would set up infinite jump functionality
     end
 })
 
-aimbotSection:Toggle({
-    text = "Visible Check",
-    default = true,
-    flag = "aimbot_visible_check",
-    callback = function(value)
-        print("Visible check enabled:", value)
+-- Create Visuals tab
+local VisualsTab = Window:CreateTab("Visuals", "rbxassetid://7733799185") -- Eye icon
+
+-- Create ESP section
+local ESPSection = VisualsTab:CreateSection("ESP Options")
+
+-- Add ESP toggle
+ESPSection:CreateToggle({
+    Name = "Player ESP",
+    CurrentValue = false,
+    Flag = "ESPEnabled",
+    Callback = function(Value)
+        print("Player ESP set to:", Value)
+        -- Would enable player ESP
     end
 })
 
--- Add a slider to the aimbot section
-aimbotSection:Slider({
-    text = "Aimbot FOV",
-    min = 10,
-    max = 500,
-    default = 100,
-    flag = "aimbot_fov",
-    callback = function(value)
-        print("Aimbot FOV set to:", value)
+-- Create Settings tab
+local SettingsTab = Window:CreateTab("Settings", "rbxassetid://7743875782") -- Settings icon
+
+-- Create credits section
+local CreditsSection = SettingsTab:CreateSection("Credits")
+
+-- Add credits button
+CreditsSection:CreateButton({
+    Name = "Join Discord",
+    Callback = function()
+        print("Joining Discord...")
+        -- Would use setclipboard(discord link) or similar
     end
 })
 
--- Create a visuals tab
-local visualsTab = window:Tab({
-    name = "Visuals"
-})
-
--- Add ESP settings
-visualsTab:Toggle({
-    text = "ESP Enabled",
-    default = false,
-    flag = "esp_enabled",
-    callback = function(value)
-        print("ESP enabled:", value)
-    end
-})
-
-visualsTab:Toggle({
-    text = "Box ESP",
-    default = true,
-    flag = "esp_boxes",
-    callback = function(value)
-        print("Box ESP enabled:", value)
-    end
-})
-
-visualsTab:Toggle({
-    text = "Name ESP",
-    default = true,
-    flag = "esp_names",
-    callback = function(value)
-        print("Name ESP enabled:", value)
-    end
-})
-
-visualsTab:Toggle({
-    text = "Tracer ESP",
-    default = false,
-    flag = "esp_tracers",
-    callback = function(value)
-        print("Tracer ESP enabled:", value)
-    end
-})
-
--- Create a settings tab
-local settingsTab = window:Tab({
-    name = "Settings"
-})
-
--- Add a keybind to toggle the UI
-settingsTab:Keybind({
-    text = "Toggle UI",
-    default = Enum.KeyCode.RightShift,
-    flag = "ui_toggle",
-    callback = function()
-        window:Toggle()  -- Toggle UI visibility
-    end
-})
-
--- Save configuration
-Visual:SaveFlags()
-
-print("SkyX Hub loaded successfully!")
+print("⚡ SkyX Hub Demo loaded successfully! ⚡")
