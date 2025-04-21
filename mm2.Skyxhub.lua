@@ -1,5 +1,5 @@
 --[[
-    🌊 SkyX Hub - Murder Mystery 2 Script (WindUI Version) 🌊
+    🌊 SkyXddddd Hub - Murder Mystery 2 Script (WindUI Version) 🌊
     
     Features:
     - ESP (see all players through walls with role indicators)
@@ -843,6 +843,403 @@ TeleportTab:Button({
     end
 })
 
+-- Add advanced features section to the main tab
+MainTab:Divider({
+    Title = "Advanced Features"
+})
+
+-- Sheriff Aimbot 
+MainTab:Toggle({
+    Title = "Sheriff Aimbot",
+    Desc = "Auto-aim at the murderer when you're sheriff",
+    Default = false,
+    Callback = function(value)
+        getgenv().SheriffAimbot = value
+        
+        if value then
+            WindUI:Notify({
+                Title = "Sheriff Aimbot Enabled",
+                Content = "Will automatically aim at murderer when you have the gun",
+                Duration = 3
+            })
+            
+            spawn(function()
+                while getgenv().SheriffAimbot do
+                    local murderer = FindMurderer()
+                    local hasSheriffGun = false
+                    
+                    -- Check if player has gun
+                    if LocalPlayer.Backpack then
+                        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+                            if item.Name == "Gun" or item.Name:find("Gun") then
+                                hasSheriffGun = true
+                                LocalPlayer.Character.Humanoid:EquipTool(item)
+                                break
+                            end
+                        end
+                    end
+                    
+                    -- Check if gun is already equipped
+                    if LocalPlayer.Character then
+                        for _, item in pairs(LocalPlayer.Character:GetChildren()) do
+                            if item.Name == "Gun" or item.Name:find("Gun") then
+                                hasSheriffGun = true
+                                break
+                            end
+                        end
+                    end
+                    
+                    -- If player has gun and murderer is found, aim at murderer
+                    if hasSheriffGun and murderer and murderer.Character and 
+                    murderer.Character:FindFirstChild("HumanoidRootPart") and
+                    LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                        -- Create aimbot effect
+                        local gun = LocalPlayer.Character:FindFirstChild("Gun")
+                        if gun and gun:FindFirstChild("KnifeServer") and 
+                        gun.KnifeServer:FindFirstChild("ShootGun") then
+                            local args = {
+                                [1] = murderer.Character.HumanoidRootPart.Position
+                            }
+                            
+                            gun.KnifeServer.ShootGun:InvokeServer(unpack(args))
+                        end
+                    end
+                    
+                    wait(0.1)
+                end
+            end)
+        else
+            WindUI:Notify({
+                Title = "Sheriff Aimbot Disabled",
+                Content = "Sheriff Aimbot turned off",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Kill All (Murderer Feature)
+MainTab:Toggle({
+    Title = "Murderer Kill Aura",
+    Desc = "Automatically kill all players when you're murderer",
+    Default = false,
+    Callback = function(value)
+        getgenv().MurdererKillAura = value
+        
+        if value then
+            WindUI:Notify({
+                Title = "Murderer Kill Aura Enabled",
+                Content = "Will automatically kill nearby players when you're murderer",
+                Duration = 3
+            })
+            
+            spawn(function()
+                while getgenv().MurdererKillAura do
+                    local hasKnife = false
+                    
+                    -- Check if player has knife
+                    if LocalPlayer.Backpack then
+                        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+                            if item.Name == "Knife" or item.Name:find("Knife") then
+                                hasKnife = true
+                                LocalPlayer.Character.Humanoid:EquipTool(item)
+                                break
+                            end
+                        end
+                    end
+                    
+                    -- Check if knife is already equipped
+                    if LocalPlayer.Character then
+                        for _, item in pairs(LocalPlayer.Character:GetChildren()) do
+                            if item.Name == "Knife" or item.Name:find("Knife") then
+                                hasKnife = true
+                                break
+                            end
+                        end
+                    end
+                    
+                    -- If player has knife, kill nearby players
+                    if hasKnife and LocalPlayer.Character and 
+                    LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        for _, player in pairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character and 
+                            player.Character:FindFirstChild("HumanoidRootPart") and
+                            player.Character:FindFirstChild("Humanoid") and
+                            player.Character.Humanoid.Health > 0 then
+                                -- Calculate distance to target
+                                local distance = (player.Character.HumanoidRootPart.Position - 
+                                                 LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+                                
+                                -- Kill players within range
+                                if distance <= 15 then
+                                    local knife = LocalPlayer.Character:FindFirstChild("Knife")
+                                    if knife and knife:FindFirstChild("KnifeServer") and 
+                                    knife.KnifeServer:FindFirstChild("StabEvent") then
+                                        knife.KnifeServer.StabEvent:FireServer(player.Character.HumanoidRootPart)
+                                    end
+                                end
+                            end
+                        end
+                    end
+                    
+                    wait(0.1)
+                end
+            end)
+        else
+            WindUI:Notify({
+                Title = "Murderer Kill Aura Disabled",
+                Content = "Murderer Kill Aura turned off",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Auto Revolver
+MainTab:Toggle({
+    Title = "Auto Get Gun",
+    Desc = "Automatically get the gun when dropped",
+    Default = false,
+    Callback = function(value)
+        getgenv().AutoGetGun = value
+        
+        if value then
+            WindUI:Notify({
+                Title = "Auto Get Gun Enabled",
+                Content = "Will automatically collect the gun when dropped",
+                Duration = 3
+            })
+            
+            spawn(function()
+                while getgenv().AutoGetGun do
+                    local droppedGun = FindDroppedGun()
+                    
+                    if droppedGun and LocalPlayer.Character and 
+                    LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        local distance = (droppedGun.Position - 
+                                         LocalPlayer.Character.HumanoidRootPart.Position).magnitude
+                        
+                        if distance <= 50 then
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = droppedGun.CFrame
+                        end
+                    end
+                    
+                    wait(0.5)
+                end
+            end)
+        else
+            WindUI:Notify({
+                Title = "Auto Get Gun Disabled",
+                Content = "Auto Get Gun turned off",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Role ESP Colors
+VisualTab:Divider({
+    Title = "ESP Color Settings"
+})
+
+-- Innocent Color Picker
+VisualTab:ColorPicker({
+    Title = "Innocent Color",
+    Default = Color3.fromRGB(255, 255, 255),
+    Callback = function(value)
+        getgenv().InnocentColor = value
+    end
+})
+
+-- Murderer Color Picker
+VisualTab:ColorPicker({
+    Title = "Murderer Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(value)
+        getgenv().MurdererColor = value
+    end
+})
+
+-- Sheriff Color Picker
+VisualTab:ColorPicker({
+    Title = "Sheriff Color",
+    Default = Color3.fromRGB(0, 0, 255),
+    Callback = function(value)
+        getgenv().SheriffColor = value
+    end
+})
+
+-- Add Player Info section
+VisualTab:Divider({
+    Title = "Player Information"
+})
+
+-- Add player tracking
+VisualTab:Toggle({
+    Title = "Player Role Tracker",
+    Desc = "Show periodic notifications of player roles",
+    Default = false,
+    Callback = function(value)
+        getgenv().PlayerRoleTracker = value
+        
+        if value then
+            WindUI:Notify({
+                Title = "Role Tracker Enabled",
+                Content = "Will show periodic notifications of player roles",
+                Duration = 3
+            })
+            
+            spawn(function()
+                while getgenv().PlayerRoleTracker do
+                    pcall(function()
+                        local murderer = FindMurderer()
+                        local sheriff = FindSheriff()
+                        
+                        local murdererName = murderer and murderer.Name or "Unknown"
+                        local sheriffName = sheriff and sheriff.Name or "Unknown"
+                        
+                        WindUI:Notify({
+                            Title = "Player Roles",
+                            Content = "Murderer: " .. murdererName .. "\nSheriff: " .. sheriffName,
+                            Duration = 3
+                        })
+                    end)
+                    
+                    wait(10) -- Update every 10 seconds
+                end
+            end)
+        else
+            WindUI:Notify({
+                Title = "Role Tracker Disabled",
+                Content = "Role Tracker turned off",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Game-specific features
+MovementTab:Divider({
+    Title = "MM2 Map Features"
+})
+
+-- Add map-specific features
+MovementTab:Button({
+    Title = "Remove Kill Barriers",
+    Desc = "Remove all kill barriers in the map",
+    Callback = function()
+        -- Find and remove kill barriers
+        local barriers = 0
+        for _, part in pairs(workspace:GetDescendants()) do
+            if part:IsA("BasePart") and (part.Name:lower():find("barrier") or 
+               part.Name:lower():find("kill") or part.Name:lower():find("lava")) then
+                part.CanCollide = false
+                part.Transparency = 1
+                
+                -- If it has a TouchInterest, disable it
+                if part:FindFirstChildOfClass("TouchTransmitter") then
+                    part:FindFirstChildOfClass("TouchTransmitter"):Destroy()
+                end
+                
+                barriers = barriers + 1
+            end
+        end
+        
+        WindUI:Notify({
+            Title = "Barriers Removed",
+            Content = "Removed " .. barriers .. " kill barriers from the map",
+            Duration = 3
+        })
+    end
+})
+
+-- Anti-AFK
+TeleportTab:Divider({
+    Title = "Game Features"
+})
+
+TeleportTab:Toggle({
+    Title = "Anti-AFK",
+    Desc = "Prevent being kicked for inactivity",
+    Default = false,
+    Callback = function(value)
+        getgenv().AntiAFK = value
+        
+        if value then
+            -- Anti-AFK Connection
+            if not getgenv().AntiAFKConnection then
+                getgenv().AntiAFKConnection = game:GetService("Players").LocalPlayer.Idled:Connect(function()
+                    game:GetService("VirtualUser"):CaptureController()
+                    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
+                end)
+                
+                WindUI:Notify({
+                    Title = "Anti-AFK Enabled",
+                    Content = "You will not be kicked for inactivity",
+                    Duration = 3
+                })
+            end
+        else
+            -- Disconnect Anti-AFK
+            if getgenv().AntiAFKConnection then
+                getgenv().AntiAFKConnection:Disconnect()
+                getgenv().AntiAFKConnection = nil
+                
+                WindUI:Notify({
+                    Title = "Anti-AFK Disabled",
+                    Content = "Anti-AFK turned off",
+                    Duration = 3
+                })
+            end
+        end
+    end
+})
+
+-- Add X-Ray feature
+TeleportTab:Toggle({
+    Title = "X-Ray",
+    Desc = "See through walls and objects",
+    Default = false,
+    Callback = function(value)
+        getgenv().XRay = value
+        
+        if value then
+            -- Make walls transparent
+            for _, part in pairs(workspace:GetDescendants()) do
+                if part:IsA("BasePart") and part.Transparency < 1 and 
+                   not part:IsDescendantOf(game.Players.LocalPlayer.Character) and
+                   not part.Name:lower():find("gun") and not part.Name:lower():find("knife") then
+                    -- Remember original transparency
+                    if not part:GetAttribute("OriginalTransparency") then
+                        part:SetAttribute("OriginalTransparency", part.Transparency)
+                    end
+                    
+                    part.Transparency = 0.8
+                end
+            end
+            
+            WindUI:Notify({
+                Title = "X-Ray Enabled",
+                Content = "You can now see through walls",
+                Duration = 3
+            })
+        else
+            -- Restore original transparency
+            for _, part in pairs(workspace:GetDescendants()) do
+                if part:IsA("BasePart") and part:GetAttribute("OriginalTransparency") then
+                    part.Transparency = part:GetAttribute("OriginalTransparency")
+                end
+            end
+            
+            WindUI:Notify({
+                Title = "X-Ray Disabled",
+                Content = "X-Ray turned off",
+                Duration = 3
+            })
+        end
+    end
+})
+
 -- Initialize the script
 do
     -- Setup ESP system
@@ -867,6 +1264,27 @@ do
         
         if getgenv().Fly then
             ToggleFly(true)
+        end
+    end)
+    
+    -- Start anti-cheat bypass
+    spawn(function()
+        -- Create hook for anti-cheat functions
+        if hookmetamethod then
+            -- Hook namecall method to prevent anti-cheat detection
+            local oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+                local method = getnamecallmethod()
+                local args = {...}
+                
+                -- Prevent anti-cheat detection
+                if method == "FireServer" and self.Name == "RemoteEvent" and args[1] == "exploit" then
+                    return nil
+                end
+                
+                return oldNamecall(self, ...)
+            end)
+            
+            print("Anti-cheat bypass hook applied successfully")
         end
     end)
 end
