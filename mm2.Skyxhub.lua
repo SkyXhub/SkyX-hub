@@ -1,5 +1,5 @@
 --[[
-    🌊 SkyX.lua - Premium Roblox Script Hub 🌊
+    🌊 SkyyyyX.lua - Premium Roblox Script Hub 🌊
     
     A collection of ocean-themed game scripts and exploits for Roblox
     Built for mobile performance with Swift and other script platforms
@@ -134,6 +134,9 @@ local function showKeyWindow()
         Title = "Key Verification",
         Icon = "key"
     })
+    
+    -- Add Window:SelectTab(keyTab) to ensure the tab is displayed
+    keyWindow:SelectTab(keyTab)
     
     -- Add description
     keyTab:Divider({
@@ -364,21 +367,21 @@ function createMainWindow()
         Icon = "droplet",
         Author = "SkyX Scripts",
         Folder = "SkyXHub",
-        Size = UDim2.fromOffset(350, 300), -- Extra small UI for better mobile viewing
+        Size = UDim2.fromOffset(320, 240), -- Ultra-compact UI for mobile viewing
         Transparent = true,
-        Theme = "OceanBloom", -- Use bloom theme
+        Theme = "BlackBloom", -- Black with bloom glow effects
         HasOutline = true,
     })
     
-    -- Custom styling for the open button with bloom effect
+    -- Custom styling for the open button with bloom glow effect
     Window:EditOpenButton({
         Title = "Open SkyX Hub",
         Icon = "droplet",
         CornerRadius = UDim.new(0,10),
         StrokeThickness = 2,
         Color = ColorSequence.new(
-            Color3.fromRGB(95, 221, 255), -- Brighter blue for bloom effect
-            Color3.fromRGB(25, 89, 230)   -- Deeper blue for contrast
+            Color3.fromRGB(66, 135, 245), -- Bright blue glow
+            Color3.fromRGB(10, 10, 10)    -- Almost black
         ),
         Position = UDim2.new(0.5,0,0.5,0),
         Enabled = true,
@@ -402,23 +405,38 @@ function createMainWindow()
     -- Open welcome dialog
     WelcomeDialog:Open()
     
-    -- Create tabs with correct WindUI syntax (fixed)
-    local HomeTab = Window:CreateTab("Home", "rbxassetid://4483345998") -- Home icon
+    -- Create tabs with WindUI syntax
+    local HomeTab = Window:Tab({
+        Title = "Home", 
+        Icon = "home" -- Using Lucide icon
+    })
     
-    local ScriptsTab = Window:CreateTab("Game Scripts", "rbxassetid://4483345998") -- Game icon
+    local ScriptsTab = Window:Tab({
+        Title = "Game Scripts", 
+        Icon = "gamepad-2" -- Using Lucide icon
+    })
     
-    local UniversalTab = Window:CreateTab("Universal", "rbxassetid://4483345998") -- Globe icon
+    local UniversalTab = Window:Tab({
+        Title = "Universal", 
+        Icon = "globe" -- Using Lucide icon
+    })
     
-    local SettingsTab = Window:CreateTab("Settings", "rbxassetid://4483345998") -- Settings icon
+    local SettingsTab = Window:Tab({
+        Title = "Settings", 
+        Icon = "settings" -- Using Lucide icon
+    })
+    
+    -- Select the Home tab by default
+    Window:SelectTab(HomeTab)
     
     -- Home Tab Content
     HomeTab:Divider({
-        Title = "🌊 Welcome to SkyX Ocean Edition 🌊"
+        Title = "⚡ Welcome to SkyX Black Bloom Edition ⚡"
     })
     
     HomeTab:Label({
         Title = "SkyX Premium Script Hub",
-        Desc = "Welcome to SkyX Ocean Edition, the premium Roblox script hub with advanced features and beautiful ocean theme. This collection is designed for optimal performance on mobile platforms and works with all major script executors."
+        Desc = "Welcome to SkyX Black Bloom Edition, the premium Roblox script hub with advanced features and sleek black theme with glowing elements. This collection is designed for optimal performance on mobile platforms and works with all major script executors."
     })
     
     HomeTab:Label({
@@ -610,15 +628,15 @@ function createMainWindow()
     -- Key Info
     SettingsTab:Label({
         Title = "Key Information",
-        Desc = "License Type: " .. string.upper(userKeyType) .. "\nVersion: 2.0 Ocean Edition"
+        Desc = "License Type: " .. string.upper(userKeyType) .. "\nVersion: 2.0 Black Bloom Edition"
     })
     
     -- Theme settings
     SettingsTab:Dropdown({
         Title = "Theme",
         Desc = "Change the UI theme",
-        Default = "Ocean",
-        Items = {"Ocean", "Dark", "Light", "Midnight"},
+        Default = "BlackBloom",
+        Items = {"BlackBloom", "Dark", "Light", "Midnight"},
         Callback = function(value)
             WindUI:SetTheme(value)
             WindUI:Notify({
