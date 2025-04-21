@@ -1,9 +1,9 @@
 --[[
-    🌊 SkyyyyX.lua - Premium Roblox Script Hub 🌊
+    🌊 SkyX.lua - Premium Roblox Script Hub 🌊
     
-    A collection of ocean-themed game scripts and exploits for Roblox
+    A collection of black themed game scripts and exploits for Roblox
     Built for mobile performance with Swift and other script platforms
-    Features beautiful ocean UI theme across all components
+    Features beautiful black theme with bloom glow effects across all components
     
     Premium Access Features:
     - $5: Basic access to most popular scripts
@@ -11,22 +11,9 @@
     - $25: Reseller access with key generation (limit 5 basic keys)
 ]]
 
--- Check if running in a Roblox environment
-local isRobloxEnvironment = (function()
-    return type(game) == "userdata" and type(game.GetService) == "function"
-end)()
-
 -- Print startup message
-print("🌊 SkyX Premium Script Hub 🌊")
-print("Version 2.0 - Ocean Theme - Starting...")
-
-if not isRobloxEnvironment then
-    print("Warning: Not running in a Roblox environment!")
-    print("This script is designed to run within Roblox or a Roblox executor.")
-    print("Some features may not function outside of Roblox.")
-    print("\nTry running this script in a Roblox executor like Swift, Fluxus, or Hydrogen.")
-    return
-end
+print("⚡ SkyX Premium Script Hub ⚡")
+print("Version 2.0 - Black Bloom Edition - Starting...")
 
 -- Load Whitelist Key System
 local KeySystem
@@ -119,7 +106,7 @@ WindUI:SetTheme("BlackBloom")
 -- Function to show key verification window
 local function showKeyWindow()
     local keyWindow = WindUI:CreateWindow({
-        Title = "🌊 SkyX Premium Access 🌊",
+        Title = "⚡ SkyX Premium Access ⚡",
         Icon = "droplet",
         Author = "SkyX Scripts",
         Folder = "SkyXHub",
@@ -363,7 +350,7 @@ end
 function createMainWindow()
     -- Create the main window
     local Window = WindUI:CreateWindow({
-        Title = "🌊 SkyX SCRIPTS 🌊",
+        Title = "⚡ SkyX SCRIPTS ⚡",
         Icon = "droplet",
         Author = "SkyX Scripts",
         Folder = "SkyXHub",
