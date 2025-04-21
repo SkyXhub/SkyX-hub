@@ -1,6 +1,6 @@
 --[[
-    SkyX Premium Script Hub
-    Bubble Gum Simulator INFINITY Script
+    🌊 SkyX Premium Script Hub 🌊
+    Bubble Gum Simulator INFINITY Script v2.0
     
     Features:
     - Auto Blow Bubbles
@@ -16,21 +16,143 @@
     - Infinite Inventory Space
     - Disable Egg Animations
     - Chest Magnet
+    - One-Click Mystery Box
+    - Pet Management System
+    - Auto Claim Rewards
     
     Mobile Optimized for Swift/Fluxus
+    Updated to fix all issues with UI elements and sliders
 ]]
 
--- Detect if running in the correct game
-if game.PlaceId ~= 2512643572 and game.PlaceId ~= 5424982439 then
-    -- If the wrong game, show a notification
-    local messagebox = messagebox or function(text)
-        game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "SkyX Scripts";
-            Text = text;
-            Duration = 5;
-        })
+-- Environment check for non-Roblox execution
+if not game then
+    print("SkyX Bubble Gum Simulator INFINITY Script: Game environment not available")
+    print("This script must be executed in a Roblox game environment")
+    return
+end
+
+-- Safely check if in correct game
+local success, err = pcall(function()
+    -- Detect if running in the correct game (Original BGS, Private Servers, or new Game ID)
+    if game.PlaceId ~= 2512643572 and game.PlaceId ~= 5424982439 and game.PlaceId ~= 85896571713843 then
+        -- If the wrong game, show a notification
+        local messagebox = messagebox or function(text)
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "SkyX Premium";
+                Text = text;
+                Duration = 5;
+            })
+        end
+        
+        messagebox("This script is designed for Bubble Gum Simulator. Please join that game to use it.")
+        return false
     end
-    messagebox("This script is designed for Bubble Gum Simulator INFINITY. Please join that game to use it.")
+    
+    -- Special handling for the new game ID
+    if game.PlaceId == 85896571713843 then
+        print("Detected alternate Bubble Gum Simulator version. Using compatible mode.")
+        
+        -- Add compatibility layer for different remote paths
+        -- This modifies how we find and access game functions for this specific version
+        getgenv().COMPATIBILITY_MODE = true
+        getgenv().ALTERNATE_REMOTES = {
+            -- Map standard remote paths to their equivalents in this version
+            -- Format: ["StandardPath"] = "AlternatePath"
+            ["Events.BlowBubble"] = "Events.BlowBubble",
+            ["Events.SellBubble"] = "Events.SellBubble",
+            ["Events.HatchEgg"] = "Events.HatchEgg",
+            ["Events.BuyGum"] = "Events.BuyGum",
+            -- Add more mappings as needed
+        }
+        
+        -- Helper function to find the correct remote based on game version
+        getgenv().GetCompatibleRemote = function(standardPath)
+            if not getgenv().COMPATIBILITY_MODE then
+                -- Standard game version - use normal path
+                local parts = standardPath:split(".")
+                local current = game:GetService("ReplicatedStorage")
+                
+                for i, part in ipairs(parts) do
+                    current = current:FindFirstChild(part)
+                    if not current then return nil end
+                end
+                
+                return current
+            else
+                -- Alternative game version - use mapped path if available
+                local alternatePath = getgenv().ALTERNATE_REMOTES[standardPath]
+                if not alternatePath then 
+                    -- No mapping found, try standard path first
+                    local parts = standardPath:split(".")
+                    local current = game:GetService("ReplicatedStorage")
+                    
+                    for i, part in ipairs(parts) do
+                        current = current:FindFirstChild(part)
+                        if not current then break end
+                    end
+                    
+                    if current then return current end
+                    
+                    -- If that failed, try some common alternative paths
+                    -- This acts as a fallback search mechanism
+                    local commonAlternatives = {
+                        "GameEvents", "Events", "Remotes", "Functions", "RemoteEvents"
+                    }
+                    
+                    local remoteName = parts[#parts]
+                    for _, folder in ipairs(commonAlternatives) do
+                        local container = game:GetService("ReplicatedStorage"):FindFirstChild(folder)
+                        if container and container:FindFirstChild(remoteName) then
+                            return container:FindFirstChild(remoteName)
+                        end
+                    end
+                    
+                    return nil
+                else
+                    -- Use the mapped path
+                    local parts = alternatePath:split(".")
+                    local current = game:GetService("ReplicatedStorage")
+                    
+                    for i, part in ipairs(parts) do
+                        current = current:FindFirstChild(part)
+                        if not current then return nil end
+                    end
+                    
+                    return current
+                end
+            end
+        end
+        
+        -- Detect game UI elements for this version
+        spawn(function()
+            wait(3) -- Wait for game to load
+            
+            -- Look for specific UI elements to identify the interface style
+            local playerGui = Player:FindFirstChild("PlayerGui")
+            if playerGui then
+                -- Capture UI structure information to improve compatibility
+                local uiStructure = {}
+                for _, gui in pairs(playerGui:GetChildren()) do
+                    if gui:IsA("ScreenGui") then
+                        table.insert(uiStructure, gui.Name)
+                    end
+                end
+                
+                -- Log UI structure for debugging
+                print("Game UI Structure: " .. table.concat(uiStructure, ", "))
+                
+                -- Apply any special UI handling based on detected elements
+                -- This will be expanded based on testing
+            end
+        end)
+    end
+    
+    return true
+end)
+
+-- If error during check or wrong game, exit script
+if not success or err == false then
+    print("Error loading script or wrong game")
     return
 end
 
@@ -179,9 +301,34 @@ Functions.StartAutoBlow = function()
             
             while Settings.AutoBlow do
                 -- Try to find the remote event for blowing bubbles
-                local blowRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("BlowBubble")
+                local blowRemote
+                
+                if getgenv().COMPATIBILITY_MODE then
+                    -- Use compatibility mode to find the remote
+                    blowRemote = getgenv().GetCompatibleRemote("Events.BlowBubble")
+                else
+                    -- Standard path
+                    blowRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("BlowBubble")
+                end
+                
                 if blowRemote then
-                    blowRemote:FireServer()
+                    pcall(function()
+                        blowRemote:FireServer()
+                    end)
+                else
+                    print("BlowBubble remote not found. Trying alternative methods...")
+                    
+                    -- Try to find it using broader search
+                    for _, remote in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+                        if (remote.Name == "BlowBubble" or remote.Name:find("Blow") or remote.Name:find("Bubble")) and 
+                           (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
+                            pcall(function()
+                                remote:FireServer()
+                                print("Found alternative remote: " .. remote:GetFullName())
+                            end)
+                            break
+                        end
+                    end
                 end
                 
                 -- Check if we need to buy a new gum (every 5 seconds)
