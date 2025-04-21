@@ -1,32 +1,92 @@
 --[[
-    🌊 SkyX Hub - Blox Fruits Script 🌊
-    Premium Ocean Theme Edition
+    🌊 SkyX Hub - Blox Fruits Scriptss 🌊
+    Premium Ocean Theme Edition v2.0.3
     Made for Swift, Fluxus, and Hydrogen executors
-    Mobile-Optimized UI Design
+    Mobile-Optimized UI Design with Fixed Auto Farm
+    
+    Discord: https://discord.gg/ugyvkJXhFh
 ]]
 
--- Game Check
-if game.PlaceId ~= 2753915549 and game.PlaceId ~= 4442272183 and game.PlaceId ~= 7449423635 then
-    print("🌊 SkyX Hub 🌊: This script is only for Blox Fruits!")
+-- Services (with error handling)
+local Players, ReplicatedStorage, RunService, TweenService, VirtualUser, HttpService, UserInputService
+
+-- Safe service loading with pcall
+local function safeGetService(serviceName)
+    local success, service = pcall(function()
+        return game:GetService(serviceName)
+    end)
+    
+    if not success then
+        warn("SkyX Hub: Failed to get service " .. serviceName)
+        -- Create minimal mock for essential services
+        if serviceName == "VirtualUser" then
+            return {
+                CaptureController = function() end,
+                ClickButton1 = function() end
+            }
+        end
+    end
+    
+    return service
+end
+
+-- Initialize all services
+Players = safeGetService("Players")
+ReplicatedStorage = safeGetService("ReplicatedStorage")
+RunService = safeGetService("RunService")
+TweenService = safeGetService("TweenService")
+VirtualUser = safeGetService("VirtualUser")
+HttpService = safeGetService("HttpService")
+UserInputService = safeGetService("UserInputService")
+
+-- Game Check with error handling
+local isValidGame = false
+pcall(function()
+    if game.PlaceId == 2753915549 or game.PlaceId == 4442272183 or game.PlaceId == 7449423635 then
+        isValidGame = true
+    end
+end)
+
+if not isValidGame then
+    warn("🌊 SkyX Hub 🌊: This script is only for Blox Fruits!")
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "SkyX Hub",
+            Text = "This script is only for Blox Fruits!",
+            Duration = 5
+        })
+    end)
     return
 end
 
--- Services
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local VirtualUser = game:GetService("VirtualUser")
-local TeleportService = game:GetService("TeleportService")
-local HttpService = game:GetService("HttpService")
-local UserInputService = game:GetService("UserInputService")
+print("🌊 SkyX Hub 🌊: Blox Fruits detected, initializing script...")
 
--- Main Variables
-local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-local Camera = workspace.CurrentCamera
+-- Main Variables with error handling
+local Player, Character, Humanoid, HumanoidRootPart, Camera
+
+-- Safely initialize player variables
+pcall(function()
+    Player = Players.LocalPlayer
+    
+    -- Handle Character
+    local function setupCharacter(char)
+        Character = char
+        Humanoid = Character:WaitForChild("Humanoid", 5)
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart", 5)
+        print("SkyX: Character loaded successfully")
+    end
+    
+    -- Initial setup
+    if Player.Character then
+        setupCharacter(Player.Character)
+    end
+    
+    -- Handle respawning
+    Player.CharacterAdded:Connect(setupCharacter)
+    
+    -- Camera setup
+    Camera = workspace.CurrentCamera
+end)
 
 -- Global Settings (can be changed by player)
 getgenv().Settings = {
@@ -42,6 +102,12 @@ getgenv().Settings = {
     FarmDistance = 8,
     AutoQuest = true,
     AutoReQuest = true,  -- Auto re-accept quest when completed
+    QuestTargetMobsOnly = true, -- Only target mobs needed for current quest
+    
+    -- Weapon Selection
+    WeaponType = "Melee", -- Melee, Sword, Gun, Fruit
+    AutoSelectBestWeapon = true, -- Auto select best weapon of chosen type
+    SelectedWeapon = "", -- Selected specific weapon name if not auto selecting
     
     -- Auto Farm Options
     AutoCollectDrops = true,
@@ -309,65 +375,244 @@ local function EquipWeapon(weaponName)
     return false
 end
 
-local function EquipBestWeapon()
-    local weapons = {}
+-- Determine weapon type (gun, sword, fruit, etc)
+local function GetWeaponType(tool)
+    if not tool then return "Unknown" end
     
-    for _, tool in pairs(Player.Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            table.insert(weapons, tool)
+    local name = tool.Name:lower()
+    
+    -- Check for guns
+    if name:find("gun") or name:find("rifle") or name:find("flintlock") or name:find("musket") or
+       name:find("bazooka") or name:find("cannon") then
+        return "Gun"
+    end
+    
+    -- Check for swords
+    if name:find("sword") or name:find("blade") or name:find("cutlass") or name:find("saber") then
+        return "Sword"  
+    end
+    
+    -- Check for fruits/powers
+    if name:find("fruit") or name:find("-") or tool:FindFirstChild("EatRemote") then
+        return "Fruit"
+    end
+    
+    -- Check for fighting styles
+    if name == "combat" or name:find("dragon") or name:find("superhuman") or 
+       name:find("karate") or name:find("talon") or name:find("dough") or
+       name:find("electric") or name:find("death") or name:find("godhuman") then
+        return "Melee"
+    end
+    
+    -- Default to generic
+    return "Unknown"
+end
+
+local function EquipBestWeapon()
+    -- If user has specified a weapon, try to equip it directly
+    if getgenv().Settings.SelectedWeapon ~= "" then
+        if EquipWeapon(getgenv().Settings.SelectedWeapon) then
+            return true
         end
     end
     
-    table.sort(weapons, function(a, b)
+    -- Auto weapon selection is disabled, don't continue
+    if not getgenv().Settings.AutoSelectBestWeapon then
+        return false
+    end
+    
+    local weapons = {}
+    local weaponsByType = {
+        Melee = {},
+        Sword = {},
+        Gun = {},
+        Fruit = {}
+    }
+    
+    -- Collect all weapons from backpack
+    for _, tool in pairs(Player.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            table.insert(weapons, tool)
+            
+            -- Sort by weapon type
+            local weaponType = GetWeaponType(tool)
+            if weaponsByType[weaponType] then
+                table.insert(weaponsByType[weaponType], tool)
+            end
+        end
+    end
+    
+    -- If already equipped, check that too
+    for _, tool in pairs(Player.Character:GetChildren()) do
+        if tool:IsA("Tool") then
+            local weaponType = GetWeaponType(tool)
+            -- If it's already the right type, just keep it equipped
+            if weaponType == getgenv().Settings.WeaponType then
+                return true
+            end
+        end
+    end
+    
+    -- Get the weapons of the selected type
+    local targetWeapons = weaponsByType[getgenv().Settings.WeaponType] or {}
+    
+    -- If no weapons of the selected type, fall back to all weapons
+    if #targetWeapons == 0 then
+        targetWeapons = weapons
+    end
+    
+    -- Sort weapons by mastery/power
+    table.sort(targetWeapons, function(a, b)
         local aMastery = 0
         local bMastery = 0
         
         pcall(function()
-            aMastery = a.ToolTip.Value
+            aMastery = a.ToolTip and a.ToolTip.Value or 0
         end)
         
         pcall(function()
-            bMastery = b.ToolTip.Value
+            bMastery = b.ToolTip and b.ToolTip.Value or 0
         end)
+        
+        -- If masteries are equal, higher level weapon is better
+        if aMastery == bMastery then
+            local aLevel = 0
+            local bLevel = 0
+            
+            pcall(function()
+                aLevel = a.Level and a.Level.Value or 0
+            end)
+            
+            pcall(function()
+                bLevel = b.Level and b.Level.Value or 0
+            end)
+            
+            return aLevel > bLevel
+        end
         
         return aMastery > bMastery
     end)
     
-    if #weapons > 0 then
-        return EquipWeapon(weapons[1].Name)
+    -- Equip the best weapon
+    if #targetWeapons > 0 then
+        return EquipWeapon(targetWeapons[1].Name)
     end
     
+    -- If we get here, we couldn't find any appropriate weapon
     return false
+end
+
+-- Get the current quest's target mob name
+local function GetQuestTargetMobName()
+    local targetMobName = nil
+    
+    pcall(function()
+        if Player.PlayerGui and Player.PlayerGui.Main and Player.PlayerGui.Main.Quest.Visible then
+            local questLabel = Player.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text
+            
+            -- Extract mob name from quest title (format is usually "Defeat X Mob Name")
+            local mobMatch = questLabel:match("Defeat%s+%d+%s+(.+)")
+            
+            if mobMatch then
+                targetMobName = mobMatch:gsub("%s+$", "") -- Remove trailing spaces
+                print("Quest target mob: " .. targetMobName)
+            end
+        end
+    end)
+    
+    return targetMobName
 end
 
 local function GetNearestMob()
     local nearest = nil
     local minDistance = math.huge
     
-    for _, v in pairs(workspace.Enemies:GetChildren()) do
-        if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            local distance = (HumanoidRootPart.Position - v.HumanoidRootPart.Position).magnitude
+    -- Debug print
+    print("🌊 SkyX Hub: Searching for mobs...")
+    print("Selected mob type: " .. getgenv().Settings.MobSelected)
+    
+    -- Make sure character exists
+    if not HumanoidRootPart then
+        print("HumanoidRootPart not found, waiting for character...")
+        Character = Player.Character or Player.CharacterAdded:Wait()
+        Humanoid = Character:WaitForChild("Humanoid")
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+        if not HumanoidRootPart then
+            print("Still can't find HumanoidRootPart!")
+            return nil
+        end
+    end
+    
+    -- Safety check for workspace
+    if not workspace or not workspace:FindFirstChild("Enemies") then
+        print("Enemies folder not found!")
+        return nil
+    end
+    
+    -- Check if we should target quest mobs only
+    local questMobName = nil
+    if getgenv().Settings.QuestTargetMobsOnly then
+        questMobName = GetQuestTargetMobName()
+        if questMobName then
+            print("Focusing on quest target: " .. questMobName)
+        else
+            print("No active quest found, using regular target selection")
+        end
+    end
+    
+    local mobCount = 0
+    
+    -- Search for mobs with pcall for safety
+    pcall(function()
+        for _, v in pairs(workspace.Enemies:GetChildren()) do
+            mobCount = mobCount + 1
             
-            -- Check if the mob matches our selected option or if we're using "Closest to Level"
-            if getgenv().Settings.MobSelected == "Closest to Level" then
-                local mob_level = 0
-                pcall(function()
-                    mob_level = v:FindFirstChild("Level") and v.Level.Value or 0
-                end)
+            if v and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
+                local distance = (HumanoidRootPart.Position - v.HumanoidRootPart.Position).magnitude
                 
-                -- Target mobs close to player level (within 20 levels)
-                local player_level = GetLevel()
-                if math.abs(mob_level - player_level) <= 20 and distance < minDistance then
+                -- First priority: Quest target if quest targeting is enabled
+                if questMobName and v.Name:find(questMobName) and distance < minDistance then
                     minDistance = distance
                     nearest = v
-                end
-            elseif v.Name:find(getgenv().Settings.MobSelected:gsub("%[.-%]", ""):trim()) then
-                if distance < minDistance then
-                    minDistance = distance
-                    nearest = v
+                
+                -- Second priority: User selected mob or level-based selection
+                elseif not questMobName or not getgenv().Settings.QuestTargetMobsOnly then
+                    -- Check if the mob matches our selected option or if we're using "Closest to Level"
+                    if getgenv().Settings.MobSelected == "Closest to Level" then
+                        local mob_level = 0
+                        pcall(function()
+                            mob_level = v:FindFirstChild("Level") and v.Level.Value or 0
+                        end)
+                        
+                        -- Target mobs close to player level (within 20 levels)
+                        local player_level = GetLevel()
+                        if math.abs(mob_level - player_level) <= 20 and distance < minDistance then
+                            minDistance = distance
+                            nearest = v
+                        end
+                    else
+                        -- Extract name from the full mob name with level
+                        local selectedName = getgenv().Settings.MobSelected:gsub("%[.-%]", ""):trim()
+                        
+                        -- Try exact match first
+                        if v.Name:find(selectedName) and distance < minDistance then
+                            minDistance = distance
+                            nearest = v
+                        end
+                    end
                 end
             end
         end
+    end)
+    
+    if nearest then
+        print("Found target: " .. nearest.Name .. " at distance: " .. minDistance)
+        -- Print indicator if this is a quest mob
+        if questMobName and nearest.Name:find(questMobName) then
+            print("✅ This is a quest target mob!")
+        end
+    else
+        print("No suitable targets found. Searched " .. mobCount .. " mobs.")
     end
     
     return nearest
@@ -443,20 +688,136 @@ local function FastAttack()
         if currentTime - AttackCooldown >= getgenv().Settings.AttackDelay then
             -- Fast attack method for Blox Fruits with precise delay
             for i = 1, 3 do -- Multiple attacks per burst
+                if not CurrentTarget or not CurrentTarget:FindFirstChild("HumanoidRootPart") then
+                    return -- Exit if no valid target
+                end
+                
                 local args = {
                     [1] = CurrentTarget.HumanoidRootPart.Position
                 }
                 
-                -- Use the equipped tool's remote to attack
+                -- Get equipped weapon and weapon type
                 local equipped = Player.Character:FindFirstChildOfClass("Tool")
+                local weaponType = getgenv().Settings.WeaponType
+                
+                -- Weapon type specific attack methods
                 if equipped then
-                    for _, v in pairs(equipped:GetDescendants()) do
-                        if v:IsA("RemoteEvent") and (v.Name == "Attack" or string.find(v.Name:lower(), "attack")) then
-                            v:FireServer(unpack(args))
-                            break
-                        end
+                    if weaponType == "Melee" then
+                        -- Melee-specific attack methods
+                        pcall(function()
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            local Combat = ReplicatedStorage:FindFirstChild("Combat") or 
+                                         ReplicatedStorage:FindFirstChild("CombatFramework")
+                            
+                            if Combat and Combat:FindFirstChild("Remotes") then
+                                Combat.Remotes.Combat:FireServer(unpack(args))
+                            elseif ReplicatedStorage:FindFirstChild("Remotes") then
+                                for _, remote in pairs(ReplicatedStorage.Remotes:GetChildren()) do
+                                    if remote:IsA("RemoteEvent") and 
+                                      (remote.Name == "Combat" or string.find(remote.Name:lower(), "punch") or string.find(remote.Name:lower(), "melee")) then
+                                        remote:FireServer(unpack(args))
+                                    end
+                                end
+                            end
+                        end)
+                    elseif weaponType == "Sword" then
+                        -- Sword-specific attack methods
+                        pcall(function()
+                            -- Try to find sword-specific remotes
+                            for _, v in pairs(equipped:GetDescendants()) do
+                                if v:IsA("RemoteEvent") and 
+                                  (v.Name == "Attack" or v.Name == "SwordAttack" or string.find(v.Name:lower(), "slash")) then
+                                    v:FireServer(unpack(args))
+                                end
+                            end
+                            
+                            -- Also try generic attack remotes
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            if ReplicatedStorage:FindFirstChild("Remotes") then
+                                for _, remote in pairs(ReplicatedStorage.Remotes:GetChildren()) do
+                                    if remote:IsA("RemoteEvent") and 
+                                      (remote.Name == "SwordAttack" or string.find(remote.Name:lower(), "sword")) then
+                                        remote:FireServer(unpack(args))
+                                    end
+                                end
+                            end
+                        end)
+                    elseif weaponType == "Gun" then
+                        -- Gun-specific attack methods
+                        pcall(function()
+                            -- Try to find gun-specific remotes
+                            for _, v in pairs(equipped:GetDescendants()) do
+                                if v:IsA("RemoteEvent") and 
+                                  (v.Name == "Fire" or v.Name == "Shoot" or string.find(v.Name:lower(), "gun")) then
+                                    v:FireServer(CurrentTarget.HumanoidRootPart.Position)
+                                end
+                            end
+                            
+                            -- Also try generic attack remotes for guns
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            if ReplicatedStorage:FindFirstChild("Remotes") then
+                                for _, remote in pairs(ReplicatedStorage.Remotes:GetChildren()) do
+                                    if remote:IsA("RemoteEvent") and 
+                                      (remote.Name == "ShootGun" or string.find(remote.Name:lower(), "gun") or 
+                                       string.find(remote.Name:lower(), "shoot")) then
+                                        remote:FireServer(CurrentTarget.HumanoidRootPart.Position)
+                                    end
+                                end
+                            end
+                        end)
+                    elseif weaponType == "Fruit" then
+                        -- Fruit-specific attack methods
+                        pcall(function()
+                            -- Try to find fruit power remotes
+                            for _, v in pairs(equipped:GetDescendants()) do
+                                if v:IsA("RemoteEvent") and 
+                                  (string.find(v.Name:lower(), "fruit") or string.find(v.Name:lower(), "power")) then
+                                    v:FireServer(CurrentTarget.HumanoidRootPart.Position)
+                                end
+                            end
+                            
+                            -- Also try generic attack remotes for fruits
+                            local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                            if ReplicatedStorage:FindFirstChild("Remotes") then
+                                for _, remote in pairs(ReplicatedStorage.Remotes:GetChildren()) do
+                                    if remote:IsA("RemoteEvent") and 
+                                      (string.find(remote.Name:lower(), "fruit") or 
+                                       string.find(remote.Name:lower(), "power")) then
+                                        remote:FireServer(CurrentTarget.HumanoidRootPart.Position)
+                                    end
+                                end
+                            end
+                        end)
                     end
+                    
+                    -- Generic attack attempts for all weapon types
+                    pcall(function()
+                        -- Try to use any attack remote in the equipped tool
+                        for _, v in pairs(equipped:GetDescendants()) do
+                            if v:IsA("RemoteEvent") and (v.Name == "Attack" or 
+                               string.find(v.Name:lower(), "attack") or 
+                               string.find(v.Name:lower(), "damage")) then
+                                v:FireServer(unpack(args))
+                                break
+                            end
+                        end
+                        
+                        -- Try standard combat remote as fallback
+                        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                        if ReplicatedStorage:FindFirstChild("Remotes") and 
+                           ReplicatedStorage.Remotes:FindFirstChild("Combat") then
+                            ReplicatedStorage.Remotes.Combat:FireServer(unpack(args))
+                        end
+                    end)
                 end
+                
+                -- Also try mouse click simulation for better compatibility
+                pcall(function()
+                    VirtualUser:CaptureController()
+                    VirtualUser:ClickButton1(Vector2.new(900, 400))
+                end)
+                
+                wait(0.05) -- Small delay between attacks in burst
             end
             
             -- Set cooldown
@@ -564,11 +925,125 @@ local function StartAutoFarm()
         AcceptQuest()
     end
     
+    -- Print debug info
+    print("🌊 SkyX Hub: Auto Farm starting...")
+    print("Settings: Farm Method = " .. getgenv().Settings.FarmMethod)
+    print("Settings: Attack Delay = " .. getgenv().Settings.AttackDelay)
+    print("Settings: AutoBringMob = " .. tostring(getgenv().Settings.AutoBringMob))
+    
+    -- Make sure character is ready
+    if not Character or not Character:FindFirstChild("HumanoidRootPart") then
+        Character = Player.Character or Player.CharacterAdded:Wait()
+        Humanoid = Character:WaitForChild("Humanoid")
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    end
+    
+    -- Create a separate connection for bringing mobs
+    local BringMobConnection = nil
+    if getgenv().Settings.AutoBringMob then
+        BringMobConnection = RunService.Heartbeat:Connect(function()
+            if not getgenv().Settings.AutoBringMob or not getgenv().Settings.AutoFarm then return end
+            
+            if CurrentTarget and CurrentTarget:FindFirstChild("HumanoidRootPart") and 
+               CurrentTarget:FindFirstChild("Humanoid") and CurrentTarget.Humanoid.Health > 0 then
+                
+                pcall(function()
+                    -- Try to find the enemies folder (differs in games/updates)
+                    local enemiesFolder = workspace:FindFirstChild("Enemies") or 
+                                         workspace:FindFirstChild("Mobs") or 
+                                         workspace
+                    
+                    -- Get all mobs in workspace that are similar to the current target
+                    for _, mob in pairs(enemiesFolder:GetChildren()) do
+                        -- If quest targeting is on, only bring quest-specific mobs if we know what they are
+                        local shouldBringMob = false
+                        
+                        if getgenv().Settings.QuestTargetMobsOnly then
+                            local questMobName = GetQuestTargetMobName()
+                            
+                            -- If we have a quest target and this mob matches it, bring it
+                            if questMobName and mob.Name:find(questMobName) then
+                                shouldBringMob = true
+                            -- If no quest target but mob has same name as current target, bring it
+                            elseif not questMobName and mob.Name == CurrentTarget.Name and mob ~= CurrentTarget then
+                                shouldBringMob = true
+                            end
+                        else
+                            -- If quest targeting is off, bring all mobs of the same type
+                            if mob.Name == CurrentTarget.Name and mob ~= CurrentTarget then
+                                shouldBringMob = true
+                            end
+                        end
+                        
+                        if shouldBringMob and
+                           mob:FindFirstChild("HumanoidRootPart") and 
+                           mob:FindFirstChild("Humanoid") and 
+                           mob.Humanoid.Health > 0 then
+                            
+                            -- Calculate distance to avoid bringing mobs that are too far
+                            local distance = (mob.HumanoidRootPart.Position - CurrentTarget.HumanoidRootPart.Position).Magnitude
+                            
+                            -- Only bring mobs within reasonable distance (350 studs)
+                            if distance <= 350 then
+                                -- Teleport the mob to current target
+                                mob.HumanoidRootPart.CFrame = CurrentTarget.HumanoidRootPart.CFrame * CFrame.new(0, 0, 0)
+                                
+                                -- Make the mob easier to hit
+                                if mob.HumanoidRootPart:FindFirstChild("BodyVelocity") == nil then
+                                    local bodyVelocity = Instance.new("BodyVelocity")
+                                    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                                    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                                    bodyVelocity.Parent = mob.HumanoidRootPart
+                                end
+                                
+                                -- Disable collision and make unanchored
+                                mob.HumanoidRootPart.CanCollide = false
+                                mob.HumanoidRootPart.Anchored = false
+                                
+                                -- Force disable NPC controls
+                                if mob:FindFirstChild("Humanoid") then
+                                    mob.Humanoid:ChangeState(11) -- ENUM.Humanoid.StateType.Physics
+                                end
+                                
+                                -- Increase hitbox size
+                                mob.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
+                                mob.HumanoidRootPart.Transparency = 0.5
+                            end
+                        end
+                    end
+                end)
+            end
+        end)
+    end
+    
     AutoFarmConnection = RunService.Heartbeat:Connect(function()
-        if not getgenv().Settings.AutoFarm then return end
+        if not getgenv().Settings.AutoFarm then 
+            -- Clean up BringMobConnection if it exists
+            if BringMobConnection then
+                BringMobConnection:Disconnect()
+                BringMobConnection = nil
+            end
+            return 
+        end
         
         -- Get target mob
         CurrentTarget = GetNearestMob()
+        
+        -- Handle no target found
+        if not CurrentTarget then
+            pcall(function()
+                -- Try moving to mob spawn areas if no target found
+                local spawnAreas = {
+                    CFrame.new(1057, 17, 1547), -- Bandits
+                    CFrame.new(-1599, 37, 153), -- Monkeys
+                    CFrame.new(897, 7, 4388)    -- Desert Bandits
+                }
+                
+                HumanoidRootPart.CFrame = spawnAreas[math.random(1, #spawnAreas)]
+                wait(1)
+            end)
+            return
+        end
         
         -- Check if quest is completed to accept new quest
         if getgenv().Settings.AutoQuest and getgenv().Settings.AutoReQuest then
@@ -583,8 +1058,37 @@ local function StartAutoFarm()
         end
         
         if CurrentTarget and CurrentTarget:FindFirstChild("HumanoidRootPart") and CurrentTarget:FindFirstChild("Humanoid") and CurrentTarget.Humanoid.Health > 0 then
-            -- Ensure weapon is equipped
-            EquipBestWeapon()
+            -- Ensure weapon is equipped based on selected weapon type
+            if not EquipBestWeapon() then
+                -- Print debug info if weapon equip fails
+                print("🌊 SkyX Hub: Failed to equip preferred weapon, trying fallback...")
+                
+                -- Try to equip any weapon as fallback
+                local equipped = false
+                pcall(function()
+                    for _, tool in pairs(Player.Backpack:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            Player.Character.Humanoid:EquipTool(tool)
+                            equipped = true
+                            print("🌊 SkyX Hub: Equipped fallback weapon: " .. tool.Name)
+                            break
+                        end
+                    end
+                end)
+                
+                if not equipped then
+                    print("🌊 SkyX Hub: No weapons found to equip!")
+                end
+            else
+                -- Get info about equipped weapon for debugging
+                pcall(function()
+                    local equipped = Player.Character:FindFirstChildOfClass("Tool")
+                    if equipped then
+                        print("🌊 SkyX Hub: Successfully equipped " .. equipped.Name .. 
+                              " (Type: " .. getgenv().Settings.WeaponType .. ")")
+                    end
+                end)
+            end
             
             -- Get position based on farm method
             local targetPosition = CurrentTarget.HumanoidRootPart.Position
@@ -608,22 +1112,60 @@ local function StartAutoFarm()
                 farmPosition = targetCFrame * CFrame.new(x, 0, z)
             end
             
-            -- Teleport to farm position
+            -- Teleport to farm position with fallback
             if farmPosition then
-                HumanoidRootPart.CFrame = farmPosition
-                
-                -- Look at the target
-                local lookAt = CFrame.new(HumanoidRootPart.Position, targetPosition)
-                HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, targetPosition)
-                
-                -- Use skills and attack
-                UseSkills()
-                FastAttack()
+                pcall(function()
+                    HumanoidRootPart.CFrame = farmPosition
+                    
+                    -- Look at the target
+                    HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, targetPosition)
+                    
+                    -- Use skills and attack
+                    UseSkills()
+                    FastAttack()
+                    
+                    -- Try multiple attack methods based on weapon type
+                    local equipped = Player.Character:FindFirstChildOfClass("Tool")
+                    if equipped then
+                        -- Method 1: Use weapon-specific remote events
+                        pcall(function()
+                            for _, v in pairs(equipped:GetDescendants()) do
+                                if v:IsA("RemoteEvent") and (v.Name == "Attack" or 
+                                   string.find(v.Name:lower(), "attack") or 
+                                   string.find(v.Name:lower(), "fire") or 
+                                   string.find(v.Name:lower(), "shoot")) then
+                                    v:FireServer(targetPosition)
+                                end
+                            end
+                        end)
+                        
+                        -- Method 2: Use combat framework if available (for melee)
+                        if getgenv().Settings.WeaponType == "Melee" then
+                            pcall(function()
+                                local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                                local Combat = ReplicatedStorage:FindFirstChild("Combat") or 
+                                              ReplicatedStorage:FindFirstChild("CombatFramework")
+                                
+                                if Combat and Combat:FindFirstChild("Remotes") then
+                                    Combat.Remotes.Combat:FireServer()
+                                end
+                            end)
+                        end
+                    end
+                    
+                    -- Method 3: Mouse click simulation as fallback
+                    pcall(function()
+                        VirtualUser:CaptureController()
+                        VirtualUser:ClickButton1(Vector2.new(900, 400))
+                    end)
+                end)
             end
             
             -- Auto collect drops if enabled
             if getgenv().Settings.AutoCollectDrops then
-                CollectDrops()
+                pcall(function()
+                    CollectDrops()
+                end)
             end
         end
     end)
@@ -633,6 +1175,12 @@ local function StopAutoFarm()
     if AutoFarmConnection then
         AutoFarmConnection:Disconnect()
         AutoFarmConnection = nil
+    end
+    
+    -- Also disconnect any active BringMob connection
+    if BringMobConnection then
+        BringMobConnection:Disconnect()
+        BringMobConnection = nil
     end
 end
 
@@ -651,41 +1199,115 @@ local function StartMobAura()
         local mobs = GetMobsInRadius(getgenv().Settings.MobAuraDistance)
         
         if #mobs > 0 then
-            -- Ensure weapon is equipped
-            EquipBestWeapon()
+            -- Ensure weapon is equipped based on selected weapon type
+            if not EquipBestWeapon() then
+                -- Print debug info if weapon equip fails
+                print("🌊 SkyX Hub: Failed to equip preferred weapon for Mob Aura, trying fallback...")
+                
+                -- Try to equip any weapon as fallback
+                local equipped = false
+                pcall(function()
+                    for _, tool in pairs(Player.Backpack:GetChildren()) do
+                        if tool:IsA("Tool") then
+                            Player.Character.Humanoid:EquipTool(tool)
+                            equipped = true
+                            print("🌊 SkyX Hub: Equipped fallback weapon: " .. tool.Name)
+                            break
+                        end
+                    end
+                end)
+            end
             
             -- Attack each mob in radius
             for _, mob in ipairs(mobs) do
                 if mob:FindFirstChild("HumanoidRootPart") and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                    -- Position behind mob
-                    local mobPosition = mob.HumanoidRootPart.Position
-                    local mobCFrame = mob.HumanoidRootPart.CFrame
+                    -- Apply quest filter if enabled
+                    local shouldAttack = true
                     
-                    -- Teleport behind mob
-                    HumanoidRootPart.CFrame = mobCFrame * CFrame.new(0, 0, 5)
-                    
-                    -- Look at the mob
-                    local lookAt = CFrame.new(HumanoidRootPart.Position, mobPosition)
-                    HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, mobPosition)
-                    
-                    -- Attack mob
-                    local args = {
-                        [1] = mobPosition
-                    }
-                    
-                    -- Use the equipped tool's remote to attack
-                    local equipped = Player.Character:FindFirstChildOfClass("Tool")
-                    if equipped then
-                        for _, v in pairs(equipped:GetDescendants()) do
-                            if v:IsA("RemoteEvent") and (v.Name == "Attack" or string.find(v.Name:lower(), "attack")) then
-                                v:FireServer(unpack(args))
-                                break
-                            end
+                    if getgenv().Settings.QuestTargetMobsOnly then
+                        local questMobName = GetQuestTargetMobName()
+                        if questMobName and not mob.Name:find(questMobName) then
+                            shouldAttack = false
                         end
                     end
                     
-                    -- Brief delay before attacking next mob
-                    wait(0.1)
+                    if shouldAttack then
+                        -- Position behind mob
+                        local mobPosition = mob.HumanoidRootPart.Position
+                        local mobCFrame = mob.HumanoidRootPart.CFrame
+                        
+                        -- Teleport behind mob
+                        HumanoidRootPart.CFrame = mobCFrame * CFrame.new(0, 0, 5)
+                        
+                        -- Look at the mob
+                        local lookAt = CFrame.new(HumanoidRootPart.Position, mobPosition)
+                        HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, mobPosition)
+                        
+                        -- Get equipped weapon and type
+                        local equipped = Player.Character:FindFirstChildOfClass("Tool")
+                        local weaponType = getgenv().Settings.WeaponType
+                        
+                        if equipped then
+                            -- Method 1: Weapon-specific attack methods
+                            if weaponType == "Melee" then
+                                pcall(function()
+                                    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+                                    if ReplicatedStorage:FindFirstChild("Remotes") and 
+                                       ReplicatedStorage.Remotes:FindFirstChild("Combat") then
+                                        ReplicatedStorage.Remotes.Combat:FireServer(mobPosition)
+                                    end
+                                end)
+                            elseif weaponType == "Sword" then
+                                pcall(function()
+                                    for _, v in pairs(equipped:GetDescendants()) do
+                                        if v:IsA("RemoteEvent") and 
+                                           (v.Name == "Attack" or v.Name == "SwordAttack" or string.find(v.Name:lower(), "slash")) then
+                                            v:FireServer(mobPosition)
+                                        end
+                                    end
+                                end)
+                            elseif weaponType == "Gun" then
+                                pcall(function()
+                                    for _, v in pairs(equipped:GetDescendants()) do
+                                        if v:IsA("RemoteEvent") and 
+                                           (v.Name == "Fire" or v.Name == "Shoot" or string.find(v.Name:lower(), "gun")) then
+                                            v:FireServer(mobPosition)
+                                        end
+                                    end
+                                end)
+                            elseif weaponType == "Fruit" then
+                                pcall(function()
+                                    for _, v in pairs(equipped:GetDescendants()) do
+                                        if v:IsA("RemoteEvent") and 
+                                           (string.find(v.Name:lower(), "fruit") or string.find(v.Name:lower(), "power")) then
+                                            v:FireServer(mobPosition)
+                                        end
+                                    end
+                                end)
+                            end
+                            
+                            -- Method 2: Generic attack attempts for any weapon type
+                            pcall(function()
+                                for _, v in pairs(equipped:GetDescendants()) do
+                                    if v:IsA("RemoteEvent") and (v.Name == "Attack" or 
+                                    string.find(v.Name:lower(), "attack") or 
+                                    string.find(v.Name:lower(), "damage")) then
+                                        v:FireServer(mobPosition)
+                                        break
+                                    end
+                                end
+                            end)
+                        end
+                        
+                        -- Method 3: Mouse click fallback
+                        pcall(function()
+                            VirtualUser:CaptureController()
+                            VirtualUser:ClickButton1(Vector2.new(900, 400))
+                        end)
+                        
+                        -- Brief delay before attacking next mob
+                        wait(0.1)
+                    end
                 end
             end
         end
@@ -920,7 +1542,154 @@ FarmTab:AddToggle({
     Save = true,
     Callback = function(Value)
         getgenv().Settings.AutoBringMob = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX Hub",
+                Content = "Auto Bring Mobs Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX Hub",
+                Content = "Auto Bring Mobs Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
     end    
+})
+
+FarmTab:AddToggle({
+    Name = "Target Quest Mobs Only",
+    Default = true,
+    Flag = "QuestMobsOnly",
+    Save = true,
+    Callback = function(Value)
+        getgenv().Settings.QuestTargetMobsOnly = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX Hub",
+                Content = "Now targeting quest mobs only!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX Hub",
+                Content = "Now targeting all mobs!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end    
+})
+
+-- Weapon Selection Section
+FarmTab:AddSection({
+    Name = "Weapon Selection"
+})
+
+FarmTab:AddDropdown({
+    Name = "Weapon Type",
+    Default = "Melee",
+    Options = {"Melee", "Sword", "Gun", "Fruit"},
+    Flag = "WeaponType",
+    Save = true,
+    Callback = function(Value)
+        getgenv().Settings.WeaponType = Value
+        
+        OrionLib:MakeNotification({
+            Name = "SkyX Hub",
+            Content = "Selected weapon type: " .. Value,
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end    
+})
+
+FarmTab:AddToggle({
+    Name = "Auto Select Best Weapon",
+    Default = true,
+    Flag = "AutoSelectWeapon",
+    Save = true,
+    Callback = function(Value)
+        getgenv().Settings.AutoSelectBestWeapon = Value
+    end    
+})
+
+-- Get all available weapons for the selection
+local weaponsList = {}
+local function RefreshWeaponsList()
+    weaponsList = {}
+    
+    pcall(function()
+        if Player and Player.Backpack then
+            for _, tool in pairs(Player.Backpack:GetChildren()) do
+                if tool:IsA("Tool") then
+                    table.insert(weaponsList, tool.Name)
+                end
+            end
+        end
+        
+        if Player and Player.Character then
+            for _, tool in pairs(Player.Character:GetChildren()) do
+                if tool:IsA("Tool") then
+                    table.insert(weaponsList, tool.Name)
+                end
+            end
+        end
+    end)
+    
+    if #weaponsList == 0 then
+        table.insert(weaponsList, "No Weapons Found")
+    end
+    
+    return weaponsList
+end
+
+-- Add specific weapon selection dropdown
+local WeaponDropdown = FarmTab:AddDropdown({
+    Name = "Select Specific Weapon",
+    Default = "",
+    Options = RefreshWeaponsList(),
+    Flag = "SpecificWeapon",
+    Save = true,
+    Callback = function(Value)
+        if Value ~= "No Weapons Found" then
+            getgenv().Settings.SelectedWeapon = Value
+            
+            -- Try to equip the selected weapon
+            EquipWeapon(Value)
+            
+            OrionLib:MakeNotification({
+                Name = "SkyX Hub",
+                Content = "Selected weapon: " .. Value,
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end    
+})
+
+-- Add refresh button for weapons list
+FarmTab:AddButton({
+    Name = "Refresh Weapons List",
+    Callback = function()
+        local weapons = RefreshWeaponsList()
+        if WeaponDropdown and WeaponDropdown.Refresh then
+            WeaponDropdown:Refresh(weapons, true)
+            
+            OrionLib:MakeNotification({
+                Name = "SkyX Hub",
+                Content = "Refreshed weapons list!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
 })
 
 -- Mob Aura Section
