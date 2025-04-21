@@ -1,5 +1,5 @@
 --[[
-    🌊 SkyXddddd Hub - Murder Mystery 2 Script (WindUI Version) 🌊
+    🌊 SkyX Hub - Murder Mystery 2 Script (WindUI Version) 🌊
     
     Features:
     - ESP (see all players through walls with role indicators)
@@ -106,23 +106,26 @@ Window:EditOpenButton({
 -- Create Tabs
 local MainTab = Window:Tab({
     Title = "Main",
-    Icon = "sword", -- Weapon icon for main features
+    Icon = "sword", -- Weapon icon for main features (lucide icon)
 })
 
 local VisualTab = Window:Tab({
     Title = "Visuals",
-    Icon = "eye", -- ESP icon
+    Icon = "eye", -- ESP icon (lucide icon)
 })
 
 local MovementTab = Window:Tab({
     Title = "Movement",
-    Icon = "move", -- Movement icon
+    Icon = "move", -- Movement icon (lucide icon)
 })
 
 local TeleportTab = Window:Tab({
     Title = "Teleport",
-    Icon = "map-pin", -- Teleport icon
+    Icon = "map-pin", -- Teleport icon (lucide icon)
 })
+
+-- Select first tab by default
+Window:SelectTab(1)
 
 -- Create welcome dialog
 local WelcomeDialog = Window:Dialog({
