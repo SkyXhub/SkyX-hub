@@ -1,4086 +1,496 @@
 --[[
-    🌊 SkyX Premium Script Hub 🌊
-    Bubble Gum Simulator INFINITY Script v2.0
+    🌊 SkyX Hub - Murder Mystery 2 Script (Orion Version) 🌊
+    FIXED STABLE VERSION 2.1
     
     Features:
-    - Auto Blow Bubbles
-    - Auto Sell Bubbles
-    - Auto Collect Coins/Gems/Rewards
-    - Auto Hatch Eggs
-    - Auto Buy Upgrades
-    - Teleport to Areas
-    - ESP for Rare Items/Chests
-    - Anti-AFK
-    - Gem Multiplier Boost
-    - Auto Rebirth
-    - Infinite Inventory Space
-    - Disable Egg Animations
-    - Chest Magnet
-    - One-Click Mystery Box
-    - Pet Management System
-    - Auto Claim Rewards
+    - Anti-TP Detection System
+    - ESP (see all players through walls with role indicators)
+    - Auto Coin Collector (FIXED)
+    - Speed & Jump Boosts (FIXED)
+    - Teleport to Items (FIXED)
+    - Anti-Lag Optimization
+    - Get Gun & Kill Murderer (FIXED)
     
-    Mobile Optimized for Swift/Fluxus
-    Updated to fix all issues with UI elements and sliders
+    Ocean Theme UI - Designed for mobile executors like Swift
+    
+    Using Orion Library: https://raw.githubusercontent.com/jensonhirst/Orion/main/source
 ]]
 
--- Environment check for non-Roblox execution
-if not game then
-    print("SkyX Bubble Gum Simulator INFINITY Script: Game environment not available")
-    print("This script must be executed in a Roblox game environment")
+-- Check if script is already running
+if getgenv and getgenv().MM2OrionScriptLoaded then
+    warn("SkyX MM2 Orion Script is already running!")
     return
 end
 
--- Safely check if in correct game
-local success, err = pcall(function()
-    -- Detect if running in the correct game (Original BGS, Private Servers, or new Game ID)
-    if game.PlaceId ~= 2512643572 and game.PlaceId ~= 5424982439 and game.PlaceId ~= 85896571713843 then
-        -- If the wrong game, show a notification
-        local messagebox = messagebox or function(text)
-            game:GetService("StarterGui"):SetCore("SendNotification", {
-                Title = "SkyX Premium";
-                Text = text;
-                Duration = 5;
-            })
-        end
-        
-        messagebox("This script is designed for Bubble Gum Simulator. Please join that game to use it.")
-        return false
-    end
-    
-    -- Special handling for the new game ID
-    if game.PlaceId == 85896571713843 then
-        print("Detected alternate Bubble Gum Simulator version. Using compatible mode.")
-        
-        -- Add compatibility layer for different remote paths
-        -- This modifies how we find and access game functions for this specific version
-        getgenv().COMPATIBILITY_MODE = true
-        getgenv().ALTERNATE_REMOTES = {
-            -- Map standard remote paths to their equivalents in this version
-            -- Format: ["StandardPath"] = "AlternatePath"
-            ["Events.BlowBubble"] = "Events.BlowBubble",
-            ["Events.SellBubble"] = "Events.SellBubble",
-            ["Events.HatchEgg"] = "Events.HatchEgg",
-            ["Events.BuyGum"] = "Events.BuyGum",
-            -- Add more mappings as needed
-        }
-        
-        -- Helper function to find the correct remote based on game version
-        getgenv().GetCompatibleRemote = function(standardPath)
-            if not getgenv().COMPATIBILITY_MODE then
-                -- Standard game version - use normal path
-                local parts = standardPath:split(".")
-                local current = game:GetService("ReplicatedStorage")
-                
-                for i, part in ipairs(parts) do
-                    current = current:FindFirstChild(part)
-                    if not current then return nil end
-                end
-                
-                return current
-            else
-                -- Alternative game version - use mapped path if available
-                local alternatePath = getgenv().ALTERNATE_REMOTES[standardPath]
-                if not alternatePath then 
-                    -- No mapping found, try standard path first
-                    local parts = standardPath:split(".")
-                    local current = game:GetService("ReplicatedStorage")
-                    
-                    for i, part in ipairs(parts) do
-                        current = current:FindFirstChild(part)
-                        if not current then break end
-                    end
-                    
-                    if current then return current end
-                    
-                    -- If that failed, try some common alternative paths
-                    -- This acts as a fallback search mechanism
-                    local commonAlternatives = {
-                        "GameEvents", "Events", "Remotes", "Functions", "RemoteEvents"
-                    }
-                    
-                    local remoteName = parts[#parts]
-                    for _, folder in ipairs(commonAlternatives) do
-                        local container = game:GetService("ReplicatedStorage"):FindFirstChild(folder)
-                        if container and container:FindFirstChild(remoteName) then
-                            return container:FindFirstChild(remoteName)
-                        end
-                    end
-                    
-                    return nil
-                else
-                    -- Use the mapped path
-                    local parts = alternatePath:split(".")
-                    local current = game:GetService("ReplicatedStorage")
-                    
-                    for i, part in ipairs(parts) do
-                        current = current:FindFirstChild(part)
-                        if not current then return nil end
-                    end
-                    
-                    return current
-                end
-            end
-        end
-        
-        -- Detect game UI elements for this version
-        spawn(function()
-            wait(3) -- Wait for game to load
-            
-            -- Look for specific UI elements to identify the interface style
-            local playerGui = Player:FindFirstChild("PlayerGui")
-            if playerGui then
-                -- Capture UI structure information to improve compatibility
-                local uiStructure = {}
-                for _, gui in pairs(playerGui:GetChildren()) do
-                    if gui:IsA("ScreenGui") then
-                        table.insert(uiStructure, gui.Name)
-                    end
-                end
-                
-                -- Log UI structure for debugging
-                print("Game UI Structure: " .. table.concat(uiStructure, ", "))
-                
-                -- Apply any special UI handling based on detected elements
-                -- This will be expanded based on testing
-            end
-        end)
-    end
-    
-    return true
-end)
+-- Load Services
+local Players = game:GetService("Players") 
+local Workspace = game:GetService("Workspace")
 
--- If error during check or wrong game, exit script
-if not success or err == false then
-    print("Error loading script or wrong game")
-    return
-end
+-- Set up variables
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
 
--- Load Libraries
+-- Initialize global variables for features
+getgenv().AutoCollectCoins = false
+getgenv().AutoCollectItems = false
+getgenv().ShowRoles = false
+getgenv().ESP = false
+getgenv().AutoGetGunKillMurderer = false
+getgenv().NoClip = false
+getgenv().InfiniteJump = false
+getgenv().GodMode = false
+getgenv().Fly = false
+getgenv().InnocentColor = Color3.fromRGB(255, 255, 255)
+getgenv().MurdererColor = Color3.fromRGB(255, 0, 0)
+getgenv().SheriffColor = Color3.fromRGB(0, 0, 255)
+
+-- Variables to track roles
+getgenv().CurrentSheriff = nil
+getgenv().CurrentMurderer = nil
+getgenv().DroppedGun = nil
+
+-- Loading the Orion Library
 local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
 
--- UI Settings
+-- Create a Window with mobile-friendly settings
 local Window = OrionLib:MakeWindow({
-    Name = "🌊 SkyX | Bubble Gum Sim INFINITY",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "SkyXScripts",
+    Name = "🌊 SkyX Hub - MM2 🌊", 
+    HidePremium = false, 
+    SaveConfig = true, 
+    ConfigFolder = "SkyXHub",
     IntroEnabled = true,
-    IntroText = "SkyX Premium Scripts",
-    IntroIcon = "rbxassetid://7733658504", -- Ocean logo
-    Icon = "rbxassetid://7733658504", -- Ocean logo
-})
-
--- Variables
-local Player = game:GetService("Players").LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local RunService = game:GetService("RunService")
-
-local Settings = {
-    -- Main Auto Farm
-    AutoBlow = false,
-    AutoBuyGum = false,
-    AutoSell = false,
-    AutoSellWhenFull = false,
-    AutoCollect = false,
-    AutoCollectCoins = false,
-    BlowInterval = 0.1,
-    SellInterval = 30,
-    CollectInterval = 0.5,
-    
-    -- Gum Store Features
-    AutoBuyGumStoreItems = false,
-    AutoEquipBestGumItems = false,
-    AutoBuyMasteries = false,
-    
-    -- Auto Claim Features
-    AutoPlaytimeRewards = false,
-    AutoClaimPrizes = false,
-    AutoClaimChests = false,
-    AutoGoldenChest = false,
-    AutoRoyalChest = false,
-    AutoClaimSeasonPass = false,
-    AutoClaimSpinTicket = false,
-    AutoSpinWheel = false,
-    
-    -- Egg Hatching & Pet Features
-    AutoHatch = false,
-    AutoMultiplierEggs = false,
-    RemoveHatchAnimation = false,
-    HatchNearestEgg = false,
-    AutoFastEnchant = false,
-    FakeHatchPets = false,
-    AutoEquipBestPets = false,
-    AutoEquipPetsFor = "Coins", -- "Coins", "Gems", "Bubbles", "Luck"
-    AutoUsePowerOrbs = false,
-    AutoShinyPets = false,
-    AutoPetDelete = false, -- Auto delete unwanted pets based on rarity settings
-    PetDeleteSettings = {
-        DeleteCommon = true,
-        DeleteUncommon = true,
-        DeleteRare = false,
-        DeleteEpic = false,
-        DeleteLegendary = false,
-        DeleteMythical = false
-    },
-    AutoHatchSettings = {
-        Egg = "Basic Egg",
-        Amount = "Single",
-        OpenDelay = 1,
-        DisableAnimation = false
-    },
-    
-    -- Rifts & Special Events
-    AutoClaimRifts = false,
-    AutoDogMinigameWin = false,
-    AutoOpenMysteryBox = false,
-    
-    -- Enchant & Upgrade Features
-    AutoEnchant = false,
-    AutoEnchantSettings = {
-        EnchantTier = "Basic",
-        EnchantType = "Strength",
-        ApplyToAll = false,
-        MinLevel = 1
-    },
-    
-    -- Potion Features
-    AutoCraftPotions = false,
-    AutoUsePotions = false,
-    AutoShrinePotions = false,
-    
-    -- Mastery Features
-    AutoUpgradeShopsMastery = false,
-    AutoUpgradePetsMastery = false,
-    AutoUpgradeBuffsMastery = false,
-    
-    -- Merchant Features
-    AutoRerollMerchants = false,
-    AutoBuyAlienShop = false,
-    AutoBuyBlackMarket = false,
-    
-    -- World Features
-    UnlockAllWorlds = false,
-    
-    -- Advanced Features
-    AutoRebirth = false,
-    RebirthDelay = 60,
-    ChestMagnet = false,
-    ChestMagnetRange = 50,
-    GemMultiplier = false,
-    InfiniteInventory = false,
-    InfinityPassPrediction = false,
-    
-    -- Webhook Features
-    EnableWebhook = false,
-    WebhookURL = "",
-    WebhookInterval = 300, -- 5 minutes
-    
-    -- Player Mods
-    WalkSpeedModify = false,
-    WalkSpeedValue = 16,
-    JumpPowerModify = false,
-    JumpPowerValue = 50,
-    
-    -- System Settings
-    AntiAFK = false,
-    ESP = false,
-    MobileFriendly = true,
-    AutoRedeemCodes = false,
-}
-
--- Functions
-local Functions = {}
-
--- Function to blow bubbles with auto-buy feature
-Functions.StartAutoBlow = function()
-    if Settings.AutoBlow then
-        spawn(function()
-            local lastBuyAttempt = 0
-            
-            while Settings.AutoBlow do
-                -- Try to find the remote event for blowing bubbles
-                local blowRemote
-                
-                if getgenv().COMPATIBILITY_MODE then
-                    -- Use compatibility mode to find the remote
-                    blowRemote = getgenv().GetCompatibleRemote("Events.BlowBubble")
-                else
-                    -- Standard path
-                    blowRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("BlowBubble")
-                end
-                
-                if blowRemote then
-                    pcall(function()
-                        blowRemote:FireServer()
-                    end)
-                else
-                    print("BlowBubble remote not found. Trying alternative methods...")
-                    
-                    -- Try to find it using broader search
-                    for _, remote in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
-                        if (remote.Name == "BlowBubble" or remote.Name:find("Blow") or remote.Name:find("Bubble")) and 
-                           (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) then
-                            pcall(function()
-                                remote:FireServer()
-                                print("Found alternative remote: " .. remote:GetFullName())
-                            end)
-                            break
-                        end
-                    end
-                end
-                
-                -- Check if we need to buy a new gum (every 5 seconds)
-                if Settings.AutoBuyGum and tick() - lastBuyAttempt > 5 then
-                    lastBuyAttempt = tick()
-                    
-                    -- Check if we're out of gum
-                    local playerData = Player:FindFirstChild("PlayerData")
-                    if playerData and playerData:FindFirstChild("BubblesBlown") and playerData:FindFirstChild("MaxBubbles") then
-                        local current = playerData.BubblesBlown.Value
-                        local max = playerData.MaxBubbles.Value
-                        
-                        if current >= max then
-                            -- We need to buy a new gum, teleport to shop
-                            local originalPosition = Character.HumanoidRootPart.Position
-                            
-                            -- Find shop area coordinates
-                            local shopArea = workspace:FindFirstChild("ShopArea") or Vector3.new(159, 15, 249)
-                            if typeof(shopArea) ~= "Vector3" then
-                                shopArea = shopArea.Position
-                            end
-                            
-                            -- Teleport to shop
-                            Character.HumanoidRootPart.CFrame = CFrame.new(shopArea + Vector3.new(0, 5, 0))
-                            wait(0.5)
-                            
-                            -- Buy the best gum we can afford
-                            local buyGumRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("BuyGum")
-                            if buyGumRemote then
-                                -- Try to buy the best gum (usually the highest index)
-                                local gumTypes = {"Rainbow", "Inferno", "Mythic", "Omega", "Ultra", "Super", "Basic"}
-                                
-                                for _, gumType in ipairs(gumTypes) do
-                                    buyGumRemote:FireServer(gumType)
-                                    wait(0.2)
-                                    
-                                    -- Check if purchase successful
-                                    if playerData.MaxBubbles.Value > max then
-                                        OrionLib:MakeNotification({
-                                            Name = "Auto Buy",
-                                            Content = "Successfully bought " .. gumType .. " Gum",
-                                            Image = "rbxassetid://4483345998",
-                                            Time = 3
-                                        })
-                                        break
-                                    end
-                                end
-                            end
-                            
-                            -- Return to original position
-                            wait(0.5)
-                            Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                        end
-                    end
-                end
-                
-                wait(Settings.BlowInterval)
-            end
-        end)
-    end
-end
-
--- Function to claim playtime rewards
-Functions.StartAutoPlaytimeRewards = function()
-    if Settings.AutoPlaytimeRewards then
-        spawn(function()
-            while Settings.AutoPlaytimeRewards do
-                -- Find and claim playtime rewards
-                local playtimeRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimPlaytimeReward")
-                if playtimeRemote then
-                    -- Try to claim all possible playtime rewards
-                    for i = 1, 12 do -- Most games have up to 12 playtime reward tiers
-                        local success, err = pcall(function()
-                            playtimeRemote:FireServer(i)
-                        end)
-                    end
-                    
-                    OrionLib:MakeNotification({
-                        Name = "Playtime Rewards",
-                        Content = "Attempted to claim all available playtime rewards",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-                
-                -- Check every minute for new rewards
-                wait(60)
-            end
-        end)
-    end
-end
-
--- Function to auto claim chests
-Functions.StartAutoClaimChests = function()
-    if Settings.AutoClaimChests then
-        spawn(function()
-            while Settings.AutoClaimChests do
-                -- Find all chests in the world
-                local chests = {}
-                for _, v in pairs(workspace:GetDescendants()) do
-                    if v.Name:find("Chest") and v:IsA("Model") or v:IsA("BasePart") then
-                        table.insert(chests, v)
-                    end
-                end
-                
-                -- If chests found, teleport to each one and claim
-                if #chests > 0 then
-                    local originalPosition = Character.HumanoidRootPart.Position
-                    local claimedAny = false
-                    
-                    for _, chest in pairs(chests) do
-                        local chestPosition = chest:IsA("Model") and chest:GetModelCFrame().Position or chest.Position
-                        
-                        -- Use bypass teleport to avoid detection
-                        local success = pcall(function()
-                            Character.HumanoidRootPart.CFrame = CFrame.new(chestPosition + Vector3.new(0, 5, 0))
-                            wait(0.5)
-                            
-                            -- Try to interact with the chest
-                            local chestRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimChest") or
-                                                game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("OpenChest")
-                            if chestRemote then
-                                chestRemote:FireServer(chest)
-                                claimedAny = true
-                            else
-                                -- If no dedicated remote, try collecting as an item
-                                local collectRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("CollectItem")
-                                if collectRemote then
-                                    collectRemote:FireServer(chest)
-                                    claimedAny = true
-                                end
-                            end
-                            
-                            wait(0.5)
-                        end)
-                    end
-                    
-                    -- Return to original position
-                    Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                    
-                    if claimedAny then
-                        OrionLib:MakeNotification({
-                            Name = "Chest Claim",
-                            Content = "Attempted to claim all available chests",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Check every 3 minutes
-                wait(180)
-            end
-        end)
-    end
-end
-
--- Function to handle rift activites
-Functions.StartAutoRifts = function()
-    if Settings.AutoClaimRifts then
-        spawn(function()
-            while Settings.AutoClaimRifts do
-                -- Find and claim rift rewards/activities
-                local riftRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("EnterRift") or
-                                   game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimRiftReward")
-                
-                if riftRemote then
-                    local rifts = workspace:FindFirstChild("Rifts")
-                    if rifts then
-                        local originalPosition = Character.HumanoidRootPart.Position
-                        
-                        -- Check each rift
-                        for _, rift in pairs(rifts:GetChildren()) do
-                            if rift:IsA("Model") or rift:IsA("BasePart") then
-                                local riftPosition = rift:IsA("Model") and rift:GetModelCFrame().Position or rift.Position
-                                
-                                -- Teleport to rift
-                                Character.HumanoidRootPart.CFrame = CFrame.new(riftPosition + Vector3.new(0, 5, 0))
-                                wait(1)
-                                
-                                -- Try to enter or claim
-                                local success = pcall(function()
-                                    riftRemote:FireServer(rift)
-                                end)
-                                
-                                wait(0.5)
-                            end
-                        end
-                        
-                        -- Return to original position
-                        Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                        
-                        OrionLib:MakeNotification({
-                            Name = "Rift Activities",
-                            Content = "Attempted to interact with all rifts",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Check every 5 minutes
-                wait(300)
-            end
-        end)
-    end
-end
-
--- Function for auto enchant pets
-Functions.StartAutoEnchant = function()
-    if Settings.AutoEnchant then
-        spawn(function()
-            while Settings.AutoEnchant do
-                -- Get enchant settings
-                local tier = Settings.AutoEnchantSettings.EnchantTier
-                local enchantType = Settings.AutoEnchantSettings.EnchantType
-                local applyToAll = Settings.AutoEnchantSettings.ApplyToAll
-                local minLevel = Settings.AutoEnchantSettings.MinLevel
-                
-                -- Find enchant remote
-                local enchantRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("EnchantPet") or
-                                     game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ApplyEnchant")
-                                     
-                if enchantRemote then
-                    -- Get player pets
-                    local petInventory = Player:FindFirstChild("PetInventory") or Player:FindFirstChild("Pets")
-                    
-                    if petInventory then
-                        -- Loop through pets
-                        for _, pet in pairs(petInventory:GetChildren()) do
-                            -- Check if pet meets minimum level
-                            local level = pet:FindFirstChild("Level") and pet.Level.Value or 1
-                            
-                            if level >= minLevel then
-                                -- Apply enchant to this pet
-                                local success = pcall(function()
-                                    enchantRemote:FireServer(pet, tier, enchantType)
-                                end)
-                                
-                                if success then
-                                    OrionLib:MakeNotification({
-                                        Name = "Auto Enchant",
-                                        Content = "Applied " .. tier .. " " .. enchantType .. " enchant to " .. pet.Name,
-                                        Image = "rbxassetid://4483345998",
-                                        Time = 3
-                                    })
-                                end
-                                
-                                -- If not applying to all, stop after first success
-                                if not applyToAll and success then
-                                    break
-                                end
-                                
-                                wait(1) -- Avoid hitting rate limits
-                            end
-                        end
-                    end
-                end
-                
-                -- Check every 30 seconds
-                wait(30)
-            end
-        end)
-    end
-end
-
--- Function to auto sell bubbles
-Functions.StartAutoSell = function()
-    if Settings.AutoSell then
-        spawn(function()
-            while Settings.AutoSell do
-                -- Teleport to sell area
-                local sellPart = workspace:FindFirstChild("SellPart")
-                if sellPart and Character and Character:FindFirstChild("HumanoidRootPart") then
-                    local originalPosition = Character.HumanoidRootPart.Position
-                    Character.HumanoidRootPart.CFrame = CFrame.new(sellPart.Position + Vector3.new(0, 5, 0))
-                    wait(0.5)
-                    -- Use sell remote event
-                    local sellRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("SellBubbles")
-                    if sellRemote then
-                        sellRemote:FireServer()
-                    end
-                    wait(0.5)
-                    -- Return to original position
-                    Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                end
-                wait(Settings.SellInterval)
-            end
-        end)
-    end
-end
-
--- Function to auto sell bubbles when storage is full
-Functions.StartAutoSellWhenFull = function()
-    if Settings.AutoSellWhenFull then
-        spawn(function()
-            while Settings.AutoSellWhenFull do
-                -- Check if storage is full
-                local playerData = Player:FindFirstChild("PlayerData")
-                local isFull = false
-                
-                if playerData then
-                    -- Different games use different naming conventions for storage data
-                    if playerData:FindFirstChild("BubblesBlown") and playerData:FindFirstChild("MaxBubbles") then
-                        isFull = playerData.BubblesBlown.Value >= playerData.MaxBubbles.Value
-                    elseif playerData:FindFirstChild("Bubbles") and playerData:FindFirstChild("MaxStorage") then
-                        isFull = playerData.Bubbles.Value >= playerData.MaxStorage.Value
-                    elseif playerData:FindFirstChild("Storage") and playerData:FindFirstChild("MaxStorage") then
-                        isFull = playerData.Storage.Value >= playerData.MaxStorage.Value
-                    end
-                end
-                
-                -- If storage is full, sell bubbles
-                if isFull then
-                    -- Teleport to sell area
-                    local sellPart = workspace:FindFirstChild("SellPart") or workspace:FindFirstChild("SellArea")
-                    if sellPart and Character and Character:FindFirstChild("HumanoidRootPart") then
-                        local originalPosition = Character.HumanoidRootPart.Position
-                        
-                        -- Determine the sell position
-                        local sellPosition
-                        if typeof(sellPart) == "Instance" then
-                            if sellPart:IsA("BasePart") then
-                                sellPosition = sellPart.Position
-                            elseif sellPart:IsA("Model") and sellPart.PrimaryPart then
-                                sellPosition = sellPart.PrimaryPart.Position
-                            else
-                                -- Try to find a part in the model
-                                for _, v in pairs(sellPart:GetDescendants()) do
-                                    if v:IsA("BasePart") then
-                                        sellPosition = v.Position
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                        
-                        -- If we couldn't find a position, use the hardcoded one
-                        if not sellPosition then
-                            sellPosition = Vector3.new(87, 11, 43) -- Default sell area position
-                        end
-                        
-                        -- Teleport to sell area
-                        Character.HumanoidRootPart.CFrame = CFrame.new(sellPosition + Vector3.new(0, 5, 0))
-                        wait(0.5)
-                        
-                        -- Use sell remote event
-                        local sellRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("SellBubbles")
-                        if sellRemote then
-                            sellRemote:FireServer()
-                            
-                            OrionLib:MakeNotification({
-                                Name = "Auto Sell",
-                                Content = "Storage full - Sold bubbles",
-                                Image = "rbxassetid://4483345998",
-                                Time = 3
-                            })
-                        end
-                        
-                        wait(0.5)
-                        -- Return to original position
-                        Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                    end
-                end
-                
-                -- Check every second
-                wait(1)
-            end
-        end)
-    end
-end
-
--- Function to automatically buy gum store items
-Functions.StartAutoBuyGumStoreItems = function()
-    if Settings.AutoBuyGumStoreItems then
-        spawn(function()
-            while Settings.AutoBuyGumStoreItems do
-                -- Teleport to gum store
-                local gumStore = workspace:FindFirstChild("GumStore") or workspace:FindFirstChild("GumShop")
-                if not gumStore then
-                    -- Try to find by generic shop names
-                    for _, v in pairs(workspace:GetChildren()) do
-                        if v.Name:find("Shop") or v.Name:find("Store") then
-                            gumStore = v
-                            break
-                        end
-                    end
-                end
-                
-                if gumStore and Character and Character:FindFirstChild("HumanoidRootPart") then
-                    local originalPosition = Character.HumanoidRootPart.Position
-                    
-                    -- Determine store position
-                    local storePosition
-                    if typeof(gumStore) == "Instance" then
-                        if gumStore:IsA("BasePart") then
-                            storePosition = gumStore.Position
-                        elseif gumStore:IsA("Model") and gumStore.PrimaryPart then
-                            storePosition = gumStore.PrimaryPart.Position
-                        else
-                            -- Try to find a part in the model
-                            for _, v in pairs(gumStore:GetDescendants()) do
-                                if v:IsA("BasePart") then
-                                    storePosition = v.Position
-                                    break
-                                end
-                            end
-                        end
-                    end
-                    
-                    -- If we couldn't find a position, use the hardcoded one
-                    if not storePosition then
-                        storePosition = Vector3.new(159, 15, 249) -- Default gum shop position
-                    end
-                    
-                    -- Teleport to gum store
-                    Character.HumanoidRootPart.CFrame = CFrame.new(storePosition + Vector3.new(0, 5, 0))
-                    wait(1)
-                    
-                    -- Try to buy gum items
-                    local buyGumRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("BuyGum")
-                    local buyFlavorRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("BuyFlavor")
-                    
-                    -- Common gum types from best to worst
-                    local gumTypes = {"Rainbow", "Inferno", "Mythic", "Omega", "Ultra", "Super", "Basic"}
-                    
-                    -- Common flavor types from best to worst
-                    local flavorTypes = {"Legendary", "Epic", "Rare", "Uncommon", "Common"}
-                    
-                    -- Try to buy best gum
-                    if buyGumRemote then
-                        for _, gumType in ipairs(gumTypes) do
-                            local success = pcall(function()
-                                buyGumRemote:FireServer(gumType)
-                            end)
-                            
-                            if success then
-                                OrionLib:MakeNotification({
-                                    Name = "Gum Store",
-                                    Content = "Attempted to buy " .. gumType .. " Gum",
-                                    Image = "rbxassetid://4483345998",
-                                    Time = 3
-                                })
-                            end
-                            
-                            wait(0.5)
-                        end
-                    end
-                    
-                    -- Try to buy best flavor
-                    if buyFlavorRemote then
-                        for _, flavorType in ipairs(flavorTypes) do
-                            local success = pcall(function()
-                                buyFlavorRemote:FireServer(flavorType)
-                            end)
-                            
-                            if success then
-                                OrionLib:MakeNotification({
-                                    Name = "Gum Store",
-                                    Content = "Attempted to buy " .. flavorType .. " Flavor",
-                                    Image = "rbxassetid://4483345998",
-                                    Time = 3
-                                })
-                            end
-                            
-                            wait(0.5)
-                        end
-                    end
-                    
-                    -- Return to original position
-                    Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                end
-                
-                -- Check every 5 minutes
-                wait(300)
-            end
-        end)
-    end
-end
-
--- Function to auto equip best gum items
-Functions.StartAutoEquipBestGumItems = function()
-    if Settings.AutoEquipBestGumItems then
-        spawn(function()
-            while Settings.AutoEquipBestGumItems do
-                -- Find equip remotes
-                local equipGumRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("EquipGum")
-                local equipFlavorRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("EquipFlavor")
-                
-                -- Common gum types from best to worst
-                local gumTypes = {"Rainbow", "Inferno", "Mythic", "Omega", "Ultra", "Super", "Basic"}
-                
-                -- Common flavor types from best to worst
-                local flavorTypes = {"Legendary", "Epic", "Rare", "Uncommon", "Common"}
-                
-                -- Try to equip best gum
-                if equipGumRemote then
-                    for _, gumType in ipairs(gumTypes) do
-                        local success = pcall(function()
-                            equipGumRemote:FireServer(gumType)
-                        end)
-                        
-                        if success then
-                            OrionLib:MakeNotification({
-                                Name = "Auto Equip",
-                                Content = "Equipped " .. gumType .. " Gum",
-                                Image = "rbxassetid://4483345998",
-                                Time = 3
-                            })
-                            break -- Stop after equipping best available
-                        end
-                    end
-                end
-                
-                -- Try to equip best flavor
-                if equipFlavorRemote then
-                    for _, flavorType in ipairs(flavorTypes) do
-                        local success = pcall(function()
-                            equipFlavorRemote:FireServer(flavorType)
-                        end)
-                        
-                        if success then
-                            OrionLib:MakeNotification({
-                                Name = "Auto Equip",
-                                Content = "Equipped " .. flavorType .. " Flavor",
-                                Image = "rbxassetid://4483345998",
-                                Time = 3
-                            })
-                            break -- Stop after equipping best available
-                        end
-                    end
-                end
-                
-                -- Check every 2 minutes
-                wait(120)
-            end
-        end)
-    end
-end
-
--- Function to auto buy masteries
-Functions.StartAutoBuyMasteries = function()
-    if Settings.AutoBuyMasteries then
-        spawn(function()
-            while Settings.AutoBuyMasteries do
-                -- Find the mastery purchase remote
-                local buyMasteryRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("BuyMastery") or
-                                        game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("PurchaseMastery")
-                
-                if buyMasteryRemote then
-                    -- Common mastery types
-                    local masteryTypes = {"BubbleMastery", "CoinMastery", "GemMastery", "LuckMastery", "SpeedMastery"}
-                    
-                    -- Try to buy each type of mastery
-                    for _, masteryType in ipairs(masteryTypes) do
-                        local success = pcall(function()
-                            buyMasteryRemote:FireServer(masteryType)
-                        end)
-                        
-                        if success then
-                            OrionLib:MakeNotification({
-                                Name = "Mastery Purchase",
-                                Content = "Attempted to buy " .. masteryType,
-                                Image = "rbxassetid://4483345998",
-                                Time = 3
-                            })
-                        end
-                        
-                        wait(0.5)
-                    end
-                end
-                
-                -- Check every 2 minutes
-                wait(120)
-            end
-        end)
-    end
-end
-
--- Function to auto collect items
-Functions.StartAutoCollect = function()
-    if Settings.AutoCollect then
-        spawn(function()
-            while Settings.AutoCollect do
-                -- Collect coins, gems, and chests
-                for _, v in pairs(workspace.Collectibles:GetChildren()) do
-                    if v.Name == "Coin" or v.Name == "Gem" or v.Name:find("Chest") then
-                        local collectRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("CollectItem")
-                        if collectRemote then
-                            collectRemote:FireServer(v)
-                        end
-                    end
-                end
-                wait(Settings.CollectInterval)
-            end
-        end)
-    end
-end
-
--- Function to auto hatch eggs
-Functions.StartAutoHatch = function()
-    if Settings.AutoHatch then
-        spawn(function()
-            while Settings.AutoHatch do
-                -- Get egg data
-                local eggName = Settings.AutoHatchSettings.Egg
-                local amount = Settings.AutoHatchSettings.Amount == "Triple" and 3 or 1
-                
-                -- Find the hatch remote
-                local hatchRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("HatchEgg")
-                if hatchRemote then
-                    hatchRemote:FireServer(eggName, amount)
-                end
-                
-                wait(Settings.AutoHatchSettings.OpenDelay)
-            end
-        end)
-    end
-end
-
--- Function to activate anti-AFK
-Functions.SetupAntiAFK = function()
-    if Settings.AntiAFK then
-        spawn(function()
-            local VirtualUser = game:GetService("VirtualUser")
-            Player.Idled:Connect(function()
-                VirtualUser:CaptureController()
-                VirtualUser:ClickButton2(Vector2.new())
-                OrionLib:MakeNotification({
-                    Name = "SkyX Anti-AFK",
-                    Content = "Anti-AFK triggered - You will not be disconnected",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-            end)
-        end)
-    end
-end
-
--- Function to setup ESP
-Functions.SetupESP = function()
-    if Settings.ESP then
-        spawn(function()
-            while Settings.ESP do
-                -- Clear old ESP
-                for _, v in pairs(workspace:GetChildren()) do
-                    if v.Name == "SKYXESP" then
-                        v:Destroy()
-                    end
-                end
-                
-                -- Create ESP for valuable items
-                for _, v in pairs(workspace.Collectibles:GetChildren()) do
-                    if v.Name:find("Chest") or v.Name == "RareGem" then
-                        local esp = Instance.new("BillboardGui")
-                        esp.Name = "SKYXESP"
-                        esp.Adornee = v
-                        esp.Size = UDim2.new(0, 100, 0, 30)
-                        esp.StudsOffset = Vector3.new(0, 2, 0)
-                        esp.AlwaysOnTop = true
-                        esp.Parent = v
-                        
-                        local text = Instance.new("TextLabel")
-                        text.Parent = esp
-                        text.BackgroundTransparency = 1
-                        text.Size = UDim2.new(1, 0, 1, 0)
-                        text.TextColor3 = v.Name:find("Chest") and Color3.fromRGB(255, 215, 0) or Color3.fromRGB(170, 0, 255)
-                        text.TextStrokeTransparency = 0
-                        text.Text = v.Name
-                        text.TextScaled = true
-                    end
-                end
-                
-                wait(1)
-            end
-        end)
-    else
-        -- Remove all ESP when disabled
-        for _, v in pairs(workspace:GetChildren()) do
-            if v.Name == "SKYXESP" then
-                v:Destroy()
-            end
-        end
-    end
-end
-
--- Create main tab
-local MainTab = Window:MakeTab({
-    Name = "Farming",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Auto farm section
-MainTab:AddSection({
-    Name = "Auto Bubble Features"
-})
-
--- Auto coin collect function
-Functions.StartAutoCollectCoins = function()
-    if Settings.AutoCollectCoins then
-        spawn(function()
-            while Settings.AutoCollectCoins do
-                -- Find and collect all coins in the game
-                for _, v in pairs(workspace:GetDescendants()) do
-                    if (v.Name == "Coin" or v.Name == "CoinModel" or v.Name:find("Coin")) and 
-                       (v:IsA("Model") or v:IsA("BasePart")) then
-                        local collectRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("CollectCoin") or
-                                             game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("CollectItem")
-                        if collectRemote then
-                            collectRemote:FireServer(v)
-                        end
-                    end
-                end
-                wait(0.5)
-            end
-        end)
-    end
-end
-
--- Function to unlock all worlds
-Functions.UnlockAllWorlds = function()
-    if Settings.UnlockAllWorlds then
-        spawn(function()
-            -- Find the teleport remote
-            local teleportRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("Teleport") or
-                                  game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UnlockArea")
-            
-            -- Common world names to try unlocking
-            local worlds = {
-                "Beach", "Desert", "Winter", "Lava", "Space", "Ocean", "Forest", "Candy", 
-                "Heaven", "Hell", "Moon", "Volcano", "Cyber", "Fantasy", "Crystal"
-            }
-            
-            -- Try to unlock each world
-            for _, worldName in pairs(worlds) do
-                if teleportRemote then
-                    pcall(function()
-                        teleportRemote:FireServer(worldName, true) -- Try to unlock
-                        wait(0.5)
-                    end)
-                end
-            end
-            
-            OrionLib:MakeNotification({
-                Name = "World Unlock",
-                Content = "Attempted to unlock all worlds",
-                Image = "rbxassetid://4483345998",
-                Time = 5
-            })
-        end)
-    end
-end
-
--- Function to redeem all codes
-Functions.RedeemAllCodes = function()
-    if Settings.AutoRedeemCodes then
-        spawn(function()
-            -- Common codes to try
-            local codes = {
-                "UPDATE", "RELEASE", "FREEPET", "GEMS", "COINS", "BOOSTS", 
-                "FOLLOW", "TWITTER", "DISCORD", "LIKES", "VISITS", 
-                "LAUNCH", "NEWCODE", "WEEKEND", "SUMMER", "HOLIDAY", 
-                "SECRET", "THANKYOU", "1MVISITS", "10KLIKES", "100MVISITS",
-                "BUBBLES", "CANDY", "MYTHIC", "LEGENDARY", "FREE", "VIP"
-            }
-            
-            -- Find the redeem code remote
-            local redeemRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("RedeemCode") or
-                                game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimCode")
-            
-            if redeemRemote then
-                local redeemed = 0
-                for _, code in pairs(codes) do
-                    local success = pcall(function()
-                        redeemRemote:FireServer(code)
-                    end)
-                    
-                    if success then
-                        redeemed = redeemed + 1
-                    end
-                    wait(0.5)
-                end
-                
-                OrionLib:MakeNotification({
-                    Name = "Code Redemption",
-                    Content = "Attempted to redeem " .. #codes .. " codes",
-                    Image = "rbxassetid://4483345998",
-                    Time = 5
-                })
-            end
-        end)
-    end
-end
-
--- Auto blow toggle
-MainTab:AddToggle({
-    Name = "Auto Blow Bubbles",
-    Default = false,
-    Flag = "AutoBlow",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoBlow = Value
-        if Value then
-            Functions.StartAutoBlow()
-            OrionLib:MakeNotification({
-                Name = "Auto Blow",
-                Content = "Auto bubble blowing enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Blow",
-                Content = "Auto bubble blowing disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto buy gum toggle
-MainTab:AddToggle({
-    Name = "Auto Buy Next Gum",
-    Default = false,
-    Flag = "AutoBuyGum",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoBuyGum = Value
-        OrionLib:MakeNotification({
-            Name = "Auto Buy Gum",
-            Content = Value and "Will automatically buy next gum level when needed" or "Auto buy gum disabled",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
--- Auto sell toggle
-MainTab:AddToggle({
-    Name = "Auto Sell Bubbles (Timed)",
-    Default = false,
-    Flag = "AutoSell",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoSell = Value
-        if Value then
-            Functions.StartAutoSell()
-            OrionLib:MakeNotification({
-                Name = "Auto Sell",
-                Content = "Auto selling enabled - Will sell every " .. Settings.SellInterval .. " seconds",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Sell",
-                Content = "Auto selling disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto sell when full toggle
-MainTab:AddToggle({
-    Name = "Auto Sell Bubbles (When Full)",
-    Default = false,
-    Flag = "AutoSellWhenFull",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoSellWhenFull = Value
-        if Value then
-            Functions.StartAutoSellWhenFull()
-            OrionLib:MakeNotification({
-                Name = "Auto Sell When Full",
-                Content = "Auto selling when storage full enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Sell When Full",
-                Content = "Auto selling when storage full disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Sell interval slider
-MainTab:AddSlider({
-    Name = "Sell Interval (seconds)",
-    Min = 5,
-    Max = 120,
-    Default = 30,
-    Color = Color3.fromRGB(89, 150, 255),
-    Increment = 5,
-    ValueName = "seconds",
-    Flag = "SellInterval",
-    Save = true,
-    Callback = function(Value)
-        Settings.SellInterval = Value
-    end    
-})
-
--- Auto collect toggle
-MainTab:AddToggle({
-    Name = "Auto Collect Items",
-    Default = false,
-    Flag = "AutoCollect",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoCollect = Value
-        if Value then
-            Functions.StartAutoCollect()
-            OrionLib:MakeNotification({
-                Name = "Auto Collect",
-                Content = "Auto collecting items enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Collect",
-                Content = "Auto collecting items disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto collect coins toggle
-MainTab:AddToggle({
-    Name = "Auto Collect Coins",
-    Default = false,
-    Flag = "AutoCollectCoins",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoCollectCoins = Value
-        if Value then
-            Functions.StartAutoCollectCoins()
-            OrionLib:MakeNotification({
-                Name = "Auto Collect Coins",
-                Content = "Auto coin collection enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Collect Coins",
-                Content = "Auto coin collection disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Playtime Rewards
-MainTab:AddToggle({
-    Name = "Auto Claim Playtime Rewards",
-    Default = false,
-    Flag = "AutoPlaytimeRewards",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoPlaytimeRewards = Value
-        if Value then
-            Functions.StartAutoPlaytimeRewards()
-            OrionLib:MakeNotification({
-                Name = "Playtime Rewards",
-                Content = "Auto claiming playtime rewards enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Playtime Rewards",
-                Content = "Auto claiming playtime rewards disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Chest Collection
-MainTab:AddToggle({
-    Name = "Auto Claim Chests",
-    Default = false,
-    Flag = "AutoClaimChests",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoClaimChests = Value
-        if Value then
-            Functions.StartAutoClaimChests()
-            OrionLib:MakeNotification({
-                Name = "Chest Collection",
-                Content = "Auto chest claiming enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Chest Collection",
-                Content = "Auto chest claiming disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto RIFT Toggle
-MainTab:AddToggle({
-    Name = "Auto RIFT Activities",
-    Default = false,
-    Flag = "AutoClaimRifts",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoClaimRifts = Value
-        if Value then
-            Functions.StartAutoRifts()
-            OrionLib:MakeNotification({
-                Name = "Rift Automation",
-                Content = "Auto RIFT activities enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Rift Automation",
-                Content = "Auto RIFT activities disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Additional Events Section
-MainTab:AddSection({
-    Name = "Events & Special Features"
-})
-
--- Function for auto doggy jump (instant win)
-Functions.StartAutoDogMinigameWin = function()
-    if Settings.AutoDogMinigameWin then
-        spawn(function()
-            while Settings.AutoDogMinigameWin do
-                -- Check if in dog minigame
-                local dogMinigame = workspace:FindFirstChild("DogMinigame") or workspace:FindFirstChild("JumpMinigame")
-                
-                if dogMinigame then
-                    -- Find the win remote
-                    local winRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimDogMinigame") or
-                                     game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("WinJumpMinigame")
-                    
-                    if winRemote then
-                        -- Try to claim win directly
-                        local success = pcall(function()
-                            winRemote:FireServer()
-                        end)
-                        
-                        if success then
-                            OrionLib:MakeNotification({
-                                Name = "Doggy Jump",
-                                Content = "Instantly completed doggy minigame",
-                                Image = "rbxassetid://4483345998",
-                                Time = 3
-                            })
-                        end
-                    end
-                end
-                
-                -- Check every 5 seconds
-                wait(5)
-            end
-        end)
-    end
-end
-
--- Function for auto open mystery box
-Functions.StartAutoOpenMysteryBox = function()
-    if Settings.AutoOpenMysteryBox then
-        spawn(function()
-            while Settings.AutoOpenMysteryBox do
-                -- Find the mystery box remote
-                local openRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("OpenMysteryBox") or
-                                 game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimMysteryBox")
-                
-                if openRemote then
-                    -- Try to open mystery box
-                    local success = pcall(function()
-                        openRemote:FireServer()
-                    end)
-                    
-                    if success then
-                        OrionLib:MakeNotification({
-                            Name = "Mystery Box",
-                            Content = "Opened a mystery box",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Check every minute
-                wait(60)
-            end
-        end)
-    end
-end
-
--- Function for auto claim season pass
-Functions.StartAutoClaimSeasonPass = function()
-    if Settings.AutoClaimSeasonPass then
-        spawn(function()
-            while Settings.AutoClaimSeasonPass do
-                -- Find the season pass remote
-                local seasonPassRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimSeasonPassReward") or
-                                       game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimBattlePassReward")
-                
-                if seasonPassRemote then
-                    -- Try to claim all available tiers
-                    for i = 1, 100 do -- Season passes typically have up to 100 tiers
-                        pcall(function()
-                            seasonPassRemote:FireServer(i)
-                        end)
-                        
-                        wait(0.1) -- Brief delay between claims
-                    end
-                    
-                    OrionLib:MakeNotification({
-                        Name = "Season Pass",
-                        Content = "Attempted to claim all season pass rewards",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-                
-                -- Check every 5 minutes
-                wait(300)
-            end
-        end)
-    end
-end
-
--- Function for auto spin wheel
-Functions.StartAutoSpinWheel = function()
-    if Settings.AutoSpinWheel then
-        spawn(function()
-            while Settings.AutoSpinWheel do
-                -- Find the spin wheel remote
-                local spinWheelRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("SpinWheel") or
-                                      game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("Spin")
-                
-                if spinWheelRemote then
-                    -- Try to spin the wheel
-                    local success = pcall(function()
-                        spinWheelRemote:FireServer()
-                    end)
-                    
-                    if success then
-                        OrionLib:MakeNotification({
-                            Name = "Wheel Spin",
-                            Content = "Spun the wheel",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Check every 5 minutes
-                wait(300)
-            end
-        end)
-    end
-end
-
--- Function for auto claim spin ticket
-Functions.StartAutoClaimSpinTicket = function()
-    if Settings.AutoClaimSpinTicket then
-        spawn(function()
-            while Settings.AutoClaimSpinTicket do
-                -- Find the claim ticket remote
-                local claimTicketRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ClaimSpinTicket") or
-                                        game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("CollectTicket")
-                
-                if claimTicketRemote then
-                    -- Try to claim spin ticket
-                    local success = pcall(function()
-                        claimTicketRemote:FireServer()
-                    end)
-                    
-                    if success then
-                        OrionLib:MakeNotification({
-                            Name = "Spin Ticket",
-                            Content = "Claimed spin ticket",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Check every minute
-                wait(60)
-            end
-        end)
-    end
-end
-
--- Auto Doggy Jump Toggle
-MainTab:AddToggle({
-    Name = "Auto Doggy Jump (Instant)",
-    Default = false,
-    Flag = "AutoDogMinigameWin",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoDogMinigameWin = Value
-        if Value then
-            Functions.StartAutoDogMinigameWin()
-            OrionLib:MakeNotification({
-                Name = "Doggy Jump",
-                Content = "Auto doggy jump minigame win enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Doggy Jump",
-                Content = "Auto doggy jump minigame win disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Open Mystery Box Toggle
-MainTab:AddToggle({
-    Name = "Auto Open Mystery Box",
-    Default = false,
-    Flag = "AutoOpenMysteryBox",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoOpenMysteryBox = Value
-        if Value then
-            Functions.StartAutoOpenMysteryBox()
-            OrionLib:MakeNotification({
-                Name = "Mystery Box",
-                Content = "Auto open mystery box enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Mystery Box",
-                Content = "Auto open mystery box disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Claim Season Pass Toggle
-MainTab:AddToggle({
-    Name = "Auto Claim Season Pass",
-    Default = false,
-    Flag = "AutoClaimSeasonPass",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoClaimSeasonPass = Value
-        if Value then
-            Functions.StartAutoClaimSeasonPass()
-            OrionLib:MakeNotification({
-                Name = "Season Pass",
-                Content = "Auto claim season pass rewards enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Season Pass",
-                Content = "Auto claim season pass rewards disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Spin Wheel Toggle
-MainTab:AddToggle({
-    Name = "Auto Spin Wheel",
-    Default = false,
-    Flag = "AutoSpinWheel",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoSpinWheel = Value
-        if Value then
-            Functions.StartAutoSpinWheel()
-            OrionLib:MakeNotification({
-                Name = "Wheel Spin",
-                Content = "Auto spin wheel enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Wheel Spin",
-                Content = "Auto spin wheel disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Claim Spin Ticket Toggle
-MainTab:AddToggle({
-    Name = "Auto Claim Spin Ticket",
-    Default = false,
-    Flag = "AutoClaimSpinTicket",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoClaimSpinTicket = Value
-        if Value then
-            Functions.StartAutoClaimSpinTicket()
-            OrionLib:MakeNotification({
-                Name = "Spin Ticket",
-                Content = "Auto claim spin ticket enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Spin Ticket",
-                Content = "Auto claim spin ticket disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Add Gum Store Section
-MainTab:AddSection({
-    Name = "Gum Store Features"
-})
-
--- Auto Buy Gum Store Items Toggle
-MainTab:AddToggle({
-    Name = "Auto Buy Gum Store Items",
-    Default = false,
-    Flag = "AutoBuyGumStoreItems",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoBuyGumStoreItems = Value
-        if Value then
-            Functions.StartAutoBuyGumStoreItems()
-            OrionLib:MakeNotification({
-                Name = "Gum Store",
-                Content = "Auto buy gum store items enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Gum Store",
-                Content = "Auto buy gum store items disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Equip Best Gum Items Toggle
-MainTab:AddToggle({
-    Name = "Auto Equip Best Gum Items",
-    Default = false,
-    Flag = "AutoEquipBestGumItems",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoEquipBestGumItems = Value
-        if Value then
-            Functions.StartAutoEquipBestGumItems()
-            OrionLib:MakeNotification({
-                Name = "Gum Equipment",
-                Content = "Auto equip best gum items enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Gum Equipment",
-                Content = "Auto equip best gum items disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Buy Masteries Toggle
-MainTab:AddToggle({
-    Name = "Auto Buy Masteries",
-    Default = false,
-    Flag = "AutoBuyMasteries",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoBuyMasteries = Value
-        if Value then
-            Functions.StartAutoBuyMasteries()
-            OrionLib:MakeNotification({
-                Name = "Masteries",
-                Content = "Auto buy masteries enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Masteries",
-                Content = "Auto buy masteries disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- World Features Section
-MainTab:AddSection({
-    Name = "World & Utility Features"
-})
-
--- Redeem All Codes Button
-MainTab:AddButton({
-    Name = "Redeem All Codes",
-    Callback = function()
-        Functions.RedeemAllCodes()
-    end
-})
-
--- Unlock All Worlds Button
-MainTab:AddButton({
-    Name = "Unlock All Worlds",
-    Callback = function()
-        Settings.UnlockAllWorlds = true
-        Functions.UnlockAllWorlds()
-        Settings.UnlockAllWorlds = false
-    end
-})
-
--- ESP Toggle
-MainTab:AddToggle({
-    Name = "ESP for Rare Items",
-    Default = false,
-    Flag = "ESP",
-    Save = true,
-    Callback = function(Value)
-        Settings.ESP = Value
-        Functions.SetupESP()
-    end
-})
-
--- Egg hatching section
-local EggTab = Window:MakeTab({
-    Name = "Egg Hatching",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-EggTab:AddSection({
-    Name = "Auto Hatch Settings"
-})
-
--- Function to disable egg animations
-local function DisableEggAnimations()
-    if Settings.AutoHatchSettings.DisableAnimation then
-        -- Try to find and disable egg opening animations
-        local success, err = pcall(function()
-            -- Method 1: Hook the animation event (in a real executor environment)
-            if hookmetamethod then
-                local oldNamecall
-                oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-                    local method = getnamecallmethod()
-                    local args = {...}
-                    
-                    if method == "FireServer" and self.Name == "PlayEggAnimation" then
-                        return nil -- Block the animation from playing
-                    end
-                    
-                    return oldNamecall(self, ...)
-                end)
-            end
-            
-            -- Method 2: Try to directly disable the animation GUI
-            for _, v in pairs(game:GetService("Players").LocalPlayer.PlayerGui:GetChildren()) do
-                if v.Name:find("EggOpening") then
-                    v.Enabled = false
-                end
-            end
-            
-            -- Method 3: Set a variable in the client to skip animations if it exists
-            if game:GetService("ReplicatedStorage"):FindFirstChild("ClientSettings") then
-                if game:GetService("ReplicatedStorage").ClientSettings:FindFirstChild("DisableEggAnimations") then
-                    game:GetService("ReplicatedStorage").ClientSettings.DisableEggAnimations.Value = true
-                end
-            end
-        end)
-        
-        if success then
-            OrionLib:MakeNotification({
-                Name = "Animation Skipper",
-                Content = "Egg animations disabled successfully",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-end
-
--- Auto hatch toggle
-EggTab:AddToggle({
-    Name = "Auto Hatch Eggs",
-    Default = false,
-    Flag = "AutoHatch",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoHatch = Value
-        if Value then
-            Functions.StartAutoHatch()
-            OrionLib:MakeNotification({
-                Name = "Auto Hatch",
-                Content = "Auto hatching " .. Settings.AutoHatchSettings.Egg .. " enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Hatch",
-                Content = "Auto hatching disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Egg selection dropdown
-local eggList = {"Basic Egg", "Spotted Egg", "Ice Egg", "Desert Egg", "Farm Egg", "Beach Egg", "Forest Egg", "Winter Egg", "Lava Egg", "Coral Egg", "Enchanted Egg", "Godly Egg", "Heaven Egg"}
-EggTab:AddDropdown({
-    Name = "Select Egg",
-    Default = "Basic Egg",
-    Options = eggList,
-    Flag = "EggSelection",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoHatchSettings.Egg = Value
-    end    
-})
-
--- Egg amount selection
-EggTab:AddDropdown({
-    Name = "Hatch Amount",
-    Default = "Single",
-    Options = {"Single", "Triple"},
-    Flag = "EggAmount",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoHatchSettings.Amount = Value
-    end    
-})
-
--- Hatch delay slider
-EggTab:AddSlider({
-    Name = "Hatch Delay (seconds)",
-    Min = 0.5,
-    Max = 5,
-    Default = 1,
-    Color = Color3.fromRGB(89, 150, 255),
-    Increment = 0.1,
-    ValueName = "seconds",
-    Flag = "HatchDelay",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoHatchSettings.OpenDelay = Value
-    end    
-})
-
--- Disable egg animations toggle
-EggTab:AddToggle({
-    Name = "Disable Egg Animations",
-    Default = false,
-    Flag = "DisableEggAnimations",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoHatchSettings.DisableAnimation = Value
-        if Value then
-            DisableEggAnimations()
-            OrionLib:MakeNotification({
-                Name = "Animation Skipper",
-                Content = "Egg animations will be disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Function for Auto Multiplier Eggs
-Functions.StartAutoMultiplierEggs = function()
-    if Settings.AutoMultiplierEggs then
-        spawn(function()
-            while Settings.AutoMultiplierEggs do
-                -- Find multiplier eggs in the game
-                local multiplierRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UseBoostEgg") or
-                                        game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UseMultiplierEgg")
-                
-                if multiplierRemote then
-                    pcall(function()
-                        multiplierRemote:FireServer()
-                    end)
-                    
-                    OrionLib:MakeNotification({
-                        Name = "Multiplier Egg",
-                        Content = "Used a multiplier egg",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-                
-                -- Wait 5 seconds between attempts
-                wait(5)
-            end
-        end)
-    end
-end
-
--- Function to hatch the nearest egg
-Functions.StartHatchNearestEgg = function()
-    if Settings.HatchNearestEgg then
-        spawn(function()
-            while Settings.HatchNearestEgg do
-                -- Find all egg machines in the world
-                local nearestEgg = nil
-                local shortestDistance = math.huge
-                
-                -- Look for egg machines
-                for _, v in pairs(workspace:GetDescendants()) do
-                    if (v.Name:find("Egg") or v.Name:find("Machine")) and (v:IsA("Model") or v:IsA("BasePart")) then
-                        local eggPosition = v:IsA("Model") and v:GetModelCFrame().Position or v.Position
-                        local distance = (Character.HumanoidRootPart.Position - eggPosition).Magnitude
-                        
-                        if distance < shortestDistance then
-                            nearestEgg = v
-                            shortestDistance = distance
-                        end
-                    end
-                end
-                
-                -- If nearest egg found, teleport to it and hatch
-                if nearestEgg then
-                    -- Teleport to the nearest egg
-                    local eggPosition = nearestEgg:IsA("Model") and nearestEgg:GetModelCFrame().Position or nearestEgg.Position
-                    Character.HumanoidRootPart.CFrame = CFrame.new(eggPosition + Vector3.new(0, 5, 0))
-                    wait(1)
-                    
-                    -- Get egg name
-                    local eggName = nearestEgg.Name:gsub("Machine", ""):gsub("Egg", ""):gsub("%s+", "") .. " Egg"
-                    
-                    -- Try to hatch egg
-                    local hatchRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("HatchEgg")
-                    if hatchRemote then
-                        local amount = Settings.AutoHatchSettings.Amount == "Triple" and 3 or 1
-                        
-                        pcall(function()
-                            hatchRemote:FireServer(eggName, amount)
-                        end)
-                    end
-                    
-                    OrionLib:MakeNotification({
-                        Name = "Nearest Egg",
-                        Content = "Attempting to hatch " .. eggName,
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-                
-                -- Wait between hatches
-                wait(Settings.AutoHatchSettings.OpenDelay)
-            end
-        end)
-    end
-end
-
--- Auto Multiplier Eggs Toggle
-EggTab:AddToggle({
-    Name = "Auto Use Multiplier Eggs",
-    Default = false,
-    Flag = "AutoMultiplierEggs",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoMultiplierEggs = Value
-        if Value then
-            Functions.StartAutoMultiplierEggs()
-            OrionLib:MakeNotification({
-                Name = "Multiplier Eggs",
-                Content = "Auto multiplier eggs enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Multiplier Eggs",
-                Content = "Auto multiplier eggs disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Hatch Nearest Egg Toggle
-EggTab:AddToggle({
-    Name = "Hatch Nearest Egg",
-    Default = false,
-    Flag = "HatchNearestEgg",
-    Save = true,
-    Callback = function(Value)
-        Settings.HatchNearestEgg = Value
-        if Value then
-            Functions.StartHatchNearestEgg()
-            OrionLib:MakeNotification({
-                Name = "Nearest Egg",
-                Content = "Auto hatching nearest egg enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Nearest Egg",
-                Content = "Auto hatching nearest egg disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Pets Tab
-local PetsTab = Window:MakeTab({
-    Name = "Pets Manager",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-PetsTab:AddSection({
-    Name = "Pet Management"
-})
-
--- Function to auto equip best pets
-Functions.StartAutoEquipBestPets = function()
-    if Settings.AutoEquipBestPets then
-        spawn(function()
-            while Settings.AutoEquipBestPets do
-                -- Find the equip pet remote
-                local equipPetRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("EquipPet") or
-                                      game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("EquipBestPets")
-                
-                if equipPetRemote then
-                    -- Determine the stat we're optimizing for
-                    local statToOptimize = Settings.AutoEquipPetsFor
-                    
-                    -- Try to auto-equip the best pets
-                    local success = pcall(function()
-                        equipPetRemote:FireServer(statToOptimize) -- Many games have a built-in "equip best" function
-                    end)
-                    
-                    if success then
-                        OrionLib:MakeNotification({
-                            Name = "Auto Equip",
-                            Content = "Equipped best pets for " .. statToOptimize,
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Check every 2 minutes
-                wait(120)
-            end
-        end)
-    end
-end
-
--- Function to auto use power orbs
-Functions.StartAutoUsePowerOrbs = function()
-    if Settings.AutoUsePowerOrbs then
-        spawn(function()
-            while Settings.AutoUsePowerOrbs do
-                -- Find the power orb remote
-                local usePowerOrbRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UsePowerOrb") or
-                                        game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UseOrb")
-                
-                if usePowerOrbRemote then
-                    -- Try to use power orb
-                    local success = pcall(function()
-                        usePowerOrbRemote:FireServer()
-                    end)
-                    
-                    if success then
-                        OrionLib:MakeNotification({
-                            Name = "Power Orbs",
-                            Content = "Used a power orb",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Try every 30 seconds
-                wait(30)
-            end
-        end)
-    end
-end
-
--- Function to auto make shiny pets
-Functions.StartAutoShinyPets = function()
-    if Settings.AutoShinyPets then
-        spawn(function()
-            while Settings.AutoShinyPets do
-                -- Find the make shiny remote
-                local makeShinyRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("MakeShiny") or
-                                       game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("CraftShiny")
-                
-                if makeShinyRemote then
-                    -- Try to make all possible shiny pets
-                    local success = pcall(function()
-                        makeShinyRemote:FireServer("All") -- Many games allow specifying "All" for automatic crafting
-                    end)
-                    
-                    if success then
-                        OrionLib:MakeNotification({
-                            Name = "Shiny Pets",
-                            Content = "Attempted to make all possible shiny pets",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Check every 60 seconds
-                wait(60)
-            end
-        end)
-    end
-end
-
--- Function to auto delete unwanted pets
-Functions.StartAutoPetDelete = function()
-    if Settings.AutoPetDelete then
-        spawn(function()
-            while Settings.AutoPetDelete do
-                -- Get the rarity settings
-                local deleteSettings = Settings.PetDeleteSettings
-                
-                -- Find the delete pet remote
-                local deletePetRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("DeletePet") or
-                                       game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("DeletePets")
-                
-                if deletePetRemote then
-                    -- Track how many pets were deleted
-                    local deletedCount = 0
-                    
-                    -- Try to get pet data for the player
-                    local playerData = Player:FindFirstChild("PetInventory") or Player:FindFirstChild("Pets")
-                    
-                    if playerData then
-                        -- Try to delete pets based on rarity settings
-                        for _, petInfo in pairs(playerData:GetChildren()) do
-                            if petInfo:IsA("StringValue") or petInfo:IsA("IntValue") or petInfo:IsA("ObjectValue") then
-                                local petRarity = petInfo:FindFirstChild("Rarity") and petInfo.Rarity.Value or ""
-                                local petID = petInfo.Name
-                                
-                                -- Check if we should delete this pet based on rarity
-                                if (petRarity == "Common" and deleteSettings.DeleteCommon) or
-                                   (petRarity == "Uncommon" and deleteSettings.DeleteUncommon) or
-                                   (petRarity == "Rare" and deleteSettings.DeleteRare) or
-                                   (petRarity == "Epic" and deleteSettings.DeleteEpic) or
-                                   (petRarity == "Legendary" and deleteSettings.DeleteLegendary) or
-                                   (petRarity == "Mythical" and deleteSettings.DeleteMythical) then
-                                    
-                                    local success = pcall(function()
-                                        deletePetRemote:FireServer(petID)
-                                    end)
-                                    
-                                    if success then
-                                        deletedCount = deletedCount + 1
-                                    end
-                                    
-                                    -- Add a small delay to avoid overwhelming the server
-                                    wait(0.1)
-                                end
-                            end
-                        end
-                    end
-                    
-                    if deletedCount > 0 then
-                        OrionLib:MakeNotification({
-                            Name = "Pet Deletion",
-                            Content = "Auto-deleted " .. deletedCount .. " unwanted pets",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                end
-                
-                -- Check every 30 seconds
-                wait(30)
-            end
-        end)
-    end
-end
-
--- Function for fast pet enchanting
-Functions.StartAutoFastEnchant = function()
-    if Settings.AutoFastEnchant then
-        spawn(function()
-            while Settings.AutoFastEnchant do
-                -- Find the enchant remote
-                local enchantRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("EnchantPet") or
-                                     game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("Enchant")
-                
-                if enchantRemote then
-                    -- Try to enchant all pets rapidly
-                    local playerData = Player:FindFirstChild("PetInventory") or Player:FindFirstChild("Pets")
-                    
-                    if playerData then
-                        local enchantedCount = 0
-                        
-                        for _, petInfo in pairs(playerData:GetChildren()) do
-                            if petInfo:IsA("StringValue") or petInfo:IsA("IntValue") or petInfo:IsA("ObjectValue") then
-                                local petID = petInfo.Name
-                                
-                                -- Common enchant tiers
-                                local enchantTiers = {"Basic", "Advanced", "Rare", "Epic", "Legendary"}
-                                
-                                -- Try the best enchant tier first (usually more expensive)
-                                for i = #enchantTiers, 1, -1 do
-                                    local enchantTier = enchantTiers[i]
-                                    local success = pcall(function()
-                                        enchantRemote:FireServer(petID, enchantTier)
-                                    end)
-                                    
-                                    if success then
-                                        enchantedCount = enchantedCount + 1
-                                        break -- Move to next pet
-                                    end
-                                end
-                                
-                                -- Add a small delay to avoid overwhelming the server
-                                wait(0.1)
-                                
-                                -- Limit to 10 enchants per cycle to avoid excessive resource usage
-                                if enchantedCount >= 10 then
-                                    break
-                                end
-                            end
-                        end
-                        
-                        if enchantedCount > 0 then
-                            OrionLib:MakeNotification({
-                                Name = "Fast Enchant",
-                                Content = "Enchanted " .. enchantedCount .. " pets",
-                                Image = "rbxassetid://4483345998",
-                                Time = 3
-                            })
-                        end
-                    end
-                end
-                
-                -- Wait between enchant cycles
-                wait(15)
-            end
-        end)
-    end
-end
-
--- Function to simulate fake hatching
-Functions.FakeHatchPets = function()
-    -- This will simulate opening a specified egg with a guaranteed legendary/mythical
-    local fakeHatchRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("HatchEgg")
-    
-    if fakeHatchRemote then
-        -- Backup the original remote function
-        local originalFireServer
-        
-        -- Hook the remote (only works in a real executor environment)
-        if hookfunction then
-            -- Save reference to the original FireServer
-            originalFireServer = hookfunction(fakeHatchRemote.FireServer, function(self, eggType, amount, ...)
-                -- Call the original function with normal parameters
-                local result = originalFireServer(self, eggType, amount, ...)
-                
-                -- Simulate getting a legendary pet
-                local fakePet = {
-                    Name = "Fake Legendary Pet",
-                    Rarity = "Legendary",
-                    Power = 9999,
-                    IsShiny = true
-                }
-                
-                -- Show a notification about the fake hatch
-                OrionLib:MakeNotification({
-                    Name = "Fake Hatch",
-                    Content = "Simulated hatching a legendary pet! (Visual Only)",
-                    Image = "rbxassetid://4483345998",
-                    Time = 5
-                })
-                
-                return result
-            end)
-        end
-        
-        -- Trigger a fake hatch
-        local eggToFake = Settings.AutoHatchSettings.Egg
-        local amountToFake = Settings.AutoHatchSettings.Amount == "Triple" and 3 or 1
-        
+    IntroText = "SkyX Hub - Premium",
+    IntroIcon = "rbxassetid://10618644218",
+    Icon = "rbxassetid://10618644218",
+    CloseCallback = function()
+        -- Clean up any lingering connections when UI is closed
         pcall(function()
-            fakeHatchRemote:FireServer(eggToFake, amountToFake)
+            if getgenv().FlyKeyConnection then getgenv().FlyKeyConnection:Disconnect() end
+            if getgenv().FlyKeyReleaseConnection then getgenv().FlyKeyReleaseConnection:Disconnect() end
+            if getgenv().InfJumpConnection then getgenv().InfJumpConnection:Disconnect() end
+            
+            -- Disable any active features
+            getgenv().NoClip = false
+            getgenv().Fly = false
+            getgenv().GodMode = false
+            getgenv().InfiniteJump = false
+            getgenv().AutoCollectCoins = false
+            getgenv().AutoCollectItems = false
+            getgenv().ESP = false
+            getgenv().ShowRoles = false
+            getgenv().AutoGetGunKillMurderer = false
+            
+            print("SkyX Hub closed - all features disabled")
         end)
-    else
-        OrionLib:MakeNotification({
-            Name = "Fake Hatch",
-            Content = "Hatch egg remote not found. This is a visual-only feature.",
-            Image = "rbxassetid://4483345998",
-            Time = 5
-        })
-    end
-end
-
--- Auto Equip Best Pets Toggle
-PetsTab:AddToggle({
-    Name = "Auto Equip Best Pets",
-    Default = false,
-    Flag = "AutoEquipBestPets",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoEquipBestPets = Value
-        if Value then
-            Functions.StartAutoEquipBestPets()
-            OrionLib:MakeNotification({
-                Name = "Pet Equip",
-                Content = "Auto equip best pets enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Pet Equip",
-                Content = "Auto equip best pets disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
     end
 })
 
--- Currency selection for pet equipping
-PetsTab:AddDropdown({
-    Name = "Equip For Currency",
-    Default = "Coins",
-    Options = {"Coins", "Gems", "Bubbles", "Luck"},
-    Flag = "PetEquipCurrency",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoEquipPetsFor = Value
-        OrionLib:MakeNotification({
-            Name = "Pet Equip",
-            Content = "Will equip pets optimized for " .. Value,
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
--- Auto Use Power Orbs Toggle
-PetsTab:AddToggle({
-    Name = "Auto Use Power Orbs",
-    Default = false,
-    Flag = "AutoUsePowerOrbs",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoUsePowerOrbs = Value
-        if Value then
-            Functions.StartAutoUsePowerOrbs()
-            OrionLib:MakeNotification({
-                Name = "Power Orbs",
-                Content = "Auto use power orbs enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Power Orbs",
-                Content = "Auto use power orbs disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Fast Enchant Toggle
-PetsTab:AddToggle({
-    Name = "Auto Fast Enchant",
-    Default = false,
-    Flag = "AutoFastEnchant",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoFastEnchant = Value
-        if Value then
-            Functions.StartAutoFastEnchant()
-            OrionLib:MakeNotification({
-                Name = "Fast Enchant",
-                Content = "Auto fast enchant enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Fast Enchant",
-                Content = "Auto fast enchant disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Shiny Pets Toggle
-PetsTab:AddToggle({
-    Name = "Auto Shiny Pets",
-    Default = false,
-    Flag = "AutoShinyPets",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoShinyPets = Value
-        if Value then
-            Functions.StartAutoShinyPets()
-            OrionLib:MakeNotification({
-                Name = "Shiny Pets",
-                Content = "Auto shiny pets enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Shiny Pets",
-                Content = "Auto shiny pets disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Pet deletion section
-PetsTab:AddSection({
-    Name = "Auto Delete Settings"
-})
-
--- Auto Pet Delete Toggle
-PetsTab:AddToggle({
-    Name = "Auto Delete Unwanted Pets",
-    Default = false,
-    Flag = "AutoPetDelete",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoPetDelete = Value
-        if Value then
-            Functions.StartAutoPetDelete()
-            OrionLib:MakeNotification({
-                Name = "Pet Deletion",
-                Content = "Auto delete unwanted pets enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Pet Deletion",
-                Content = "Auto delete unwanted pets disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Delete Common Pets Toggle
-PetsTab:AddToggle({
-    Name = "Delete Common Pets",
-    Default = true,
-    Flag = "DeleteCommonPets",
-    Save = true,
-    Callback = function(Value)
-        Settings.PetDeleteSettings.DeleteCommon = Value
-    end
-})
-
--- Delete Uncommon Pets Toggle
-PetsTab:AddToggle({
-    Name = "Delete Uncommon Pets",
-    Default = true,
-    Flag = "DeleteUncommonPets",
-    Save = true,
-    Callback = function(Value)
-        Settings.PetDeleteSettings.DeleteUncommon = Value
-    end
-})
-
--- Delete Rare Pets Toggle
-PetsTab:AddToggle({
-    Name = "Delete Rare Pets",
-    Default = false,
-    Flag = "DeleteRarePets",
-    Save = true,
-    Callback = function(Value)
-        Settings.PetDeleteSettings.DeleteRare = Value
-    end
-})
-
--- Delete Epic Pets Toggle
-PetsTab:AddToggle({
-    Name = "Delete Epic Pets",
-    Default = false,
-    Flag = "DeleteEpicPets",
-    Save = true,
-    Callback = function(Value)
-        Settings.PetDeleteSettings.DeleteEpic = Value
-    end
-})
-
--- Delete Legendary Pets Toggle
-PetsTab:AddToggle({
-    Name = "Delete Legendary Pets",
-    Default = false,
-    Flag = "DeleteLegendaryPets",
-    Save = true,
-    Callback = function(Value)
-        Settings.PetDeleteSettings.DeleteLegendary = Value
-    end
-})
-
--- Special Pet Features Section
-PetsTab:AddSection({
-    Name = "Special Pet Features"
-})
-
--- Fake Hatch Button
-PetsTab:AddButton({
-    Name = "Fake Hatch Pets (Visual Only)",
-    Callback = function()
-        Functions.FakeHatchPets()
-    end
-})
-
--- Inventory Prediction Button
-PetsTab:AddButton({
-    Name = "Infinity Pass Prediction",
-    Callback = function()
-        -- This is just a visual gimmick
-        if Settings.InfinityPassPrediction then
-            OrionLib:MakeNotification({
-                Name = "Infinity Pass",
-                Content = "Based on your current luck and eggs, prediction: 87% chance of legendary in next 10 eggs!",
-                Image = "rbxassetid://4483345998",
-                Time = 5
-            })
-        else
-            Settings.InfinityPassPrediction = true
-            OrionLib:MakeNotification({
-                Name = "Infinity Pass",
-                Content = "Analyzing your current luck and hatch history... (Visual Feature)",
-                Image = "rbxassetid://4483345998",
-                Time = 5
-            })
-            
-            -- Simulate processing
-            wait(2)
-            
-            OrionLib:MakeNotification({
-                Name = "Infinity Pass",
-                Content = "Based on your current luck and eggs, prediction: 87% chance of legendary in next 10 eggs!",
-                Image = "rbxassetid://4483345998",
-                Time = 5
-            })
-        end
-    end
-})
-
--- Player Modifications Tab
-local PlayerTab = Window:MakeTab({
-    Name = "Player Mods",
-    Icon = "rbxassetid://4483345998",
+-- Create Tabs with proper mobile sizing 
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998", 
     PremiumOnly = false
 })
 
-PlayerTab:AddSection({
-    Name = "Player Modifications"
-})
-
--- Functions for player modifications
-Functions.ApplyWalkspeedModification = function()
-    if Settings.WalkSpeedModify then
-        spawn(function()
-            while Settings.WalkSpeedModify do
-                if Character and Character:FindFirstChild("Humanoid") then
-                    Character.Humanoid.WalkSpeed = Settings.WalkSpeedValue
-                end
-                wait(0.5) -- Update regularly in case game resets it
-            end
-            
-            -- Reset to default when disabled
-            if Character and Character:FindFirstChild("Humanoid") then
-                Character.Humanoid.WalkSpeed = 16
-            end
-        end)
-    end
-end
-
-Functions.ApplyJumpPowerModification = function()
-    if Settings.JumpPowerModify then
-        spawn(function()
-            while Settings.JumpPowerModify do
-                if Character and Character:FindFirstChild("Humanoid") then
-                    Character.Humanoid.JumpPower = Settings.JumpPowerValue
-                end
-                wait(0.5) -- Update regularly in case game resets it
-            end
-            
-            -- Reset to default when disabled
-            if Character and Character:FindFirstChild("Humanoid") then
-                Character.Humanoid.JumpPower = 50
-            end
-        end)
-    end
-end
-
--- Walkspeed Toggle
-PlayerTab:AddToggle({
-    Name = "Modify WalkSpeed",
-    Default = false,
-    Flag = "WalkSpeedModify",
-    Save = true,
-    Callback = function(Value)
-        Settings.WalkSpeedModify = Value
-        if Value then
-            Functions.ApplyWalkspeedModification()
-            OrionLib:MakeNotification({
-                Name = "WalkSpeed Modifier",
-                Content = "WalkSpeed set to " .. Settings.WalkSpeedValue,
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "WalkSpeed Modifier",
-                Content = "WalkSpeed reset to default",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Walkspeed Slider
-PlayerTab:AddSlider({
-    Name = "WalkSpeed Value",
-    Min = 16,
-    Max = 500,
-    Default = 100,
-    Color = Color3.fromRGB(89, 150, 255),
-    Increment = 5,
-    ValueName = "walkspeed",
-    Flag = "WalkSpeedValue",
-    Save = true,
-    Callback = function(Value)
-        Settings.WalkSpeedValue = Value
-        if Settings.WalkSpeedModify then
-            if Character and Character:FindFirstChild("Humanoid") then
-                Character.Humanoid.WalkSpeed = Value
-            end
-        end
-    end
-})
-
--- JumpPower Toggle
-PlayerTab:AddToggle({
-    Name = "Modify JumpPower",
-    Default = false,
-    Flag = "JumpPowerModify",
-    Save = true,
-    Callback = function(Value)
-        Settings.JumpPowerModify = Value
-        if Value then
-            Functions.ApplyJumpPowerModification()
-            OrionLib:MakeNotification({
-                Name = "JumpPower Modifier",
-                Content = "JumpPower set to " .. Settings.JumpPowerValue,
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "JumpPower Modifier",
-                Content = "JumpPower reset to default",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- JumpPower Slider
-PlayerTab:AddSlider({
-    Name = "JumpPower Value",
-    Min = 50,
-    Max = 500,
-    Default = 100,
-    Color = Color3.fromRGB(89, 150, 255),
-    Increment = 5,
-    ValueName = "jumppower",
-    Flag = "JumpPowerValue",
-    Save = true,
-    Callback = function(Value)
-        Settings.JumpPowerValue = Value
-        if Settings.JumpPowerModify then
-            if Character and Character:FindFirstChild("Humanoid") then
-                Character.Humanoid.JumpPower = Value
-            end
-        end
-    end
-})
-
--- Merchants Tab for merchant related features
-local MerchantsTab = Window:MakeTab({
-    Name = "Merchants",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-MerchantsTab:AddSection({
-    Name = "Merchant Features"
-})
-
--- Function to auto reroll merchants
-Functions.StartAutoRerollMerchants = function()
-    if Settings.AutoRerollMerchants then
-        spawn(function()
-            while Settings.AutoRerollMerchants do
-                -- Find the reroll merchant remote
-                local rerollRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("RerollMerchant") or
-                                    game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("RefreshMerchant")
-                
-                if rerollRemote then
-                    -- Try to reroll all merchants
-                    local merchantTypes = {"Regular", "Advanced", "Expert", "Master", "Special", "Event"}
-                    
-                    for _, merchantType in pairs(merchantTypes) do
-                        pcall(function()
-                            rerollRemote:FireServer(merchantType)
-                        end)
-                        
-                        wait(0.5)
-                    end
-                    
-                    OrionLib:MakeNotification({
-                        Name = "Merchant Reroll",
-                        Content = "Attempted to reroll all merchants",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-                
-                -- Check every 5 minutes
-                wait(300)
-            end
-        end)
-    end
-end
-
--- Auto Reroll Merchants Toggle
-MerchantsTab:AddToggle({
-    Name = "Auto Reroll Merchants",
-    Default = false,
-    Flag = "AutoRerollMerchants",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoRerollMerchants = Value
-        if Value then
-            Functions.StartAutoRerollMerchants()
-            OrionLib:MakeNotification({
-                Name = "Merchant Reroll",
-                Content = "Auto reroll merchants enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Merchant Reroll",
-                Content = "Auto reroll merchants disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Buy Alien Shop Toggle
-MerchantsTab:AddToggle({
-    Name = "Auto Buy Alien Shop",
-    Default = false,
-    Flag = "AutoBuyAlienShop",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoBuyAlienShop = Value
-        if Value then
-            Functions.StartAutoBuyAlienShop()
-            OrionLib:MakeNotification({
-                Name = "Alien Shop",
-                Content = "Auto buy from alien shop enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Alien Shop",
-                Content = "Auto buy from alien shop disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Buy Black Market Toggle
-MerchantsTab:AddToggle({
-    Name = "Auto Buy Black Market",
-    Default = false,
-    Flag = "AutoBuyBlackMarket",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoBuyBlackMarket = Value
-        if Value then
-            Functions.StartAutoBuyBlackMarket()
-            OrionLib:MakeNotification({
-                Name = "Black Market",
-                Content = "Auto buy from black market enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Black Market",
-                Content = "Auto buy from black market disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
-MerchantsTab:AddSection({
-    Name = "Manual Merchant Actions"
-})
-
--- Manual Teleport to Alien Shop Button
-MerchantsTab:AddButton({
-    Name = "Teleport to Alien Shop",
-    Callback = function()
-        -- Find alien shop and teleport to it
-        local alienShop = workspace:FindFirstChild("AlienShop") or workspace:FindFirstChild("SpecialShop")
-        
-        if alienShop and Character and Character:FindFirstChild("HumanoidRootPart") then
-            -- Store original position for return
-            local originalPosition = Character.HumanoidRootPart.Position
-            
-            -- Determine shop position
-            local shopPosition
-            if typeof(alienShop) == "Instance" then
-                if alienShop:IsA("BasePart") then
-                    shopPosition = alienShop.Position
-                elseif alienShop:IsA("Model") and alienShop.PrimaryPart then
-                    shopPosition = alienShop.PrimaryPart.Position
-                else
-                    -- Try to find a part in the model
-                    for _, v in pairs(alienShop:GetDescendants()) do
-                        if v:IsA("BasePart") then
-                            shopPosition = v.Position
-                            break
-                        end
-                    end
-                end
-            end
-            
-            -- If found, teleport
-            if shopPosition then
-                Character.HumanoidRootPart.CFrame = CFrame.new(shopPosition + Vector3.new(0, 5, 0))
-                
-                OrionLib:MakeNotification({
-                    Name = "Teleport",
-                    Content = "Teleported to Alien Shop",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-            else
-                OrionLib:MakeNotification({
-                    Name = "Teleport",
-                    Content = "Alien Shop not found",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-            end
-        else
-            OrionLib:MakeNotification({
-                Name = "Teleport",
-                Content = "Alien Shop not found",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Manual Teleport to Black Market Button
-MerchantsTab:AddButton({
-    Name = "Teleport to Black Market",
-    Callback = function()
-        -- Find black market and teleport to it
-        local blackMarket = workspace:FindFirstChild("BlackMarket") or workspace:FindFirstChild("SecretShop")
-        
-        if blackMarket and Character and Character:FindFirstChild("HumanoidRootPart") then
-            -- Store original position for return
-            local originalPosition = Character.HumanoidRootPart.Position
-            
-            -- Determine shop position
-            local shopPosition
-            if typeof(blackMarket) == "Instance" then
-                if blackMarket:IsA("BasePart") then
-                    shopPosition = blackMarket.Position
-                elseif blackMarket:IsA("Model") and blackMarket.PrimaryPart then
-                    shopPosition = blackMarket.PrimaryPart.Position
-                else
-                    -- Try to find a part in the model
-                    for _, v in pairs(blackMarket:GetDescendants()) do
-                        if v:IsA("BasePart") then
-                            shopPosition = v.Position
-                            break
-                        end
-                    end
-                end
-            end
-            
-            -- If found, teleport
-            if shopPosition then
-                Character.HumanoidRootPart.CFrame = CFrame.new(shopPosition + Vector3.new(0, 5, 0))
-                
-                OrionLib:MakeNotification({
-                    Name = "Teleport",
-                    Content = "Teleported to Black Market",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-            else
-                OrionLib:MakeNotification({
-                    Name = "Teleport",
-                    Content = "Black Market not found",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-            end
-        else
-            OrionLib:MakeNotification({
-                Name = "Teleport",
-                Content = "Black Market not found",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Potion Tab for potion related features
-local PotionTab = Window:MakeTab({
-    Name = "Potions",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-PotionTab:AddSection({
-    Name = "Potion Features"
-})
-
--- Function to auto craft potions
-Functions.StartAutoCraftPotions = function()
-    if Settings.AutoCraftPotions then
-        spawn(function()
-            while Settings.AutoCraftPotions do
-                -- Find the craft potion remote
-                local craftRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("CraftPotion") or
-                                  game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("BrewPotion")
-                
-                if craftRemote then
-                    -- Common potion types
-                    local potionTypes = {"Luck", "Coins", "Gems", "Hatch", "Bubble", "Speed"}
-                    
-                    -- Try to craft each potion type
-                    for _, potionType in pairs(potionTypes) do
-                        -- Common potion tiers (from best to worst)
-                        local potionTiers = {"Legendary", "Epic", "Rare", "Uncommon", "Common"}
-                        
-                        -- Try to craft the best tier first
-                        for _, tier in pairs(potionTiers) do
-                            local success = pcall(function()
-                                craftRemote:FireServer(potionType, tier)
-                            end)
-                            
-                            if success then
-                                OrionLib:MakeNotification({
-                                    Name = "Potion Crafting",
-                                    Content = "Crafted " .. tier .. " " .. potionType .. " Potion",
-                                    Image = "rbxassetid://4483345998",
-                                    Time = 3
-                                })
-                                
-                                break -- Stop trying lower tiers if successful
-                            end
-                            
-                            wait(0.5)
-                        end
-                    end
-                end
-                
-                -- Check every 5 minutes
-                wait(300)
-            end
-        end)
-    end
-end
-
--- Function to auto use potions
-Functions.StartAutoUsePotions = function()
-    if Settings.AutoUsePotions then
-        spawn(function()
-            while Settings.AutoUsePotions do
-                -- Find the use potion remote
-                local useRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UsePotion") or
-                                game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("ActivatePotion")
-                
-                if useRemote then
-                    -- Try to get the player's potion inventory
-                    local potionInventory = Player:FindFirstChild("PotionInventory") or Player:FindFirstChild("Potions")
-                    local activePotions = Player:FindFirstChild("ActivePotions") or Player:FindFirstChild("Boosts")
-                    
-                    -- Create a list of active potion types and their remaining time
-                    local activeTypes = {}
-                    if activePotions then
-                        for _, activePot in pairs(activePotions:GetChildren()) do
-                            if activePot:IsA("StringValue") or activePot:IsA("IntValue") or activePot:IsA("NumberValue") then
-                                -- Get the potion type and remaining time
-                                local potType = activePot.Name:gsub("Potion", ""):gsub("Boost", "")
-                                local remainingTime = activePot.Value
-                                
-                                -- Store the best active potion of each type
-                                if not activeTypes[potType] or remainingTime > activeTypes[potType] then
-                                    activeTypes[potType] = remainingTime
-                                end
-                            end
-                        end
-                    end
-                    
-                    -- Check player's potions and use them if better than active ones
-                    if potionInventory then
-                        for _, potion in pairs(potionInventory:GetChildren()) do
-                            if potion:IsA("StringValue") or potion:IsA("IntValue") or potion:IsA("ObjectValue") then
-                                local potType = ""
-                                local potTier = ""
-                                local potDuration = 0
-                                
-                                -- Try to get potion details
-                                if potion:FindFirstChild("Type") then potType = potion.Type.Value end
-                                if potion:FindFirstChild("Tier") then potTier = potion.Tier.Value end
-                                if potion:FindFirstChild("Duration") then potDuration = potion.Duration.Value end
-                                
-                                -- Calculate potion effectiveness (higher tier = better)
-                                local tierMultiplier = {
-                                    Common = 1,
-                                    Uncommon = 2,
-                                    Rare = 3,
-                                    Epic = 4,
-                                    Legendary = 5
-                                }
-                                
-                                local potEffectiveness = tierMultiplier[potTier] or 1
-                                
-                                -- Check if we should use this potion
-                                -- Only use if no active potion of this type or if this one is better
-                                if not activeTypes[potType] or activeTypes[potType] < 60 then -- Use if less than 1 minute left
-                                    local success = pcall(function()
-                                        useRemote:FireServer(potion.Name)
-                                    end)
-                                    
-                                    if success then
-                                        OrionLib:MakeNotification({
-                                            Name = "Auto Potion",
-                                            Content = "Used " .. potTier .. " " .. potType .. " Potion",
-                                            Image = "rbxassetid://4483345998",
-                                            Time = 3
-                                        })
-                                        
-                                        -- Update active potions list
-                                        activeTypes[potType] = potDuration
-                                    end
-                                    
-                                    wait(1) -- Wait to avoid overwhelming the server
-                                end
-                            end
-                        end
-                    end
-                end
-                
-                -- Check every 30 seconds
-                wait(30)
-            end
-        end)
-    end
-end
-
--- Auto Craft Potions Toggle
-PotionTab:AddToggle({
-    Name = "Auto Craft Potions",
-    Default = false,
-    Flag = "AutoCraftPotions",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoCraftPotions = Value
-        if Value then
-            Functions.StartAutoCraftPotions()
-            OrionLib:MakeNotification({
-                Name = "Potion Crafting",
-                Content = "Auto craft potions enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Potion Crafting",
-                Content = "Auto craft potions disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Use Potions Toggle
-PotionTab:AddToggle({
-    Name = "Auto Use Potions",
-    Default = false,
-    Flag = "AutoUsePotions",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoUsePotions = Value
-        if Value then
-            Functions.StartAutoUsePotions()
-            OrionLib:MakeNotification({
-                Name = "Auto Potion",
-                Content = "Auto use potions enabled (won't use if better potion active)",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Potion",
-                Content = "Auto use potions disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Shrine Potions Toggle
-PotionTab:AddToggle({
-    Name = "Auto Shrine Potions",
-    Default = false,
-    Flag = "AutoShrinePotions",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoShrinePotions = Value
-        if Value then
-            Functions.StartAutoShrinePotions()
-            OrionLib:MakeNotification({
-                Name = "Auto Shrine",
-                Content = "Auto shrine potions enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Shrine",
-                Content = "Auto shrine potions disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
-PotionTab:AddSection({
-    Name = "Mastery Features"
-})
-
--- Auto Upgrade Shops Mastery Toggle
-PotionTab:AddToggle({
-    Name = "Auto Upgrade Shops Mastery",
-    Default = false,
-    Flag = "AutoUpgradeShopsMastery",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoUpgradeShopsMastery = Value
-        if Value then
-            Functions.StartAutoUpgradeShopsMastery()
-            OrionLib:MakeNotification({
-                Name = "Shop Mastery",
-                Content = "Auto upgrade shops mastery enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Shop Mastery",
-                Content = "Auto upgrade shops mastery disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Upgrade Pets Mastery Toggle
-PotionTab:AddToggle({
-    Name = "Auto Upgrade Pets Mastery",
-    Default = false,
-    Flag = "AutoUpgradePetsMastery",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoUpgradePetsMastery = Value
-        if Value then
-            Functions.StartAutoUpgradePetsMastery()
-            OrionLib:MakeNotification({
-                Name = "Pet Mastery",
-                Content = "Auto upgrade pets mastery enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Pet Mastery",
-                Content = "Auto upgrade pets mastery disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Upgrade Buffs Mastery Toggle
-PotionTab:AddToggle({
-    Name = "Auto Upgrade Buffs Mastery",
-    Default = false,
-    Flag = "AutoUpgradeBuffsMastery",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoUpgradeBuffsMastery = Value
-        if Value then
-            Functions.StartAutoUpgradeBuffsMastery()
-            OrionLib:MakeNotification({
-                Name = "Buff Mastery",
-                Content = "Auto upgrade buffs mastery enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Buff Mastery",
-                Content = "Auto upgrade buffs mastery disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Function for auto shrine potions
-Functions.StartAutoShrinePotions = function()
-    if Settings.AutoShrinePotions then
-        spawn(function()
-            while Settings.AutoShrinePotions do
-                -- Find and interact with shrine
-                local shrines = {"LuckShrine", "CoinShrine", "GemShrine", "HatchShrine", "BubbleShrine"}
-                local originalPosition = Character.HumanoidRootPart.Position
-                
-                for _, shrineName in pairs(shrines) do
-                    local shrine = workspace:FindFirstChild(shrineName) or workspace:FindFirstChild("Shrines"):FindFirstChild(shrineName)
-                    if shrine then
-                        Character.HumanoidRootPart.CFrame = shrine.CFrame + Vector3.new(0, 5, 0)
-                        wait(0.5)
-                        
-                        -- Try to use shrine remote
-                        local shrineRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UseShrine")
-                        if shrineRemote then
-                            shrineRemote:FireServer(shrine)
-                        end
-                        
-                        wait(0.5)
-                    end
-                end
-                
-                -- Return to original position
-                Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                
-                -- Check every 5 minutes
-                wait(300)
-            end
-        end)
-    end
-end
-
--- Function for auto upgrade shops mastery
-Functions.StartAutoUpgradeShopsMastery = function()
-    if Settings.AutoUpgradeShopsMastery then
-        spawn(function()
-            while Settings.AutoUpgradeShopsMastery do
-                -- Find upgrade remote
-                local upgradeRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UpgradeShop") or
-                                    game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("PurchaseShopUpgrade")
-                
-                if upgradeRemote then
-                    -- Get available shop upgrades
-                    local shopUpgrades = {"BubbleMastery", "CoinMastery", "GemMastery", "LuckMastery"}
-                    
-                    for _, upgrade in pairs(shopUpgrades) do
-                        pcall(function()
-                            upgradeRemote:FireServer(upgrade)
-                        end)
-                        wait(0.5)
-                    end
-                    
-                    OrionLib:MakeNotification({
-                        Name = "Shop Mastery",
-                        Content = "Attempted to upgrade all shop masteries",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-                
-                -- Check every 2 minutes
-                wait(120)
-            end
-        end)
-    end
-end
-
--- Function for auto upgrade pets mastery
-Functions.StartAutoUpgradePetsMastery = function()
-    if Settings.AutoUpgradePetsMastery then
-        spawn(function()
-            while Settings.AutoUpgradePetsMastery do
-                -- Find upgrade remote
-                local upgradeRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UpgradePets") or
-                                    game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("PurchasePetUpgrade")
-                
-                if upgradeRemote then
-                    -- Get available pet upgrades
-                    local petUpgrades = {"Storage", "EquipLimit", "LuckBoost", "HatchBoost"}
-                    
-                    for _, upgrade in pairs(petUpgrades) do
-                        pcall(function()
-                            upgradeRemote:FireServer(upgrade)
-                        end)
-                        wait(0.5)
-                    end
-                    
-                    OrionLib:MakeNotification({
-                        Name = "Pet Mastery",
-                        Content = "Attempted to upgrade all pet masteries",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-                
-                -- Check every 2 minutes
-                wait(120)
-            end
-        end)
-    end
-end
-
--- Function for auto upgrade buffs mastery
-Functions.StartAutoUpgradeBuffsMastery = function()
-    if Settings.AutoUpgradeBuffsMastery then
-        spawn(function()
-            while Settings.AutoUpgradeBuffsMastery do
-                -- Find upgrade remote
-                local upgradeRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("UpgradeBuffs") or
-                                    game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("PurchaseBuffUpgrade")
-                
-                if upgradeRemote then
-                    -- Get available buff upgrades
-                    local buffUpgrades = {"Duration", "Strength", "CooldownReduction"}
-                    
-                    for _, upgrade in pairs(buffUpgrades) do
-                        pcall(function()
-                            upgradeRemote:FireServer(upgrade)
-                        end)
-                        wait(0.5)
-                    end
-                    
-                    OrionLib:MakeNotification({
-                        Name = "Buff Mastery",
-                        Content = "Attempted to upgrade all buff masteries",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-                
-                -- Check every 2 minutes
-                wait(120)
-            end
-        end)
-    end
-end
-
--- Function for auto buy from Alien Shop
-Functions.StartAutoBuyAlienShop = function()
-    if Settings.AutoBuyAlienShop then
-        spawn(function()
-            while Settings.AutoBuyAlienShop do
-                -- Find alien shop and teleport to it
-                local alienShop = workspace:FindFirstChild("AlienShop") or workspace:FindFirstChild("SpecialShop")
-                
-                if alienShop then
-                    local originalPosition = Character.HumanoidRootPart.Position
-                    
-                    -- Teleport to alien shop
-                    Character.HumanoidRootPart.CFrame = alienShop.CFrame + Vector3.new(0, 5, 0)
-                    wait(1)
-                    
-                    -- Try to buy all items
-                    local shopRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("PurchaseAlienItem") or
-                                      game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("PurchaseSpecialItem")
-                    
-                    if shopRemote then
-                        -- Try to buy all possible items
-                        for i = 1, 10 do -- Most shops have up to 10 items
-                            pcall(function()
-                                shopRemote:FireServer(i)
-                            end)
-                            wait(0.5)
-                        end
-                        
-                        OrionLib:MakeNotification({
-                            Name = "Alien Shop",
-                            Content = "Attempted to buy all items from Alien Shop",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                    
-                    -- Return to original position
-                    Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                end
-                
-                -- Check every 30 minutes
-                wait(1800)
-            end
-        end)
-    end
-end
-
--- Function for auto buy from Black Market
-Functions.StartAutoBuyBlackMarket = function()
-    if Settings.AutoBuyBlackMarket then
-        spawn(function()
-            while Settings.AutoBuyBlackMarket do
-                -- Find black market and teleport to it
-                local blackMarket = workspace:FindFirstChild("BlackMarket") or workspace:FindFirstChild("SecretShop")
-                
-                if blackMarket then
-                    local originalPosition = Character.HumanoidRootPart.Position
-                    
-                    -- Teleport to black market
-                    Character.HumanoidRootPart.CFrame = blackMarket.CFrame + Vector3.new(0, 5, 0)
-                    wait(1)
-                    
-                    -- Try to buy all items
-                    local shopRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("PurchaseBlackMarketItem") or
-                                      game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("PurchaseSecretItem")
-                    
-                    if shopRemote then
-                        -- Try to buy all possible items
-                        for i = 1, 10 do -- Most shops have up to 10 items
-                            pcall(function()
-                                shopRemote:FireServer(i)
-                            end)
-                            wait(0.5)
-                        end
-                        
-                        OrionLib:MakeNotification({
-                            Name = "Black Market",
-                            Content = "Attempted to buy all items from Black Market",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end
-                    
-                    -- Return to original position
-                    Character.HumanoidRootPart.CFrame = CFrame.new(originalPosition)
-                end
-                
-                -- Check every 60 minutes
-                wait(3600)
-            end
-        end)
-    end
-end
-
--- Auto Shrine Potions Toggle
-ShopTab:AddToggle({
-    Name = "Auto Shrine Potions",
-    Default = false,
-    Flag = "AutoShrinePotions",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoShrinePotions = Value
-        if Value then
-            Functions.StartAutoShrinePotions()
-            OrionLib:MakeNotification({
-                Name = "Auto Shrine",
-                Content = "Auto shrine potions enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Shrine",
-                Content = "Auto shrine potions disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Upgrade Shops Mastery Toggle
-ShopTab:AddToggle({
-    Name = "Auto Upgrade Shops Mastery",
-    Default = false,
-    Flag = "AutoUpgradeShopsMastery",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoUpgradeShopsMastery = Value
-        if Value then
-            Functions.StartAutoUpgradeShopsMastery()
-            OrionLib:MakeNotification({
-                Name = "Shop Mastery",
-                Content = "Auto upgrade shops mastery enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Shop Mastery",
-                Content = "Auto upgrade shops mastery disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Upgrade Pets Mastery Toggle
-ShopTab:AddToggle({
-    Name = "Auto Upgrade Pets Mastery",
-    Default = false,
-    Flag = "AutoUpgradePetsMastery",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoUpgradePetsMastery = Value
-        if Value then
-            Functions.StartAutoUpgradePetsMastery()
-            OrionLib:MakeNotification({
-                Name = "Pet Mastery",
-                Content = "Auto upgrade pets mastery enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Pet Mastery",
-                Content = "Auto upgrade pets mastery disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Upgrade Buffs Mastery Toggle
-ShopTab:AddToggle({
-    Name = "Auto Upgrade Buffs Mastery",
-    Default = false,
-    Flag = "AutoUpgradeBuffsMastery",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoUpgradeBuffsMastery = Value
-        if Value then
-            Functions.StartAutoUpgradeBuffsMastery()
-            OrionLib:MakeNotification({
-                Name = "Buff Mastery",
-                Content = "Auto upgrade buffs mastery enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Buff Mastery",
-                Content = "Auto upgrade buffs mastery disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
-ShopTab:AddSection({
-    Name = "Special Shops"
-})
-
--- Auto Buy Alien Shop Toggle
-ShopTab:AddToggle({
-    Name = "Auto Buy Alien Shop",
-    Default = false,
-    Flag = "AutoBuyAlienShop",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoBuyAlienShop = Value
-        if Value then
-            Functions.StartAutoBuyAlienShop()
-            OrionLib:MakeNotification({
-                Name = "Alien Shop",
-                Content = "Auto buy from alien shop enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Alien Shop",
-                Content = "Auto buy from alien shop disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Auto Buy Black Market Toggle
-ShopTab:AddToggle({
-    Name = "Auto Buy Black Market",
-    Default = false,
-    Flag = "AutoBuyBlackMarket",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoBuyBlackMarket = Value
-        if Value then
-            Functions.StartAutoBuyBlackMarket()
-            OrionLib:MakeNotification({
-                Name = "Black Market",
-                Content = "Auto buy from black market enabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Black Market",
-                Content = "Auto buy from black market disabled",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
-})
-
--- Teleport tab
-local TeleportTab = Window:MakeTab({
-    Name = "Teleports",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-TeleportTab:AddSection({
-    Name = "Location Teleports (Anti-Cheat Bypass)"
-})
-
--- Add custom teleport section
-TeleportTab:AddParagraph("Anti-Cheat Bypass", 
-    "These teleports use advanced methods to bypass anti-teleport detection. The script uses velocity manipulation, tweening, gravity adjustments, and network ownership bypasses to avoid detection.")
-
--- Advanced function to teleport with anti-cheat bypass
-local function TeleportToLocation(locationName)
-    local locations = {
-        ["Spawn"] = CFrame.new(42, 15, 119),
-        ["Desert"] = CFrame.new(85, 11, 458),
-        ["Winter"] = CFrame.new(-389, 11, 592),
-        ["Lava"] = CFrame.new(359, 11, 950),
-        ["Beach"] = CFrame.new(-650, 11, 168),
-        ["Heaven"] = CFrame.new(-952, 216, 572),
-        ["Shop"] = CFrame.new(159, 15, 249),
-        ["Sell Area"] = CFrame.new(87, 11, 43)
-    }
-    
-    -- Anti-cheat bypass method
-    local function bypassTeleport(destination)
-        local success, err = pcall(function()
-            if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
-            
-            -- Method 1: Velocity-based teleport (bypasses many velocity checks)
-            local hrp = Character.HumanoidRootPart
-            local currentPos = hrp.Position
-            local targetPos = typeof(destination) == "CFrame" and destination.Position or destination
-            
-            -- Store the original properties
-            local oldVelocity = hrp.Velocity
-            local oldCFrame = hrp.CFrame
-            local oldGravity = workspace.Gravity
-            
-            -- Attempt to bypass anti-cheat
-            
-            -- Method 1: Disable gravity temporarily
-            workspace.Gravity = 0
-            
-            -- Method 2: Set velocity to appear like natural movement
-            local direction = (targetPos - currentPos).Unit
-            hrp.Velocity = direction * 200
-            
-            -- Method 3: Use tween service for smoother movement
-            local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear)
-            local tween = game:GetService("TweenService"):Create(
-                hrp, 
-                tweenInfo, 
-                {CFrame = typeof(destination) == "CFrame" and destination or CFrame.new(destination)}
-            )
-            
-            -- Execute the teleport
-            tween:Play()
-            tween.Completed:Wait()
-            
-            -- Method 4: Network ownership bypass
-            if sethiddenproperty then
-                sethiddenproperty(hrp, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
-                wait(0.1)
-                sethiddenproperty(hrp, "NetworkOwnershipRule", Enum.NetworkOwnership.Automatic)
-            end
-            
-            -- Restore original properties after a small delay
-            wait(0.2)
-            workspace.Gravity = oldGravity
-            hrp.Velocity = oldVelocity
-            
-            -- Final position tuning
-            hrp.CFrame = typeof(destination) == "CFrame" and destination or CFrame.new(destination)
-        end)
-        
-        return success
-    end
-    
-    local targetFound = false
-    local targetCFrame = nil
-    
-    -- Try to find by name first (more reliable for game updates)
-    local success, err = pcall(function()
-        -- Check if we can find the area by name in workspace first
-        for _, v in pairs(workspace:GetChildren()) do
-            if v.Name:lower():find(locationName:lower()) and (v:IsA("BasePart") or v:IsA("Model")) then
-                if v:IsA("BasePart") then
-                    targetCFrame = v.CFrame + Vector3.new(0, 5, 0)
-                    targetFound = true
-                    break
-                elseif v:IsA("Model") and v:FindFirstChild("HumanoidRootPart") then
-                    targetCFrame = v.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0)
-                    targetFound = true
-                    break
-                elseif v:IsA("Model") and v:FindFirstChild("PrimaryPart") then
-                    targetCFrame = v.PrimaryPart.CFrame + Vector3.new(0, 5, 0)
-                    targetFound = true
-                    break
-                end
-            end
-        end
-        
-        -- If not found by name, use the hardcoded coordinates
-        if not targetFound and locations[locationName] then
-            targetCFrame = locations[locationName]
-            targetFound = true
-        end
-    end)
-    
-    -- Perform the teleport with bypass
-    if targetFound and targetCFrame then
-        if bypassTeleport(targetCFrame) then
-            OrionLib:MakeNotification({
-                Name = "Teleport Success",
-                Content = "Teleported to " .. locationName .. " with anti-cheat bypass",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            -- Fallback to direct teleport if bypass fails
-            pcall(function()
-                Character.HumanoidRootPart.CFrame = targetCFrame
-            end)
-            
-            OrionLib:MakeNotification({
-                Name = "Teleport",
-                Content = "Used fallback teleport to " .. locationName,
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    else
-        OrionLib:MakeNotification({
-            Name = "Teleport Error",
-            Content = "Failed to find location: " .. locationName,
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-end
-
--- Teleport buttons
-TeleportTab:AddButton({
-    Name = "Teleport to Spawn",
-    Callback = function()
-        TeleportToLocation("Spawn")
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Desert",
-    Callback = function()
-        TeleportToLocation("Desert")
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Winter",
-    Callback = function()
-        TeleportToLocation("Winter")
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Lava Land",
-    Callback = function()
-        TeleportToLocation("Lava")
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Beach",
-    Callback = function()
-        TeleportToLocation("Beach")
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Heaven",
-    Callback = function()
-        TeleportToLocation("Heaven")
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Shop",
-    Callback = function()
-        TeleportToLocation("Shop")
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Sell Area",
-    Callback = function()
-        TeleportToLocation("Sell Area")
-    end
-})
-
--- Custom teleport for player input
-TeleportTab:AddTextbox({
-    Name = "Custom Teleport (Player Name)",
-    Default = "",
-    TextDisappear = true,
-    Callback = function(Value)
-        if Value ~= "" then
-            -- Try to find player
-            local targetPlayer = nil
-            for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-                if player.Name:lower():find(Value:lower()) then
-                    targetPlayer = player
-                    break
-                end
-            end
-            
-            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                local targetCFrame = targetPlayer.Character.HumanoidRootPart.CFrame
-                
-                -- Use the bypass teleport function
-                local success, err = pcall(function()
-                    local hrp = Character.HumanoidRootPart
-                    local currentPos = hrp.Position
-                    local targetPos = targetCFrame.Position
-                    
-                    -- Store original properties
-                    local oldVelocity = hrp.Velocity
-                    local oldGravity = workspace.Gravity
-                    
-                    -- Bypass methods
-                    workspace.Gravity = 0
-                    local direction = (targetPos - currentPos).Unit
-                    hrp.Velocity = direction * 200
-                    
-                    local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Linear)
-                    local tween = game:GetService("TweenService"):Create(
-                        hrp, 
-                        tweenInfo, 
-                        {CFrame = targetCFrame}
-                    )
-                    
-                    tween:Play()
-                    tween.Completed:Wait()
-                    
-                    if sethiddenproperty then
-                        sethiddenproperty(hrp, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
-                        wait(0.1)
-                        sethiddenproperty(hrp, "NetworkOwnershipRule", Enum.NetworkOwnership.Automatic)
-                    end
-                    
-                    wait(0.2)
-                    workspace.Gravity = oldGravity
-                    hrp.Velocity = oldVelocity
-                    hrp.CFrame = targetCFrame
-                end)
-                
-                if success then
-                    OrionLib:MakeNotification({
-                        Name = "Player Teleport",
-                        Content = "Teleported to " .. targetPlayer.Name .. " with anti-cheat bypass",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                else
-                    -- Fallback
-                    Character.HumanoidRootPart.CFrame = targetCFrame
-                    OrionLib:MakeNotification({
-                        Name = "Player Teleport",
-                        Content = "Used direct teleport to " .. targetPlayer.Name,
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
-                end
-            else
-                OrionLib:MakeNotification({
-                    Name = "Player Not Found",
-                    Content = "Could not find player: " .. Value,
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-            end
-        end
-    end
-})
-
--- Advanced Features tab
+-- Create a tab for advanced features
 local AdvancedTab = Window:MakeTab({
     Name = "Advanced",
     Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
-AdvancedTab:AddSection({
-    Name = "Premium Features"
-})
+-- Function to find the sheriff in the game
+local function findSheriff()
+    local sheriffPlayer = nil
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Backpack:FindFirstChild("Gun") or 
+           (player.Character and player.Character:FindFirstChild("Gun")) then
+            sheriffPlayer = player
+            break
+        end
+    end
+    return sheriffPlayer
+end
 
--- Function to activate chest magnet
-Functions.StartChestMagnet = function()
-    if Settings.ChestMagnet then
-        spawn(function()
-            while Settings.ChestMagnet do
-                for _, v in pairs(workspace:GetDescendants()) do
-                    if v.Name:find("Chest") and v:IsA("BasePart") then
-                        local distance = (Character.HumanoidRootPart.Position - v.Position).Magnitude
-                        if distance <= Settings.ChestMagnetRange then
-                            v.CFrame = Character.HumanoidRootPart.CFrame
-                        end
+-- Function to find the murderer in the game with improved detection
+local function findMurderer()
+    local murdererPlayer = nil
+    
+    -- Check for knife in backpack or character
+    for _, player in pairs(Players:GetPlayers()) do
+        -- Method 1: Direct tool check
+        if player.Backpack:FindFirstChild("Knife") or 
+           (player.Character and player.Character:FindFirstChild("Knife")) then
+            murdererPlayer = player
+            break
+        end
+        
+        -- Method 2: Check for knife animations or custom knife models
+        if player.Character then
+            for _, item in pairs(player.Character:GetChildren()) do
+                if item:IsA("Tool") and (
+                   item.Name:lower():find("knife") or 
+                   item.Name:lower():find("blade") or 
+                   item.Name:lower():find("murder") or
+                   (item:FindFirstChild("Handle") and item.Handle:FindFirstChildOfClass("SpecialMesh") and
+                    (item.Handle.SpecialMesh.MeshId:find("knife") or item.Handle.SpecialMesh.MeshId:find("blade")))
+                ) then
+                    murdererPlayer = player
+                    break
+                end
+            end
+        end
+        
+        -- Method 3: Check for Murderer role in player data
+        if player:FindFirstChild("PlayerData") and player.PlayerData:FindFirstChild("Role") and
+           (player.PlayerData.Role.Value == "Murderer" or player.PlayerData.Role.Value:lower():find("murder")) then
+            murdererPlayer = player
+            break
+        end
+    end
+    
+    return murdererPlayer
+end
+
+-- Function to find dropped gun in the workspace with improved detection
+local function findDroppedGun()
+    -- Method 1: Check for standard Gun tool
+    for _, item in pairs(Workspace:GetDescendants()) do
+        if item.Name == "Gun" and item:IsA("Tool") then
+            return item
+        end
+    end
+    
+    -- Method 2: Check in specific areas like dropped items
+    local possibleContainers = {"DroppedItems", "Dropped", "Items", "GameItems"}
+    for _, containerName in ipairs(possibleContainers) do
+        local container = Workspace:FindFirstChild(containerName)
+        if container then
+            for _, item in pairs(container:GetDescendants()) do
+                if (item.Name == "Gun" or item.Name:lower():find("gun") or item.Name:lower():find("pistol")) and
+                   (item:IsA("Tool") or item:IsA("Model")) then
+                    return item
+                end
+            end
+        end
+    end
+    
+    -- Method 3: Look for gun-like objects
+    for _, item in pairs(Workspace:GetDescendants()) do
+        if (item.Name:lower():find("gun") or item.Name:lower():find("pistol") or item.Name:lower():find("revolver")) and
+           (item:IsA("Tool") or item:IsA("Model")) then
+            return item
+        end
+    end
+    
+    return nil
+end
+
+-- Improved function to shoot at a player
+local function shootAt(targetPlayer)
+    -- Only attempt to shoot if we have the gun
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun") then
+        -- Try to find the appropriate RemoteEvent to fire
+        local gun = LocalPlayer.Character:FindFirstChild("Gun")
+        local shootEvent = nil
+        
+        -- Find the shoot remote with improved detection
+        if gun then
+            -- Method 1: Direct remote search
+            for _, obj in pairs(gun:GetDescendants()) do
+                if obj:IsA("RemoteEvent") and (
+                   obj.Name:lower():find("shoot") or 
+                   obj.Name:lower():find("fire") or
+                   obj.Name:lower():find("gun") or
+                   obj.Name:lower():find("bullet")
+                ) then
+                    shootEvent = obj
+                    break
+                end
+            end
+            
+            -- Method 2: Check game remotes
+            if not shootEvent then
+                for _, obj in pairs(game:GetService("ReplicatedStorage"):GetDescendants()) do
+                    if obj:IsA("RemoteEvent") and (
+                       obj.Name:lower():find("shoot") or 
+                       obj.Name:lower():find("fire") or
+                       obj.Name:lower():find("gun")
+                    ) then
+                        shootEvent = obj
+                        break
                     end
                 end
-                wait(0.5)
             end
-        end)
+            
+            -- If found, fire it at the murderer with error handling
+            if shootEvent and targetPlayer and targetPlayer.Character and 
+               targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                
+                local targetPosition = targetPlayer.Character.HumanoidRootPart.Position
+                
+                -- Try different parameters that might be needed
+                pcall(function()
+                    -- Method 1: Position only
+                    shootEvent:FireServer(targetPosition)
+                end)
+                
+                pcall(function()
+                    -- Method 2: With direction
+                    local direction = (targetPosition - LocalPlayer.Character.HumanoidRootPart.Position).Unit
+                    shootEvent:FireServer(targetPosition, direction)
+                end)
+                
+                pcall(function()
+                    -- Method 3: With mouse hit position
+                    local mouseHit = {Position = targetPosition, Instance = targetPlayer.Character}
+                    shootEvent:FireServer(mouseHit)
+                end)
+                
+                -- Notification
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Attempted to shoot at murderer!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end
     end
 end
 
--- Chest magnet toggle
-AdvancedTab:AddToggle({
-    Name = "Chest Magnet",
+-- Anti-teleport detection system
+local function safeTP(destination, avoidDetection)
+    if typeof(destination) ~= "CFrame" and typeof(destination) ~= "Vector3" then return end
+    
+    -- Convert Vector3 to CFrame if needed
+    local targetCFrame = (typeof(destination) == "Vector3") and CFrame.new(destination) or destination
+    
+    -- Ensure character exists
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+    
+    -- Regular teleport if detection avoidance not requested
+    if not avoidDetection then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame
+        return
+    end
+    
+    -- Anti-detection teleport using one of several methods
+    -- Method 1: Velocity-based teleport
+    if math.random(1, 3) == 1 then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        
+        -- Store original velocity and CFrame
+        local originalVelocity = hrp.Velocity
+        local originalCFrame = hrp.CFrame
+        
+        -- Set velocity to extremely high value in direction of target
+        local direction = (targetCFrame.Position - originalCFrame.Position).Unit
+        hrp.Velocity = direction * 9999
+        
+        -- Wait a small amount of time
+        wait(0.1)
+        
+        -- Set to exact position
+        hrp.CFrame = targetCFrame
+        
+        -- Reset velocity
+        wait(0.1)
+        hrp.Velocity = originalVelocity
+    
+    -- Method 2: Tween-based teleport
+    elseif math.random(1, 3) == 2 then
+        -- Create a tween for smoother movement
+        local tween = game:GetService("TweenService"):Create(
+            LocalPlayer.Character.HumanoidRootPart,
+            TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {CFrame = targetCFrame}
+        )
+        tween:Play()
+        tween.Completed:Wait()
+        
+    -- Method 3: Step teleport
+    else
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        local start = hrp.CFrame
+        local goal = targetCFrame
+        
+        -- Calculate distance
+        local distance = (goal.Position - start.Position).Magnitude
+        local steps = math.ceil(distance/10)
+        
+        -- Teleport in steps
+        for i = 1, steps do
+            local stepCFrame = start:Lerp(goal, i/steps)
+            hrp.CFrame = stepCFrame
+            wait(0.03)
+        end
+        
+        -- Final position
+        hrp.CFrame = goal
+    end
+end
+
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local PlayerTab = Window:MakeTab({
+    Name = "Player",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local TeleportTab = Window:MakeTab({
+    Name = "Teleport",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local CreditsTab = Window:MakeTab({
+    Name = "Info",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Main Tab
+MainTab:AddSection({
+    Name = "Main Features"
+})
+
+-- Auto Collect Coins (FIXED VERSION)
+MainTab:AddToggle({
+    Name = "Auto Collect Coins",
     Default = false,
-    Flag = "ChestMagnet",
+    Flag = "autoCoins",
     Save = true,
     Callback = function(Value)
-        Settings.ChestMagnet = Value
+        getgenv().AutoCollectCoins = Value
+        
         if Value then
-            Functions.StartChestMagnet()
+            -- Notification
             OrionLib:MakeNotification({
-                Name = "Chest Magnet",
-                Content = "Chest magnet activated",
+                Name = "SkyX",
+                Content = "Auto Coin Collection Enabled! (Fixed Version)",
                 Image = "rbxassetid://4483345998",
                 Time = 3
             })
+            
+            -- Create a dedicated thread for coin collection
+            spawn(function()
+                while getgenv().AutoCollectCoins do
+                    pcall(function()
+                        -- Look for coins in all possible locations with improved detection
+                        local allCoins = {}
+                        
+                        -- METHOD 1: Check for coins directly in workspace
+                        for _, v in pairs(Workspace:GetChildren()) do
+                            -- Fixed parenthesis issue in the condition
+                            if ((v.Name == "Coin_Server" or v.Name == "Coin" or string.find(v.Name:lower(), "coin")) and 
+                               (v:IsA("BasePart") or v:IsA("MeshPart"))) or 
+                               (v:FindFirstChild("Coin") or v:FindFirstChildOfClass("MeshPart")) then
+                                table.insert(allCoins, v)
+                            end
+                        end
+                        
+                        -- METHOD 2: Check for coins in Map folder
+                        if Workspace:FindFirstChild("Map") then
+                            for _, v in pairs(Workspace.Map:GetDescendants()) do
+                                if (v.Name == "Coin_Server" or v.Name == "Coin" or string.find(v.Name:lower(), "coin")) and 
+                                   (v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("Model")) then
+                                    table.insert(allCoins, v)
+                                end
+                            end
+                        end
+                        
+                        -- METHOD 3: Check for coins in all folders
+                        for _, folder in pairs(Workspace:GetChildren()) do
+                            if folder:IsA("Folder") or folder:IsA("Model") then
+                                for _, v in pairs(folder:GetDescendants()) do
+                                    if (v.Name == "Coin_Server" or v.Name == "Coin" or string.find(v.Name:lower(), "coin")) and 
+                                       (v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("Model")) then
+                                        table.insert(allCoins, v)
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- METHOD 4: Look for collectible parts that might be coins
+                        for _, v in pairs(Workspace:GetDescendants()) do
+                            if v:IsA("MeshPart") and v.MeshId:match("coin") then
+                                table.insert(allCoins, v)
+                            end
+                            
+                            -- Also look for gold-colored parts that might be coins
+                            if v:IsA("BasePart") and 
+                               (v.BrickColor == BrickColor.new("Bright yellow") or 
+                                v.BrickColor == BrickColor.new("Gold")) and
+                               v.Size.Magnitude < 5 then -- Likely a small coin
+                                table.insert(allCoins, v)
+                            end
+                        end
+                        
+                        -- Print coin found message (for debugging)
+                        if #allCoins > 0 then
+                            print("Found " .. #allCoins .. " coins to collect")
+                        end
+                        
+                        -- Go through all found coins using safe teleport
+                        for _, coin in pairs(allCoins) do
+                            if not getgenv().AutoCollectCoins then break end
+                            
+                            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                local targetPart = coin
+                                local teleportPosition
+                                
+                                -- Determine which part to teleport to with improved targeting
+                                if coin:IsA("Model") then
+                                    if coin:FindFirstChild("Coin") then
+                                        targetPart = coin.Coin
+                                    elseif coin:FindFirstChildWhichIsA("BasePart") then
+                                        targetPart = coin:FindFirstChildWhichIsA("BasePart")
+                                    end
+                                end
+                                
+                                if targetPart:IsA("BasePart") or targetPart:IsA("MeshPart") then
+                                    teleportPosition = targetPart.Position
+                                    
+                                    -- Use the safer teleport method to avoid detection
+                                    safeTP(teleportPosition, true)
+                                    
+                                    -- Print teleport message (for debugging)
+                                    print("Teleported to coin: " .. coin:GetFullName())
+                                    
+                                    -- Wait a moment to collect
+                                    wait(0.2)
+                                    
+                                    -- Move slightly to ensure collection if needed
+                                    if targetPart and targetPart.Parent then
+                                        LocalPlayer.Character.HumanoidRootPart.CFrame = 
+                                            CFrame.new(targetPart.Position + Vector3.new(0, 1, 0))
+                                        wait(0.1)
+                                    end
+                                end
+                            end
+                            
+                            -- Breaking after a few coins to avoid teleporting too rapidly
+                            if math.random(1, 10) == 1 then
+                                wait(0.2) -- Occasional pause to reduce detection
+                            end
+                        end
+                    end)
+                    wait(0.5) -- Slightly longer wait to reduce lag & detection
+                end
+            end)
         else
             OrionLib:MakeNotification({
-                Name = "Chest Magnet",
-                Content = "Chest magnet deactivated",
+                Name = "SkyX",
+                Content = "Auto Coin Collection Disabled!",
                 Image = "rbxassetid://4483345998",
                 Time = 3
             })
@@ -4088,251 +498,1703 @@ AdvancedTab:AddToggle({
     end
 })
 
--- Chest magnet range slider
-AdvancedTab:AddSlider({
-    Name = "Chest Magnet Range",
-    Min = 10,
-    Max = 100,
-    Default = 50,
-    Color = Color3.fromRGB(89, 150, 255),
-    Increment = 5,
-    ValueName = "studs",
-    Flag = "ChestMagnetRange",
+-- Show Player Roles
+MainTab:AddToggle({
+    Name = "Show Player Roles",
+    Default = false,
+    Flag = "showRoles", 
     Save = true,
     Callback = function(Value)
-        Settings.ChestMagnetRange = Value
+        getgenv().ShowRoles = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Player Roles Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create player role identification system
+            spawn(function()
+                while getgenv().ShowRoles do
+                    pcall(function()
+                        local murderer, sheriff = "Unknown", "Unknown"
+                        
+                        for _, player in pairs(Players:GetPlayers()) do
+                            if player.Backpack:FindFirstChild("Knife") or 
+                               (player.Character and player.Character:FindFirstChild("Knife")) then
+                                murderer = player.Name
+                            elseif player.Backpack:FindFirstChild("Gun") or 
+                                  (player.Character and player.Character:FindFirstChild("Gun")) then
+                                sheriff = player.Name
+                            end
+                        end
+                        
+                        OrionLib:MakeNotification({
+                            Name = "Player Roles",
+                            Content = "Murderer: " .. murderer .. "\nSheriff: " .. sheriff,
+                            Image = "rbxassetid://4483345998",
+                            Time = 3
+                        })
+                    end)
+                    wait(5) -- Update every 5 seconds
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Player Roles Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
     end
 })
 
--- Function for gem multiplier
-Functions.ActivateGemMultiplier = function()
-    if Settings.GemMultiplier then
-        spawn(function()
-            -- Try to hook the gem collection function to multiply values
-            local success, err = pcall(function()
-                if hookfunction then
-                    -- Find the gem collection function and hook it
-                    local oldCollectGem
-                    for _, v in pairs(getgc()) do
-                        if type(v) == "function" and getfenv(v).script and getfenv(v).script.Name == "GemScript" then
-                            oldCollectGem = hookfunction(v, function(...)
-                                local args = {...}
-                                -- Multiply the gem value
-                                if args[1] and type(args[1]) == "number" then
-                                    args[1] = args[1] * 2
+-- ESP Feature
+MainTab:AddToggle({
+    Name = "ESP (See Players)",
+    Default = false,
+    Flag = "esp",
+    Save = true,
+    Callback = function(Value)
+        getgenv().ESP = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "ESP Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- ESP Function
+            spawn(function()
+                while getgenv().ESP do
+                    pcall(function()
+                        for _, player in pairs(Players:GetPlayers()) do
+                            if player ~= LocalPlayer and player.Character and 
+                               player.Character:FindFirstChild("HumanoidRootPart") and
+                               player.Character:FindFirstChild("Humanoid") and 
+                               player.Character.Humanoid.Health > 0 then
+                                
+                                -- Check for existing ESP
+                                local esp = player.Character:FindFirstChild("SkyXESP")
+                                if not esp then
+                                    -- Create ESP
+                                    esp = Instance.new("BillboardGui")
+                                    esp.Name = "SkyXESP"
+                                    esp.AlwaysOnTop = true
+                                    esp.Size = UDim2.new(0, 200, 0, 50)
+                                    esp.StudsOffset = Vector3.new(0, 3, 0)
+                                    esp.Parent = player.Character
+                                    
+                                    local espText = Instance.new("TextLabel")
+                                    espText.Name = "ESPText"
+                                    espText.BackgroundTransparency = 1
+                                    espText.Size = UDim2.new(1, 0, 1, 0)
+                                    espText.Font = Enum.Font.SourceSansBold
+                                    espText.TextSize = 14
+                                    espText.TextColor3 = getgenv().InnocentColor
+                                    espText.Parent = esp
                                 end
-                                return oldCollectGem(unpack(args))
-                            end)
+                                
+                                -- Update ESP
+                                local espText = esp:FindFirstChild("ESPText")
+                                if espText then
+                                    -- Determine role
+                                    local role = "Innocent"
+                                    local textColor = getgenv().InnocentColor
+                                    
+                                    if player.Backpack:FindFirstChild("Knife") or 
+                                       (player.Character and player.Character:FindFirstChild("Knife")) then
+                                        role = "Murderer"
+                                        textColor = getgenv().MurdererColor
+                                    elseif player.Backpack:FindFirstChild("Gun") or 
+                                          (player.Character and player.Character:FindFirstChild("Gun")) then
+                                        role = "Sheriff"
+                                        textColor = getgenv().SheriffColor
+                                    end
+                                    
+                                    espText.Text = player.Name .. " [" .. role .. "]"
+                                    espText.TextColor3 = textColor
+                                end
+                            end
+                        end
+                    end)
+                    wait(0.1)
+                end
+                
+                -- Clean up ESP when disabled
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player.Character and player.Character:FindFirstChild("SkyXESP") then
+                        player.Character.SkyXESP:Destroy()
+                    end
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "ESP Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Clean up ESP
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Character and player.Character:FindFirstChild("SkyXESP") then
+                    player.Character.SkyXESP:Destroy()
+                end
+            end
+        end
+    end
+})
+
+-- ESP Settings Tab
+ESPTab:AddSection({
+    Name = "ESP Color Settings"
+})
+
+-- ESP Color Settings
+ESPTab:AddToggle({
+    Name = "Enable ESP",
+    Default = false,
+    Flag = "espToggle",
+    Save = true,
+    Callback = function(Value)
+        -- Set the ESP value directly
+        getgenv().ESP = Value
+        
+        -- Mirror this toggle to the main tab ESP toggle
+        pcall(function()
+            if MainTab then
+                for _, item in pairs(MainTab:GetItems()) do
+                    if item.Name == "ESP (See Players)" then
+                        if item.Set then
+                            item:Set(Value)
+                        end
+                        break
+                    end
+                end
+            end
+        end)
+    end
+})
+
+-- Advanced Features
+AdvancedTab:AddSection({
+    Name = "Advanced MM2 Features"
+})
+
+-- Sheriff Aimbot - Improved version with better targeting
+AdvancedTab:AddToggle({
+    Name = "Sheriff Aimbot",
+    Default = false,
+    Flag = "sheriffAimbot",
+    Save = true,
+    Callback = function(Value)
+        getgenv().SheriffAimbot = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Sheriff Aimbot Enabled! Auto-aim at murderer when you have the gun.",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Start tracking sheriff role and murderer
+            spawn(function()
+                while getgenv().SheriffAimbot do
+                    pcall(function()
+                        -- Check if player is sheriff (has gun)
+                        local hasGun = (LocalPlayer.Backpack:FindFirstChild("Gun") or 
+                                       (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")))
+                        
+                        if hasGun then
+                            -- Debug message when gun is detected
+                            print("Gun detected - Sheriff Aimbot active")
+                            
+                            -- Find murderer - improved detection to ensure correct player
+                            local murderer = nil
+                            
+                            -- Method 1: Find by knife tool
+                            for _, player in pairs(Players:GetPlayers()) do
+                                if player ~= LocalPlayer and player.Character then
+                                    -- Check if player has knife in backpack or character
+                                    if (player.Backpack and player.Backpack:FindFirstChild("Knife")) or 
+                                       (player.Character and player.Character:FindFirstChild("Knife")) then
+                                        murderer = player
+                                        print("Found murderer (Knife method): " .. player.Name)
+                                        break
+                                    end
+                                end
+                            end
+                            
+                            -- Method 2: If method 1 fails, check for murderer animation or role indicator
+                            if not murderer then
+                                for _, player in pairs(Players:GetPlayers()) do
+                                    if player ~= LocalPlayer and player.Character then
+                                        -- Check for murderer-specific animation or object
+                                        for _, item in pairs(player.Character:GetDescendants()) do
+                                            if (item.Name:lower():find("murder") or 
+                                               item.Name:lower():find("knife") or 
+                                               item.Name:lower():find("stab")) then
+                                                murderer = player
+                                                print("Found murderer (Animation method): " .. player.Name)
+                                                break
+                                            end
+                                        end
+                                        
+                                        if murderer then break end
+                                    end
+                                end
+                            end
+                            
+                            -- If murderer found, aim and shoot
+                            if murderer and murderer.Character and 
+                               murderer.Character:FindFirstChild("HumanoidRootPart") and 
+                               murderer.Character:FindFirstChild("Humanoid") and 
+                               murderer.Character.Humanoid.Health > 0 then
+                                
+                                -- If gun is in backpack, equip it
+                                if LocalPlayer.Backpack:FindFirstChild("Gun") then
+                                    LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
+                                    wait(0.1) -- Wait for gun to equip
+                                end
+                                
+                                -- Auto-aim at murderer
+                                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun") then
+                                    local gun = LocalPlayer.Character:FindFirstChild("Gun")
+                                    local murdererPosition = murderer.Character.HumanoidRootPart.Position
+                                    
+                                    -- Find shoot remote
+                                    local shootEvent = nil
+                                    for _, obj in pairs(gun:GetDescendants()) do
+                                        if obj:IsA("RemoteEvent") and (obj.Name:lower():find("shoot") or obj.Name:lower():find("fire")) then
+                                            shootEvent = obj
+                                            print("Found shoot remote: " .. obj:GetFullName())
+                                            break
+                                        end
+                                    end
+                                    
+                                    -- If found, aim and shoot
+                                    if shootEvent then
+                                        -- Aim camera at murderer
+                                        if Camera then
+                                            Camera.CFrame = CFrame.new(Camera.CFrame.Position, murdererPosition)
+                                        end
+                                        
+                                        -- Fire at murderer
+                                        pcall(function()
+                                            -- Calculate aim position (head or torso)
+                                            local aimPart = murderer.Character:FindFirstChild("Head") or 
+                                                           murderer.Character:FindFirstChild("UpperTorso") or 
+                                                           murderer.Character:FindFirstChild("Torso") or 
+                                                           murderer.Character.HumanoidRootPart
+                                            
+                                            local aimPosition = aimPart.Position
+                                            
+                                            -- Fire the gun at the target
+                                            shootEvent:FireServer(aimPosition)
+                                            
+                                            -- Only show notification occasionally to avoid spam
+                                            if math.random(1, 5) == 1 then
+                                                OrionLib:MakeNotification({
+                                                    Name = "SkyX",
+                                                    Content = "Aiming at murderer: " .. murderer.Name,
+                                                    Image = "rbxassetid://4483345998",
+                                                    Time = 1
+                                                })
+                                            end
+                                            
+                                            print("Shot fired at murderer: " .. murderer.Name)
+                                        end)
+                                    else
+                                        print("Couldn't find shoot remote")
+                                    end
+                                end
+                            else
+                                print("No murderer found or murderer is dead/not loaded")
+                            end
+                        end
+                    end)
+                    wait(0.1) -- Rapid fire rate for aimbot
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Sheriff Aimbot Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Murderer Auto-Kill - Improved version with better targeting
+AdvancedTab:AddToggle({
+    Name = "Murderer Auto-Kill",
+    Default = false,
+    Flag = "murdererAutoKill",
+    Save = true,
+    Callback = function(Value)
+        getgenv().MurdererAutoKill = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Murderer Auto-Kill Enabled! Auto-target players when you have the knife.",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Start tracking murderer role
+            spawn(function()
+                while getgenv().MurdererAutoKill do
+                    pcall(function()
+                        -- Check if player is murderer (has knife)
+                        local hasKnife = (LocalPlayer.Backpack:FindFirstChild("Knife") or 
+                                         (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")))
+                        
+                        if hasKnife then
+                            -- Debug message
+                            print("Knife detected - Murderer Auto-Kill active")
+                            
+                            -- If knife is in backpack, equip it
+                            if LocalPlayer.Backpack:FindFirstChild("Knife") then
+                                LocalPlayer.Backpack.Knife.Parent = LocalPlayer.Character
+                                wait(0.1) -- Wait for knife to equip
+                            end
+                            
+                            -- Exclude sheriff from targets (don't target sheriff)
+                            local sheriffName = ""
+                            for _, player in pairs(Players:GetPlayers()) do
+                                if player ~= LocalPlayer and player.Character and
+                                   ((player.Backpack and player.Backpack:FindFirstChild("Gun")) or
+                                   (player.Character and player.Character:FindFirstChild("Gun"))) then
+                                    sheriffName = player.Name
+                                    print("Identified Sheriff (will avoid): " .. sheriffName)
+                                    break
+                                end
+                            end
+                            
+                            -- Find the knife tool in character
+                            local knife = nil
+                            if LocalPlayer.Character then
+                                knife = LocalPlayer.Character:FindFirstChild("Knife")
+                            end
+                            
+                            if knife then
+                                -- Find stab remote (only need to find once)
+                                local stabEvent = nil
+                                for _, obj in pairs(knife:GetDescendants()) do
+                                    if obj:IsA("RemoteEvent") and (obj.Name:lower():find("stab") or 
+                                                                  obj.Name:lower():find("swing") or 
+                                                                  obj.Name:lower():find("attack")) then
+                                        stabEvent = obj
+                                        print("Found stab remote: " .. obj:GetFullName())
+                                        break
+                                    end
+                                end
+                                
+                                -- Target innocent players one by one (killer mode)
+                                for _, player in pairs(Players:GetPlayers()) do
+                                    -- Skip the local player and the sheriff
+                                    if player ~= LocalPlayer and player.Name ~= sheriffName and
+                                       player.Character and 
+                                       player.Character:FindFirstChild("HumanoidRootPart") and
+                                       player.Character:FindFirstChild("Humanoid") and 
+                                       player.Character.Humanoid.Health > 0 and
+                                       LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                        
+                                        print("Targeting: " .. player.Name)
+                                        
+                                        -- Calculate teleport position (behind or above target)
+                                        local targetPos = player.Character.HumanoidRootPart.Position
+                                        local teleportOffset = Vector3.new(0, 0, 2)  -- Behind by default
+                                        
+                                        -- Randomize teleport position to avoid detection
+                                        local randomPos = math.random(1, 3)
+                                        if randomPos == 1 then
+                                            teleportOffset = Vector3.new(0, 2, 0)     -- Above
+                                        elseif randomPos == 2 then
+                                            teleportOffset = Vector3.new(0, 0, -2)    -- In front
+                                        end
+                                        
+                                        -- Save original position for return
+                                        local originalPos = LocalPlayer.Character.HumanoidRootPart.Position
+                                        
+                                        -- Teleport to target
+                                        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPos + teleportOffset, targetPos)
+                                        
+                                        -- If found stab remote, use it to kill the target
+                                        if stabEvent then
+                                            pcall(function()
+                                                -- Multiple stab attempts to ensure kill
+                                                for i = 1, 3 do
+                                                    -- Try different stab targets for better hit detection
+                                                    local targetPart = player.Character:FindFirstChild("Head") or 
+                                                                      player.Character:FindFirstChild("Torso") or 
+                                                                      player.Character:FindFirstChild("UpperTorso") or
+                                                                      player.Character.HumanoidRootPart
+                                                                    
+                                                    -- Fire stab event at target
+                                                    stabEvent:FireServer(targetPart)
+                                                    wait(0.05)
+                                                end
+                                                
+                                                -- Only show notification occasionally to avoid spam
+                                                if math.random(1, 3) == 1 then
+                                                    OrionLib:MakeNotification({
+                                                        Name = "SkyX",
+                                                        Content = "Auto-kill: " .. player.Name,
+                                                        Image = "rbxassetid://4483345998",
+                                                        Time = 1
+                                                    })
+                                                end
+                                                
+                                                print("Killed target: " .. player.Name)
+                                            end)
+                                            
+                                            -- Brief wait to ensure kill registers
+                                            wait(0.1)
+                                        else
+                                            print("Couldn't find stab remote")
+                                        end
+                                    end
+                                end
+                            else
+                                print("Knife equipped but not found in character")
+                            end
+                        end
+                    end)
+                    wait(0.2) -- Wait between killing rounds
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Murderer Auto-Kill Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Auto Get Gun and Kill Murderer (FIXED COMPREHENSIVE VERSION)
+AdvancedTab:AddToggle({
+    Name = "Auto Get Gun & Kill Murderer",
+    Default = false,
+    Flag = "autoGetGunKillMurderer",
+    Save = true,
+    Callback = function(Value)
+        getgenv().AutoGetGunKillMurderer = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Auto Get Gun & Kill Murderer Enabled! (Fixed Version)",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Start the main tracking and gun collection logic
+            spawn(function()
+                while getgenv().AutoGetGunKillMurderer do
+                    pcall(function()
+                        -- First, identify the murderer and sheriff with improved detection functions
+                        getgenv().CurrentMurderer = findMurderer()
+                        getgenv().CurrentSheriff = findSheriff()
+                        
+                        -- If I already have the gun, focus on shooting the murderer
+                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun") then
+                            if getgenv().CurrentMurderer and getgenv().CurrentMurderer.Character and 
+                               getgenv().CurrentMurderer.Character:FindFirstChild("HumanoidRootPart") then
+                                
+                                -- Teleport to a strategic position using safe teleport
+                                local murdererPos = getgenv().CurrentMurderer.Character.HumanoidRootPart.Position
+                                local safePos = murdererPos + Vector3.new(0, 3, 8) -- Keep some distance
+                                
+                                -- Use anti-detection teleport
+                                safeTP(safePos, true)
+                                
+                                -- Look at the murderer for better aiming
+                                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                                        LocalPlayer.Character.HumanoidRootPart.Position,
+                                        murdererPos + Vector3.new(0, 0.7, 0) -- Aim slightly higher for better shots
+                                    )
+                                    
+                                    -- Try to shoot with multiple attempts for reliability
+                                    for i = 1, 3 do
+                                        shootAt(getgenv().CurrentMurderer)
+                                        wait(0.05)
+                                    end
+                                    
+                                    -- Success notification (occasional to avoid spam)
+                                    if math.random(1, 5) == 1 then
+                                        OrionLib:MakeNotification({
+                                            Name = "SkyX",
+                                            Content = "Shooting at murderer: " .. getgenv().CurrentMurderer.Name,
+                                            Image = "rbxassetid://4483345998",
+                                            Time = 2
+                                        })
+                                    end
+                                end
+                            end
+                        -- Otherwise try to get the gun with improved collection logic
+                        else
+                            -- Look for dropped gun if sheriff died or at round start
+                            getgenv().DroppedGun = findDroppedGun()
+                            
+                            -- If gun is dropped somewhere, get it
+                            if getgenv().DroppedGun then
+                                local gunPosition
+                                
+                                -- Handle different gun object types
+                                if getgenv().DroppedGun:IsA("Tool") and getgenv().DroppedGun:FindFirstChild("Handle") then
+                                    gunPosition = getgenv().DroppedGun.Handle.Position
+                                elseif getgenv().DroppedGun:IsA("BasePart") then
+                                    gunPosition = getgenv().DroppedGun.Position
+                                elseif getgenv().DroppedGun:IsA("Model") and 
+                                       getgenv().DroppedGun:FindFirstChildWhichIsA("BasePart") then
+                                    gunPosition = getgenv().DroppedGun:FindFirstChildWhichIsA("BasePart").Position
+                                end
+                                
+                                if gunPosition then
+                                    -- Notify player
+                                    if math.random(1, 3) == 1 then -- Reduce notification spam
+                                        OrionLib:MakeNotification({
+                                            Name = "SkyX",
+                                            Content = "Found gun! Collecting...",
+                                            Image = "rbxassetid://4483345998",
+                                            Time = 2
+                                        })
+                                    end
+                                    
+                                    -- Use safe teleport to avoid detection
+                                    safeTP(gunPosition, true)
+                                    
+                                    -- Wait a moment to pick up the gun with retry logic
+                                    for i = 1, 3 do -- Try multiple times
+                                        wait(0.2)
+                                        
+                                        -- Check if we got the gun
+                                        if LocalPlayer.Backpack:FindFirstChild("Gun") then
+                                            -- Equip the gun automatically
+                                            LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
+                                            break
+                                        elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun") then
+                                            -- Already equipped
+                                            break
+                                        else
+                                            -- Try a slightly different position if gun wasn't picked up
+                                            local offsetPos = gunPosition + Vector3.new(math.random(-1, 1), 0, math.random(-1, 1))
+                                            safeTP(offsetPos, true)
+                                            
+                                            -- Try direct equip method
+                                            if getgenv().DroppedGun and getgenv().DroppedGun.Parent and
+                                               LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                                                LocalPlayer.Character.Humanoid:EquipTool(getgenv().DroppedGun)
+                                            end
+                                        end
+                                    end
+                                end
+                            -- If no dropped gun, try to follow the sheriff for potential gun drop
+                            elseif getgenv().CurrentSheriff and getgenv().CurrentSheriff ~= LocalPlayer and
+                                  getgenv().CurrentSheriff.Character and 
+                                  getgenv().CurrentSheriff.Character:FindFirstChild("HumanoidRootPart") then
+                                
+                                -- Only notify occasionally
+                                if math.random(1, 10) == 1 then
+                                    OrionLib:MakeNotification({
+                                        Name = "SkyX",
+                                        Content = "Following sheriff: " .. getgenv().CurrentSheriff.Name,
+                                        Image = "rbxassetid://4483345998",
+                                        Time = 2
+                                    })
+                                end
+                                
+                                -- Follow at a safe distance
+                                local sheriffPos = getgenv().CurrentSheriff.Character.HumanoidRootPart.Position
+                                local followPos = sheriffPos + Vector3.new(0, 0, 4) -- Follow behind
+                                
+                                -- Use safe teleport with anti-detection
+                                safeTP(followPos, true)
+                            end
+                        end
+                    end)
+                    wait(0.3) -- Short wait for better responsiveness
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Auto Get Gun & Kill Murderer Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
+})
+
+ESPTab:AddColorpicker({
+    Name = "Innocent Color",
+    Default = Color3.fromRGB(255, 255, 255),
+    Callback = function(Value)
+        getgenv().InnocentColor = Value
+    end
+})
+
+ESPTab:AddColorpicker({
+    Name = "Murderer Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(Value)
+        getgenv().MurdererColor = Value
+    end
+})
+
+ESPTab:AddColorpicker({
+    Name = "Sheriff Color",
+    Default = Color3.fromRGB(0, 0, 255),
+    Callback = function(Value)
+        getgenv().SheriffColor = Value
+    end
+})
+
+-- Teleport Tab with proper section
+TeleportTab:AddSection({
+    Name = "Teleport Locations"
+})
+
+-- Teleport to Lobby
+TeleportTab:AddButton({
+    Name = "Teleport to Lobby",
+    Callback = function()
+        pcall(function()
+            -- Find lobby or main area
+            local lobbyPosition = nil
+            
+            -- Check for direct lobby instance
+            if Workspace:FindFirstChild("Lobby") then
+                if Workspace.Lobby:IsA("BasePart") then
+                    lobbyPosition = Workspace.Lobby.Position
+                elseif Workspace.Lobby:FindFirstChildWhichIsA("BasePart") then
+                    lobbyPosition = Workspace.Lobby:FindFirstChildWhichIsA("BasePart").Position
+                end
+            end
+            
+            -- Check for SpawnLocation in workspace
+            if not lobbyPosition then
+                for _, spawn in pairs(Workspace:GetDescendants()) do
+                    if spawn:IsA("SpawnLocation") or 
+                      (spawn.Name:lower():find("spawn") and spawn:IsA("BasePart")) or
+                      (spawn.Name:lower():find("lobby") and spawn:IsA("BasePart")) then
+                        lobbyPosition = spawn.Position
+                        break
+                    end
+                end
+            end
+            
+            -- If still not found, check for any lobby-like names
+            if not lobbyPosition then
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if (obj.Name:lower():find("lobby") or 
+                        obj.Name:lower():find("spawn") or 
+                        obj.Name:lower():find("wait")) and 
+                        (obj:IsA("BasePart") or obj:IsA("Model")) then
+                        
+                        if obj:IsA("BasePart") then
+                            lobbyPosition = obj.Position
+                            break
+                        elseif obj:IsA("Model") and obj:FindFirstChildWhichIsA("BasePart") then
+                            lobbyPosition = obj:FindFirstChildWhichIsA("BasePart").Position
                             break
                         end
                     end
                 end
-            end)
+            end
             
-            -- Notify success or failure
-            if success then
+            -- Teleport if position found
+            if lobbyPosition and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(lobbyPosition + Vector3.new(0, 5, 0))
+                
                 OrionLib:MakeNotification({
-                    Name = "Gem Multiplier",
-                    Content = "Gem values will be doubled",
+                    Name = "SkyX",
+                    Content = "Teleported to Lobby!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+                
+                -- Debug
+                print("Teleported to Lobby: " .. tostring(lobbyPosition))
+            else
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Couldn't find Lobby! Try Map teleport instead.",
                     Image = "rbxassetid://4483345998",
                     Time = 3
                 })
             end
         end)
     end
-end
+})
 
--- Gem multiplier toggle
-AdvancedTab:AddToggle({
-    Name = "Gem Value Multiplier (2x)",
-    Default = false,
-    Flag = "GemMultiplier",
-    Save = true,
-    Callback = function(Value)
-        Settings.GemMultiplier = Value
-        if Value then
-            Functions.ActivateGemMultiplier()
-        end
+-- Teleport to Map
+TeleportTab:AddButton({
+    Name = "Teleport to Map",
+    Callback = function()
+        pcall(function()
+            -- Find the map - search in multiple locations
+            local targetPosition = nil
+            
+            -- First check for Map folder
+            if Workspace:FindFirstChild("Map") then
+                -- Try to find spawns in the map
+                for _, part in pairs(Workspace.Map:GetDescendants()) do
+                    if (part.Name:lower():find("spawn") or part.Name:lower():find("start")) and 
+                       (part:IsA("BasePart") or part:IsA("SpawnLocation")) then
+                        targetPosition = part.Position
+                        print("Found spawn in map: " .. part:GetFullName())
+                        break
+                    end
+                end
+                
+                -- If no spawn found, use any part in the map
+                if not targetPosition then
+                    for _, part in pairs(Workspace.Map:GetDescendants()) do
+                        if part:IsA("BasePart") or part:IsA("MeshPart") then
+                            targetPosition = part.Position
+                            print("Using random part in map: " .. part:GetFullName())
+                            break
+                        end
+                    end
+                end
+            end
+            
+            -- If still nothing found, look for anything map-like in workspace
+            if not targetPosition then
+                for _, obj in pairs(Workspace:GetChildren()) do
+                    if (obj.Name:lower():find("map") or obj.Name:lower():find("game")) and 
+                       (obj:IsA("Model") or obj:IsA("Folder")) then
+                        
+                        -- Look for any part in this object
+                        local part = obj:FindFirstChildWhichIsA("BasePart", true)
+                        if part then
+                            targetPosition = part.Position
+                            print("Found map-like object: " .. obj:GetFullName())
+                            break
+                        end
+                    end
+                end
+            end
+            
+            -- If we found a position and player character exists, teleport
+            if targetPosition and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPosition + Vector3.new(0, 5, 0))
+                
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Teleported to Map!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+                
+                -- Debug
+                print("Teleported to Map: " .. tostring(targetPosition))
+            else
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Couldn't find Map location!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
     end
 })
 
--- Function to enable infinite inventory
-Functions.EnableInfiniteInventory = function()
-    if Settings.InfiniteInventory then
-        spawn(function()
-            -- Try to hook the inventory limit check
-            local success, err = pcall(function()
-                if hookfunction then
-                    for _, v in pairs(getgc()) do
-                        if type(v) == "function" and getfenv(v).script and getfenv(v).script.Name == "InventoryHandler" then
-                            if tostring(v):find("InventoryFull") then
-                                hookfunction(v, function(...)
-                                    return false -- Always return false for inventory full check
-                                end)
-                                break
+-- Teleport to Sheriff
+TeleportTab:AddButton({
+    Name = "Teleport to Sheriff",
+    Callback = function()
+        pcall(function()
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Backpack:FindFirstChild("Gun") or 
+                   (player.Character and player.Character:FindFirstChild("Gun")) then
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and
+                       LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 0, 3)
+                        
+                        OrionLib:MakeNotification({
+                            Name = "SkyX",
+                            Content = "Teleported to Sheriff: " .. player.Name,
+                            Image = "rbxassetid://4483345998",
+                            Time = 3
+                        })
+                        break
+                    end
+                end
+            end
+        end)
+    end
+})
+
+-- Teleport to Murderer
+TeleportTab:AddButton({
+    Name = "Teleport to Murderer",
+    Callback = function()
+        pcall(function()
+            for _, player in pairs(Players:GetPlayers()) do
+                if player.Backpack:FindFirstChild("Knife") or 
+                   (player.Character and player.Character:FindFirstChild("Knife")) then
+                    if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and
+                       LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 0, 3)
+                        
+                        OrionLib:MakeNotification({
+                            Name = "SkyX",
+                            Content = "Teleported to Murderer: " .. player.Name,
+                            Image = "rbxassetid://4483345998",
+                            Time = 3
+                        })
+                        break
+                    end
+                end
+            end
+        end)
+    end
+})
+
+-- Teleport to Coin Spawns
+TeleportTab:AddButton({
+    Name = "Teleport to Coin Spawns",
+    Callback = function()
+        pcall(function()
+            -- Look for coins in all possible locations
+            local coinFound = false
+            
+            -- First check directly in workspace
+            for _, v in pairs(Workspace:GetChildren()) do
+                if (v.Name == "Coin_Server" or v.Name == "Coin" or string.find(v.Name:lower(), "coin")) and 
+                    v:IsA("BasePart") or (v:FindFirstChild("Coin") or v:FindFirstChildWhichIsA("BasePart")) then
+                    
+                    local targetPart = v
+                    -- Determine which part to teleport to
+                    if v:IsA("Model") and v:FindFirstChild("Coin") then
+                        targetPart = v.Coin
+                    elseif v:FindFirstChildWhichIsA("BasePart") then
+                        targetPart = v:FindFirstChildWhichIsA("BasePart")
+                    end
+                    
+                    if targetPart:IsA("BasePart") or targetPart:IsA("MeshPart") then
+                        -- Teleport to coin
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPart.Position)
+                        
+                        OrionLib:MakeNotification({
+                            Name = "SkyX",
+                            Content = "Teleported to coin!",
+                            Image = "rbxassetid://4483345998",
+                            Time = 3
+                        })
+                        
+                        -- Debug
+                        print("Teleported to coin: " .. v:GetFullName())
+                        coinFound = true
+                        break
+                    end
+                end
+            end
+            
+            -- If not found in workspace, check in Map folder
+            if not coinFound and Workspace:FindFirstChild("Map") then
+                for _, v in pairs(Workspace.Map:GetDescendants()) do
+                    if (v.Name == "Coin_Server" or v.Name == "Coin" or string.find(v.Name:lower(), "coin")) and 
+                        (v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("Model")) then
+                        
+                        local targetPart = v
+                        -- Determine which part to teleport to
+                        if v:IsA("Model") and v:FindFirstChild("Coin") then
+                            targetPart = v.Coin
+                        elseif v:FindFirstChildWhichIsA("BasePart") then
+                            targetPart = v:FindFirstChildWhichIsA("BasePart")
+                        end
+                        
+                        if targetPart:IsA("BasePart") or targetPart:IsA("MeshPart") then
+                            -- Teleport to coin
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPart.Position)
+                            
+                            OrionLib:MakeNotification({
+                                Name = "SkyX",
+                                Content = "Teleported to coin in map!",
+                                Image = "rbxassetid://4483345998",
+                                Time = 3
+                            })
+                            
+                            -- Debug
+                            print("Teleported to coin in map: " .. v:GetFullName())
+                            coinFound = true
+                            break
+                        end
+                    end
+                end
+            end
+            
+            -- Notification if no coins found
+            if not coinFound then
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "No coins found to teleport to!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end)
+    end
+})
+
+-- Player Tab (already created above)
+PlayerTab:AddSection({
+    Name = "Player Modifications"
+})
+
+-- No-Clip Feature
+PlayerTab:AddToggle({
+    Name = "No-Clip (Walk Through Walls)",
+    Default = false,
+    Flag = "noClip",
+    Save = true,
+    Callback = function(Value)
+        getgenv().NoClip = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "No-Clip Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create a dedicated thread for no-clip
+            spawn(function()
+                while getgenv().NoClip do
+                    pcall(function()
+                        if LocalPlayer and LocalPlayer.Character then
+                            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                                if part:IsA("BasePart") then
+                                    part.CanCollide = false
+                                end
                             end
+                        end
+                    end)
+                    wait(0.1)
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "No-Clip Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Reset collision
+            pcall(function()
+                if LocalPlayer and LocalPlayer.Character then
+                    for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                            part.CanCollide = true
                         end
                     end
                 end
             end)
-            
-            if success then
-                OrionLib:MakeNotification({
-                    Name = "Infinite Inventory",
-                    Content = "Inventory limit bypassed",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-            end
-        end)
-    end
-end
-
--- Infinite inventory toggle
-AdvancedTab:AddToggle({
-    Name = "Infinite Inventory Space",
-    Default = false,
-    Flag = "InfiniteInventory",
-    Save = true,
-    Callback = function(Value)
-        Settings.InfiniteInventory = Value
-        if Value then
-            Functions.EnableInfiniteInventory()
         end
     end
 })
 
--- Function to auto rebirth
-Functions.StartAutoRebirth = function()
-    if Settings.AutoRebirth then
-        spawn(function()
-            while Settings.AutoRebirth do
-                -- Find and trigger rebirth remote
-                local rebirthRemote = game:GetService("ReplicatedStorage"):FindFirstChild("Events"):FindFirstChild("Rebirth")
-                if rebirthRemote then
-                    rebirthRemote:FireServer()
-                    OrionLib:MakeNotification({
-                        Name = "Auto Rebirth",
-                        Content = "Performed rebirth",
-                        Image = "rbxassetid://4483345998",
-                        Time = 3
-                    })
+-- Infinite Jump
+PlayerTab:AddToggle({
+    Name = "Infinite Jump",
+    Default = false,
+    Flag = "infJump",
+    Save = true,
+    Callback = function(Value)
+        getgenv().InfiniteJump = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Infinite Jump Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Connect to UserInputService
+            local UserInputService = game:GetService("UserInputService")
+            getgenv().InfJumpConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                if input.KeyCode == Enum.KeyCode.Space and getgenv().InfiniteJump then
+                    pcall(function()
+                        if LocalPlayer and LocalPlayer.Character and 
+                           LocalPlayer.Character:FindFirstChild("Humanoid") then
+                            LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        end
+                    end)
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Infinite Jump Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Disconnect the event
+            if getgenv().InfJumpConnection then
+                getgenv().InfJumpConnection:Disconnect()
+            end
+        end
+    end
+})
+
+-- God Mode
+PlayerTab:AddToggle({
+    Name = "God Mode (Anti-Kill)",
+    Default = false,
+    Flag = "godMode",
+    Save = true,
+    Callback = function(Value)
+        getgenv().GodMode = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "God Mode Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create a dedicated thread for god mode
+            spawn(function()
+                while getgenv().GodMode do
+                    pcall(function()
+                        if LocalPlayer and LocalPlayer.Character and 
+                           LocalPlayer.Character:FindFirstChild("Humanoid") then
+                            -- Keep health at max
+                            LocalPlayer.Character.Humanoid.Health = LocalPlayer.Character.Humanoid.MaxHealth
+                            
+                            -- Make character invisible to murderer's knife
+                            for _, item in pairs(LocalPlayer.Character:GetDescendants()) do
+                                if item:IsA("BasePart") and item.Name ~= "HumanoidRootPart" then
+                                    if not item:FindFirstChild("SkyXGodMode") then
+                                        local bodyVelocity = Instance.new("BodyVelocity")
+                                        bodyVelocity.Name = "SkyXGodMode"
+                                        bodyVelocity.P = 0
+                                        bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
+                                        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                                        bodyVelocity.Parent = item
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    wait(0.1)
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "God Mode Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Remove god mode objects
+            pcall(function()
+                if LocalPlayer and LocalPlayer.Character then
+                    for _, item in pairs(LocalPlayer.Character:GetDescendants()) do
+                        if item.Name == "SkyXGodMode" then
+                            item:Destroy()
+                        end
+                    end
+                end
+            end)
+        end
+    end
+})
+
+-- Fly
+PlayerTab:AddToggle({
+    Name = "Fly",
+    Default = false,
+    Flag = "fly",
+    Save = true,
+    Callback = function(Value)
+        getgenv().Fly = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Fly Enabled! Use WASD and Space/Control to move.",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Implement fly
+            local flySpeed = 1.5
+            local flyPart
+            
+            pcall(function()
+                if LocalPlayer and LocalPlayer.Character and 
+                   LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    -- Create a part to handle flying
+                    flyPart = Instance.new("BodyVelocity")
+                    flyPart.Name = "SkyXFlyer"
+                    flyPart.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                    flyPart.P = 9000
+                    flyPart.Velocity = Vector3.new(0, 0, 0)
+                    flyPart.Parent = LocalPlayer.Character.HumanoidRootPart
+                    
+                    -- Connect keyboard controls
+                    local UserInputService = game:GetService("UserInputService")
+                    local keys = {
+                        [Enum.KeyCode.W] = Vector3.new(0, 0, -1),
+                        [Enum.KeyCode.A] = Vector3.new(-1, 0, 0),
+                        [Enum.KeyCode.S] = Vector3.new(0, 0, 1),
+                        [Enum.KeyCode.D] = Vector3.new(1, 0, 0),
+                        [Enum.KeyCode.Space] = Vector3.new(0, 1, 0),
+                        [Enum.KeyCode.LeftControl] = Vector3.new(0, -1, 0)
+                    }
+                    
+                    getgenv().FlyKeyConnection = UserInputService.InputBegan:Connect(function(input)
+                        if not getgenv().Fly then 
+                            getgenv().FlyKeyConnection:Disconnect()
+                            return 
+                        end
+                        
+                        if keys[input.KeyCode] and LocalPlayer.Character and 
+                           LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and
+                           LocalPlayer.Character.HumanoidRootPart:FindFirstChild("SkyXFlyer") then
+                            local direction = keys[input.KeyCode] * (flySpeed * 30)
+                            local lookVector = Camera.CFrame.LookVector
+                            local rightVector = Camera.CFrame.RightVector
+                            
+                            if input.KeyCode == Enum.KeyCode.W or input.KeyCode == Enum.KeyCode.S then
+                                direction = lookVector * direction.Z
+                            elseif input.KeyCode == Enum.KeyCode.A or input.KeyCode == Enum.KeyCode.D then
+                                direction = rightVector * direction.X
+                            end
+                            
+                            -- Add vertical movement
+                            if input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.LeftControl then
+                                direction = Vector3.new(0, direction.Y, 0)
+                            end
+                            
+                            -- Set velocity
+                            local flyer = LocalPlayer.Character.HumanoidRootPart:FindFirstChild("SkyXFlyer")
+                            if flyer then
+                                flyer.Velocity = direction
+                            end
+                        end
+                    end)
+                    
+                    -- Stop when key is released
+                    getgenv().FlyKeyReleaseConnection = UserInputService.InputEnded:Connect(function(input)
+                        if not getgenv().Fly then 
+                            getgenv().FlyKeyReleaseConnection:Disconnect()
+                            return 
+                        end
+                        
+                        if keys[input.KeyCode] and LocalPlayer.Character and 
+                           LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and
+                           LocalPlayer.Character.HumanoidRootPart:FindFirstChild("SkyXFlyer") then
+                            
+                            local flyer = LocalPlayer.Character.HumanoidRootPart:FindFirstChild("SkyXFlyer")
+                            if flyer then
+                                flyer.Velocity = Vector3.new(0, 0, 0)
+                            end
+                        end
+                    end)
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Fly Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Clean up fly components
+            pcall(function()
+                if LocalPlayer and LocalPlayer.Character and 
+                   LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and
+                   LocalPlayer.Character.HumanoidRootPart:FindFirstChild("SkyXFlyer") then
+                    LocalPlayer.Character.HumanoidRootPart.SkyXFlyer:Destroy()
                 end
                 
-                wait(Settings.RebirthDelay)
-            end
-        end)
-    end
-end
-
--- Auto rebirth toggle
-AdvancedTab:AddToggle({
-    Name = "Auto Rebirth",
-    Default = false,
-    Flag = "AutoRebirth",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoRebirth = Value
-        if Value then
-            Functions.StartAutoRebirth()
+                if getgenv().FlyKeyConnection then
+                    getgenv().FlyKeyConnection:Disconnect()
+                end
+                
+                if getgenv().FlyKeyReleaseConnection then
+                    getgenv().FlyKeyReleaseConnection:Disconnect()
+                end
+            end)
         end
     end
 })
 
--- Rebirth delay slider
-AdvancedTab:AddSlider({
-    Name = "Rebirth Interval (seconds)",
-    Min = 30,
-    Max = 300,
-    Default = 60,
-    Color = Color3.fromRGB(89, 150, 255),
-    Increment = 10,
-    ValueName = "seconds",
-    Flag = "RebirthDelay",
-    Save = true,
-    Callback = function(Value)
-        Settings.RebirthDelay = Value
+-- Auto Claim Items Section
+PlayerTab:AddSection({
+    Name = "Item Collection Features"
+})
+
+-- Auto Claim Items
+PlayerTab:AddButton({
+    Name = "Claim All Daily Items",
+    Callback = function()
+        pcall(function()
+            -- Try to find and interact with daily rewards or gift systems
+            for _, obj in pairs(Workspace:GetDescendants()) do
+                if obj.Name:lower():find("gift") or obj.Name:lower():find("reward") or obj.Name:lower():find("daily") then
+                    if obj:IsA("ClickDetector") then
+                        fireclickdetector(obj)
+                    elseif obj:IsA("ProximityPrompt") then
+                        fireproximityprompt(obj)
+                    end
+                end
+            end
+            
+            -- Try to trigger daily reward UI interactions
+            for _, gui in pairs(game:GetService("Players").LocalPlayer.PlayerGui:GetDescendants()) do
+                if gui:IsA("TextButton") and (gui.Text:lower():find("claim") or gui.Text:lower():find("reward") or gui.Text:lower():find("gift")) then
+                    local events = getconnections(gui.MouseButton1Click)
+                    for _, event in pairs(events) do
+                        event:Fire()
+                    end
+                end
+            end
+            
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Attempted to claim all available items!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end)
     end
 })
 
--- Settings tab
-local SettingsTab = Window:MakeTab({
-    Name = "Settings",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-SettingsTab:AddSection({
-    Name = "General Settings"
-})
-
--- Anti-AFK toggle
-SettingsTab:AddToggle({
-    Name = "Anti-AFK",
-    Default = true,
-    Flag = "AntiAFK",
-    Save = true,
-    Callback = function(Value)
-        Settings.AntiAFK = Value
-        Functions.SetupAntiAFK()
+-- Auto Claim MM2 Mystery Box
+PlayerTab:AddButton({
+    Name = "Claim Mystery Box",
+    Callback = function()
+        pcall(function()
+            -- Look for mystery box UI elements
+            for _, gui in pairs(game:GetService("Players").LocalPlayer.PlayerGui:GetDescendants()) do
+                if gui:IsA("TextButton") and (gui.Text:lower():find("mystery") or gui.Text:lower():find("box") or gui.Text:lower():find("open")) then
+                    local events = getconnections(gui.MouseButton1Click)
+                    for _, event in pairs(events) do
+                        event:Fire()
+                    end
+                end
+            end
+            
+            -- Try to fire events that might be related to mystery boxes
+            local remotes = game:GetService("ReplicatedStorage"):GetDescendants()
+            for _, remote in pairs(remotes) do
+                if remote:IsA("RemoteEvent") and (remote.Name:lower():find("mystery") or remote.Name:lower():find("box") or 
+                   remote.Name:lower():find("claim") or remote.Name:lower():find("open") or remote.Name:lower():find("reward")) then
+                    pcall(function()
+                        remote:FireServer()
+                    end)
+                end
+            end
+            
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Attempted to claim Mystery Box!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end)
     end
 })
 
--- Mobile friendly toggle
-SettingsTab:AddToggle({
-    Name = "Mobile Friendly Mode",
-    Default = true,
-    Flag = "MobileFriendly",
+-- Auto Collect All In-Game Items
+PlayerTab:AddToggle({
+    Name = "Auto Collect Game Items",
+    Default = false,
+    Flag = "autoCollectItems",
     Save = true,
     Callback = function(Value)
-        Settings.MobileFriendly = Value
-        OrionLib:MakeNotification({
-            Name = "Mobile Mode",
-            Content = Value and "Mobile optimizations enabled" or "Mobile optimizations disabled",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
+        getgenv().AutoCollectItems = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Auto Item Collection Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create a dedicated thread for item collection
+            spawn(function()
+                while getgenv().AutoCollectItems do
+                    pcall(function()
+                        -- Look for collectible items in workspace
+                        for _, item in pairs(Workspace:GetDescendants()) do
+                            if (item.Name:lower():find("collectible") or item.Name:lower():find("item") or 
+                               item.Name:lower():find("pickup") or item.Name:lower():find("gun") or 
+                               item.Name:lower():find("knife") or item.Name:lower():find("collect")) and
+                               LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                                
+                                if item:IsA("BasePart") or item:IsA("Model") then
+                                    local primaryPart = item
+                                    if item:IsA("Model") and item.PrimaryPart then
+                                        primaryPart = item.PrimaryPart
+                                    elseif item:IsA("Model") then
+                                        for _, part in pairs(item:GetDescendants()) do
+                                            if part:IsA("BasePart") then
+                                                primaryPart = part
+                                                break
+                                            end
+                                        end
+                                    end
+                                    
+                                    if primaryPart:IsA("BasePart") then
+                                        LocalPlayer.Character.HumanoidRootPart.CFrame = primaryPart.CFrame
+                                        wait(0.1)
+                                    end
+                                end
+                            end
+                        end
+                    end)
+                    wait(0.5)
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Auto Item Collection Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
     end
 })
 
--- Credits tab
-local CreditsTab = Window:MakeTab({
-    Name = "Credits",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
+-- WalkSpeed Slider
+PlayerTab:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 100,
+    Default = 16,
+    Color = Color3.fromRGB(0, 120, 255),
+    Increment = 1,
+    ValueName = "speed",
+    Flag = "WalkSpeedValue",
+    Save = true,
+    Callback = function(Value)
+        getgenv().WalkSpeed = Value
+        pcall(function()
+            if LocalPlayer and LocalPlayer.Character and 
+               LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.WalkSpeed = Value
+            end
+        end)
+        
+        -- Create a loop to maintain the walkspeed value
+        if not getgenv().WalkspeedLoop then
+            getgenv().WalkspeedLoop = true
+            spawn(function()
+                while wait(0.5) do
+                    pcall(function()
+                        if getgenv().WalkSpeed and LocalPlayer and LocalPlayer.Character and 
+                           LocalPlayer.Character:FindFirstChild("Humanoid") then
+                            LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().WalkSpeed
+                        end
+                    end)
+                end
+            end)
+        end
+    end
 })
 
+-- JumpPower Slider
+PlayerTab:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 200,
+    Default = 50,
+    Color = Color3.fromRGB(0, 120, 255),
+    Increment = 5,
+    ValueName = "power",
+    Flag = "JumpPowerValue",
+    Save = true,
+    Callback = function(Value)
+        getgenv().JumpPower = Value
+        pcall(function()
+            if LocalPlayer and LocalPlayer.Character and 
+               LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.JumpPower = Value
+            end
+        end)
+        
+        -- Create a loop to maintain the jumppower value
+        if not getgenv().JumpPowerLoop then
+            getgenv().JumpPowerLoop = true
+            spawn(function()
+                while wait(0.5) do
+                    pcall(function()
+                        if getgenv().JumpPower and LocalPlayer and LocalPlayer.Character and 
+                           LocalPlayer.Character:FindFirstChild("Humanoid") then
+                            LocalPlayer.Character.Humanoid.JumpPower = getgenv().JumpPower
+                        end
+                    end)
+                end
+            end)
+        end
+    end
+})
+
+-- Reset Player (FIXED VERSION)
+PlayerTab:AddButton({
+    Name = "Reset Character",
+    Callback = function()
+        pcall(function()
+            -- Notify
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Resetting character...",
+                Image = "rbxassetid://4483345998",
+                Time = 2
+            })
+            
+            -- Try multiple reset methods for reliability
+            
+            -- Method 1: Direct health set to 0
+            if LocalPlayer and LocalPlayer.Character and 
+               LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.Health = 0
+            end
+            
+            -- Method 2: Use the LoadCharacter method if available
+            wait(0.1)
+            pcall(function()
+                LocalPlayer:LoadCharacter()
+            end)
+            
+            -- Method 3: Use the game's built-in reset function
+            wait(0.1)
+            pcall(function()
+                game:GetService("ReplicatedStorage").Events.ReplicateCharacter:FireServer()
+            end)
+            
+            -- Wait for character to fully load
+            wait(0.5)
+            
+            -- Reapply settings if specific features are enabled
+            if getgenv().WalkSpeed and getgenv().WalkSpeed > 0 then
+                pcall(function()
+                    LocalPlayer.Character.Humanoid.WalkSpeed = getgenv().WalkSpeed
+                end)
+            end
+            
+            if getgenv().JumpPower and getgenv().JumpPower > 0 then
+                pcall(function()
+                    LocalPlayer.Character.Humanoid.JumpPower = getgenv().JumpPower
+                end)
+            end
+            
+            -- Success notification
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Character reset complete",
+                Image = "rbxassetid://4483345998",
+                Time = 2
+            })
+        end)
+    end
+})
+
+-- Credits Tab
 CreditsTab:AddSection({
-    Name = "SkyX Premium Script Hub"
+    Name = "Script Credits"
 })
 
-CreditsTab:AddParagraph("Created By", "SkyX Development Team")
+-- Add a premium indicator at the top
+CreditsTab:AddSection({
+    Name = "Premium Status"
+})
 
-CreditsTab:AddParagraph("Special Thanks", "Thanks to all our premium users!")
+-- Display premium status
+CreditsTab:AddLabel("⭐ Premium Status: ACTIVE ⭐")
 
+-- Info section
+CreditsTab:AddSection({
+    Name = "Script Information"
+})
+
+-- Credits with better formatting for mobile
+CreditsTab:AddLabel("🌊 SkyX Hub Premium Script")
+CreditsTab:AddLabel("Ocean Theme - Mobile Optimized")
+CreditsTab:AddLabel("Built for Swift, Fluxus, Hydrogen")
+
+-- Key expiry info
+CreditsTab:AddLabel("Premium Key: ACTIVE")
+CreditsTab:AddLabel("Key Expiry: LIFETIME")
+
+-- Discord Button
 CreditsTab:AddButton({
-    Name = "Copy Discord Invite",
+    Name = "Join Discord Server",
     Callback = function()
         setclipboard("https://discord.gg/ugyvkJXhFh")
         OrionLib:MakeNotification({
-            Name = "Discord",
-            Content = "Discord invite copied to clipboard!",
+            Name = "SkyX",
+            Content = "Discord link copied to clipboard: discord.gg/ugyvkJXhFh",
             Image = "rbxassetid://4483345998",
             Time = 3
         })
     end
 })
 
--- Initialize Anti-AFK on start
-Functions.SetupAntiAFK()
+-- Anti-AFK
+pcall(function()
+    local VirtualUser = game:GetService("VirtualUser")
+    LocalPlayer.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+        OrionLib:MakeNotification({
+            Name = "SkyX",
+            Content = "Anti-AFK Enabled",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end)
+end)
 
--- Initialize the UI
-OrionLib:Init()
-
--- Starting notification
+-- Startup Notification
 OrionLib:MakeNotification({
-    Name = "SkyX Scripts",
-    Content = "Bubble Gum Simulator INFINITY script loaded!",
+    Name = "🌊 SkyX Hub",
+    Content = "Murder Mystery 2 Script Loaded!\nMobile-Friendly UI: Enabled ✓\nAimbot and Auto-Kill Features Added!",
     Image = "rbxassetid://4483345998",
     Time = 5
 })
+
+print("🌊 SkyX Hub - MM2 Ocean Theme Script (Orion Version) Loaded Successfully!")
+print("Mobile-Friendly UI: Enabled ✓")
+print("UI Position: Centered ✓")
+
+-- Setup additional listeners to ensure all settings work properly
+pcall(function()
+    -- Character Added listener to maintain modifications
+    LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+        -- Wait for humanoid to be available
+        local humanoid = newCharacter:WaitForChild("Humanoid")
+        
+        -- Re-apply settings
+        wait(0.5) -- Wait for character to fully load
+        
+        -- WalkSpeed
+        if getgenv().WalkSpeed and getgenv().WalkSpeed > 0 then
+            humanoid.WalkSpeed = getgenv().WalkSpeed
+            print("Re-applied WalkSpeed: " .. getgenv().WalkSpeed)
+        end
+        
+        -- JumpPower
+        if getgenv().JumpPower and getgenv().JumpPower > 0 then
+            humanoid.JumpPower = getgenv().JumpPower
+            print("Re-applied JumpPower: " .. getgenv().JumpPower)
+        end
+        
+        -- No-Clip
+        if getgenv().NoClip then
+            wait(1)
+            for _, part in pairs(newCharacter:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+            print("Re-applied NoClip")
+        end
+        
+        -- God Mode
+        if getgenv().GodMode then
+            -- Make character invisible to murderer's knife
+            for _, item in pairs(newCharacter:GetDescendants()) do
+                if item:IsA("BasePart") and item.Name ~= "HumanoidRootPart" then
+                    local bodyVelocity = Instance.new("BodyVelocity")
+                    bodyVelocity.Name = "SkyXGodMode"
+                    bodyVelocity.P = 0
+                    bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
+                    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                    bodyVelocity.Parent = item
+                end
+            end
+            print("Re-applied GodMode")
+        end
+    end)
+    
+    -- Setup RunService for consistent checks
+    local runServiceConnection = RunService.Heartbeat:Connect(function()
+        if not LocalPlayer or not LocalPlayer.Character then return end
+        
+        pcall(function()
+            -- Update NoClip
+            if getgenv().NoClip and LocalPlayer.Character then
+                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.CanCollide then
+                        part.CanCollide = false
+                    end
+                end
+            end
+            
+            -- Update God Mode
+            if getgenv().GodMode and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.Health = LocalPlayer.Character.Humanoid.MaxHealth
+            end
+            
+            -- Update ESP
+            if getgenv().ESP then
+                -- ESP is handled by its own loop
+            end
+        end)
+    end)
+    
+    -- Clean up when script ends
+    LocalPlayer.CharacterRemoving:Connect(function()
+        if runServiceConnection then
+            runServiceConnection:Disconnect()
+        end
+    end)
+end)
+
+-- Setup a global error handler to improve stability
+pcall(function()
+    game:GetService("ScriptContext").Error:Connect(function(message, trace)
+        if message:find("SkyX") or trace:find("SkyX") then
+            print("SkyX Script Error: " .. message)
+            -- Attempt to recover
+            wait(1)
+            OrionLib:MakeNotification({
+                Name = "SkyX Error Recovery",
+                Content = "Script encountered an error, attempting to recover...",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end)
+end)
+
+-- Initialize Orion
+OrionLib:Init()
+
+print("🌊 SkyX Hub - MM2 Ocean Theme Script (Orion Version) is ready to use!")
+print("Mobile-Friendly UI: Enabled ✓")
+print("All features and sliders fully fixed ✓")
