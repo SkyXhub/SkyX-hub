@@ -1,3 +1,9 @@
+--[[
+⚡ SkyX MM2 Script - Compact UI ⚡
+No external libraries - completely self-contained
+BlackBloom Edition v2.0
+]]
+
 
 -- Game check
 if game.PlaceId ~= 142823291 and game.PlaceId ~= 1215581239 then
@@ -15,7 +21,7 @@ if game.PlaceId ~= 142823291 and game.PlaceId ~= 1215581239 then
 end
 
 ---------------------------------
--- PURE CUSTOM UI IMPLEMENTATION
+-- COMPACT UI IMPLEMENTATION
 ---------------------------------
 
 -- Services
@@ -32,9 +38,9 @@ local Mouse = LocalPlayer and LocalPlayer:GetMouse()
 local UI = {
     -- Colors
     Colors = {
-        Main = Color3.fromRGB(60, 87, 215), -- Blue accent
-        Background = Color3.fromRGB(20, 20, 20), -- Dark background
-        Secondary = Color3.fromRGB(30, 30, 30), -- Slightly lighter background
+        Main = Color3.fromRGB(67, 87, 207), -- Blue accent
+        Background = Color3.fromRGB(15, 15, 15), -- Dark background
+        Secondary = Color3.fromRGB(25, 25, 25), -- Slightly lighter background
         Text = Color3.fromRGB(255, 255, 255), -- White text
         TextDark = Color3.fromRGB(190, 190, 190), -- Gray text
         Success = Color3.fromRGB(55, 185, 70), -- Green
@@ -118,7 +124,7 @@ end
 
 -- Create Main UI
 local ScreenGui = Create("ScreenGui", {
-    Name = "SkyXCustomUI",
+    Name = "SkyXCompactUI",
     ZIndexBehavior = Enum.ZIndexBehavior.Global,
     ResetOnSpawn = false
 })
@@ -133,21 +139,21 @@ else
     ScreenGui.Parent = CoreGui
 end
 
--- Create main window
+-- Create main window (smaller size)
 local MainFrame = Create("Frame", {
     Name = "MainFrame",
     Parent = ScreenGui,
     BackgroundColor3 = UI.Colors.Background,
     BorderSizePixel = 0,
-    Position = UDim2.new(0.5, -325, 0.5, -200),
-    Size = UDim2.new(0, 650, 0, 400),
+    Position = UDim2.new(0.5, -200, 0.5, -115),
+    Size = UDim2.new(0, 400, 0, 230),
     ClipsDescendants = true
 })
 
 -- Rounded corners
 local Corner = Create("UICorner", {
     Parent = MainFrame,
-    CornerRadius = UDim.new(0, 8)
+    CornerRadius = UDim.new(0, 4)
 })
 
 -- Header
@@ -156,13 +162,13 @@ local HeaderFrame = Create("Frame", {
     Parent = MainFrame,
     BackgroundColor3 = UI.Colors.Secondary,
     BorderSizePixel = 0,
-    Size = UDim2.new(1, 0, 0, 40)
+    Size = UDim2.new(1, 0, 0, 30)
 })
 
 -- Header corner
 local HeaderCorner = Create("UICorner", {
     Parent = HeaderFrame,
-    CornerRadius = UDim.new(0, 8)
+    CornerRadius = UDim.new(0, 4)
 })
 
 -- Bottom cover to make the header only rounded at the top
@@ -171,8 +177,8 @@ local HeaderCover = Create("Frame", {
     Parent = HeaderFrame,
     BackgroundColor3 = UI.Colors.Secondary,
     BorderSizePixel = 0,
-    Position = UDim2.new(0, 0, 1, -8),
-    Size = UDim2.new(1, 0, 0, 8)
+    Position = UDim2.new(0, 0, 1, -4),
+    Size = UDim2.new(1, 0, 0, 4)
 })
 
 -- Header title
@@ -180,12 +186,12 @@ local HeaderTitle = Create("TextLabel", {
     Name = "HeaderTitle",
     Parent = HeaderFrame,
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 12, 0, 0),
-    Size = UDim2.new(1, -24, 1, 0),
-    Font = Enum.Font.GothamBold,
-    Text = "SkyX - MM2 BlackBloom",
+    Position = UDim2.new(0, 10, 0, 0),
+    Size = UDim2.new(1, -60, 1, 0),
+    Font = Enum.Font.GothamSemibold,
+    Text = "SkyX MM2",
     TextColor3 = UI.Colors.Text,
-    TextSize = 16,
+    TextSize = 14,
     TextXAlignment = Enum.TextXAlignment.Left
 })
 
@@ -194,33 +200,34 @@ local HeaderTimer = Create("TextLabel", {
     Name = "HeaderTimer",
     Parent = HeaderFrame,
     BackgroundTransparency = 1,
-    Position = UDim2.new(0.5, -30, 0, 0),
-    Size = UDim2.new(0, 60, 1, 0),
+    Position = UDim2.new(0.5, -25, 0, 0),
+    Size = UDim2.new(0, 50, 1, 0),
     Font = Enum.Font.GothamSemibold,
-    Text = "00:14",
+    Text = "00:19",
     TextColor3 = UI.Colors.Text,
-    TextSize = 14,
+    TextSize = 12,
     TextTransparency = 0.4
 })
 
 -- Close button
-local CloseButton = Create("ImageButton", {
+local CloseButton = Create("TextButton", {
     Name = "CloseButton",
     Parent = HeaderFrame,
     BackgroundTransparency = 1,
-    Position = UDim2.new(1, -30, 0.5, -8),
-    Size = UDim2.new(0, 16, 0, 16),
-    Image = "rbxassetid://6031094678", -- X icon
-    ImageColor3 = UI.Colors.Text,
-    ImageTransparency = 0.4
+    Position = UDim2.new(1, -25, 0, 0),
+    Size = UDim2.new(0, 25, 0, 30),
+    Font = Enum.Font.GothamBold,
+    Text = "×",
+    TextColor3 = UI.Colors.Text,
+    TextSize = 20
 })
 
 CloseButton.MouseEnter:Connect(function()
-    Tween(CloseButton, {ImageTransparency = 0}, 0.2)
+    Tween(CloseButton, {TextColor3 = UI.Colors.Error}, 0.2)
 end)
 
 CloseButton.MouseLeave:Connect(function()
-    Tween(CloseButton, {ImageTransparency = 0.4}, 0.2)
+    Tween(CloseButton, {TextColor3 = UI.Colors.Text}, 0.2)
 end)
 
 CloseButton.MouseButton1Click:Connect(function()
@@ -230,20 +237,20 @@ end)
 -- Make window draggable
 MakeDraggable(MainFrame, HeaderFrame)
 
--- Tab container
+-- Tab container (blue sidebar)
 local TabContainer = Create("Frame", {
     Name = "TabContainer",
     Parent = MainFrame,
     BackgroundColor3 = UI.Colors.Main, -- Blue sidebar
     BorderSizePixel = 0,
-    Position = UDim2.new(0, 0, 0, 40),
-    Size = UDim2.new(0, 140, 1, -40)
+    Position = UDim2.new(0, 0, 0, 30),
+    Size = UDim2.new(0, 100, 1, -30)
 })
 
 -- Tab container corner
 local TabContainerCorner = Create("UICorner", {
     Parent = TabContainer,
-    CornerRadius = UDim.new(0, 8)
+    CornerRadius = UDim.new(0, 4)
 })
 
 -- Right cover to make the tab container only rounded on the left
@@ -252,8 +259,8 @@ local TabContainerCover = Create("Frame", {
     Parent = TabContainer,
     BackgroundColor3 = UI.Colors.Main,
     BorderSizePixel = 0,
-    Position = UDim2.new(1, -8, 0, 0),
-    Size = UDim2.new(0, 8, 1, 0)
+    Position = UDim2.new(1, -4, 0, 0),
+    Size = UDim2.new(0, 4, 1, 0)
 })
 
 -- Tab scroll frame
@@ -262,8 +269,8 @@ local TabScroll = Create("ScrollingFrame", {
     Parent = TabContainer,
     BackgroundTransparency = 1,
     BorderSizePixel = 0,
-    Position = UDim2.new(0, 0, 0, 10),
-    Size = UDim2.new(1, 0, 1, -20),
+    Position = UDim2.new(0, 0, 0, 5),
+    Size = UDim2.new(1, 0, 1, -10),
     ScrollBarThickness = 0,
     ScrollingDirection = Enum.ScrollingDirection.Y,
     CanvasSize = UDim2.new(0, 0, 0, 0), -- Will auto-adjust
@@ -274,7 +281,7 @@ local TabListLayout = Create("UIListLayout", {
     Parent = TabScroll,
     HorizontalAlignment = Enum.HorizontalAlignment.Center,
     SortOrder = Enum.SortOrder.LayoutOrder,
-    Padding = UDim.new(0, 8)
+    Padding = UDim.new(0, 5)
 })
 
 -- Content container
@@ -282,8 +289,8 @@ local ContentContainer = Create("Frame", {
     Name = "ContentContainer",
     Parent = MainFrame,
     BackgroundTransparency = 1,
-    Position = UDim2.new(0, 140, 0, 40),
-    Size = UDim2.new(1, -140, 1, -40),
+    Position = UDim2.new(0, 100, 0, 30),
+    Size = UDim2.new(1, -100, 1, -30),
     ClipsDescendants = true
 })
 
@@ -292,8 +299,8 @@ local NotificationContainer = Create("Frame", {
     Name = "NotificationContainer",
     Parent = ScreenGui,
     BackgroundTransparency = 1,
-    Position = UDim2.new(1, -320, 0, 10),
-    Size = UDim2.new(0, 300, 1, -20),
+    Position = UDim2.new(1, -250, 0, 10),
+    Size = UDim2.new(0, 240, 1, -20),
     ClipsDescendants = false
 })
 
@@ -302,7 +309,7 @@ local NotificationLayout = Create("UIListLayout", {
     HorizontalAlignment = Enum.HorizontalAlignment.Right,
     SortOrder = Enum.SortOrder.LayoutOrder,
     VerticalAlignment = Enum.VerticalAlignment.Top,
-    Padding = UDim.new(0, 6)
+    Padding = UDim.new(0, 5)
 })
 
 -- Timer functionality
@@ -340,20 +347,20 @@ local function CreateNotification(options)
         barColor = UI.Colors.Error
     end
     
-    -- Create notification
+    -- Create notification (smaller size)
     local Notification = Create("Frame", {
         Name = "Notification",
         Parent = NotificationContainer,
         BackgroundColor3 = UI.Colors.Secondary,
         BorderSizePixel = 0,
         Position = UDim2.new(1, 0, 0, 0), -- Start off-screen
-        Size = UDim2.new(0, 300, 0, 80),
+        Size = UDim2.new(0, 240, 0, 60),
         AnchorPoint = Vector2.new(1, 0)
     })
     
     local NotificationCorner = Create("UICorner", {
         Parent = Notification,
-        CornerRadius = UDim.new(0, 6)
+        CornerRadius = UDim.new(0, 4)
     })
     
     local NotificationBar = Create("Frame", {
@@ -361,13 +368,13 @@ local function CreateNotification(options)
         Parent = Notification,
         BackgroundColor3 = barColor,
         BorderSizePixel = 0,
-        Size = UDim2.new(0, 5, 1, 0),
+        Size = UDim2.new(0, 3, 1, 0),
         Position = UDim2.new(0, 0, 0, 0)
     })
     
     local BarCorner = Create("UICorner", {
         Parent = NotificationBar,
-        CornerRadius = UDim.new(0, 6)
+        CornerRadius = UDim.new(0, 4)
     })
     
     local CoverBarCorners = Create("Frame", {
@@ -375,20 +382,20 @@ local function CreateNotification(options)
         Parent = NotificationBar,
         BackgroundColor3 = barColor,
         BorderSizePixel = 0,
-        Position = UDim2.new(1, -5, 0, 0),
-        Size = UDim2.new(0, 5, 1, 0)
+        Position = UDim2.new(1, -3, 0, 0),
+        Size = UDim2.new(0, 3, 1, 0)
     })
     
     local Title = Create("TextLabel", {
         Name = "Title",
         Parent = Notification,
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 15, 0, 8),
-        Size = UDim2.new(1, -30, 0, 20),
+        Position = UDim2.new(0, 10, 0, 6),
+        Size = UDim2.new(1, -20, 0, 16),
         Font = Enum.Font.GothamBold,
         Text = options.Title,
         TextColor3 = UI.Colors.Text,
-        TextSize = 16,
+        TextSize = 14,
         TextXAlignment = Enum.TextXAlignment.Left
     })
     
@@ -396,12 +403,12 @@ local function CreateNotification(options)
         Name = "Text",
         Parent = Notification,
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, 15, 0, 34),
-        Size = UDim2.new(1, -30, 0, 40),
+        Position = UDim2.new(0, 10, 0, 26),
+        Size = UDim2.new(1, -20, 0, 28),
         Font = Enum.Font.Gotham,
         Text = options.Text,
-        TextColor3 = UI.Colors.Text,
-        TextSize = 14,
+        TextColor3 = UI.Colors.TextDark,
+        TextSize = 12,
         TextWrapped = true,
         TextXAlignment = Enum.TextXAlignment.Left,
         TextYAlignment = Enum.TextYAlignment.Top
@@ -425,9 +432,9 @@ local function CreateTab(name, icon)
     local TabButton = Create("TextButton", {
         Name = name.."Tab",
         Parent = TabScroll,
-        BackgroundColor3 = UI.Colors.Secondary,
-        BackgroundTransparency = 0.4, -- Semi-transparent as default
-        Size = UDim2.new(0, 130, 0, 32),
+        BackgroundColor3 = UI.Colors.Background,
+        BackgroundTransparency = 0.8, -- Semi-transparent as default
+        Size = UDim2.new(0, 90, 0, 24),
         Text = "",
         AutoButtonColor = false
     })
@@ -435,7 +442,7 @@ local function CreateTab(name, icon)
     -- Tab button corner
     local TabButtonCorner = Create("UICorner", {
         Parent = TabButton,
-        CornerRadius = UDim.new(0, 6)
+        CornerRadius = UDim.new(0, 4)
     })
     
     -- Tab icon (if provided)
@@ -445,7 +452,7 @@ local function CreateTab(name, icon)
             Name = "Icon",
             Parent = TabButton,
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0.5, -8),
+            Position = UDim2.new(0, 5, 0.5, -8),
             Size = UDim2.new(0, 16, 0, 16),
             Image = icon,
             ImageColor3 = UI.Colors.Text
@@ -457,12 +464,12 @@ local function CreateTab(name, icon)
         Name = "TabText",
         Parent = TabButton,
         BackgroundTransparency = 1,
-        Position = UDim2.new(0, icon and 35 or 10, 0, 0),
-        Size = UDim2.new(1, icon and -45 or -20, 1, 0),
+        Position = UDim2.new(0, icon and 26 or 10, 0, 0),
+        Size = UDim2.new(1, icon and -30 or -10, 1, 0),
         Font = Enum.Font.GothamSemibold,
         Text = name,
         TextColor3 = UI.Colors.Text,
-        TextSize = 14,
+        TextSize = 12,
         TextXAlignment = Enum.TextXAlignment.Left
     })
     
@@ -472,8 +479,8 @@ local function CreateTab(name, icon)
         Parent = ContentContainer,
         BackgroundTransparency = 1,
         BorderSizePixel = 0,
-        Position = UDim2.new(0, 10, 0, 10),
-        Size = UDim2.new(1, -20, 1, -20),
+        Position = UDim2.new(0, 5, 0, 5),
+        Size = UDim2.new(1, -10, 1, -10),
         ScrollBarThickness = 2,
         ScrollBarImageColor3 = UI.Colors.Main,
         ScrollingDirection = Enum.ScrollingDirection.Y,
@@ -487,7 +494,7 @@ local function CreateTab(name, icon)
         Parent = TabPage,
         HorizontalAlignment = Enum.HorizontalAlignment.Center,
         SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(0, 10)
+        Padding = UDim.new(0, 5)
     })
     
     -- Tab selection logic
@@ -495,7 +502,7 @@ local function CreateTab(name, icon)
         -- Deselect all other tabs
         for _, tabInfo in pairs(UI.Tabs) do
             if tabInfo.Button ~= TabButton then
-                Tween(tabInfo.Button, {BackgroundTransparency = 0.4}, 0.2)
+                Tween(tabInfo.Button, {BackgroundTransparency = 0.8}, 0.2)
                 tabInfo.Page.Visible = false
             end
         end
@@ -520,31 +527,31 @@ local function CreateTab(name, icon)
         UI.ActiveTab = name
     end
     
-    -- Section function
+    -- Section function (more compact)
     local function CreateSection(sectionName)
         local Section = Create("Frame", {
             Name = sectionName.."Section",
             Parent = TabPage,
             BackgroundColor3 = UI.Colors.Secondary,
-            Size = UDim2.new(1, -20, 0, 36),
+            Size = UDim2.new(1, 0, 0, 28),
             BorderSizePixel = 0
         })
         
         local SectionCorner = Create("UICorner", {
             Parent = Section,
-            CornerRadius = UDim.new(0, 6)
+            CornerRadius = UDim.new(0, 4)
         })
         
         local SectionTitle = Create("TextLabel", {
             Name = "SectionTitle",
             Parent = Section,
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 0),
-            Size = UDim2.new(1, -20, 0, 36),
+            Position = UDim2.new(0, 8, 0, 0),
+            Size = UDim2.new(1, -16, 0, 28),
             Font = Enum.Font.GothamBold,
             Text = sectionName,
             TextColor3 = UI.Colors.Text,
-            TextSize = 14,
+            TextSize = 12,
             TextXAlignment = Enum.TextXAlignment.Left
         })
         
@@ -552,7 +559,7 @@ local function CreateTab(name, icon)
             Name = "SectionContent",
             Parent = Section,
             BackgroundTransparency = 1,
-            Position = UDim2.new(0, 0, 0, 36),
+            Position = UDim2.new(0, 0, 0, 28),
             Size = UDim2.new(1, 0, 0, 0), -- Will auto-size based on content
         })
         
@@ -560,16 +567,16 @@ local function CreateTab(name, icon)
             Parent = SectionContent,
             HorizontalAlignment = Enum.HorizontalAlignment.Center,
             SortOrder = Enum.SortOrder.LayoutOrder,
-            Padding = UDim.new(0, 6)
+            Padding = UDim.new(0, 4)
         })
         
         -- Auto-size section based on content
         SectionListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
             SectionContent.Size = UDim2.new(1, 0, 0, SectionListLayout.AbsoluteContentSize.Y)
-            Section.Size = UDim2.new(1, -20, 0, 36 + SectionListLayout.AbsoluteContentSize.Y + 6)
+            Section.Size = UDim2.new(1, 0, 0, 28 + SectionListLayout.AbsoluteContentSize.Y + 5)
         end)
         
-        -- Button element
+        -- Button element (more compact)
         local function CreateButton(options)
             options = options or {}
             options.Name = options.Name or "Button"
@@ -579,26 +586,26 @@ local function CreateTab(name, icon)
                 Name = options.Name.."Button",
                 Parent = SectionContent,
                 BackgroundColor3 = UI.Colors.Background,
-                Size = UDim2.new(1, -20, 0, 32),
+                Size = UDim2.new(1, -10, 0, 24),
                 Text = "",
                 AutoButtonColor = false
             })
             
             local ButtonCorner = Create("UICorner", {
                 Parent = Button,
-                CornerRadius = UDim.new(0, 6)
+                CornerRadius = UDim.new(0, 4)
             })
             
             local ButtonText = Create("TextLabel", {
                 Name = "ButtonText",
                 Parent = Button,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 0),
-                Size = UDim2.new(1, -20, 1, 0),
+                Position = UDim2.new(0, 8, 0, 0),
+                Size = UDim2.new(1, -16, 1, 0),
                 Font = Enum.Font.Gotham,
                 Text = options.Name,
                 TextColor3 = UI.Colors.Text,
-                TextSize = 14,
+                TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left
             })
             
@@ -632,7 +639,7 @@ local function CreateTab(name, icon)
             return Button
         end
         
-        -- Toggle element
+        -- Toggle element (more compact)
         local function CreateToggle(options)
             options = options or {}
             options.Name = options.Name or "Toggle"
@@ -640,56 +647,38 @@ local function CreateTab(name, icon)
             options.Default = options.Default or false
             options.Callback = options.Callback or function() end
             
-            local toggleHeight = options.Description and 40 or 32
-            
             local Toggle = Create("Frame", {
                 Name = options.Name.."Toggle",
                 Parent = SectionContent,
                 BackgroundColor3 = UI.Colors.Background,
-                Size = UDim2.new(1, -20, 0, toggleHeight)
+                Size = UDim2.new(1, -10, 0, 24)
             })
             
             local ToggleCorner = Create("UICorner", {
                 Parent = Toggle,
-                CornerRadius = UDim.new(0, 6)
+                CornerRadius = UDim.new(0, 4)
             })
             
             local ToggleText = Create("TextLabel", {
                 Name = "ToggleText",
                 Parent = Toggle,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, options.Description and 4 or 0),
-                Size = UDim2.new(1, -60, 0, 16),
+                Position = UDim2.new(0, 8, 0, 0),
+                Size = UDim2.new(1, -48, 1, 0),
                 Font = Enum.Font.Gotham,
                 Text = options.Name,
                 TextColor3 = UI.Colors.Text,
-                TextSize = 14,
+                TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left
             })
             
-            -- Toggle description (optional)
-            if options.Description then
-                local ToggleDesc = Create("TextLabel", {
-                    Name = "ToggleDesc",
-                    Parent = Toggle,
-                    BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 10, 0, 22),
-                    Size = UDim2.new(1, -60, 0, 12),
-                    Font = Enum.Font.Gotham,
-                    Text = options.Description,
-                    TextColor3 = UI.Colors.TextDark,
-                    TextSize = 12,
-                    TextXAlignment = Enum.TextXAlignment.Left
-                })
-            end
-            
-            -- Toggle indicator
+            -- Toggle indicator (smaller, more like the image)
             local ToggleIndicator = Create("Frame", {
                 Name = "ToggleIndicator",
                 Parent = Toggle,
                 BackgroundColor3 = options.Default and UI.Colors.Main or Color3.fromRGB(70, 70, 70),
-                Position = UDim2.new(1, -42, 0.5, -8),
-                Size = UDim2.new(0, 32, 0, 16),
+                Position = UDim2.new(1, -36, 0.5, -8),
+                Size = UDim2.new(0, 28, 0, 16),
                 BorderSizePixel = 0
             })
             
@@ -702,8 +691,8 @@ local function CreateTab(name, icon)
                 Name = "ToggleCircle",
                 Parent = ToggleIndicator,
                 BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                Position = options.Default and UDim2.new(1, -14, 0.5, -6) or UDim2.new(0, 2, 0.5, -6),
-                Size = UDim2.new(0, 12, 0, 12),
+                Position = options.Default and UDim2.new(1, -12, 0.5, -6) or UDim2.new(0, 2, 0.5, -6),
+                Size = UDim2.new(0, 10, 0, 10),
                 BorderSizePixel = 0
             })
             
@@ -729,7 +718,7 @@ local function CreateTab(name, icon)
                 
                 if toggled then
                     Tween(ToggleIndicator, {BackgroundColor3 = UI.Colors.Main}, 0.2)
-                    Tween(ToggleCircle, {Position = UDim2.new(1, -14, 0.5, -6)}, 0.2)
+                    Tween(ToggleCircle, {Position = UDim2.new(1, -12, 0.5, -6)}, 0.2)
                 else
                     Tween(ToggleIndicator, {BackgroundColor3 = Color3.fromRGB(70, 70, 70)}, 0.2)
                     Tween(ToggleCircle, {Position = UDim2.new(0, 2, 0.5, -6)}, 0.2)
@@ -768,7 +757,7 @@ local function CreateTab(name, icon)
             }
         end
         
-        -- Slider element
+        -- Slider element (more compact)
         local function CreateSlider(options)
             options = options or {}
             options.Name = options.Name or "Slider"
@@ -785,24 +774,24 @@ local function CreateTab(name, icon)
                 Name = options.Name.."Slider",
                 Parent = SectionContent,
                 BackgroundColor3 = UI.Colors.Background,
-                Size = UDim2.new(1, -20, 0, 48)
+                Size = UDim2.new(1, -10, 0, 36)
             })
             
             local SliderCorner = Create("UICorner", {
                 Parent = Slider,
-                CornerRadius = UDim.new(0, 6)
+                CornerRadius = UDim.new(0, 4)
             })
             
             local SliderText = Create("TextLabel", {
                 Name = "SliderText",
                 Parent = Slider,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 6),
-                Size = UDim2.new(1, -20, 0, 14),
+                Position = UDim2.new(0, 8, 0, 2),
+                Size = UDim2.new(1, -16, 0, 16),
                 Font = Enum.Font.Gotham,
                 Text = options.Name,
                 TextColor3 = UI.Colors.Text,
-                TextSize = 14,
+                TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left
             })
             
@@ -810,12 +799,12 @@ local function CreateTab(name, icon)
                 Name = "SliderValue",
                 Parent = Slider,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(1, -40, 0, 6),
-                Size = UDim2.new(0, 30, 0, 14),
+                Position = UDim2.new(1, -32, 0, 2),
+                Size = UDim2.new(0, 24, 0, 16),
                 Font = Enum.Font.Gotham,
                 Text = tostring(options.Default),
-                TextColor3 = UI.Colors.Text,
-                TextSize = 14,
+                TextColor3 = UI.Colors.Main,
+                TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Right
             })
             
@@ -824,8 +813,8 @@ local function CreateTab(name, icon)
                 Parent = Slider,
                 BackgroundColor3 = Color3.fromRGB(50, 50, 50),
                 BorderSizePixel = 0,
-                Position = UDim2.new(0, 10, 0, 30),
-                Size = UDim2.new(1, -20, 0, 4)
+                Position = UDim2.new(0, 8, 0, 24),
+                Size = UDim2.new(1, -16, 0, 3)
             })
             
             local SliderTrackCorner = Create("UICorner", {
@@ -850,8 +839,8 @@ local function CreateTab(name, icon)
                 Name = "SliderButton",
                 Parent = Slider,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 0, 0, 30),
-                Size = UDim2.new(1, 0, 0, 4),
+                Position = UDim2.new(0, 8, 0, 22),
+                Size = UDim2.new(1, -16, 0, 6),
                 Text = "",
                 ZIndex = 2
             })
@@ -919,92 +908,7 @@ local function CreateTab(name, icon)
             }
         end
         
-        -- Textbox element
-        local function CreateTextbox(options)
-            options = options or {}
-            options.Name = options.Name or "Textbox"
-            options.Default = options.Default or ""
-            options.PlaceholderText = options.PlaceholderText or "Enter text..."
-            options.ClearOnFocus = options.ClearOnFocus ~= nil and options.ClearOnFocus or true
-            options.Callback = options.Callback or function() end
-            
-            local Textbox = Create("Frame", {
-                Name = options.Name.."Textbox",
-                Parent = SectionContent,
-                BackgroundColor3 = UI.Colors.Background,
-                Size = UDim2.new(1, -20, 0, 48)
-            })
-            
-            local TextboxCorner = Create("UICorner", {
-                Parent = Textbox,
-                CornerRadius = UDim.new(0, 6)
-            })
-            
-            local TextboxLabel = Create("TextLabel", {
-                Name = "TextboxLabel",
-                Parent = Textbox,
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 6),
-                Size = UDim2.new(1, -20, 0, 14),
-                Font = Enum.Font.Gotham,
-                Text = options.Name,
-                TextColor3 = UI.Colors.Text,
-                TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Left
-            })
-            
-            local TextboxField = Create("TextBox", {
-                Name = "TextboxField",
-                Parent = Textbox,
-                BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-                Position = UDim2.new(0, 10, 0, 26),
-                Size = UDim2.new(1, -20, 0, 16),
-                Font = Enum.Font.Gotham,
-                Text = options.Default,
-                PlaceholderText = options.PlaceholderText,
-                TextColor3 = UI.Colors.Text,
-                PlaceholderColor3 = UI.Colors.TextDark,
-                TextSize = 12,
-                ClearTextOnFocus = options.ClearOnFocus,
-                BorderSizePixel = 0
-            })
-            
-            local TextboxFieldCorner = Create("UICorner", {
-                Parent = TextboxField,
-                CornerRadius = UDim.new(0, 4)
-            })
-            
-            -- Textbox functionality
-            TextboxField.FocusLost:Connect(function(enterPressed)
-                pcall(options.Callback, TextboxField.Text, enterPressed)
-            end)
-            
-            -- Textbox hover effects
-            Textbox.MouseEnter:Connect(function()
-                Tween(Textbox, {BackgroundColor3 = Color3.fromRGB(
-                    UI.Colors.Background.R * 1.2,
-                    UI.Colors.Background.G * 1.2,
-                    UI.Colors.Background.B * 1.2
-                )}, 0.2)
-            end)
-            
-            Textbox.MouseLeave:Connect(function()
-                Tween(Textbox, {BackgroundColor3 = UI.Colors.Background}, 0.2)
-            end)
-            
-            return {
-                Instance = Textbox,
-                SetValue = function(self, value)
-                    TextboxField.Text = value
-                    pcall(options.Callback, value, false)
-                end,
-                GetValue = function(self)
-                    return TextboxField.Text
-                end
-            }
-        end
-        
-        -- Dropdown element
+        -- Dropdown element (more compact)
         local function CreateDropdown(options)
             options = options or {}
             options.Name = options.Name or "Dropdown"
@@ -1017,19 +921,19 @@ local function CreateTab(name, icon)
                 Parent = SectionContent,
                 BackgroundColor3 = UI.Colors.Background,
                 ClipsDescendants = true,
-                Size = UDim2.new(1, -20, 0, 32)
+                Size = UDim2.new(1, -10, 0, 24)
             })
             
             local DropdownCorner = Create("UICorner", {
                 Parent = Dropdown,
-                CornerRadius = UDim.new(0, 6)
+                CornerRadius = UDim.new(0, 4)
             })
             
             local DropdownButton = Create("TextButton", {
                 Name = "DropdownButton",
                 Parent = Dropdown,
                 BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 32),
+                Size = UDim2.new(1, 0, 0, 24),
                 Text = "",
                 ZIndex = 2
             })
@@ -1038,12 +942,12 @@ local function CreateTab(name, icon)
                 Name = "DropdownText",
                 Parent = Dropdown,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 0),
-                Size = UDim2.new(1, -40, 0, 32),
+                Position = UDim2.new(0, 8, 0, 0),
+                Size = UDim2.new(0.5, 0, 0, 24),
                 Font = Enum.Font.Gotham,
                 Text = options.Name,
                 TextColor3 = UI.Colors.Text,
-                TextSize = 14,
+                TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left
             })
             
@@ -1051,42 +955,44 @@ local function CreateTab(name, icon)
                 Name = "DropdownSelected",
                 Parent = Dropdown,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(1, -130, 0, 0),
-                Size = UDim2.new(0, 100, 0, 32),
+                Position = UDim2.new(0.5, 0, 0, 0),
+                Size = UDim2.new(0.35, 0, 0, 24),
                 Font = Enum.Font.Gotham,
                 Text = options.Default,
                 TextColor3 = UI.Colors.Main,
-                TextSize = 14,
+                TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Right
             })
             
-            local DropdownIcon = Create("ImageLabel", {
+            local DropdownIcon = Create("TextLabel", {
                 Name = "DropdownIcon",
                 Parent = Dropdown,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(1, -20, 0, 8),
-                Size = UDim2.new(0, 16, 0, 16),
-                Image = "rbxassetid://6031091004", -- Down arrow
-                ImageColor3 = UI.Colors.Text,
-                Rotation = 0
+                Position = UDim2.new(1, -24, 0, 0),
+                Size = UDim2.new(0, 24, 0, 24),
+                Font = Enum.Font.GothamBold,
+                Text = "▼",
+                TextColor3 = UI.Colors.Text,
+                TextSize = 10,
+                TextTransparency = 0.4
             })
             
             local DropdownContent = Create("Frame", {
                 Name = "DropdownContent",
                 Parent = Dropdown,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 0, 0, 32),
+                Position = UDim2.new(0, 0, 0, 24),
                 Size = UDim2.new(1, 0, 0, 0)
             })
             
             local DropdownContentLayout = Create("UIListLayout", {
                 Parent = DropdownContent,
                 SortOrder = Enum.SortOrder.LayoutOrder,
-                Padding = UDim.new(0, 4)
+                Padding = UDim.new(0, 2)
             })
             
             -- Calculate content height based on options
-            local contentHeight = 8 + (#options.Options * 24)
+            local contentHeight = 4 + (#options.Options * 18)
             
             -- Dropdown state
             local isOpen = false
@@ -1095,10 +1001,10 @@ local function CreateTab(name, icon)
                 isOpen = not isOpen
                 
                 if isOpen then
-                    Tween(Dropdown, {Size = UDim2.new(1, -20, 0, 32 + contentHeight)}, 0.2)
+                    Tween(Dropdown, {Size = UDim2.new(1, -10, 0, 24 + contentHeight)}, 0.2)
                     Tween(DropdownIcon, {Rotation = 180}, 0.2)
                 else
-                    Tween(Dropdown, {Size = UDim2.new(1, -20, 0, 32)}, 0.2)
+                    Tween(Dropdown, {Size = UDim2.new(1, -10, 0, 24)}, 0.2)
                     Tween(DropdownIcon, {Rotation = 0}, 0.2)
                 end
             end
@@ -1111,12 +1017,17 @@ local function CreateTab(name, icon)
                     Name = "Option"..i,
                     Parent = DropdownContent,
                     BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-                    Size = UDim2.new(1, 0, 0, 20),
+                    Size = UDim2.new(1, 0, 0, 16),
                     Font = Enum.Font.Gotham,
                     Text = option,
                     TextColor3 = UI.Colors.Text,
-                    TextSize = 14,
+                    TextSize = 12,
                     BorderSizePixel = 0
+                })
+                
+                local OptionCorner = Create("UICorner", {
+                    Parent = OptionButton,
+                    CornerRadius = UDim.new(0, 2)
                 })
                 
                 OptionButton.MouseButton1Click:Connect(function()
@@ -1169,7 +1080,7 @@ local function CreateTab(name, icon)
             }
         end
         
-        -- Keybind element
+        -- Keybind element (more compact)
         local function CreateKeybind(options)
             options = options or {}
             options.Name = options.Name or "Keybind"
@@ -1180,24 +1091,24 @@ local function CreateTab(name, icon)
                 Name = options.Name.."Keybind",
                 Parent = SectionContent,
                 BackgroundColor3 = UI.Colors.Background,
-                Size = UDim2.new(1, -20, 0, 32)
+                Size = UDim2.new(1, -10, 0, 24)
             })
             
             local KeybindCorner = Create("UICorner", {
                 Parent = Keybind,
-                CornerRadius = UDim.new(0, 6)
+                CornerRadius = UDim.new(0, 4)
             })
             
             local KeybindText = Create("TextLabel", {
                 Name = "KeybindText",
                 Parent = Keybind,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 0),
-                Size = UDim2.new(1, -60, 1, 0),
+                Position = UDim2.new(0, 8, 0, 0),
+                Size = UDim2.new(1, -50, 1, 0),
                 Font = Enum.Font.Gotham,
                 Text = options.Name,
                 TextColor3 = UI.Colors.Text,
-                TextSize = 14,
+                TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left
             })
             
@@ -1205,18 +1116,18 @@ local function CreateTab(name, icon)
                 Name = "KeybindButton",
                 Parent = Keybind,
                 BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-                Position = UDim2.new(1, -50, 0.5, -10),
-                Size = UDim2.new(0, 40, 0, 20),
+                Position = UDim2.new(1, -40, 0.5, -8),
+                Size = UDim2.new(0, 32, 0, 16),
                 Font = Enum.Font.GothamSemibold,
                 Text = options.Default.Name,
                 TextColor3 = UI.Colors.Text,
-                TextSize = 12,
+                TextSize = 11,
                 BorderSizePixel = 0
             })
             
             local KeybindButtonCorner = Create("UICorner", {
                 Parent = KeybindButton,
-                CornerRadius = UDim.new(0, 4)
+                CornerRadius = UDim.new(0, 3)
             })
             
             -- Keybind functionality
@@ -1267,7 +1178,7 @@ local function CreateTab(name, icon)
             }
         end
         
-        -- Paragraph element
+        -- Paragraph element (more compact)
         local function CreateParagraph(options)
             options = options or {}
             options.Title = options.Title or "Paragraph"
@@ -1277,24 +1188,24 @@ local function CreateTab(name, icon)
                 Name = "Paragraph",
                 Parent = SectionContent,
                 BackgroundColor3 = UI.Colors.Background,
-                Size = UDim2.new(1, -20, 0, 60) -- Will auto-adjust
+                Size = UDim2.new(1, -10, 0, 44) -- Will auto-adjust
             })
             
             local ParagraphCorner = Create("UICorner", {
                 Parent = Paragraph,
-                CornerRadius = UDim.new(0, 6)
+                CornerRadius = UDim.new(0, 4)
             })
             
             local Title = Create("TextLabel", {
                 Name = "Title",
                 Parent = Paragraph,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 8),
-                Size = UDim2.new(1, -20, 0, 16),
+                Position = UDim2.new(0, 8, 0, 4),
+                Size = UDim2.new(1, -16, 0, 14),
                 Font = Enum.Font.GothamBold,
                 Text = options.Title,
                 TextColor3 = UI.Colors.Text,
-                TextSize = 14,
+                TextSize = 12,
                 TextXAlignment = Enum.TextXAlignment.Left
             })
             
@@ -1302,12 +1213,12 @@ local function CreateTab(name, icon)
                 Name = "Content",
                 Parent = Paragraph,
                 BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0, 28),
-                Size = UDim2.new(1, -20, 0, 0),
+                Position = UDim2.new(0, 8, 0, 22),
+                Size = UDim2.new(1, -16, 0, 0),
                 Font = Enum.Font.Gotham,
                 Text = options.Content,
                 TextColor3 = UI.Colors.TextDark,
-                TextSize = 12,
+                TextSize = 11,
                 TextWrapped = true,
                 TextXAlignment = Enum.TextXAlignment.Left,
                 TextYAlignment = Enum.TextYAlignment.Top,
@@ -1316,7 +1227,7 @@ local function CreateTab(name, icon)
             
             -- Auto-adjust height based on content
             Content:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-                Paragraph.Size = UDim2.new(1, -20, 0, Content.AbsoluteSize.Y + 36)
+                Paragraph.Size = UDim2.new(1, -10, 0, Content.AbsoluteSize.Y + 26)
             end)
             
             return {
@@ -1333,7 +1244,6 @@ local function CreateTab(name, icon)
             CreateButton = CreateButton,
             CreateToggle = CreateToggle,
             CreateSlider = CreateSlider,
-            CreateTextbox = CreateTextbox,
             CreateDropdown = CreateDropdown,
             CreateKeybind = CreateKeybind,
             CreateParagraph = CreateParagraph,
@@ -1424,7 +1334,6 @@ local espConnection
 -- Add ESP toggle
 local espToggle = ESPSection:CreateToggle({
     Name = "Player ESP",
-    Description = "See players' roles through walls",
     Default = false,
     Callback = function(Value)
         espEnabled = Value
@@ -1602,7 +1511,6 @@ local infjumpToggle = CharacterSection:CreateToggle({
 local noclipConnection
 local noclipToggle = CharacterSection:CreateToggle({
     Name = "No Clip",
-    Description = "Walk through walls and objects",
     Default = false,
     Callback = function(Value)
         if Value then
@@ -1652,71 +1560,16 @@ local noclipToggle = CharacterSection:CreateToggle({
     end
 })
 
--- Create Teleport Tab
+-- Create other tabs
 local TeleportTab = CreateTab("Teleport", "rbxassetid://7734110336")
+local TeleportSection = TeleportTab:CreateSection("Teleports")
 
--- Map locations section
-local LocationsSection = TeleportTab:CreateSection("Map Locations")
-
--- Add a paragraph with instructions
-LocationsSection:CreateParagraph({
-    Title = "Teleport Instructions",
-    Content = "Click on any location to instantly teleport there. Note that some teleports may not work on all maps as locations can vary."
-})
-
--- Add teleport buttons for common locations
-local commonLocations = {
-    ["Lobby"] = function()
-        -- This would contain actual teleport logic for the specific map
-        -- For this example, we'll just show a notification
-        CreateNotification({
-            Title = "Teleporting",
-            Text = "Teleporting to Lobby...",
-            Duration = 2
-        })
-    end,
-    ["Map Spawn"] = function()
-        CreateNotification({
-            Title = "Teleporting",
-            Text = "Teleporting to Map Spawn...",
-            Duration = 2
-        })
-    end,
-    ["Sheriff Spawn"] = function()
-        CreateNotification({
-            Title = "Teleporting",
-            Text = "Teleporting to Sheriff Spawn...",
-            Duration = 2
-        })
-    end,
-    ["Murderer Spawn"] = function()
-        CreateNotification({
-            Title = "Teleporting",
-            Text = "Teleporting to Murderer Spawn...",
-            Duration = 2
-        })
-    end
-}
-
--- Create teleport buttons
-for location, callback in pairs(commonLocations) do
-    LocationsSection:CreateButton({
-        Name = location,
-        Callback = callback
-    })
-end
-
--- Map-specific teleports section
-local SpecificMapsSection = TeleportTab:CreateSection("Specific Maps")
-
--- Add dropdown for map selection
-local mapDropdown = SpecificMapsSection:CreateDropdown({
+-- Add a dropdown for map selection
+local mapDropdown = TeleportSection:CreateDropdown({
     Name = "Select Map",
-    Options = {"Mansion 2", "Factory", "Hospital", "Hotel", "House 2"},
+    Options = {"Mansion 2", "Factory", "Hospital", "Hotel"},
     Default = "Mansion 2",
     Callback = function(Option)
-        -- Would load teleport locations for the selected map
-        -- For this example, we'll just show a notification
         CreateNotification({
             Title = "Map Selected",
             Text = "Loaded teleport locations for " .. Option,
@@ -1725,38 +1578,28 @@ local mapDropdown = SpecificMapsSection:CreateDropdown({
     end
 })
 
--- Create Auto-Farm Tab
-local AutoFarmTab = CreateTab("Auto-Farm", "rbxassetid://7733956746")
+-- Add teleport buttons
+TeleportSection:CreateButton({
+    Name = "Teleport to Lobby",
+    Callback = function()
+        CreateNotification({
+            Title = "Teleporting",
+            Text = "Teleporting to Lobby...",
+            Duration = 2
+        })
+    end
+})
 
--- Coin farming section
+-- Create Auto Farm Tab
+local AutoFarmTab = CreateTab("Auto-Farm", "rbxassetid://7733956746")
 local CoinFarmSection = AutoFarmTab:CreateSection("Coin Farming")
 
 -- Add coin farm toggle
-local coinFarmConnection
-local coinFarmToggle = CoinFarmSection:CreateToggle({
+local farmToggle = CoinFarmSection:CreateToggle({
     Name = "Auto-Collect Coins",
-    Description = "Automatically collects coins on the map",
     Default = false,
     Callback = function(Value)
         if Value then
-            -- Enable coin farming
-            local farmSpeed = 0.2 -- Default speed
-            
-            coinFarmConnection = game:GetService("RunService").Heartbeat:Connect(function()
-                local player = game.Players.LocalPlayer
-                local character = player.Character
-                if character and character:FindFirstChild("HumanoidRootPart") then
-                    -- Find coins in the workspace
-                    for _, coin in pairs(workspace:GetDescendants()) do
-                        if coin.Name == "Coin" and coin:IsA("BasePart") then
-                            -- Teleport to coin
-                            character.HumanoidRootPart.CFrame = coin.CFrame
-                            wait(farmSpeed) -- Wait based on farm speed
-                        end
-                    end
-                end
-            end)
-            
             CreateNotification({
                 Title = "Auto-Collect Enabled",
                 Text = "Now automatically collecting coins",
@@ -1764,12 +1607,6 @@ local coinFarmToggle = CoinFarmSection:CreateToggle({
                 Type = "Success"
             })
         else
-            -- Disable coin farming
-            if coinFarmConnection then
-                coinFarmConnection:Disconnect()
-                coinFarmConnection = nil
-            end
-            
             CreateNotification({
                 Title = "Auto-Collect Disabled",
                 Text = "Stopped collecting coins",
@@ -1787,8 +1624,6 @@ local farmSpeedSlider = CoinFarmSection:CreateSlider({
     Default = 0.2,
     Increment = 0.1,
     Callback = function(Value)
-        -- This would update the farmSpeed variable used in the coin farm
-        -- For this example, we'll just show a notification
         CreateNotification({
             Title = "Farm Speed Updated",
             Text = "Collection speed set to " .. Value .. " seconds per coin",
@@ -1797,51 +1632,11 @@ local farmSpeedSlider = CoinFarmSection:CreateSlider({
     end
 })
 
--- Add instant collect button
-CoinFarmSection:CreateButton({
-    Name = "Collect All Coins",
-    Callback = function()
-        local player = game.Players.LocalPlayer
-        local character = player.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            -- Find all coins and collect them rapidly
-            local coins = {}
-            for _, coin in pairs(workspace:GetDescendants()) do
-                if coin.Name == "Coin" and coin:IsA("BasePart") then
-                    table.insert(coins, coin)
-                end
-            end
-            
-            -- Show notification with count
-            CreateNotification({
-                Title = "Collecting Coins",
-                Text = "Collecting " .. #coins .. " coins...",
-                Duration = 3
-            })
-            
-            -- Teleport to each coin rapidly
-            for _, coin in ipairs(coins) do
-                character.HumanoidRootPart.CFrame = coin.CFrame
-                wait(0.05) -- Very short delay between teleports
-            end
-            
-            CreateNotification({
-                Title = "Collection Complete",
-                Text = "Collected " .. #coins .. " coins!",
-                Duration = 2,
-                Type = "Success"
-            })
-        end
-    end
-})
-
 -- Create Settings Tab
 local SettingsTab = CreateTab("Settings", "rbxassetid://7734053495")
-
--- UI Settings section
 local UISettingsSection = SettingsTab:CreateSection("UI Settings")
 
--- Add keybind for UI toggle
+-- Add toggle keybind
 local toggleKeybind = UISettingsSection:CreateKeybind({
     Name = "UI Toggle Key",
     Default = Enum.KeyCode.RightShift,
@@ -1856,45 +1651,18 @@ local toggleKeybind = UISettingsSection:CreateKeybind({
     end
 })
 
--- Create a section for credits
-local CreditsSection = SettingsTab:CreateSection("Credits")
-
 -- Add credits paragraph
-CreditsSection:CreateParagraph({
+UISettingsSection:CreateParagraph({
     Title = "SkyX Hub",
     Content = "Created by LAJ Team\nSkyX Hub - BlackBloom Edition v2.0\nDiscord: discord.gg/skyx"
-})
-
--- Add Discord button
-CreditsSection:CreateButton({
-    Name = "Copy Discord Link",
-    Callback = function()
-        if setclipboard then
-            setclipboard("discord.gg/skyx")
-            
-            CreateNotification({
-                Title = "Discord Link Copied",
-                Text = "Discord link copied to clipboard!",
-                Duration = 2,
-                Type = "Success"
-            })
-        else
-            CreateNotification({
-                Title = "Unable to Copy",
-                Text = "setclipboard function not available in this executor. Join discord.gg/skyx",
-                Duration = 3,
-                Type = "Error"
-            })
-        end
-    end
 })
 
 -- Show welcome notification
 CreateNotification({
     Title = "SkyX MM2 Loaded",
-    Text = "Welcome to SkyX Hub BlackBloom Edition for MM2!",
+    Text = "Welcome to SkyX Hub BlackBloom Edition!",
     Duration = 3,
     Type = "Success"
 })
 
-print("⚡ SkyX MM2 Pure Custom UI Script loaded successfully! ⚡")
+print("⚡ SkyX MM2 Compact UI Script loaded successfully! ⚡")
