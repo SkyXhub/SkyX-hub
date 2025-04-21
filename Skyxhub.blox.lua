@@ -1,1293 +1,712 @@
 --[[
-    🌊 SkyX Hub - Murder Mystery 2 Script (WindUI Version) 🌊
+    🌊 SkyX.lua - Premium Roblox Script Hub 🌊
     
-    Features:
-    - ESP (see all players through walls with role indicators)
-    - Auto Coin Collector
-    - Speed & Jump Boosts
-    - Teleport to Items
-    - Anti-Lag Optimization
+    A collection of ocean-themed game scripts and exploits for Roblox
+    Built for mobile performance with Swift and other script platforms
+    Features beautiful ocean UI theme across all components
     
-    Ocean Theme UI - Designed for mobile executors like Swift
+    Premium Access Features:
+    - $5: Basic access to most popular scripts
+    - $10: Premium access to all scripts and features
+    - $25: Reseller access with key generation (limit 5 basic keys)
 ]]
 
--- Check if script is already running
-if getgenv and getgenv().MM2WindUIScriptLoaded then
-    warn("SkyX MM2 WindUI Script is already running!")
+-- Check if running in a Roblox environment
+local isRobloxEnvironment = (function()
+    return type(game) == "userdata" and type(game.GetService) == "function"
+end)()
+
+-- Print startup message
+print("🌊 SkyX Premium Script Hub 🌊")
+print("Version 2.0 - Ocean Theme - Starting...")
+
+if not isRobloxEnvironment then
+    print("Warning: Not running in a Roblox environment!")
+    print("This script is designed to run within Roblox or a Roblox executor.")
+    print("Some features may not function outside of Roblox.")
+    print("\nTry running this script in a Roblox executor like Swift, Fluxus, or Hydrogen.")
     return
 end
 
--- Set the flag so we don't load twice
-getgenv().MM2WindUIScriptLoaded = true
+-- Load Whitelist Key System
+local KeySystem
+local userKeyVerified = false
+local userKeyType = nil
 
--- Load Services
-local Players = game:GetService("Players") 
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local function loadKeySystem()
+    local success, result = pcall(function()
+        -- First try to load from URL (most up-to-date)
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/LAJVictory/SkyX/main/whitelist_handler.lua"))()
+    end)
+    
+    if not success then
+        -- If that fails, try to load from local file
+        success, result = pcall(function()
+            return loadstring(readfile("whitelist_handler.lua"))()
+        end)
+    end
+    
+    if not success then
+        -- If all fails, use a basic embedded version (less secure but ensures script can run)
+        print("⚠️ Failed to load key system, using embedded fallback")
+        
+        -- Basic key verification function
+        local embedded = {}
+        embedded.VerifyKey = function(key)
+            if key == "SKYX-BASIC-TEST" then
+                return true, "Verified basic key", "basic"
+            elseif key == "SKYX-PREMIUM-TEST" then
+                return true, "Verified premium key", "premium"
+            else
+                return false, "Invalid key"
+            end
+        end
+        
+        return embedded
+    end
+    
+    return result
+end
 
--- Set up variables
-local LocalPlayer = Players.LocalPlayer
-local Camera = Workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
+-- Try to load the key system
+pcall(function()
+    KeySystem = loadKeySystem()
+    print("✅ Key system loaded successfully")
+end)
 
--- Initialize global variables for features
-getgenv().AutoCollectCoins = false
-getgenv().AutoCollectItems = false
-getgenv().ShowRoles = false
-getgenv().ESP = false
-getgenv().AutoGetGunKillMurderer = false
-getgenv().NoClip = false
-getgenv().InfiniteJump = false
-getgenv().GodMode = false
-getgenv().Fly = false
-getgenv().InnocentColor = Color3.fromRGB(255, 255, 255)
-getgenv().MurdererColor = Color3.fromRGB(255, 0, 0)
-getgenv().SheriffColor = Color3.fromRGB(0, 0, 255)
+-- Load WindUI library
+local WindUI
+local success, result = pcall(function()
+    return loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
+end)
 
--- Variables to track roles
-getgenv().CurrentSheriff = nil
-getgenv().CurrentMurderer = nil
-getgenv().DroppedGun = nil
+if success then
+    WindUI = result
+    print("✅ Loaded WindUI (mobile-optimized)")
+else
+    print("❌ Failed to load WindUI, trying backup method...")
+    
+    -- Try one more time with a different approach
+    success, result = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/L1ZOT/Project-Hook/main/WindUI"))()
+    end)
+    
+    if success then
+        WindUI = result
+        print("✅ Loaded WindUI via backup method")
+    else
+        -- If all fails, show error and exit
+        print("❌ Failed to load WindUI. Please check your connection or try again later.")
+        return
+    end
+end
 
--- Loading the WindUI Library
-local WindUI = loadstring(game:HttpGet("https://tree-hub.vercel.app/api/UI/WindUI"))()
-
--- Create an ocean-themed UI for MM2
-local Window = WindUI:CreateWindow({
-    Title = "SkyX Hub - MM2",
-    Icon = "droplet", -- Ocean theme icon
-    Author = "SkyX Scripts",
-    Folder = "SkyXHub",
-    Size = UDim2.fromOffset(580, 460),
-    Transparent = true,
-    Theme = "Dark",
-    UserEnabled = false,
-    SideBarWidth = 200,
-    HasOutline = true,
-    -- Custom Ocean Theme Colors
-    CustomColors = {
-        Window = {
-            Background = Color3.fromRGB(24, 28, 42),
-            Foreground = Color3.fromRGB(29, 33, 47),
-            Accent = Color3.fromRGB(75, 171, 222),
-            Text = Color3.fromRGB(240, 240, 240),
-        }
-    }
-})
-
--- Create Custom Ocean Theme
+-- Create Black Bloom theme with glowing effects
 WindUI:AddTheme({
-    Name = "Ocean",
-    Accent = "#4bafde",
-    Outline = "#1d2131",
-    Text = "#e8f1f5",
-    PlaceholderText = "#a8c5d6"
+    Name = "BlackBloom",
+    Accent = "#4287f5",  -- Bright blue glow
+    Outline = "#000000", -- Black outline
+    Text = "#ffffff",    -- Bright white text 
+    PlaceholderText = "#7a96c4", -- Light blue placeholder
+    Primary = "#000000", -- Pure black
+    Secondary = "#0a0a0a", -- Almost black
+    Tertiary = "#111111" -- Dark gray
 })
 
--- Apply Ocean Theme
-WindUI:SetTheme("Ocean")
+-- Apply Black Bloom theme
+WindUI:SetTheme("BlackBloom")
 
--- Custom Window Logo & Styling
-Window:EditOpenButton({
-    Title = "Open SkyX MM2",
-    Icon = "droplet",
-    CornerRadius = UDim.new(0,10),
-    StrokeThickness = 2,
-    Color = ColorSequence.new(
-        Color3.fromRGB(75, 171, 222),
-        Color3.fromRGB(29, 115, 185)
-    ),
-    Position = UDim2.new(0.5,0,0.5,0),
-    Enabled = true,
-    Draggable = true,
-})
-
--- Create Tabs
-local MainTab = Window:Tab({
-    Title = "Main",
-    Icon = "sword", -- Weapon icon for main features (lucide icon)
-})
-
-local VisualTab = Window:Tab({
-    Title = "Visuals",
-    Icon = "eye", -- ESP icon (lucide icon)
-})
-
-local MovementTab = Window:Tab({
-    Title = "Movement",
-    Icon = "move", -- Movement icon (lucide icon)
-})
-
-local TeleportTab = Window:Tab({
-    Title = "Teleport",
-    Icon = "map-pin", -- Teleport icon (lucide icon)
-})
-
--- Select first tab by default
-Window:SelectTab(1)
-
--- Create welcome dialog
-local WelcomeDialog = Window:Dialog({
-    Icon = "droplet",
-    Title = "Welcome to SkyX MM2",
-    Content = "This script offers premium features for Murder Mystery 2!\n\n• ESP shows player roles through walls\n• Auto Coin collection helps you earn coins\n• Fly and Speed hacks for better mobility\n• Mobile optimization for Swift executor",
-    Buttons = {
-        {
-            Title = "Let's Go!",
-            Callback = function() end,
-            Variant = "Primary"
-        }
-    }
-})
-
--- Open welcome dialog
-WelcomeDialog:Open()
-
--- Function to find the sheriff in the game
-local function FindSheriff()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player.Character and player.Backpack then
-            local hasGun = false
-            
-            -- Check backpack for gun
-            for _, item in pairs(player.Backpack:GetChildren()) do
-                if item.Name == "Gun" or item.Name:find("Gun") or item.Name:find("Revolver") then
-                    hasGun = true
-                    break
-                end
-            end
-            
-            -- Check character for gun
-            if not hasGun and player.Character then
-                for _, item in pairs(player.Character:GetChildren()) do
-                    if item.Name == "Gun" or item.Name:find("Gun") or item.Name:find("Revolver") then
-                        hasGun = true
-                        break
-                    end
-                end
-            end
-            
-            if hasGun then
-                getgenv().CurrentSheriff = player
-                return player
-            end
-        end
-    end
-    
-    getgenv().CurrentSheriff = nil
-    return nil
-end
-
--- Function to find the murderer in the game
-local function FindMurderer()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player.Character and player.Backpack then
-            local hasKnife = false
-            
-            -- Check backpack for knife
-            for _, item in pairs(player.Backpack:GetChildren()) do
-                if item.Name == "Knife" or item.Name:find("Knife") then
-                    hasKnife = true
-                    break
-                end
-            end
-            
-            -- Check character for knife
-            if not hasKnife and player.Character then
-                for _, item in pairs(player.Character:GetChildren()) do
-                    if item.Name == "Knife" or item.Name:find("Knife") then
-                        hasKnife = true
-                        break
-                    end
-                end
-            end
-            
-            if hasKnife then
-                getgenv().CurrentMurderer = player
-                return player
-            end
-        end
-    end
-    
-    getgenv().CurrentMurderer = nil
-    return nil
-end
-
--- Function to find dropped gun
-local function FindDroppedGun()
-    for _, item in pairs(Workspace:GetChildren()) do
-        if item.Name == "GunDrop" or item.Name:find("Gun") and item:IsA("Model") or item:IsA("BasePart") then
-            getgenv().DroppedGun = item
-            return item
-        end
-    end
-    
-    getgenv().DroppedGun = nil
-    return nil
-end
-
--- Function to teleport to a player
-local function TeleportToPlayer(player)
-    if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        LocalPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame
-    end
-end
-
--- Function to teleport to coins
-local function TeleportToCoins()
-    for _, coin in pairs(Workspace:GetChildren()) do
-        if coin.Name == "Coin" or coin.Name:find("Coin") then
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = coin.CFrame
-                wait(0.5) -- Wait to collect
-            end
-        end
-    end
-end
-
--- Function to add ESP
-local function SetupESP()
-    -- Create ESP highlights
-    local function CreateHighlight(player)
-        if player == LocalPlayer then return end
-        
-        local highlight = Instance.new("Highlight")
-        highlight.Name = "SkyX_ESP"
-        highlight.FillColor = getgenv().InnocentColor
-        highlight.OutlineColor = getgenv().InnocentColor
-        highlight.FillTransparency = 0.5
-        highlight.OutlineTransparency = 0
-        
-        -- Hide the highlight initially if ESP is off
-        if not getgenv().ESP then
-            highlight.Enabled = false
-        end
-        
-        if player.Character then
-            highlight.Parent = player.Character
-        end
-        
-        -- Handle respawning
-        player.CharacterAdded:Connect(function(character)
-            wait(1)
-            if highlight then
-                highlight.Parent = character
-            end
-        end)
-        
-        return highlight
-    end
-    
-    -- Create ESP for all players
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            CreateHighlight(player)
-        end
-    end
-    
-    -- Create ESP for new players
-    Players.PlayerAdded:Connect(function(player)
-        wait(2)
-        CreateHighlight(player)
-    end)
-    
-    -- Update ESP colors based on roles
-    RunService.RenderStepped:Connect(function()
-        -- Check roles periodically
-        if getgenv().ShowRoles and tick() % 1 < 0.1 then
-            FindMurderer()
-            FindSheriff()
-        end
-        
-        if getgenv().ESP then
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("SkyX_ESP") then
-                    local highlight = player.Character:FindFirstChild("SkyX_ESP")
-                    highlight.Enabled = true
-                    
-                    if getgenv().ShowRoles then
-                        if player == getgenv().CurrentMurderer then
-                            highlight.FillColor = getgenv().MurdererColor
-                            highlight.OutlineColor = getgenv().MurdererColor
-                        elseif player == getgenv().CurrentSheriff then
-                            highlight.FillColor = getgenv().SheriffColor
-                            highlight.OutlineColor = getgenv().SheriffColor
-                        else
-                            highlight.FillColor = getgenv().InnocentColor
-                            highlight.OutlineColor = getgenv().InnocentColor
-                        end
-                    else
-                        highlight.FillColor = getgenv().InnocentColor
-                        highlight.OutlineColor = getgenv().InnocentColor
-                    end
-                end
-            end
-        else
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("SkyX_ESP") then
-                    player.Character:FindFirstChild("SkyX_ESP").Enabled = false
-                end
-            end
-        end
-    end)
-end
-
--- Function to modify player speed
-local function SetPlayerSpeed(speed)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.WalkSpeed = speed
-    end
-end
-
--- Function to modify player jump power
-local function SetJumpPower(power)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid.JumpPower = power
-    end
-end
-
--- Function to enable noclip
-local ClipConnection = nil
-local function ToggleNoclip(enabled)
-    if enabled then
-        ClipConnection = RunService.Stepped:Connect(function()
-            if LocalPlayer.Character then
-                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                    if part:IsA("BasePart") and part.CanCollide then
-                        part.CanCollide = false
-                    end
-                end
-            end
-        end)
-    else
-        if ClipConnection then
-            ClipConnection:Disconnect()
-            ClipConnection = nil
-        end
-        
-        if LocalPlayer.Character then
-            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
-    end
-end
-
--- Function to enable infinite jump
-local JumpConnection = nil
-local function ToggleInfiniteJump(enabled)
-    if enabled then
-        JumpConnection = UserInputService.JumpRequest:Connect(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end)
-    else
-        if JumpConnection then
-            JumpConnection:Disconnect()
-            JumpConnection = nil
-        end
-    end
-end
-
--- Function to enable fly
-local FlyConn1, FlyConn2 = nil, nil
-local function ToggleFly(enabled)
-    if enabled then
-        local flying = true
-        local flySpeed = 5
-        local maxY = math.huge
-        local minY = -math.huge
-        
-        local function Fly()
-            local torso = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if not torso then return end
-            
-            local gyro = Instance.new("BodyGyro")
-            gyro.P = 9e4
-            gyro.maxTorque = Vector3.new(9e9, 9e9, 9e9)
-            gyro.CFrame = torso.CFrame
-            gyro.Parent = torso
-            
-            local vel = Instance.new("BodyVelocity")
-            vel.velocity = Vector3.new(0, 0.1, 0)
-            vel.maxForce = Vector3.new(9e9, 9e9, 9e9)
-            vel.Parent = torso
-            
-            while flying and torso and getgenv().Fly do
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                    vel.velocity = ((Camera.CoordinateFrame.lookVector * flySpeed))
-                elseif UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                    vel.velocity = ((Camera.CoordinateFrame.lookVector * -flySpeed))
-                else
-                    vel.velocity = Vector3.new(0, 0.1, 0)
-                end
-                
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                    vel.velocity = vel.velocity + Vector3.new(0, flySpeed, 0)
-                elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-                    vel.velocity = vel.velocity - Vector3.new(0, flySpeed, 0)
-                end
-                
-                gyro.CFrame = Camera.CoordinateFrame
-                wait()
-            end
-            
-            if gyro and gyro.Parent then gyro:Destroy() end
-            if vel and vel.Parent then vel:Destroy() end
-            flying = false
-        end
-        
-        Fly()
-    end
-end
-
--- Function to auto collect coins
-local CoinConnection = nil
-local function ToggleAutoCollectCoins(enabled)
-    if enabled then
-        CoinConnection = RunService.Heartbeat:Connect(function()
-            if not getgenv().AutoCollectCoins then return end
-            
-            for _, coin in pairs(Workspace:GetChildren()) do
-                if (coin.Name == "Coin" or coin.Name:find("Coin")) and coin:IsA("BasePart") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    local distance = (coin.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    
-                    if distance < 20 then
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = coin.CFrame
-                        wait(0.1)
-                    end
-                end
-            end
-        end)
-    else
-        if CoinConnection then
-            CoinConnection:Disconnect()
-            CoinConnection = nil
-        end
-    end
-end
-
--- Function to auto get gun and kill murderer
-local KillConnection = nil
-local function ToggleAutoKillMurderer(enabled)
-    if enabled then
-        KillConnection = RunService.Heartbeat:Connect(function()
-            if not getgenv().AutoGetGunKillMurderer then return end
-            
-            -- Find murderer
-            local murderer = FindMurderer()
-            
-            -- If we are the sheriff, go after murderer
-            if LocalPlayer.Backpack and LocalPlayer.Character then
-                local hasGun = false
-                
-                -- Check if we have the gun
-                for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-                    if item.Name == "Gun" or item.Name:find("Gun") then
-                        hasGun = true
-                        LocalPlayer.Character.Humanoid:EquipTool(item)
-                        break
-                    end
-                end
-                
-                for _, item in pairs(LocalPlayer.Character:GetChildren()) do
-                    if item.Name == "Gun" or item.Name:find("Gun") then
-                        hasGun = true
-                        break
-                    end
-                end
-                
-                if hasGun and murderer then
-                    -- Teleport near murderer and shoot
-                    if murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = murderer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 5)
-                        local args = {
-                            [1] = murderer.Character.HumanoidRootPart.Position
-                        }
-                        
-                        LocalPlayer.Character.Gun.KnifeServer.ShootGun:InvokeServer(unpack(args))
-                    end
-                elseif not hasGun then
-                    -- Try to find dropped gun
-                    local droppedGun = FindDroppedGun()
-                    if droppedGun and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = droppedGun.CFrame
-                    end
-                end
-            end
-        end)
-    else
-        if KillConnection then
-            KillConnection:Disconnect()
-            KillConnection = nil
-        end
-    end
-end
-
--- Main Features Tab UI
-MainTab:Divider({
-    Title = "Game Info"
-})
-
-MainTab:Button({
-    Title = "Identify Roles",
-    Desc = "Find and highlight the Murderer (Red) and Sheriff (Blue)",
-    Callback = function()
-        local murderer = FindMurderer()
-        local sheriff = FindSheriff()
-        
-        if murderer then
-            WindUI:Notify({
-                Title = "Murderer Found",
-                Content = "Murderer is " .. murderer.Name,
-                Duration = 5
-            })
-        else
-            WindUI:Notify({
-                Title = "No Murderer Found",
-                Content = "Couldn't identify the murderer",
-                Duration = 5
-            })
-        end
-        
-        if sheriff then
-            WindUI:Notify({
-                Title = "Sheriff Found",
-                Content = "Sheriff is " .. sheriff.Name,
-                Duration = 5
-            })
-        else
-            WindUI:Notify({
-                Title = "No Sheriff Found",
-                Content = "Couldn't identify the sheriff",
-                Duration = 5
-            })
-        end
-    end
-})
-
-MainTab:Toggle({
-    Title = "Auto Collect Coins",
-    Desc = "Automatically collect nearby coins",
-    Default = false,
-    Callback = function(value)
-        getgenv().AutoCollectCoins = value
-        ToggleAutoCollectCoins(value)
-        
-        if value then
-            WindUI:Notify({
-                Title = "Auto Collect Enabled",
-                Content = "Now automatically collecting coins",
-                Duration = 3
-            })
-        end
-    end
-})
-
-MainTab:Toggle({
-    Title = "Auto Kill Murderer",
-    Desc = "Automatically get gun and kill murderer",
-    Default = false,
-    Callback = function(value)
-        getgenv().AutoGetGunKillMurderer = value
-        ToggleAutoKillMurderer(value)
-        
-        if value then
-            WindUI:Notify({
-                Title = "Auto Kill Enabled",
-                Content = "Will try to get gun and kill murderer",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Visual Tab UI
-VisualTab:Divider({
-    Title = "ESP Options"
-})
-
-VisualTab:Toggle({
-    Title = "Enable ESP",
-    Desc = "See all players through walls",
-    Default = false,
-    Callback = function(value)
-        getgenv().ESP = value
-        
-        if value then
-            WindUI:Notify({
-                Title = "ESP Enabled",
-                Content = "You can now see all players through walls",
-                Duration = 3
-            })
-        end
-    end
-})
-
-VisualTab:Toggle({
-    Title = "Show Roles",
-    Desc = "Show player roles in ESP (Murder=Red, Sheriff=Blue)",
-    Default = false,
-    Callback = function(value)
-        getgenv().ShowRoles = value
-        
-        if value then
-            WindUI:Notify({
-                Title = "Role ESP Enabled",
-                Content = "Player roles will now be color-coded",
-                Duration = 3
-            })
-        end
-    end
-})
-
-VisualTab:Button({
-    Title = "Reset All ESP",
-    Desc = "Reset ESP settings to default",
-    Callback = function()
-        getgenv().ESP = false
-        getgenv().ShowRoles = false
-        
-        WindUI:Notify({
-            Title = "ESP Reset",
-            Content = "All ESP features have been reset",
-            Duration = 3
-        })
-    end
-})
-
--- Movement Tab UI
-MovementTab:Divider({
-    Title = "Movement Options"
-})
-
-MovementTab:Slider({
-    Title = "Walk Speed",
-    Desc = "Adjust player walking speed",
-    Min = 16,
-    Max = 100,
-    Default = 16,
-    Callback = function(value)
-        SetPlayerSpeed(value)
-    end
-})
-
-MovementTab:Slider({
-    Title = "Jump Power",
-    Desc = "Adjust player jump height",
-    Min = 50,
-    Max = 200,
-    Default = 50,
-    Callback = function(value)
-        SetJumpPower(value)
-    end
-})
-
-MovementTab:Toggle({
-    Title = "NoClip",
-    Desc = "Walk through walls",
-    Default = false,
-    Callback = function(value)
-        getgenv().NoClip = value
-        ToggleNoclip(value)
-        
-        if value then
-            WindUI:Notify({
-                Title = "NoClip Enabled",
-                Content = "You can now walk through walls",
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "NoClip Disabled",
-                Content = "NoClip has been turned off",
-                Duration = 3
-            })
-        end
-    end
-})
-
-MovementTab:Toggle({
-    Title = "Infinite Jump",
-    Desc = "Jump without limits",
-    Default = false,
-    Callback = function(value)
-        getgenv().InfiniteJump = value
-        ToggleInfiniteJump(value)
-        
-        if value then
-            WindUI:Notify({
-                Title = "Infinite Jump Enabled",
-                Content = "You can now jump infinitely",
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "Infinite Jump Disabled",
-                Content = "Infinite Jump has been turned off",
-                Duration = 3
-            })
-        end
-    end
-})
-
-MovementTab:Toggle({
-    Title = "Fly",
-    Desc = "WASD to move, Space to go up, Ctrl to go down",
-    Default = false,
-    Callback = function(value)
-        getgenv().Fly = value
-        ToggleFly(value)
-        
-        if value then
-            WindUI:Notify({
-                Title = "Fly Enabled",
-                Content = "You can now fly around the map",
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "Fly Disabled",
-                Content = "Fly has been turned off",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Teleport Tab UI
-TeleportTab:Divider({
-    Title = "Teleport Options"
-})
-
-TeleportTab:Button({
-    Title = "Teleport to Sheriff",
-    Desc = "Teleport to the current Sheriff",
-    Callback = function()
-        local sheriff = FindSheriff()
-        
-        if sheriff then
-            TeleportToPlayer(sheriff)
-            WindUI:Notify({
-                Title = "Teleported",
-                Content = "Teleported to Sheriff: " .. sheriff.Name,
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "Teleport Failed",
-                Content = "Could not find the Sheriff",
-                Duration = 3
-            })
-        end
-    end
-})
-
-TeleportTab:Button({
-    Title = "Teleport to Murderer",
-    Desc = "Teleport to the current Murderer",
-    Callback = function()
-        local murderer = FindMurderer()
-        
-        if murderer then
-            TeleportToPlayer(murderer)
-            WindUI:Notify({
-                Title = "Teleported",
-                Content = "Teleported to Murderer: " .. murderer.Name,
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "Teleport Failed",
-                Content = "Could not find the Murderer",
-                Duration = 3
-            })
-        end
-    end
-})
-
-TeleportTab:Button({
-    Title = "Teleport to Dropped Gun",
-    Desc = "Teleport to gun on the ground (if sheriff died)",
-    Callback = function()
-        local gun = FindDroppedGun()
-        
-        if gun and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = gun.CFrame
-            WindUI:Notify({
-                Title = "Teleported",
-                Content = "Teleported to dropped gun",
-                Duration = 3
-            })
-        else
-            WindUI:Notify({
-                Title = "Teleport Failed",
-                Content = "Could not find a dropped gun",
-                Duration = 3
-            })
-        end
-    end
-})
-
-TeleportTab:Button({
-    Title = "Collect All Coins",
-    Desc = "Teleport to and collect all coins on the map",
-    Callback = function()
-        TeleportToCoins()
-        WindUI:Notify({
-            Title = "Coin Collection",
-            Content = "Attempted to collect all coins",
-            Duration = 3
-        })
-    end
-})
-
--- Add advanced features section to the main tab
-MainTab:Divider({
-    Title = "Advanced Features"
-})
-
--- Sheriff Aimbot 
-MainTab:Toggle({
-    Title = "Sheriff Aimbot",
-    Desc = "Auto-aim at the murderer when you're sheriff",
-    Default = false,
-    Callback = function(value)
-        getgenv().SheriffAimbot = value
-        
-        if value then
-            WindUI:Notify({
-                Title = "Sheriff Aimbot Enabled",
-                Content = "Will automatically aim at murderer when you have the gun",
-                Duration = 3
-            })
-            
-            spawn(function()
-                while getgenv().SheriffAimbot do
-                    local murderer = FindMurderer()
-                    local hasSheriffGun = false
-                    
-                    -- Check if player has gun
-                    if LocalPlayer.Backpack then
-                        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-                            if item.Name == "Gun" or item.Name:find("Gun") then
-                                hasSheriffGun = true
-                                LocalPlayer.Character.Humanoid:EquipTool(item)
-                                break
-                            end
-                        end
-                    end
-                    
-                    -- Check if gun is already equipped
-                    if LocalPlayer.Character then
-                        for _, item in pairs(LocalPlayer.Character:GetChildren()) do
-                            if item.Name == "Gun" or item.Name:find("Gun") then
-                                hasSheriffGun = true
-                                break
-                            end
-                        end
-                    end
-                    
-                    -- If player has gun and murderer is found, aim at murderer
-                    if hasSheriffGun and murderer and murderer.Character and 
-                    murderer.Character:FindFirstChild("HumanoidRootPart") and
-                    LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                        -- Create aimbot effect
-                        local gun = LocalPlayer.Character:FindFirstChild("Gun")
-                        if gun and gun:FindFirstChild("KnifeServer") and 
-                        gun.KnifeServer:FindFirstChild("ShootGun") then
-                            local args = {
-                                [1] = murderer.Character.HumanoidRootPart.Position
-                            }
-                            
-                            gun.KnifeServer.ShootGun:InvokeServer(unpack(args))
-                        end
-                    end
-                    
-                    wait(0.1)
-                end
-            end)
-        else
-            WindUI:Notify({
-                Title = "Sheriff Aimbot Disabled",
-                Content = "Sheriff Aimbot turned off",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Kill All (Murderer Feature)
-MainTab:Toggle({
-    Title = "Murderer Kill Aura",
-    Desc = "Automatically kill all players when you're murderer",
-    Default = false,
-    Callback = function(value)
-        getgenv().MurdererKillAura = value
-        
-        if value then
-            WindUI:Notify({
-                Title = "Murderer Kill Aura Enabled",
-                Content = "Will automatically kill nearby players when you're murderer",
-                Duration = 3
-            })
-            
-            spawn(function()
-                while getgenv().MurdererKillAura do
-                    local hasKnife = false
-                    
-                    -- Check if player has knife
-                    if LocalPlayer.Backpack then
-                        for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
-                            if item.Name == "Knife" or item.Name:find("Knife") then
-                                hasKnife = true
-                                LocalPlayer.Character.Humanoid:EquipTool(item)
-                                break
-                            end
-                        end
-                    end
-                    
-                    -- Check if knife is already equipped
-                    if LocalPlayer.Character then
-                        for _, item in pairs(LocalPlayer.Character:GetChildren()) do
-                            if item.Name == "Knife" or item.Name:find("Knife") then
-                                hasKnife = true
-                                break
-                            end
-                        end
-                    end
-                    
-                    -- If player has knife, kill nearby players
-                    if hasKnife and LocalPlayer.Character and 
-                    LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        for _, player in pairs(Players:GetPlayers()) do
-                            if player ~= LocalPlayer and player.Character and 
-                            player.Character:FindFirstChild("HumanoidRootPart") and
-                            player.Character:FindFirstChild("Humanoid") and
-                            player.Character.Humanoid.Health > 0 then
-                                -- Calculate distance to target
-                                local distance = (player.Character.HumanoidRootPart.Position - 
-                                                 LocalPlayer.Character.HumanoidRootPart.Position).magnitude
-                                
-                                -- Kill players within range
-                                if distance <= 15 then
-                                    local knife = LocalPlayer.Character:FindFirstChild("Knife")
-                                    if knife and knife:FindFirstChild("KnifeServer") and 
-                                    knife.KnifeServer:FindFirstChild("StabEvent") then
-                                        knife.KnifeServer.StabEvent:FireServer(player.Character.HumanoidRootPart)
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    
-                    wait(0.1)
-                end
-            end)
-        else
-            WindUI:Notify({
-                Title = "Murderer Kill Aura Disabled",
-                Content = "Murderer Kill Aura turned off",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Auto Revolver
-MainTab:Toggle({
-    Title = "Auto Get Gun",
-    Desc = "Automatically get the gun when dropped",
-    Default = false,
-    Callback = function(value)
-        getgenv().AutoGetGun = value
-        
-        if value then
-            WindUI:Notify({
-                Title = "Auto Get Gun Enabled",
-                Content = "Will automatically collect the gun when dropped",
-                Duration = 3
-            })
-            
-            spawn(function()
-                while getgenv().AutoGetGun do
-                    local droppedGun = FindDroppedGun()
-                    
-                    if droppedGun and LocalPlayer.Character and 
-                    LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        local distance = (droppedGun.Position - 
-                                         LocalPlayer.Character.HumanoidRootPart.Position).magnitude
-                        
-                        if distance <= 50 then
-                            LocalPlayer.Character.HumanoidRootPart.CFrame = droppedGun.CFrame
-                        end
-                    end
-                    
-                    wait(0.5)
-                end
-            end)
-        else
-            WindUI:Notify({
-                Title = "Auto Get Gun Disabled",
-                Content = "Auto Get Gun turned off",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Role ESP Colors
-VisualTab:Divider({
-    Title = "ESP Color Settings"
-})
-
--- Innocent Color Picker
-VisualTab:ColorPicker({
-    Title = "Innocent Color",
-    Default = Color3.fromRGB(255, 255, 255),
-    Callback = function(value)
-        getgenv().InnocentColor = value
-    end
-})
-
--- Murderer Color Picker
-VisualTab:ColorPicker({
-    Title = "Murderer Color",
-    Default = Color3.fromRGB(255, 0, 0),
-    Callback = function(value)
-        getgenv().MurdererColor = value
-    end
-})
-
--- Sheriff Color Picker
-VisualTab:ColorPicker({
-    Title = "Sheriff Color",
-    Default = Color3.fromRGB(0, 0, 255),
-    Callback = function(value)
-        getgenv().SheriffColor = value
-    end
-})
-
--- Add Player Info section
-VisualTab:Divider({
-    Title = "Player Information"
-})
-
--- Add player tracking
-VisualTab:Toggle({
-    Title = "Player Role Tracker",
-    Desc = "Show periodic notifications of player roles",
-    Default = false,
-    Callback = function(value)
-        getgenv().PlayerRoleTracker = value
-        
-        if value then
-            WindUI:Notify({
-                Title = "Role Tracker Enabled",
-                Content = "Will show periodic notifications of player roles",
-                Duration = 3
-            })
-            
-            spawn(function()
-                while getgenv().PlayerRoleTracker do
-                    pcall(function()
-                        local murderer = FindMurderer()
-                        local sheriff = FindSheriff()
-                        
-                        local murdererName = murderer and murderer.Name or "Unknown"
-                        local sheriffName = sheriff and sheriff.Name or "Unknown"
-                        
-                        WindUI:Notify({
-                            Title = "Player Roles",
-                            Content = "Murderer: " .. murdererName .. "\nSheriff: " .. sheriffName,
-                            Duration = 3
-                        })
-                    end)
-                    
-                    wait(10) -- Update every 10 seconds
-                end
-            end)
-        else
-            WindUI:Notify({
-                Title = "Role Tracker Disabled",
-                Content = "Role Tracker turned off",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Game-specific features
-MovementTab:Divider({
-    Title = "MM2 Map Features"
-})
-
--- Add map-specific features
-MovementTab:Button({
-    Title = "Remove Kill Barriers",
-    Desc = "Remove all kill barriers in the map",
-    Callback = function()
-        -- Find and remove kill barriers
-        local barriers = 0
-        for _, part in pairs(workspace:GetDescendants()) do
-            if part:IsA("BasePart") and (part.Name:lower():find("barrier") or 
-               part.Name:lower():find("kill") or part.Name:lower():find("lava")) then
-                part.CanCollide = false
-                part.Transparency = 1
-                
-                -- If it has a TouchInterest, disable it
-                if part:FindFirstChildOfClass("TouchTransmitter") then
-                    part:FindFirstChildOfClass("TouchTransmitter"):Destroy()
-                end
-                
-                barriers = barriers + 1
-            end
-        end
-        
-        WindUI:Notify({
-            Title = "Barriers Removed",
-            Content = "Removed " .. barriers .. " kill barriers from the map",
-            Duration = 3
-        })
-    end
-})
-
--- Anti-AFK
-TeleportTab:Divider({
-    Title = "Game Features"
-})
-
-TeleportTab:Toggle({
-    Title = "Anti-AFK",
-    Desc = "Prevent being kicked for inactivity",
-    Default = false,
-    Callback = function(value)
-        getgenv().AntiAFK = value
-        
-        if value then
-            -- Anti-AFK Connection
-            if not getgenv().AntiAFKConnection then
-                getgenv().AntiAFKConnection = game:GetService("Players").LocalPlayer.Idled:Connect(function()
-                    game:GetService("VirtualUser"):CaptureController()
-                    game:GetService("VirtualUser"):ClickButton2(Vector2.new())
-                end)
-                
-                WindUI:Notify({
-                    Title = "Anti-AFK Enabled",
-                    Content = "You will not be kicked for inactivity",
-                    Duration = 3
-                })
-            end
-        else
-            -- Disconnect Anti-AFK
-            if getgenv().AntiAFKConnection then
-                getgenv().AntiAFKConnection:Disconnect()
-                getgenv().AntiAFKConnection = nil
-                
-                WindUI:Notify({
-                    Title = "Anti-AFK Disabled",
-                    Content = "Anti-AFK turned off",
-                    Duration = 3
-                })
-            end
-        end
-    end
-})
-
--- Add X-Ray feature
-TeleportTab:Toggle({
-    Title = "X-Ray",
-    Desc = "See through walls and objects",
-    Default = false,
-    Callback = function(value)
-        getgenv().XRay = value
-        
-        if value then
-            -- Make walls transparent
-            for _, part in pairs(workspace:GetDescendants()) do
-                if part:IsA("BasePart") and part.Transparency < 1 and 
-                   not part:IsDescendantOf(game.Players.LocalPlayer.Character) and
-                   not part.Name:lower():find("gun") and not part.Name:lower():find("knife") then
-                    -- Remember original transparency
-                    if not part:GetAttribute("OriginalTransparency") then
-                        part:SetAttribute("OriginalTransparency", part.Transparency)
-                    end
-                    
-                    part.Transparency = 0.8
-                end
-            end
-            
-            WindUI:Notify({
-                Title = "X-Ray Enabled",
-                Content = "You can now see through walls",
-                Duration = 3
-            })
-        else
-            -- Restore original transparency
-            for _, part in pairs(workspace:GetDescendants()) do
-                if part:IsA("BasePart") and part:GetAttribute("OriginalTransparency") then
-                    part.Transparency = part:GetAttribute("OriginalTransparency")
-                end
-            end
-            
-            WindUI:Notify({
-                Title = "X-Ray Disabled",
-                Content = "X-Ray turned off",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Initialize the script
-do
-    -- Setup ESP system
-    SetupESP()
-    
-    -- Welcome notification
-    WindUI:Notify({
-        Title = "SkyX Hub - MM2",
-        Content = "Script loaded successfully! Using mobile-optimized WindUI interface.",
-        Duration = 5
+-- Function to show key verification window
+local function showKeyWindow()
+    local keyWindow = WindUI:CreateWindow({
+        Title = "🌊 SkyX Premium Access 🌊",
+        Icon = "droplet",
+        Author = "SkyX Scripts",
+        Folder = "SkyXHub",
+        Size = UDim2.fromOffset(320, 240), -- Extra small UI for mobile
+        Transparent = true,
+        Theme = "BlackBloom", -- Black with bloom glow effects
+        HasOutline = true,
     })
     
-    -- Set up character respawn handling
-    LocalPlayer.CharacterAdded:Connect(function()
-        -- Wait for character to load
-        wait(1)
-        
-        -- Reapply settings after respawn
-        if getgenv().NoClip then
-            ToggleNoclip(true)
-        end
-        
-        if getgenv().Fly then
-            ToggleFly(true)
-        end
-    end)
+    -- Create the key tab
+    local keyTab = keyWindow:Tab({
+        Title = "Key Verification",
+        Icon = "key"
+    })
     
-    -- Start anti-cheat bypass
-    spawn(function()
-        -- Create hook for anti-cheat functions
-        if hookmetamethod then
-            -- Hook namecall method to prevent anti-cheat detection
-            local oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-                local method = getnamecallmethod()
-                local args = {...}
+    -- Add description
+    keyTab:Divider({
+        Title = "🔑 SkyX Premium Access 🔑"
+    })
+    
+    keyTab:Label({
+        Title = "Premium Key System",
+        Desc = "Please enter your premium key to access SkyX features.\n\n• Basic ($5): Access to basic scripts\n• Premium ($10): Full access to all scripts\n• Reseller ($25): Generate keys for others"
+    })
+    
+    -- Key input
+    local keyInput = ""
+    keyTab:TextBox({
+        Title = "Enter Key",
+        Default = "",
+        Placeholder = "SKYX-TYPE-XXXXX",
+        Callback = function(value)
+            keyInput = value
+        end
+    })
+    
+    -- Verify button
+    keyTab:Button({
+        Title = "Verify Key",
+        Desc = "Validate your premium key to access scripts",
+        Callback = function()
+            if KeySystem then
+                local success, message, keyType = KeySystem.VerifyKey(keyInput)
                 
-                -- Prevent anti-cheat detection
-                if method == "FireServer" and self.Name == "RemoteEvent" and args[1] == "exploit" then
-                    return nil
+                if success then
+                    userKeyVerified = true
+                    userKeyType = keyType
+                    
+                    WindUI:Notify({
+                        Title = "Key Verified",
+                        Content = "Successfully verified " .. keyType .. " key!",
+                        Duration = 5
+                    })
+                    
+                    -- Close the key window
+                    keyWindow:Destroy()
+                    
+                    -- Open the main window
+                    createMainWindow()
+                else
+                    WindUI:Notify({
+                        Title = "Invalid Key",
+                        Content = message or "Failed to verify key",
+                        Duration = 3
+                    })
                 end
-                
-                return oldNamecall(self, ...)
+            else
+                WindUI:Notify({
+                    Title = "Key System Error",
+                    Content = "Key system failed to load. Contact support.",
+                    Duration = 5
+                })
+            end
+        end
+    })
+    
+    -- Discord button
+    keyTab:Button({
+        Title = "Get Key (Discord)",
+        Desc = "Join our Discord server to purchase a key",
+        Callback = function()
+            if setclipboard then
+                setclipboard("https://discord.gg/ugyvkJXhFh")
+                WindUI:Notify({
+                    Title = "Discord Link Copied",
+                    Content = "Join our Discord to purchase a key",
+                    Duration = 5
+                })
+            else
+                WindUI:Notify({
+                    Title = "Discord",
+                    Content = "discord.gg/ugyvkJXhFh",
+                    Duration = 5
+                })
+            end
+        end
+    })
+    
+    -- For testing/development only - allow bypass
+    if game:GetService("RunService"):IsStudio() then
+        keyTab:Button({
+            Title = "Test Bypass",
+            Desc = "DEV ONLY: Skip key verification",
+            Callback = function()
+                userKeyVerified = true
+                userKeyType = "premium"
+                keyWindow:Destroy()
+                createMainWindow()
+            end
+        })
+    end
+end
+
+-- Function to detect the current game and display appropriate scripts
+local function getGameSpecificScripts()
+    local gameId = game.PlaceId
+    local scripts = {}
+    
+    -- Murder Mystery 2
+    if gameId == 142823291 or gameId == 1215581239 then
+        scripts = {
+            {
+                name = "MM2 - SkyX Script",
+                desc = "Premium Murder Mystery 2 script with ESP, Auto Farm, and more",
+                premium = false,
+                callback = function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/LAJVictory/SkyX/main/MM2_Script_WindUI.lua"))()
+                end
+            },
+            {
+                name = "MM2 - Vynixius",
+                desc = "Popular MM2 script with auto-farm features",
+                premium = false,
+                callback = function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/vini123123/VINICIUS-LEAKS/main/MM2.txt"))()
+                end
+            },
+            {
+                name = "MM2 - Eclipse Hub",
+                desc = "Full featured MM2 script with advanced features",
+                premium = true,
+                callback = function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Ethanoj1/EclipseMM2/master/Script"))()
+                end
+            }
+        }
+    
+    -- Blox Fruits
+    elseif gameId == 2753915549 or gameId == 4442272183 or gameId == 7449423635 then
+        scripts = {
+            {
+                name = "Blox Fruits - SkyX Script",
+                desc = "Premium Blox Fruits script with auto farm, ESP, and more",
+                premium = false,
+                callback = function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/LAJVictory/SkyX/main/BloxFruits_SkyX.lua"))()
+                end
+            },
+            {
+                name = "Blox Fruits - Hoho Hub",
+                desc = "Popular Blox Fruits script",
+                premium = false,
+                callback = function()
+                    loadstring(game:HttpGet('https://raw.githubusercontent.com/acsu123/HOHO_H/main/Loading_UI'))()
+                end
+            },
+            {
+                name = "Blox Fruits - Uranium Hub",
+                desc = "Advanced Blox Fruits script with extensive features",
+                premium = true,
+                callback = function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/Augustzyzx/UraniumMobile/main/UraniumKak.lua"))()
+                end
+            }
+        }
+    
+    -- Dead Rails
+    elseif gameId == 6771052448 or gameId == 6747920507 then
+        scripts = {
+            {
+                name = "Dead Rails - SkyX Script",
+                desc = "Premium Dead Rails script with aimbot, ESP, and more",
+                premium = false,
+                callback = function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/LAJVictory/SkyX/main/DeadRails_Script.lua"))()
+                end
+            },
+            {
+                name = "Dead Rails - V.G Hub",
+                desc = "Popular Dead Rails script",
+                premium = false,
+                callback = function()
+                    loadstring(game:HttpGet('https://raw.githubusercontent.com/1201for/V.G-Hub/main/V.Ghub'))()
+                end
+            }
+        }
+    
+    -- Da Hood
+    elseif gameId == 2788229376 then
+        scripts = {
+            {
+                name = "Da Hood - SwagMode",
+                desc = "Popular Da Hood script",
+                premium = false,
+                callback = function()
+                    loadstring(game:HttpGet('https://raw.githubusercontent.com/lerkermer/lua-projects/master/SwagModeV002'))()
+                end
+            },
+            {
+                name = "Da Hood - Faded",
+                desc = "Advanced Da Hood script with silent aim",
+                premium = true,
+                callback = function()
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/NighterEpic/Faded/main/YesEpic"))()
+                end
+            }
+        }
+    
+    -- Universal scripts for all games
+    else
+        scripts = {
+            {
+                name = "Universal - SkyX Script",
+                desc = "Premium universal script with ESP, Speed, and more",
+                premium = false,
+                callback = function()
+                    -- Load the universal script
+                    loadstring(game:HttpGet("https://raw.githubusercontent.com/LAJVictory/SkyX/main/Universal_SkyX.lua"))()
+                end
+            }
+        }
+    end
+    
+    return scripts
+end
+
+-- Function to create the main window after key verification
+function createMainWindow()
+    -- Create the main window
+    local Window = WindUI:CreateWindow({
+        Title = "🌊 SkyX SCRIPTS 🌊",
+        Icon = "droplet",
+        Author = "SkyX Scripts",
+        Folder = "SkyXHub",
+        Size = UDim2.fromOffset(320, 240), -- Ultra-compact UI for mobile viewing
+        Transparent = true,
+        Theme = "BlackBloom", -- Black with bloom glow effects
+        HasOutline = true,
+    })
+    
+    -- Custom styling for the open button with bloom glow effect
+    Window:EditOpenButton({
+        Title = "Open SkyX Hub",
+        Icon = "droplet",
+        CornerRadius = UDim.new(0,10),
+        StrokeThickness = 2,
+        Color = ColorSequence.new(
+            Color3.fromRGB(66, 135, 245), -- Bright blue glow
+            Color3.fromRGB(10, 10, 10)    -- Almost black
+        ),
+        Position = UDim2.new(0.5,0,0.5,0),
+        Enabled = true,
+        Draggable = true,
+    })
+    
+    -- Create welcome dialog
+    local WelcomeDialog = Window:Dialog({
+        Icon = "droplet",
+        Title = "Welcome to SkyX Hub!",
+        Content = "Welcome to the premium SkyX Script Hub!\n\nYou have " .. userKeyType:upper() .. " access to our scripts.\n\nThis script hub features game-specific scripts optimized for mobile devices.",
+        Buttons = {
+            {
+                Title = "Let's Go!",
+                Callback = function() end,
+                Variant = "Primary"
+            }
+        }
+    })
+    
+    -- Open welcome dialog
+    WelcomeDialog:Open()
+    
+    -- Create tabs with correct WindUI syntax (fixed)
+    local HomeTab = Window:CreateTab("Home", "rbxassetid://4483345998") -- Home icon
+    
+    local ScriptsTab = Window:CreateTab("Game Scripts", "rbxassetid://4483345998") -- Game icon
+    
+    local UniversalTab = Window:CreateTab("Universal", "rbxassetid://4483345998") -- Globe icon
+    
+    local SettingsTab = Window:CreateTab("Settings", "rbxassetid://4483345998") -- Settings icon
+    
+    -- Home Tab Content
+    HomeTab:Divider({
+        Title = "⚡ Welcome to SkyX Black Bloom Edition ⚡"
+    })
+    
+    HomeTab:Label({
+        Title = "SkyX Premium Script Hub",
+        Desc = "Welcome to SkyX Black Bloom Edition, the premium Roblox script hub with advanced features and sleek black theme with glowing elements. This collection is designed for optimal performance on mobile platforms and works with all major script executors."
+    })
+    
+    HomeTab:Label({
+        Title = "Current Game",
+        Desc = "Currently playing: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+    })
+    
+    HomeTab:Label({
+        Title = "Your Access Level",
+        Desc = "You have " .. string.upper(userKeyType) .. " access to SkyX Hub features"
+    })
+    
+    HomeTab:Button({
+        Title = "Join Discord",
+        Desc = "Join our Discord community for support and updates",
+        Callback = function()
+            if setclipboard then
+                setclipboard("https://discord.gg/ugyvkJXhFh")
+                WindUI:Notify({
+                    Title = "Discord",
+                    Content = "Discord invite copied to clipboard!",
+                    Duration = 3
+                })
+            else
+                WindUI:Notify({
+                    Title = "Discord",
+                    Content = "Discord link: discord.gg/ugyvkJXhFh",
+                    Duration = 3
+                })
+            end
+        end
+    })
+    
+    -- Game-specific scripts tab
+    ScriptsTab:Divider({
+        Title = "Game-Specific Scripts"
+    })
+    
+    local gameScripts = getGameSpecificScripts()
+    
+    -- Add scripts to the tab
+    for _, script in pairs(gameScripts) do
+        -- Skip premium scripts if user doesn't have premium access
+        if script.premium and userKeyType ~= "premium" and userKeyType ~= "reseller" then
+            ScriptsTab:Button({
+                Title = script.name .. " (Premium Only)",
+                Desc = script.desc .. "\n⭐ Requires Premium access",
+                Callback = function()
+                    WindUI:Notify({
+                        Title = "Premium Required",
+                        Content = "This script requires Premium access. Upgrade your key to use this script.",
+                        Duration = 5
+                    })
+                end
+            })
+        else
+            ScriptsTab:Button({
+                Title = script.name,
+                Desc = script.desc,
+                Callback = function()
+                    -- Execute the script
+                    script.callback()
+                    
+                    -- Show notification
+                    WindUI:Notify({
+                        Title = "Script Executed",
+                        Content = "Loaded " .. script.name,
+                        Duration = 3
+                    })
+                end
+            })
+        end
+    end
+    
+    -- Universal scripts tab
+    UniversalTab:Divider({
+        Title = "Universal Scripts"
+    })
+    
+    -- Popular universal scripts
+    UniversalTab:Button({
+        Title = "Infinite Yield",
+        Desc = "Admin commands for most games",
+        Callback = function()
+            loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
+            WindUI:Notify({
+                Title = "Script Executed",
+                Content = "Loaded Infinite Yield",
+                Duration = 3
+            })
+        end
+    })
+    
+    UniversalTab:Button({
+        Title = "Dex Explorer",
+        Desc = "Game explorer to view objects and properties",
+        Callback = function()
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/peyton2465/Dex/master/out.lua"))()
+            WindUI:Notify({
+                Title = "Script Executed",
+                Content = "Loaded Dex Explorer",
+                Duration = 3
+            })
+        end
+    })
+    
+    -- Add basic scripts section
+    UniversalTab:Divider({
+        Title = "Basic Features"
+    })
+    
+    -- Speed slider
+    UniversalTab:Slider({
+        Title = "Walk Speed",
+        Desc = "Adjust your character's movement speed",
+        Min = 16,
+        Max = 200,
+        Default = 16,
+        Callback = function(value)
+            if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = value
+            end
+        end
+    })
+    
+    -- Jump power slider
+    UniversalTab:Slider({
+        Title = "Jump Power",
+        Desc = "Adjust your character's jump height",
+        Min = 50,
+        Max = 300,
+        Default = 50,
+        Callback = function(value)
+            if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+                game.Players.LocalPlayer.Character.Humanoid.JumpPower = value
+            end
+        end
+    })
+    
+    -- ESP Features
+    UniversalTab:Button({
+        Title = "Universal ESP",
+        Desc = "See players through walls in any game",
+        Callback = function()
+            -- Create Highlights for each player
+            for _, player in pairs(game.Players:GetPlayers()) do
+                if player ~= game.Players.LocalPlayer and player.Character then
+                    if not player.Character:FindFirstChild("Highlight") then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Name = "SkyXESP"
+                        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+                        highlight.FillTransparency = 0.5
+                        highlight.OutlineTransparency = 0
+                        highlight.Parent = player.Character
+                    end
+                end
+            end
+            
+            -- Handle new players
+            game.Players.PlayerAdded:Connect(function(player)
+                player.CharacterAdded:Connect(function(character)
+                    wait(1)
+                    if not character:FindFirstChild("Highlight") then
+                        local highlight = Instance.new("Highlight")
+                        highlight.Name = "SkyXESP"
+                        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
+                        highlight.FillTransparency = 0.5
+                        highlight.OutlineTransparency = 0
+                        highlight.Parent = character
+                    end
+                end)
             end)
             
-            print("Anti-cheat bypass hook applied successfully")
+            WindUI:Notify({
+                Title = "ESP Enabled",
+                Content = "Universal ESP has been activated",
+                Duration = 3
+            })
         end
-    end)
+    })
+    
+    -- Settings tab
+    SettingsTab:Divider({
+        Title = "SkyX Settings"
+    })
+    
+    -- Key Info
+    SettingsTab:Label({
+        Title = "Key Information",
+        Desc = "License Type: " .. string.upper(userKeyType) .. "\nVersion: 2.0 Black Bloom Edition"
+    })
+    
+    -- Theme settings
+    SettingsTab:Dropdown({
+        Title = "Theme",
+        Desc = "Change the UI theme",
+        Default = "BlackBloom",
+        Items = {"BlackBloom", "Dark", "Light", "Midnight"},
+        Callback = function(value)
+            WindUI:SetTheme(value)
+            WindUI:Notify({
+                Title = "Theme Changed",
+                Content = "Applied " .. value .. " theme",
+                Duration = 3
+            })
+        end
+    })
+    
+    -- Credits
+    SettingsTab:Label({
+        Title = "Credits",
+        Desc = "SkyX Hub created by LAJ Team\nUI Design: WindUI Library\nMobile Optimization: Swift Compatible"
+    })
+    
+    -- Reset all settings
+    SettingsTab:Button({
+        Title = "Reset All Settings",
+        Desc = "Revert all settings to default values",
+        Callback = function()
+            WindUI:Notify({
+                Title = "Settings Reset",
+                Content = "All settings have been reset to default values",
+                Duration = 3
+            })
+            
+            -- Reset character
+            if game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 16
+                game.Players.LocalPlayer.Character.Humanoid.JumpPower = 50
+            end
+        end
+    })
+    
+    -- Reseller section (only for reseller key holders)
+    if userKeyType == "reseller" then
+        SettingsTab:Divider({
+            Title = "Reseller Options"
+        })
+        
+        local newKeyType = "basic"
+        
+        SettingsTab:Dropdown({
+            Title = "Key Type",
+            Desc = "Type of key to generate",
+            Default = "basic",
+            Items = {"basic"},
+            Callback = function(value)
+                newKeyType = value
+            end
+        })
+        
+        SettingsTab:Button({
+            Title = "Generate Key",
+            Desc = "Generate a new key to share or sell",
+            Callback = function()
+                if KeySystem and KeySystem.GenerateKey then
+                    local newKey, message = KeySystem.GenerateKey(newKeyType, keyInput)
+                    
+                    if newKey then
+                        if setclipboard then
+                            setclipboard(newKey)
+                        end
+                        
+                        WindUI:Notify({
+                            Title = "Key Generated",
+                            Content = "New key: " .. newKey .. "\nKey has been copied to clipboard.",
+                            Duration = 10
+                        })
+                    else
+                        WindUI:Notify({
+                            Title = "Key Generation Failed",
+                            Content = message or "Could not generate key",
+                            Duration = 5
+                        })
+                    end
+                else
+                    WindUI:Notify({
+                        Title = "Feature Unavailable",
+                        Content = "Key generation is not available",
+                        Duration = 5
+                    })
+                end
+            end
+        })
+    end
 end
+
+-- Show key window on start
+showKeyWindow()
