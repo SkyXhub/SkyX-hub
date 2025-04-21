@@ -363,7 +363,7 @@ MainTab:AddSection({
     Name = "Main Features"
 })
 
--- Auto Collect Coins (FIXED VERSION)
+-- Auto Collect Coins (FIXED ENHANCED VERSION)
 MainTab:AddToggle({
     Name = "Auto Collect Coins",
     Default = false,
@@ -376,10 +376,14 @@ MainTab:AddToggle({
             -- Notification
             OrionLib:MakeNotification({
                 Name = "SkyX",
-                Content = "Auto Coin Collection Enabled! (Fixed Version)",
+                Content = "Auto Coin Collection Enabled! (Enhanced Version)",
                 Image = "rbxassetid://4483345998",
                 Time = 3
             })
+            
+            -- Variables to track collection state
+            getgenv().LastCoinSearch = 0
+            getgenv().CoinsFound = 0
             
             -- Create a dedicated thread for coin collection
             spawn(function()
@@ -387,21 +391,24 @@ MainTab:AddToggle({
                     pcall(function()
                         -- Look for coins in all possible locations with improved detection
                         local allCoins = {}
+                        local searchTime = tick()
+                        getgenv().LastCoinSearch = searchTime
                         
-                        -- METHOD 1: Check for coins directly in workspace
+                        -- METHOD 1: Check for coins directly in workspace (most common)
                         for _, v in pairs(Workspace:GetChildren()) do
-                            -- Fixed parenthesis issue in the condition
-                            if ((v.Name == "Coin_Server" or v.Name == "Coin" or string.find(v.Name:lower(), "coin")) and 
+                            if not getgenv().AutoCollectCoins then return end
+                            if ((v.Name == "Coin_Server" or v.Name == "Coin" or (typeof(v.Name) == "string" and string.find(v.Name:lower(), "coin"))) and 
                                (v:IsA("BasePart") or v:IsA("MeshPart"))) or 
                                (v:FindFirstChild("Coin") or v:FindFirstChildOfClass("MeshPart")) then
                                 table.insert(allCoins, v)
                             end
                         end
                         
-                        -- METHOD 2: Check for coins in Map folder
+                        -- METHOD 2: Check for coins in Map folder (most MM2 versions use this)
                         if Workspace:FindFirstChild("Map") then
                             for _, v in pairs(Workspace.Map:GetDescendants()) do
-                                if (v.Name == "Coin_Server" or v.Name == "Coin" or string.find(v.Name:lower(), "coin")) and 
+                                if not getgenv().AutoCollectCoins then return end
+                                if (v.Name == "Coin_Server" or v.Name == "Coin" or (typeof(v.Name) == "string" and string.find(v.Name:lower(), "coin"))) and 
                                    (v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("Model")) then
                                     table.insert(allCoins, v)
                                 end
@@ -410,9 +417,10 @@ MainTab:AddToggle({
                         
                         -- METHOD 3: Check for coins in all folders
                         for _, folder in pairs(Workspace:GetChildren()) do
+                            if not getgenv().AutoCollectCoins then return end
                             if folder:IsA("Folder") or folder:IsA("Model") then
                                 for _, v in pairs(folder:GetDescendants()) do
-                                    if (v.Name == "Coin_Server" or v.Name == "Coin" or string.find(v.Name:lower(), "coin")) and 
+                                    if (v.Name == "Coin_Server" or v.Name == "Coin" or (typeof(v.Name) == "string" and string.find(v.Name:lower(), "coin"))) and 
                                        (v:IsA("BasePart") or v:IsA("MeshPart") or v:IsA("Model")) then
                                         table.insert(allCoins, v)
                                     end
@@ -422,26 +430,71 @@ MainTab:AddToggle({
                         
                         -- METHOD 4: Look for collectible parts that might be coins
                         for _, v in pairs(Workspace:GetDescendants()) do
-                            if v:IsA("MeshPart") and v.MeshId:match("coin") then
+                            if not getgenv().AutoCollectCoins then return end
+                            -- Check mesh parts that might be coins
+                            if v:IsA("MeshPart") and typeof(v.MeshId) == "string" and v.MeshId:match("coin") then
                                 table.insert(allCoins, v)
                             end
                             
                             -- Also look for gold-colored parts that might be coins
                             if v:IsA("BasePart") and 
                                (v.BrickColor == BrickColor.new("Bright yellow") or 
-                                v.BrickColor == BrickColor.new("Gold")) and
+                                v.BrickColor == BrickColor.new("Gold") or
+                                v.Color == Color3.fromRGB(255, 215, 0)) and
                                v.Size.Magnitude < 5 then -- Likely a small coin
                                 table.insert(allCoins, v)
                             end
                         end
                         
+                        -- METHOD 5: Check for ClickDetector objects that might be coins
+                        for _, v in pairs(Workspace:GetDescendants()) do
+                            if not getgenv().AutoCollectCoins then return end
+                            if v:IsA("ClickDetector") and v.Parent and 
+                               (v.Parent.Name:lower():find("coin") or 
+                                (v.Parent:IsA("BasePart") and 
+                                 (v.Parent.BrickColor == BrickColor.new("Bright yellow") or
+                                  v.Parent.BrickColor == BrickColor.new("Gold")))) then
+                                table.insert(allCoins, v.Parent)
+                            end
+                        end
+                        
+                        -- Update global counter and notify if needed
+                        getgenv().CoinsFound = #allCoins
+                        
                         -- Print coin found message (for debugging)
                         if #allCoins > 0 then
                             print("Found " .. #allCoins .. " coins to collect")
+                            
+                            -- Only notify occasionally to avoid spam
+                            if math.random(1, 20) == 1 then
+                                OrionLib:MakeNotification({
+                                    Name = "SkyX",
+                                    Content = "Found " .. #allCoins .. " coins to collect",
+                                    Image = "rbxassetid://4483345998",
+                                    Time = 1
+                                })
+                            end
+                        else
+                            -- If no coins found, notify the player (but not too often)
+                            if tick() - getgenv().LastCoinSearch > 10 then
+                                getgenv().LastCoinSearch = tick()
+                                
+                                print("No coins found, searching the map...")
+                                if math.random(1, 3) == 1 then
+                                    OrionLib:MakeNotification({
+                                        Name = "SkyX",
+                                        Content = "No coins found, continuing to search...",
+                                        Image = "rbxassetid://4483345998",
+                                        Time = 2
+                                    })
+                                end
+                                
+                                -- Keep the loop running - don't return or break
+                            end
                         end
                         
                         -- Go through all found coins using safe teleport
-                        for _, coin in pairs(allCoins) do
+                        for i, coin in pairs(allCoins) do
                             if not getgenv().AutoCollectCoins then break end
                             
                             if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -457,7 +510,7 @@ MainTab:AddToggle({
                                     end
                                 end
                                 
-                                if targetPart:IsA("BasePart") or targetPart:IsA("MeshPart") then
+                                if targetPart and (targetPart:IsA("BasePart") or targetPart:IsA("MeshPart")) then
                                     teleportPosition = targetPart.Position
                                     
                                     -- Use the safer teleport method to avoid detection
@@ -482,9 +535,20 @@ MainTab:AddToggle({
                             if math.random(1, 10) == 1 then
                                 wait(0.2) -- Occasional pause to reduce detection
                             end
+                            
+                            -- Only collect a few coins at a time to avoid detection
+                            if i >= 5 then 
+                                break 
+                            end
                         end
                     end)
-                    wait(0.5) -- Slightly longer wait to reduce lag & detection
+                    
+                    -- If no coins were found, use a longer wait to avoid excessive searching
+                    if getgenv().CoinsFound == 0 then
+                        wait(1.5) -- Longer wait when no coins are found
+                    else
+                        wait(0.5) -- Normal wait when coins are being collected
+                    end
                 end
             end)
         else
@@ -987,7 +1051,7 @@ AdvancedTab:AddToggle({
 
 -- Auto Get Gun and Kill Murderer (FIXED COMPREHENSIVE VERSION)
 AdvancedTab:AddToggle({
-    Name = "Auto Get Gun & Kill Murderer",
+    Name = "Auto Get Gun & Kill Murderer (When Sheriff Dies)",
     Default = false,
     Flag = "autoGetGunKillMurderer",
     Save = true,
@@ -997,10 +1061,14 @@ AdvancedTab:AddToggle({
         if Value then
             OrionLib:MakeNotification({
                 Name = "SkyX",
-                Content = "Auto Get Gun & Kill Murderer Enabled! (Fixed Version)",
+                Content = "Auto Get Gun & Kill Murderer Enabled! (Only activates after sheriff dies)",
                 Image = "rbxassetid://4483345998",
                 Time = 3
             })
+            
+            -- Variables to track sheriff state
+            getgenv().LastKnownSheriff = nil
+            getgenv().SheriffDied = false
             
             -- Start the main tracking and gun collection logic
             spawn(function()
@@ -1010,7 +1078,30 @@ AdvancedTab:AddToggle({
                         getgenv().CurrentMurderer = findMurderer()
                         getgenv().CurrentSheriff = findSheriff()
                         
-                        -- If I already have the gun, focus on shooting the murderer
+                        -- Check if sheriff died 
+                        if getgenv().LastKnownSheriff and getgenv().LastKnownSheriff.Character then
+                            if not getgenv().CurrentSheriff or 
+                              (getgenv().LastKnownSheriff ~= getgenv().CurrentSheriff) or
+                              (getgenv().LastKnownSheriff.Character:FindFirstChild("Humanoid") and 
+                               getgenv().LastKnownSheriff.Character.Humanoid.Health <= 0) then
+                                -- Sheriff died or changed
+                                getgenv().SheriffDied = true
+                                
+                                OrionLib:MakeNotification({
+                                    Name = "SkyX",
+                                    Content = "Sheriff died! Activating gun collection...",
+                                    Image = "rbxassetid://4483345998",
+                                    Time = 2
+                                })
+                            end
+                        end
+                        
+                        -- Update last known sheriff if we found one
+                        if getgenv().CurrentSheriff then
+                            getgenv().LastKnownSheriff = getgenv().CurrentSheriff
+                        end
+                        
+                        -- If I already have the gun, focus on shooting the murderer (regardless of sheriff status)
                         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun") then
                             if getgenv().CurrentMurderer and getgenv().CurrentMurderer.Character and 
                                getgenv().CurrentMurderer.Character:FindFirstChild("HumanoidRootPart") then
@@ -1046,9 +1137,9 @@ AdvancedTab:AddToggle({
                                     end
                                 end
                             end
-                        -- Otherwise try to get the gun with improved collection logic
-                        else
-                            -- Look for dropped gun if sheriff died or at round start
+                        -- Only try to get the gun if sheriff has died
+                        elseif getgenv().SheriffDied then
+                            -- Look for dropped gun 
                             getgenv().DroppedGun = findDroppedGun()
                             
                             -- If gun is dropped somewhere, get it
@@ -1070,7 +1161,7 @@ AdvancedTab:AddToggle({
                                     if math.random(1, 3) == 1 then -- Reduce notification spam
                                         OrionLib:MakeNotification({
                                             Name = "SkyX",
-                                            Content = "Found gun! Collecting...",
+                                            Content = "Sheriff died - Found gun! Collecting...",
                                             Image = "rbxassetid://4483345998",
                                             Time = 2
                                         })
@@ -1104,33 +1195,38 @@ AdvancedTab:AddToggle({
                                         end
                                     end
                                 end
-                            -- If no dropped gun, try to follow the sheriff for potential gun drop
-                            elseif getgenv().CurrentSheriff and getgenv().CurrentSheriff ~= LocalPlayer and
-                                  getgenv().CurrentSheriff.Character and 
-                                  getgenv().CurrentSheriff.Character:FindFirstChild("HumanoidRootPart") then
-                                
-                                -- Only notify occasionally
-                                if math.random(1, 10) == 1 then
-                                    OrionLib:MakeNotification({
-                                        Name = "SkyX",
-                                        Content = "Following sheriff: " .. getgenv().CurrentSheriff.Name,
-                                        Image = "rbxassetid://4483345998",
-                                        Time = 2
-                                    })
-                                end
-                                
-                                -- Follow at a safe distance
-                                local sheriffPos = getgenv().CurrentSheriff.Character.HumanoidRootPart.Position
-                                local followPos = sheriffPos + Vector3.new(0, 0, 4) -- Follow behind
-                                
-                                -- Use safe teleport with anti-detection
-                                safeTP(followPos, true)
                             end
                         end
                     end)
                     wait(0.3) -- Short wait for better responsiveness
                 end
             end)
+            
+            -- Reset variables when game ends or character dies
+            local function resetSheriffDeathState()
+                getgenv().SheriffDied = false
+                getgenv().LastKnownSheriff = nil
+            end
+            
+            -- Setup event listeners for round tracking
+            local function setupEvents()
+                -- Reset on player death
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                    LocalPlayer.Character.Humanoid.Died:Connect(resetSheriffDeathState)
+                end
+                
+                -- Reset on new character
+                LocalPlayer.CharacterAdded:Connect(function(char)
+                    resetSheriffDeathState()
+                    if char:FindFirstChild("Humanoid") then
+                        char.Humanoid.Died:Connect(resetSheriffDeathState)
+                    end
+                end)
+            end
+            
+            -- Run initial setup
+            setupEvents()
+            
         else
             OrionLib:MakeNotification({
                 Name = "SkyX",
@@ -1138,6 +1234,10 @@ AdvancedTab:AddToggle({
                 Image = "rbxassetid://4483345998",
                 Time = 3
             })
+            
+            -- Reset tracking variables
+            getgenv().SheriffDied = false
+            getgenv().LastKnownSheriff = nil
         end
     end
 })
