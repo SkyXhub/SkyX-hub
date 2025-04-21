@@ -1,6 +1,6 @@
 --[[
     🌊 SkyX Hub - Murder Mystery 2 Script (Orion Version) 🌊
-    FIXED STABLE VERSION 2.1
+    FIXED STABLE VERSION 2.12
     
     Features:
     - Anti-TP Detection System
@@ -562,58 +562,26 @@ MainTab:AddToggle({
     end
 })
 
--- Show Player Roles
-MainTab:AddToggle({
-    Name = "Show Player Roles",
-    Default = false,
-    Flag = "showRoles", 
+-- Jump Boost
+MainTab:AddSlider({
+    Name = "Jump Boost",
+    Min = 50,
+    Max = 350,
+    Default = 50,
+    Color = Color3.fromRGB(0, 162, 255),
+    Increment = 5,
+    ValueName = "Jump Power",
+    Flag = "jumppower",
     Save = true,
     Callback = function(Value)
-        getgenv().ShowRoles = Value
-        
-        if Value then
-            OrionLib:MakeNotification({
-                Name = "SkyX",
-                Content = "Player Roles Enabled!",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-            
-            -- Create player role identification system
-            spawn(function()
-                while getgenv().ShowRoles do
-                    pcall(function()
-                        local murderer, sheriff = "Unknown", "Unknown"
-                        
-                        for _, player in pairs(Players:GetPlayers()) do
-                            if player.Backpack:FindFirstChild("Knife") or 
-                               (player.Character and player.Character:FindFirstChild("Knife")) then
-                                murderer = player.Name
-                            elseif player.Backpack:FindFirstChild("Gun") or 
-                                  (player.Character and player.Character:FindFirstChild("Gun")) then
-                                sheriff = player.Name
-                            end
-                        end
-                        
-                        OrionLib:MakeNotification({
-                            Name = "Player Roles",
-                            Content = "Murderer: " .. murderer .. "\nSheriff: " .. sheriff,
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                    end)
-                    wait(5) -- Update every 5 seconds
-                end
-            end)
-        else
-            OrionLib:MakeNotification({
-                Name = "SkyX",
-                Content = "Player Roles Disabled!",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end
+        -- Update jump power in real-time
+        pcall(function()
+            if LocalPlayer and LocalPlayer.Character and 
+               LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.JumpPower = Value
+            end
+        end)
+    end    
 })
 
 -- ESP Feature
@@ -743,6 +711,60 @@ ESPTab:AddToggle({
                 end
             end
         end)
+    end
+})
+
+-- Show Player Roles (MOVED FROM MAIN TAB TO ESP TAB)
+ESPTab:AddToggle({
+    Name = "Show Player Roles",
+    Default = false,
+    Flag = "showRoles", 
+    Save = true,
+    Callback = function(Value)
+        getgenv().ShowRoles = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Player Roles Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create player role identification system
+            spawn(function()
+                while getgenv().ShowRoles do
+                    pcall(function()
+                        local murderer, sheriff = "Unknown", "Unknown"
+                        
+                        for _, player in pairs(Players:GetPlayers()) do
+                            if player.Backpack:FindFirstChild("Knife") or 
+                               (player.Character and player.Character:FindFirstChild("Knife")) then
+                                murderer = player.Name
+                            elseif player.Backpack:FindFirstChild("Gun") or 
+                                  (player.Character and player.Character:FindFirstChild("Gun")) then
+                                sheriff = player.Name
+                            end
+                        end
+                        
+                        OrionLib:MakeNotification({
+                            Name = "Player Roles",
+                            Content = "Murderer: " .. murderer .. "\nSheriff: " .. sheriff,
+                            Image = "rbxassetid://4483345998",
+                            Time = 3
+                        })
+                    end)
+                    wait(5) -- Update every 5 seconds
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Player Roles Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
     end
 })
 
@@ -1070,6 +1092,69 @@ AdvancedTab:AddToggle({
             getgenv().LastKnownSheriff = nil
             getgenv().SheriffDied = false
             
+            -- Define or update shootAt function to fix issues
+            getgenv().shootAt = function(target)
+                if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
+                    return false
+                end
+                
+                if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Gun") then
+                    return false
+                end
+                
+                local gun = LocalPlayer.Character:FindFirstChild("Gun")
+                local targetPosition = target.Character.HumanoidRootPart.Position
+                
+                -- Find the shoot remote
+                local shootRemote = nil
+                for _, obj in pairs(gun:GetDescendants()) do
+                    if obj:IsA("RemoteEvent") and (obj.Name:lower():find("shoot") or 
+                       obj.Name:lower():find("fire") or obj.Name == "ShootGun" or obj.Name == "Fire") then
+                        shootRemote = obj
+                        break
+                    end
+                end
+                
+                -- If no direct shooting remote found, try more generic approach
+                if not shootRemote then
+                    for _, obj in pairs(gun:GetDescendants()) do
+                        if obj:IsA("RemoteEvent") then
+                            shootRemote = obj
+                            break
+                        end
+                    end
+                end
+                
+                -- Attempt to shoot
+                if shootRemote then
+                    -- Try different parts in case one works better
+                    local targetParts = {}
+                    if target.Character:FindFirstChild("Head") then
+                        table.insert(targetParts, target.Character.Head)
+                    end
+                    if target.Character:FindFirstChild("UpperTorso") then
+                        table.insert(targetParts, target.Character.UpperTorso)
+                    elseif target.Character:FindFirstChild("Torso") then
+                        table.insert(targetParts, target.Character.Torso)
+                    end
+                    table.insert(targetParts, target.Character.HumanoidRootPart)
+                    
+                    -- Try shooting at different parts
+                    for _, part in ipairs(targetParts) do
+                        pcall(function()
+                            shootRemote:FireServer(part.Position)
+                        end)
+                        wait(0.03)
+                    end
+                    
+                    print("Attempted to shoot at " .. target.Name)
+                    return true
+                else
+                    print("No shoot remote found in gun")
+                    return false
+                end
+            end
+            
             -- Start the main tracking and gun collection logic
             spawn(function()
                 while getgenv().AutoGetGunKillMurderer do
@@ -1078,7 +1163,7 @@ AdvancedTab:AddToggle({
                         getgenv().CurrentMurderer = findMurderer()
                         getgenv().CurrentSheriff = findSheriff()
                         
-                        -- Check if sheriff died 
+                        -- Check if sheriff died or disappeared
                         if getgenv().LastKnownSheriff and getgenv().LastKnownSheriff.Character then
                             if not getgenv().CurrentSheriff or 
                               (getgenv().LastKnownSheriff ~= getgenv().CurrentSheriff) or
@@ -1087,6 +1172,7 @@ AdvancedTab:AddToggle({
                                 -- Sheriff died or changed
                                 getgenv().SheriffDied = true
                                 
+                                -- Notify user
                                 OrionLib:MakeNotification({
                                     Name = "SkyX",
                                     Content = "Sheriff died! Activating gun collection...",
@@ -1096,13 +1182,26 @@ AdvancedTab:AddToggle({
                             end
                         end
                         
-                        -- Update last known sheriff if we found one
-                        if getgenv().CurrentSheriff then
+                        -- Initial sheriff detection at round start
+                        if not getgenv().LastKnownSheriff and getgenv().CurrentSheriff then
                             getgenv().LastKnownSheriff = getgenv().CurrentSheriff
+                            print("Sheriff identified: " .. getgenv().CurrentSheriff.Name)
                         end
                         
-                        -- If I already have the gun, focus on shooting the murderer (regardless of sheriff status)
-                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun") then
+                        -- If I already have the gun, focus on shooting the murderer
+                        local hasGun = (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) or
+                                       (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun"))
+                         
+                        if hasGun then
+                            -- Equip gun if it's in the backpack
+                            if LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun") then
+                                pcall(function()
+                                    LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
+                                    wait(0.1)
+                                end)
+                            end
+                            
+                            -- Check if murderer exists and is accessible
                             if getgenv().CurrentMurderer and getgenv().CurrentMurderer.Character and 
                                getgenv().CurrentMurderer.Character:FindFirstChild("HumanoidRootPart") then
                                 
@@ -1112,6 +1211,7 @@ AdvancedTab:AddToggle({
                                 
                                 -- Use anti-detection teleport
                                 safeTP(safePos, true)
+                                wait(0.1) -- Short wait to stabilize
                                 
                                 -- Look at the murderer for better aiming
                                 if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
@@ -1121,13 +1221,14 @@ AdvancedTab:AddToggle({
                                     )
                                     
                                     -- Try to shoot with multiple attempts for reliability
-                                    for i = 1, 3 do
-                                        shootAt(getgenv().CurrentMurderer)
-                                        wait(0.05)
+                                    local shotSuccess = false
+                                    for i = 1, 5 do
+                                        shotSuccess = shootAt(getgenv().CurrentMurderer) or shotSuccess
+                                        wait(0.1)
                                     end
                                     
                                     -- Success notification (occasional to avoid spam)
-                                    if math.random(1, 5) == 1 then
+                                    if shotSuccess and math.random(1, 5) == 1 then
                                         OrionLib:MakeNotification({
                                             Name = "SkyX",
                                             Content = "Shooting at murderer: " .. getgenv().CurrentMurderer.Name,
@@ -1167,31 +1268,38 @@ AdvancedTab:AddToggle({
                                         })
                                     end
                                     
-                                    -- Use safe teleport to avoid detection
-                                    safeTP(gunPosition, true)
+                                    -- Store current position for returning if failed
+                                    local originalPos = (LocalPlayer.Character and 
+                                                        LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and
+                                                        LocalPlayer.Character.HumanoidRootPart.Position) or 
+                                                        Vector3.new(0,0,0)
                                     
-                                    -- Wait a moment to pick up the gun with retry logic
-                                    for i = 1, 3 do -- Try multiple times
-                                        wait(0.2)
+                                    -- Use safe teleport to avoid detection
+                                    for attempt = 1, 5 do -- Multiple teleport attempts
+                                        safeTP(gunPosition + Vector3.new(0, attempt - 3, 0), true)
+                                        
+                                        -- Wait a bit to pick up the gun
+                                        wait(0.3)
                                         
                                         -- Check if we got the gun
-                                        if LocalPlayer.Backpack:FindFirstChild("Gun") then
-                                            -- Equip the gun automatically
-                                            LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
-                                            break
-                                        elseif LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun") then
-                                            -- Already equipped
-                                            break
-                                        else
-                                            -- Try a slightly different position if gun wasn't picked up
-                                            local offsetPos = gunPosition + Vector3.new(math.random(-1, 1), 0, math.random(-1, 1))
-                                            safeTP(offsetPos, true)
-                                            
-                                            -- Try direct equip method
-                                            if getgenv().DroppedGun and getgenv().DroppedGun.Parent and
-                                               LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                                                LocalPlayer.Character.Humanoid:EquipTool(getgenv().DroppedGun)
+                                        if (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun")) or
+                                           (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) then
+                                            -- Successfully got gun
+                                            if math.random(1, 2) == 1 then
+                                                OrionLib:MakeNotification({
+                                                    Name = "SkyX",
+                                                    Content = "Successfully got the gun!",
+                                                    Image = "rbxassetid://4483345998",
+                                                    Time = 2
+                                                })
                                             end
+                                            
+                                            -- Equip the gun automatically if it's in backpack
+                                            if LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Gun") then
+                                                LocalPlayer.Backpack.Gun.Parent = LocalPlayer.Character
+                                            end
+                                            
+                                            break
                                         end
                                     end
                                 end
