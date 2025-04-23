@@ -1,727 +1,1246 @@
 --[[
-    SkyX Hub - Blue Lock Rivals Ball Control
-    Enhanced Mobile Version
-    Originally by twisted.maniac, improved by SkyX Team
+    🌊 SkyX Hub - Fishing Simulator Script 🌊
+    Version 1.0.0
+    
+    Features:
+    - Auto Fishing (Smart fish catching)
+    - ESP for Special Fish
+    - Teleport to Best Fishing Spots
+    - Auto Sell
+    - Fish Rarity Filter
+    - Fish Collection Tracker
+    - Mobile-friendly UI
+    
+    Compatible with Swift, Fluxus, Delta, KRNL, and other mobile executors
 ]]
 
--- Initialize environment with cross-platform compatibility
+-- Set up the global environment
 local globalEnv = getgenv and getgenv() or _G
 
--- Add global configuration
-if not globalEnv.SkyXConfig then
-    globalEnv.SkyXConfig = {
-        Platform = identifyexecutor and identifyexecutor() or "Unknown",
-        AutoDetectMobile = true
-    }
-    
-    -- Auto-detect mobile platforms
-    if globalEnv.SkyXConfig.Platform:lower():find("fluxus") or 
-       globalEnv.SkyXConfig.Platform:lower():find("hydrogen") or 
-       globalEnv.SkyXConfig.Platform:lower():find("swift") or
-       globalEnv.SkyXConfig.Platform:lower():find("electron") or
-       globalEnv.SkyXConfig.Platform:lower():find("krnl") or
-       globalEnv.SkyXConfig.Platform:lower():find("delta") then
-        globalEnv.SkyXConfig.IsMobile = true
-    end
-end
-
--- Check if script is already running
-if globalEnv.BlueLockBallControlActive then
-    warn("Blue Lock Rivals Ball Control script is already running!")
+-- Prevent duplicate execution
+if globalEnv.SkyXFishingScriptLoaded then
+    warn("SkyX Fishing Script is already running!")
     return
 end
 
--- Mark as running
-globalEnv.BlueLockBallControlActive = true
+-- Mark script as loaded
+globalEnv.SkyXFishingScriptLoaded = true
 
--- Services
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
--- Local player
-local LocalPlayer = Players.LocalPlayer
-if not LocalPlayer then
-    -- Wait for player to load if not already
-    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
-    LocalPlayer = Players.LocalPlayer
+-- Set up SkyX global environment if not already defined
+if not globalEnv.SkyX then
+    globalEnv.SkyX = {
+        Version = "1.0.0",
+        LoadTime = os.time(),
+        Platform = (syn and "Synapse") or 
+                  (KRNL_LOADED and "Krnl") or 
+                  (secure_load and "Sentinel") or 
+                  (fluxus and "Fluxus") or
+                  (delta and "Delta") or
+                  (identifyexecutor and identifyexecutor()) or 
+                  "Unknown Executor",
+        AntiBanEnabled = true,
+        WebhookEnabled = true,
+        DiscordWebhookURL = "https://discord.com/api/webhooks/1364438745067290664/J6ZLEkt_lZtwbQnssigtUr5Uj80fhzQmdH0QoitsSwJr2xgDOjIzl5Kfo1Cr1UuFo-2v",
+    }
 end
 
--- Configuration
-local config = {
-    speedIncrement = 5,
-    maxSpeed = 80,       -- Increased max speed
-    minSpeed = 1,
-    maxBallDistance = 25, -- Increased max distance for finding ball
-    buttonSize = UDim2.new(0, 50, 0, 40), -- Made buttons larger for mobile
-    uiTransparency = 0.4  -- Made UI less transparent
-}
-
--- UI Elements
-local ballControlUI
-local speedTextLabel
-local directionTextLabel
-local statusTextLabel
-local moveButtons = {}
-local speedButtons = {}
-local toggleButton
-
--- Ball Control Variables
-local controllingBall = false
-local controlledBall = nil
-local controlSpeed = 25    -- Default speed increased
-local moveDirection = Vector3.new(0, 0, 0)
-local errorCount = 0
-local maxErrorCount = 5
-local lastForcedReset = 0
-local resetCooldown = 10
-
--- Function to find the closest ball with error handling
-local function findClosestBall(player, maxDistance)
-    if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
-        return nil
+-- Send execution data to Discord webhook
+local function sendWebhookData()
+    -- Use Roblox's spawn function or a fallback
+    local runAsync = spawn or function(f) 
+        local thread = coroutine.create(f)
+        coroutine.resume(thread)
     end
     
-    local playerPos = player.Character.HumanoidRootPart.Position
-    local closestBall = nil
-    local closestDistance = maxDistance
-    
-    -- First try to find the ball in the workspace
-    pcall(function()
-        for _, part in ipairs(workspace:GetDescendants()) do
-            -- Looking for parts that might be a ball (common names or properties)
-            if part:IsA("BasePart") and 
-               (part.Name == "Ball" or 
-                part.Name:lower():find("ball") or 
-                part.Name:lower():find("soccer") or
-                part.Shape == Enum.PartType.Ball) then
-                
-                local distance = (playerPos - part.Position).Magnitude
-                if distance < closestDistance then
-                    closestDistance = distance
-                    closestBall = part
-                end
-            end
-        end
-    end)
-    
-    -- If no ball found, try searching in replicated storage (this might be a fallback)
-    if not closestBall then
+    runAsync(function()
         pcall(function()
-            -- The ball might be stored as a model in replicated storage
-            for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
-                if (item:IsA("BasePart") or item:IsA("Model")) and 
-                   (item.Name == "Ball" or 
-                    item.Name:lower():find("ball") or 
-                    item.Name:lower():find("soccer")) then
-                    
-                    return item -- Return it if found
-                end
-            end
-        end)
-    end
-    
-    return closestBall
-end
-
--- Function to create a notification
-local function createNotification(title, text, duration)
-    pcall(function()
-        -- Create a ScreenGui for the notification
-        local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "BallControlNotification"
-        
-        -- Try to parent it to the PlayerGui
-        pcall(function() 
-            screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
-        end)
-        
-        -- If that fails, try CoreGui
-        if not screenGui.Parent then
-            pcall(function()
-                screenGui.Parent = game:GetService("CoreGui")
-            end)
-        end
-        
-        -- Create main frame
-        local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, 250, 0, 100)
-        frame.Position = UDim2.new(0.5, -125, 0.1, 0)
-        frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        frame.BackgroundTransparency = 0.1
-        frame.BorderSizePixel = 0
-        frame.Parent = screenGui
-        
-        -- Add corner radius
-        local cornerRadius = Instance.new("UICorner")
-        cornerRadius.CornerRadius = UDim.new(0, 10)
-        cornerRadius.Parent = frame
-        
-        -- Title label
-        local titleLabel = Instance.new("TextLabel")
-        titleLabel.Size = UDim2.new(1, 0, 0.3, 0)
-        titleLabel.Position = UDim2.new(0, 0, 0, 0)
-        titleLabel.Text = title
-        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        titleLabel.BackgroundTransparency = 1
-        titleLabel.Font = Enum.Font.GothamBold
-        titleLabel.TextSize = 16
-        titleLabel.Parent = frame
-        
-        -- Message label
-        local textLabel = Instance.new("TextLabel")
-        textLabel.Size = UDim2.new(1, -20, 0.7, -10)
-        textLabel.Position = UDim2.new(0, 10, 0.3, 0)
-        textLabel.Text = text
-        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        textLabel.BackgroundTransparency = 1
-        textLabel.Font = Enum.Font.Gotham
-        textLabel.TextSize = 14
-        textLabel.TextWrapped = true
-        textLabel.Parent = frame
-        
-        -- Animate in
-        frame.Position = UDim2.new(0.5, -125, -0.2, 0)
-        local tween = TweenService:Create(
-            frame, 
-            TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-            {Position = UDim2.new(0.5, -125, 0.1, 0)}
-        )
-        tween:Play()
-        
-        -- Destroy after duration
-        task.spawn(function()
-            task.wait(duration or 3)
-            
-            local tweenOut = TweenService:Create(
-                frame, 
-                TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-                {Position = UDim2.new(0.5, -125, -0.2, 0)}
-            )
-            tweenOut:Play()
-            
-            tweenOut.Completed:Wait()
-            screenGui:Destroy()
-        end)
-    end)
-end
-
--- Function to update UI
-local function updateUI()
-    if not ballControlUI then return end
-    
-    pcall(function()
-        speedTextLabel.Text = "Speed: " .. math.floor(controlSpeed)
-        
-        local dirString = "None"
-        if moveDirection.Magnitude > 0 then
-            local d = moveDirection.Unit
-            if d.X ~= 0 or d.Z ~= 0 then
-                local h = Vector3.new(d.X, 0, d.Z).Unit
-                dirString = h:Angle(Vector3.new(0, 0, -1))
-                -- Convert to degrees and make it a compass direction
-                dirString = math.deg(dirString)
-                if d.X < 0 then dirString = 360 - dirString end
-                dirString = math.floor(dirString) .. "°"
-            elseif d.Y > 0 then
-                dirString = "Up"
-            elseif d.Y < 0 then
-                dirString = "Down"
-            end
-        end
-        
-        directionTextLabel.Text = "Direction: " .. dirString
-        
-        if controlledBall then
-            statusTextLabel.Text = "Ball: Active"
-        else
-            statusTextLabel.Text = "Ball: Not Found"
-        end
-    end)
-end
-
--- Function to create the Ball Control UI with improved mobile support
-local function createBallControlUI()
-    if ballControlUI and ballControlUI.Parent then 
-        ballControlUI.Enabled = true
-        return 
-    end
-
-    pcall(function()
-        ballControlUI = Instance.new("ScreenGui")
-        ballControlUI.Name = "BallControlUI"
-        
-        -- Try to parent to PlayerGui first
-        pcall(function()
-            ballControlUI.Parent = LocalPlayer.PlayerGui
-        end)
-        
-        -- If that fails, try CoreGui
-        if not ballControlUI.Parent then
-            pcall(function()
-                ballControlUI.Parent = game:GetService("CoreGui")
-            end)
-        end
-        
-        ballControlUI.ResetOnSpawn = false
-        ballControlUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-        local mainFrame = Instance.new("Frame")
-        mainFrame.Name = "MainFrame"
-        mainFrame.Size = UDim2.new(0, 250, 0, 220)  -- Made larger for mobile
-        mainFrame.Position = UDim2.new(0.02, 0, 0.25, 0)  -- Positioned away from standard mobile controls
-        mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-        mainFrame.BackgroundTransparency = config.uiTransparency
-        mainFrame.BorderSizePixel = 0
-        mainFrame.Active = true
-        mainFrame.Draggable = true  -- Allow dragging UI
-        mainFrame.Parent = ballControlUI
-
-        -- Add corner radius
-        local cornerRadius = Instance.new("UICorner")
-        cornerRadius.CornerRadius = UDim.new(0, 10)
-        cornerRadius.Parent = mainFrame
-        
-        local titleLabel = Instance.new("TextLabel")
-        titleLabel.Size = UDim2.new(0.8, 0, 0.2, 0)
-        titleLabel.Position = UDim2.new(0, 10, 0, 0)
-        titleLabel.Text = "Ball Control"
-        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        titleLabel.BackgroundTransparency = 1
-        titleLabel.Font = Enum.Font.GothamBold
-        titleLabel.TextSize = 16
-        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-        titleLabel.Parent = mainFrame
-
-        speedTextLabel = Instance.new("TextLabel")
-        speedTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
-        speedTextLabel.Position = UDim2.new(0, 10, 0.2, 0)
-        speedTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        speedTextLabel.BackgroundTransparency = 1
-        speedTextLabel.Font = Enum.Font.Gotham
-        speedTextLabel.TextSize = 14
-        speedTextLabel.TextXAlignment = Enum.TextXAlignment.Left
-        speedTextLabel.Parent = mainFrame
-
-        directionTextLabel = Instance.new("TextLabel")
-        directionTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
-        directionTextLabel.Position = UDim2.new(0, 10, 0.35, 0)
-        directionTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        directionTextLabel.BackgroundTransparency = 1
-        directionTextLabel.Font = Enum.Font.Gotham
-        directionTextLabel.TextSize = 14
-        directionTextLabel.TextXAlignment = Enum.TextXAlignment.Left
-        directionTextLabel.Parent = mainFrame
-        
-        statusTextLabel = Instance.new("TextLabel")
-        statusTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
-        statusTextLabel.Position = UDim2.new(0, 10, 0.5, 0)
-        statusTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        statusTextLabel.BackgroundTransparency = 1
-        statusTextLabel.Font = Enum.Font.Gotham
-        statusTextLabel.TextSize = 14
-        statusTextLabel.TextXAlignment = Enum.TextXAlignment.Left
-        statusTextLabel.Parent = mainFrame
-
-        local closeButton = Instance.new("TextButton")
-        closeButton.Size = UDim2.new(0.15, 0, 0.15, 0)
-        closeButton.Position = UDim2.new(0.85, 0, 0, 0)
-        closeButton.Text = "X"
-        closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        closeButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-        closeButton.BackgroundTransparency = 0.2
-        closeButton.Font = Enum.Font.GothamBold
-        closeButton.TextSize = 16
-        closeButton.Parent = mainFrame
-        
-        -- Add corner radius to close button
-        local closeCorner = Instance.new("UICorner")
-        closeCorner.CornerRadius = UDim.new(0, 5)
-        closeCorner.Parent = closeButton
-        
-        closeButton.MouseButton1Click:Connect(function()
-            controllingBall = false
-            controlledBall = nil
-            if ballControlUI then
-                ballControlUI.Enabled = false
-            end
-        end)
-
-        local buttonSize = config.buttonSize
-        local buttonSpacing = 10
-        local buttonYOffset = 0.65
-
-        -- Function to create move buttons with improved error handling
-        local function createMoveButton(text, direction, position)
-            local button = Instance.new("TextButton")
-            button.Size = buttonSize
-            button.Position = position
-            button.Text = text
-            button.TextColor3 = Color3.fromRGB(255, 255, 255)
-            button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-            button.BackgroundTransparency = 0.3
-            button.Font = Enum.Font.GothamBold
-            button.TextSize = 14
-            button.Parent = mainFrame
-            
-            -- Add corner radius to button
-            local buttonCorner = Instance.new("UICorner")
-            buttonCorner.CornerRadius = UDim.new(0, 5)
-            buttonCorner.Parent = button
-            
-            -- Mobile-friendly controls
-            button.TouchLongPress:Connect(function()
-                moveDirection = direction
-                button.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-                updateUI()
-            end)
-            
-            button.MouseButton1Down:Connect(function()
-                moveDirection = direction
-                button.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
-                updateUI()
-            end)
-            
-            button.MouseButton1Up:Connect(function()
-                if moveDirection == direction then
-                    moveDirection = Vector3.new(0, 0, 0)
-                    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-                    updateUI()
-                end
-            end)
-            
-            button.TouchEnded:Connect(function()
-                if moveDirection == direction then
-                    moveDirection = Vector3.new(0, 0, 0)
-                    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-                    updateUI()
-                end
-            end)
-            
-            return button
-        end
-
-        -- Creating a proper directional control layout
-        local centerX = 0.25
-        local centerY = buttonYOffset + 0.12
-        local buttonOffset = buttonSize.X.Offset + buttonSpacing
-        
-        moveButtons["Forward"] = createMoveButton("↑", Vector3.new(0, 0, -1), 
-            UDim2.new(centerX, 0, centerY - 0.15, 0))
-            
-        moveButtons["Backward"] = createMoveButton("↓", Vector3.new(0, 0, 1), 
-            UDim2.new(centerX, 0, centerY + 0.15, 0))
-            
-        moveButtons["Left"] = createMoveButton("←", Vector3.new(-1, 0, 0), 
-            UDim2.new(centerX - 0.15, 0, centerY, 0))
-            
-        moveButtons["Right"] = createMoveButton("→", Vector3.new(1, 0, 0), 
-            UDim2.new(centerX + 0.15, 0, centerY, 0))
-            
-        moveButtons["Up"] = createMoveButton("⬆", Vector3.new(0, 1, 0), 
-            UDim2.new(0.75, 0, centerY - 0.15, 0))
-            
-        moveButtons["Down"] = createMoveButton("⬇", Vector3.new(0, -1, 0), 
-            UDim2.new(0.75, 0, centerY + 0.15, 0))
-
-        -- Speed buttons with improved formatting and placement
-        speedButtons["Increase"] = Instance.new("TextButton")
-        speedButtons["Increase"].Size = UDim2.new(0, 40, 0, 40)
-        speedButtons["Increase"].Position = UDim2.new(0.6, 0, buttonYOffset + 0.35, 0)
-        speedButtons["Increase"].Text = "+"
-        speedButtons["Increase"].TextColor3 = Color3.fromRGB(255, 255, 255)
-        speedButtons["Increase"].BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-        speedButtons["Increase"].BackgroundTransparency = 0.3
-        speedButtons["Increase"].Font = Enum.Font.GothamBold
-        speedButtons["Increase"].TextSize = 24
-        speedButtons["Increase"].Parent = mainFrame
-        
-        -- Add corner radius to speed button
-        local increaseCorner = Instance.new("UICorner")
-        increaseCorner.CornerRadius = UDim.new(0, 5)
-        increaseCorner.Parent = speedButtons["Increase"]
-
-        speedButtons["Increase"].MouseButton1Click:Connect(function()
-            controlSpeed = math.clamp(controlSpeed + config.speedIncrement, config.minSpeed, config.maxSpeed)
-            updateUI()
-        end)
-
-        speedButtons["Decrease"] = Instance.new("TextButton")
-        speedButtons["Decrease"].Size = UDim2.new(0, 40, 0, 40)
-        speedButtons["Decrease"].Position = UDim2.new(0.3, 0, buttonYOffset + 0.35, 0)
-        speedButtons["Decrease"].Text = "-"
-        speedButtons["Decrease"].TextColor3 = Color3.fromRGB(255, 255, 255)
-        speedButtons["Decrease"].BackgroundColor3 = Color3.fromRGB(120, 0, 0)
-        speedButtons["Decrease"].BackgroundTransparency = 0.3
-        speedButtons["Decrease"].Font = Enum.Font.GothamBold
-        speedButtons["Decrease"].TextSize = 24
-        speedButtons["Decrease"].Parent = mainFrame
-        
-        -- Add corner radius to speed button
-        local decreaseCorner = Instance.new("UICorner")
-        decreaseCorner.CornerRadius = UDim.new(0, 5)
-        decreaseCorner.Parent = speedButtons["Decrease"]
-
-        speedButtons["Decrease"].MouseButton1Click:Connect(function()
-            controlSpeed = math.clamp(controlSpeed - config.speedIncrement, config.minSpeed, config.maxSpeed)
-            updateUI()
-        end)
-        
-        -- Reset button to re-find the ball
-        local resetButton = Instance.new("TextButton")
-        resetButton.Size = UDim2.new(0, 80, 0, 30)
-        resetButton.Position = UDim2.new(0.5, -40, 0.9, 0)
-        resetButton.Text = "Reset Ball"
-        resetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        resetButton.BackgroundColor3 = Color3.fromRGB(0, 80, 120)
-        resetButton.BackgroundTransparency = 0.3
-        resetButton.Font = Enum.Font.GothamBold
-        resetButton.TextSize = 12
-        resetButton.Parent = mainFrame
-        
-        -- Add corner radius to reset button
-        local resetCorner = Instance.new("UICorner")
-        resetCorner.CornerRadius = UDim.new(0, 5)
-        resetCorner.Parent = resetButton
-        
-        resetButton.MouseButton1Click:Connect(function()
-            local now = tick()
-            if now - lastForcedReset < resetCooldown then
-                createNotification("Cooldown", "Please wait " .. math.ceil(resetCooldown - (now - lastForcedReset)) .. " seconds", 2)
+            -- Only proceed if Discord webhook is enabled and URL is set
+            if not (globalEnv.SkyX.WebhookEnabled and globalEnv.SkyX.DiscordWebhookURL) then
                 return
             end
             
-            lastForcedReset = now
+            local gameId = game.PlaceId
+            local gameName = game:GetService("MarketplaceService"):GetProductInfo(gameId).Name
+            local executor = globalEnv.SkyX.Platform
+            local playerId = game:GetService("Players").LocalPlayer.UserId
+            local playerName = game:GetService("Players").LocalPlayer.Name
             
-            local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
-            if ball then
-                controlledBall = ball
-                createNotification("Ball Found", "Now controlling a new ball!", 2)
-            else
-                createNotification("No Ball Found", "Could not find a ball nearby", 2)
-            end
-            updateUI()
-        end)
-
-        ballControlUI.Enabled = true
-        updateUI()
-    end)
-end
-
--- Function to handle toggling control (Mobile friendly)
-local function toggleBallControl()
-    if controllingBall then
-        controllingBall = false
-        controlledBall = nil
-        
-        if ballControlUI then
-            ballControlUI.Enabled = false
-        end
-        
-        createNotification("Ball Control", "Deactivated", 2)
-    else
-        local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
-        if ball then
-            controllingBall = true
-            controlledBall = ball
-            createBallControlUI()
-            createNotification("Ball Control", "Activated! Use the controls to move the ball.", 3)
-        else
-            createNotification("Ball Control", "No ball found nearby to control.", 3)
-        end
-    end
-end
-
--- Create a button to toggle control (Mobile)
-local function createToggleButton()
-    if toggleButton and toggleButton.Parent then
-        toggleButton.Enabled = true
-        return
-    end
-
-    pcall(function()
-        local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "BallControlToggle"
-        
-        -- Try to parent to PlayerGui first
-        pcall(function()
-            screenGui.Parent = LocalPlayer.PlayerGui
-        end)
-        
-        -- If that fails, try CoreGui
-        if not screenGui.Parent then
-            pcall(function()
-                screenGui.Parent = game:GetService("CoreGui")
+            -- Format the Discord webhook data
+            local webhookData = {
+                username = "SkyX Hub Execution Tracker",
+                avatar_url = "https://i.imgur.com/4M34hi2.png",
+                embeds = {
+                    {
+                        title = "Fishing Script Executed",
+                        description = "The Fishing Script has been executed by a user",
+                        color = 3447003, -- Blue color
+                        fields = {
+                            {
+                                name = "Game",
+                                value = gameName,
+                                inline = true
+                            },
+                            {
+                                name = "Player",
+                                value = playerName,
+                                inline = true
+                            },
+                            {
+                                name = "User ID",
+                                value = tostring(playerId),
+                                inline = true
+                            },
+                            {
+                                name = "Executor",
+                                value = executor,
+                                inline = true
+                            },
+                            {
+                                name = "Place ID",
+                                value = tostring(gameId),
+                                inline = true
+                            }
+                        },
+                        footer = {
+                            text = "SkyX Hub • " .. os.date("%Y-%m-%d %H:%M:%S")
+                        }
+                    }
+                }
+            }
+            
+            -- Send directly to Discord webhook
+            local httpService = game:GetService("HttpService")
+            local jsonData = httpService:JSONEncode(webhookData)
+            
+            local success, response = pcall(function()
+                return httpService:PostAsync(
+                    globalEnv.SkyX.DiscordWebhookURL,
+                    jsonData,
+                    Enum.HttpContentType.ApplicationJson,
+                    false
+                )
             end)
-        end
-        
-        screenGui.ResetOnSpawn = false
-        screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-        toggleButton = Instance.new("TextButton")
-        toggleButton.Name = "ToggleBallControl"
-        toggleButton.Size = UDim2.new(0, 100, 0, 50)
-        toggleButton.Position = UDim2.new(0.02, 0, 0.1, 0)
-        toggleButton.Text = "⚽ Control"
-        toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 70, 120)
-        toggleButton.BackgroundTransparency = 0.2
-        toggleButton.Font = Enum.Font.GothamBold
-        toggleButton.TextSize = 14
-        toggleButton.Parent = screenGui
-        toggleButton.ZIndex = 5
-        
-        -- Add corner radius
-        local buttonCorner = Instance.new("UICorner")
-        buttonCorner.CornerRadius = UDim.new(0, 8)
-        buttonCorner.Parent = toggleButton
-        
-        toggleButton.MouseButton1Click:Connect(toggleBallControl)
+            
+            if success then
+                print("SkyX Fishing: Discord webhook notification sent successfully")
+            else
+                warn("SkyX Fishing: Failed to send Discord webhook notification")
+            end
+        end)
     end)
 end
 
--- Enhanced function to move the ball with better physics control
-local function moveControlledBall()
-    if not controllingBall or not controlledBall then return end
+-- Send webhook notification
+sendWebhookData()
+
+-- Game services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local VirtualUser = game:GetService("VirtualUser")
+
+-- Get player
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Anti-AFK function
+local function setupAntiAFK()
+    Player.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end)
+    print("Anti-AFK enabled")
+end
+
+-- Setup anti-AFK
+setupAntiAFK()
+
+-- Initialize UI Library (Orion)
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+
+-- Fish data from game
+local fishData = {}
+local fishPools = {}
+
+-- Try to get the fish data from the game
+pcall(function()
+    local animations = ReplicatedStorage:WaitForChild("resources"):WaitForChild("animations"):WaitForChild("fish")
     
-    -- Verify ball still exists in the game
-    if not controlledBall.Parent or not controlledBall:IsDescendantOf(workspace) then
-        controlledBall = nil
-        errorCount = errorCount + 1
+    -- Check if there's a fish module in ReplicatedStorage
+    for _, module in pairs(ReplicatedStorage:GetDescendants()) do
+        if module:IsA("ModuleScript") and (module.Name:find("Fish") or module.Name:find("fish")) then
+            local success, result = pcall(function()
+                return require(module)
+            end)
+            
+            if success and type(result) == "table" then
+                -- Check if this looks like fish data
+                for k, v in pairs(result) do
+                    if type(v) == "table" and (v.Icon or v.Rarity or v.WeightPool) then
+                        fishData = result
+                        print("Found fish data in module: " .. module:GetFullName())
+                        break
+                    end
+                end
+            end
+        end
+    end
+    
+    -- Check for fish pools
+    for _, module in pairs(ReplicatedStorage:GetDescendants()) do
+        if module:IsA("ModuleScript") and (module.Name:find("Pool") or module.Name:find("pool")) then
+            local success, result = pcall(function()
+                return require(module)
+            end)
+            
+            if success and type(result) == "table" then
+                -- Check if this looks like fish pool data
+                for k, v in pairs(result) do
+                    if type(v) == "table" and v.Pool and type(v.Pool) == "table" then
+                        fishPools = result
+                        print("Found fish pools in module: " .. module:GetFullName())
+                        break
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- If we couldn't get the data from the game, use the data provided
+if not next(fishData) then
+    -- This is a simplified version of the data for demo purposes
+    fishData = {
+        ["Moon Idol Sea 1"] = {
+            Icon = "rbxassetid://74189195141290", 
+            BlockPassiveCapture = true, 
+            WeightPool = {500, 500}, 
+            Chance = 1, 
+            Rarity = "Secret",
+            From = "Blue Moon - First Sea"
+        },
+        ["Lunar Monkfish"] = {
+            Icon = "rbxassetid://82672626514771", 
+            WeightPool = {800, 2500}, 
+            Chance = 50, 
+            Rarity = "Mythical",
+            From = "Blue Moon - First Sea"
+        },
+        ["Icy Daggerfish"] = {
+            Icon = "rbxassetid://135539930141529", 
+            WeightPool = {80, 235}, 
+            Chance = 60, 
+            Rarity = "Legendary",
+            From = "Blue Moon - First Sea"
+        },
+        ["Starbellied Wolf Fish"] = {
+            Icon = "rbxassetid://89388598287015", 
+            WeightPool = {70, 240}, 
+            Chance = 70, 
+            Rarity = "Rare",
+            From = "Blue Moon - First Sea"
+        },
+        ["Blue Langanose"] = {
+            Icon = "rbxassetid://100875351246693", 
+            WeightPool = {600, 1800}, 
+            Chance = 80, 
+            Rarity = "Unusual",
+            From = "Blue Moon - First Sea"
+        },
+        ["Frost Ray"] = {
+            Icon = "rbxassetid://135376186443805", 
+            WeightPool = {800, 2400}, 
+            Chance = 85, 
+            Rarity = "Uncommon",
+            From = "Blue Moon - First Sea"
+        },
+        ["Pale Ghost Lumpfish"] = {
+            Icon = "rbxassetid://126941365600312", 
+            WeightPool = {2, 8}, 
+            Chance = 90, 
+            Rarity = "Uncommon",
+            From = "Blue Moon - First Sea"
+        },
+        ["Silver Scuttler"] = {
+            Icon = "rbxassetid://81571343142363", 
+            WeightPool = {900, 2400}, 
+            Chance = 95, 
+            Rarity = "Common",
+            From = "Blue Moon - First Sea"
+        },
+        ["Moon Arctic Char"] = {
+            Icon = "rbxassetid://113858607309335", 
+            WeightPool = {120, 300}, 
+            Chance = 110, 
+            Rarity = "Common",
+            From = "Blue Moon - First Sea"
+        }
+    }
+    
+    fishPools = {
+        ["Ashfall Pool"] = {
+            Pool = {
+                "Ember Catfish", 
+                "Blistered Eel", 
+                "Lava Lamprey", 
+                "Molten Minnow", 
+                "Pyro Pike", 
+                "Cinder Carp", 
+                "Coelacanth", 
+                "Scooty Salmon", 
+                "Burnt Betta", 
+                "Ashcloud Archerfish"
+            },
+            Priority = 1
+        },
+        ["Cults Curse Pool"] = {
+            Pool = {
+                "The Whispering One", 
+                "Profane Ray", 
+                "Veilborn Parasite", 
+                "Bloodscript Eel", 
+                "Abyssal Maw", 
+                "Eldritch Spineback", 
+                "Hollow Gazer", 
+                "Wretched Guppy"
+            },
+            Priority = 1
+        },
+        ["Ancient Orcas Pool"] = {
+            Pool = {
+                "Ancient Orca",
+                "Colossal Squid",
+                "Oarfish",
+                "Crown Bass",
+                "Mythic Fish"
+            },
+            Priority = 4
+        }
+    }
+end
+
+-- Create a rarity ranking
+local rarityRanking = {
+    ["Trash"] = 1,
+    ["Common"] = 2,
+    ["Uncommon"] = 3,
+    ["Unusual"] = 4,
+    ["Rare"] = 5,
+    ["Legendary"] = 6,
+    ["Mythical"] = 7,
+    ["Secret"] = 8
+}
+
+-- Create fish lists by rarity
+local fishByRarity = {}
+for rarity, _ in pairs(rarityRanking) do
+    fishByRarity[rarity] = {}
+end
+
+for fishName, fishInfo in pairs(fishData) do
+    local rarity = fishInfo.Rarity
+    if rarity and fishByRarity[rarity] then
+        table.insert(fishByRarity[rarity], fishName)
+    end
+end
+
+-- Create location lists for teleporting
+local fishingLocations = {}
+local processedLocations = {}
+
+for fishName, fishInfo in pairs(fishData) do
+    if fishInfo.From and not processedLocations[fishInfo.From] then
+        table.insert(fishingLocations, fishInfo.From)
+        processedLocations[fishInfo.From] = true
+    end
+end
+
+-- Sort locations
+table.sort(fishingLocations)
+
+-- Global settings for auto fishing
+local autoFishingSettings = {
+    enabled = false,
+    minRarity = "Common",
+    targetFish = nil,
+    autoSell = false,
+    keepLegendaryPlus = true,
+    maxFishingTime = 120, -- Max time to wait for a fish in seconds
+    fishCaughtCount = 0,
+    rareCaughtCount = 0
+}
+
+-- Create the main window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX Hub | Fishing Simulator", 
+    HidePremium = false, 
+    SaveConfig = true, 
+    ConfigFolder = "SkyXHub",
+    IntroEnabled = false
+})
+
+-- Add tabs
+local MainTab = Window:MakeTab({
+    Name = "Auto Fish",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local TeleportTab = Window:MakeTab({
+    Name = "Teleport",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local StatsTab = Window:MakeTab({
+    Name = "Stats",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Main tab
+MainTab:AddToggle({
+    Name = "Auto Fishing",
+    Default = false,
+    Callback = function(Value)
+        autoFishingSettings.enabled = Value
         
-        if errorCount >= maxErrorCount then
-            -- If too many errors, try to find a new ball
-            local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
-            if ball then
-                controlledBall = ball
-                errorCount = 0
-                createNotification("Ball Control", "Ball lost and reconnected", 2)
-            else
-                createNotification("Ball Control", "Ball lost - move closer to a ball", 3)
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "Auto Fishing Enabled",
+                Content = "Auto fishing started with minimum rarity: " .. autoFishingSettings.minRarity,
+                Image = "rbxassetid://4483345998",
+                Time = 5
+            })
+            
+            -- Start auto fishing loop
+            startAutoFishing()
+        else
+            OrionLib:MakeNotification({
+                Name = "Auto Fishing Disabled",
+                Content = "Auto fishing stopped",
+                Image = "rbxassetid://4483345998",
+                Time = 5
+            })
+        end
+    end    
+})
+
+MainTab:AddDropdown({
+    Name = "Minimum Rarity",
+    Default = "Common",
+    Options = {"Trash", "Common", "Uncommon", "Unusual", "Rare", "Legendary", "Mythical", "Secret"},
+    Callback = function(Value)
+        autoFishingSettings.minRarity = Value
+        OrionLib:MakeNotification({
+            Name = "Rarity Updated",
+            Content = "Minimum rarity set to: " .. Value,
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end    
+})
+
+-- Create dropdown for target fish selection
+local targetFishOptions = {"None"}
+for fishName, _ in pairs(fishData) do
+    table.insert(targetFishOptions, fishName)
+end
+table.sort(targetFishOptions)
+
+MainTab:AddDropdown({
+    Name = "Target Fish",
+    Default = "None",
+    Options = targetFishOptions,
+    Callback = function(Value)
+        if Value == "None" then
+            autoFishingSettings.targetFish = nil
+        else
+            autoFishingSettings.targetFish = Value
+        end
+        
+        OrionLib:MakeNotification({
+            Name = "Target Fish Updated",
+            Content = Value == "None" and "No specific target fish" or "Target fish set to: " .. Value,
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end    
+})
+
+MainTab:AddToggle({
+    Name = "Auto Sell",
+    Default = false,
+    Callback = function(Value)
+        autoFishingSettings.autoSell = Value
+    end    
+})
+
+MainTab:AddToggle({
+    Name = "Keep Legendary+",
+    Default = true,
+    Callback = function(Value)
+        autoFishingSettings.keepLegendaryPlus = Value
+    end    
+})
+
+-- Teleport tab
+TeleportTab:AddDropdown({
+    Name = "Select Location",
+    Default = "",
+    Options = fishingLocations,
+    Callback = function(Value)
+        -- Try to find the location in workspace
+        local found = false
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj.Name == Value or obj.Name:find(Value) then
+                if obj:IsA("BasePart") then
+                    -- Teleport to the part
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                    found = true
+                    break
+                elseif obj:IsA("Model") and obj.PrimaryPart then
+                    -- Teleport to the model
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                    found = true
+                    break
+                end
             end
         end
         
-        updateUI()
-        return
-    end
-    
-    -- Reset error count when ball is working
-    errorCount = 0
-    
-    -- Different movement approaches to try
-    pcall(function()
-        -- Attempt 1: Using velocity manipulation (works for most balls)
-        if moveDirection.Magnitude > 0 then
-            local targetVelocity = moveDirection.Unit * controlSpeed
-            
-            -- Try different approaches to move the ball
-            if controlledBall:GetPropertyChangedSignal("AssemblyLinearVelocity") then
-                -- Newer physics ball
-                controlledBall.AssemblyLinearVelocity = targetVelocity
-            elseif controlledBall:FindFirstChild("BodyVelocity") then
-                -- Ball has a BodyVelocity
-                controlledBall.BodyVelocity.Velocity = targetVelocity
-            else
-                -- Create new body velocity
-                pcall(function()
-                    local bodyVelocity = controlledBall:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
-                    bodyVelocity.Parent = controlledBall
-                    bodyVelocity.MaxForce = Vector3.new(1000000, 1000000, 1000000)
-                    bodyVelocity.Velocity = targetVelocity
-                    bodyVelocity.P = 1250
-                end)
-            end
-            
-            -- Attempt 2: Use CFrame teleportation as fallback
-            if controlledBall:GetAttribute("ControlFailed") then
-                pcall(function()
-                    controlledBall.CFrame = controlledBall.CFrame + (moveDirection.Unit * controlSpeed * 0.1)
-                end)
-            end
+        if found then
+            OrionLib:MakeNotification({
+                Name = "Teleported",
+                Content = "Successfully teleported to " .. Value,
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
         else
-            -- Stop the ball
-            pcall(function()
-                if controlledBall:GetPropertyChangedSignal("AssemblyLinearVelocity") then
-                    controlledBall.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            OrionLib:MakeNotification({
+                Name = "Teleport Failed",
+                Content = "Could not find location: " .. Value,
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end    
+})
+
+-- Add buttons for common locations found in many fishing games
+TeleportTab:AddButton({
+    Name = "Teleport to Shop",
+    Callback = function()
+        -- Try to find the shop in workspace
+        local shopFound = false
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:lower():find("shop") or obj.Name:lower():find("store")) and 
+               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                
+                if obj:IsA("BasePart") then
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                else
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
                 end
                 
-                local bodyVelocity = controlledBall:FindFirstChild("BodyVelocity")
-                if bodyVelocity then
-                    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                shopFound = true
+                OrionLib:MakeNotification({
+                    Name = "Teleported",
+                    Content = "Successfully teleported to Shop",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+                break
+            end
+        end
+        
+        if not shopFound then
+            OrionLib:MakeNotification({
+                Name = "Teleport Failed",
+                Content = "Could not find Shop",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end    
+})
+
+TeleportTab:AddButton({
+    Name = "Teleport to Sell",
+    Callback = function()
+        -- Try to find the sell area in workspace
+        local sellFound = false
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:lower():find("sell") or obj.Name:lower():find("cash")) and 
+               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                
+                if obj:IsA("BasePart") then
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                else
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                end
+                
+                sellFound = true
+                OrionLib:MakeNotification({
+                    Name = "Teleported",
+                    Content = "Successfully teleported to Sell Area",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+                break
+            end
+        end
+        
+        if not sellFound then
+            OrionLib:MakeNotification({
+                Name = "Teleport Failed",
+                Content = "Could not find Sell Area",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end    
+})
+
+TeleportTab:AddButton({
+    Name = "Teleport to Dock",
+    Callback = function()
+        -- Try to find the dock in workspace
+        local dockFound = false
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:lower():find("dock") or obj.Name:lower():find("pier")) and 
+               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                
+                if obj:IsA("BasePart") then
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                else
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                end
+                
+                dockFound = true
+                OrionLib:MakeNotification({
+                    Name = "Teleported",
+                    Content = "Successfully teleported to Dock",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+                break
+            end
+        end
+        
+        if not dockFound then
+            OrionLib:MakeNotification({
+                Name = "Teleport Failed",
+                Content = "Could not find Dock",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end    
+})
+
+-- ESP tab
+local espSettings = {
+    enabled = false,
+    showLegendary = true,
+    showMythical = true,
+    showSecret = true,
+    maxDistance = 500
+}
+
+ESPTab:AddToggle({
+    Name = "ESP Enabled",
+    Default = false,
+    Callback = function(Value)
+        espSettings.enabled = Value
+    end    
+})
+
+ESPTab:AddToggle({
+    Name = "Show Legendary Fish",
+    Default = true,
+    Callback = function(Value)
+        espSettings.showLegendary = Value
+    end    
+})
+
+ESPTab:AddToggle({
+    Name = "Show Mythical Fish",
+    Default = true,
+    Callback = function(Value)
+        espSettings.showMythical = Value
+    end    
+})
+
+ESPTab:AddToggle({
+    Name = "Show Secret Fish",
+    Default = true,
+    Callback = function(Value)
+        espSettings.showSecret = Value
+    end    
+})
+
+ESPTab:AddSlider({
+    Name = "ESP Max Distance",
+    Min = 50,
+    Max = 2000,
+    Default = 500,
+    Color = Color3.fromRGB(97, 190, 255),
+    Increment = 50,
+    ValueName = "studs",
+    Callback = function(Value)
+        espSettings.maxDistance = Value
+    end    
+})
+
+-- Stats tab
+local statsLabels = {
+    fishCaught = nil,
+    rareFishCaught = nil,
+    timePlayed = nil,
+    fishInventory = nil
+}
+
+StatsTab:AddLabel("Fish Caught: 0")
+statsLabels.fishCaught = StatsTab.Content[#StatsTab.Content]
+
+StatsTab:AddLabel("Rare Fish Caught (Legendary+): 0")
+statsLabels.rareFishCaught = StatsTab.Content[#StatsTab.Content]
+
+StatsTab:AddLabel("Time Played: 00:00:00")
+statsLabels.timePlayed = StatsTab.Content[#StatsTab.Content]
+
+StatsTab:AddLabel("Fish Inventory: Empty")
+statsLabels.fishInventory = StatsTab.Content[#StatsTab.Content]
+
+-- Periodically update stats
+local startTime = os.time()
+spawn(function()
+    while true do
+        wait(1)
+        
+        -- Update time played
+        local timeElapsed = os.time() - startTime
+        local hours = math.floor(timeElapsed / 3600)
+        local minutes = math.floor((timeElapsed % 3600) / 60)
+        local seconds = timeElapsed % 60
+        
+        local timeString = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+        statsLabels.timePlayed.Text = "Time Played: " .. timeString
+        
+        -- Update fish caught
+        statsLabels.fishCaught.Text = "Fish Caught: " .. autoFishingSettings.fishCaughtCount
+        
+        -- Update rare fish caught
+        statsLabels.rareFishCaught.Text = "Rare Fish Caught (Legendary+): " .. autoFishingSettings.rareCaughtCount
+        
+        -- Try to update fish inventory
+        local inventoryText = "Fish Inventory: "
+        local inventoryCount = 0
+        
+        -- Try to find inventory in player GUI
+        for _, gui in pairs(Player.PlayerGui:GetDescendants()) do
+            if gui:IsA("TextLabel") and (gui.Text:find("Inventory") or gui.Text:find("inventory")) then
+                -- Try to extract inventory count
+                local countText = gui.Text:match("(%d+)/%d+")
+                if countText then
+                    inventoryCount = tonumber(countText) or 0
+                    inventoryText = inventoryText .. countText
+                    break
+                end
+            end
+        end
+        
+        if inventoryCount == 0 then
+            inventoryText = inventoryText .. "Unknown"
+        end
+        
+        statsLabels.fishInventory.Text = inventoryText
+    end
+end)
+
+-- Settings tab
+SettingsTab:AddToggle({
+    Name = "Anti-AFK",
+    Default = true,
+    Callback = function(Value)
+        -- Anti-AFK is already setup at the beginning, this is just to show it in the UI
+    end    
+})
+
+SettingsTab:AddButton({
+    Name = "Reset All Settings",
+    Callback = function()
+        autoFishingSettings.enabled = false
+        autoFishingSettings.minRarity = "Common"
+        autoFishingSettings.targetFish = nil
+        autoFishingSettings.autoSell = false
+        autoFishingSettings.keepLegendaryPlus = true
+        
+        espSettings.enabled = false
+        espSettings.showLegendary = true
+        espSettings.showMythical = true
+        espSettings.showSecret = true
+        espSettings.maxDistance = 500
+        
+        -- Reset the toggles in the UI
+        for _, tab in pairs(Window.Tabs) do
+            for _, element in pairs(tab.Elements) do
+                if element.Type == "Toggle" then
+                    element:Set(false)
+                end
+            end
+        end
+        
+        OrionLib:MakeNotification({
+            Name = "Settings Reset",
+            Content = "All settings have been reset to default",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end    
+})
+
+SettingsTab:AddButton({
+    Name = "Copy Discord Invite",
+    Callback = function()
+        setclipboard("https://discord.gg/ugyvkJXhFh")
+        OrionLib:MakeNotification({
+            Name = "Discord Invite Copied",
+            Content = "Discord invite link has been copied to clipboard",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end    
+})
+
+SettingsTab:AddButton({
+    Name = "Destroy GUI",
+    Callback = function()
+        autoFishingSettings.enabled = false
+        globalEnv.SkyXFishingScriptLoaded = false
+        
+        -- Remove ESP
+        for _, obj in pairs(game.CoreGui:GetChildren()) do
+            if obj.Name == "SkyXFishESP" then
+                obj:Destroy()
+            end
+        end
+        
+        OrionLib:Destroy()
+    end    
+})
+
+-- ESP System
+local espFolder = Instance.new("Folder")
+espFolder.Name = "SkyXFishESP"
+espFolder.Parent = game.CoreGui
+
+-- Function to update ESP for fish
+local function updateFishESP()
+    if not espSettings.enabled then
+        -- Hide all ESP
+        for _, esp in pairs(espFolder:GetChildren()) do
+            esp.Enabled = false
+        end
+        return
+    end
+    
+    -- Clear old ESP
+    for _, esp in pairs(espFolder:GetChildren()) do
+        esp.Enabled = true
+    end
+    
+    -- Find fish in the workspace
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") then
+            -- Check if this is a fish model
+            local fishName = obj.Name
+            
+            -- Check if this fish is in our database
+            if fishData[fishName] then
+                local fishInfo = fishData[fishName]
+                local rarity = fishInfo.Rarity
+                
+                -- Check if we should show this rarity
+                local shouldShow = (rarity == "Legendary" and espSettings.showLegendary) or
+                                  (rarity == "Mythical" and espSettings.showMythical) or
+                                  (rarity == "Secret" and espSettings.showSecret)
+                
+                if shouldShow then
+                    -- Check distance
+                    local distance = (Character.HumanoidRootPart.Position - obj:GetModelCFrame().Position).Magnitude
+                    
+                    if distance <= espSettings.maxDistance then
+                        -- Check if we already have ESP for this fish
+                        local existingESP = espFolder:FindFirstChild("ESP_" .. obj:GetFullName())
+                        
+                        if not existingESP then
+                            -- Create ESP
+                            local billboardGui = Instance.new("BillboardGui")
+                            billboardGui.Name = "ESP_" .. obj:GetFullName()
+                            billboardGui.Adornee = obj:GetModelCFrame()
+                            billboardGui.Size = UDim2.new(0, 200, 0, 50)
+                            billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+                            billboardGui.AlwaysOnTop = true
+                            
+                            local nameLabel = Instance.new("TextLabel")
+                            nameLabel.BackgroundTransparency = 1
+                            nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
+                            nameLabel.Text = fishName
+                            nameLabel.TextColor3 = (rarity == "Legendary" and Color3.fromRGB(255, 215, 0)) or
+                                                  (rarity == "Mythical" and Color3.fromRGB(255, 0, 255)) or
+                                                  (rarity == "Secret" and Color3.fromRGB(255, 0, 0))
+                            nameLabel.TextStrokeTransparency = 0.5
+                            nameLabel.TextSize = 14
+                            nameLabel.Font = Enum.Font.SourceSansBold
+                            nameLabel.Parent = billboardGui
+                            
+                            local distanceLabel = Instance.new("TextLabel")
+                            distanceLabel.BackgroundTransparency = 1
+                            distanceLabel.Size = UDim2.new(1, 0, 0.5, 0)
+                            distanceLabel.Position = UDim2.new(0, 0, 0.5, 0)
+                            distanceLabel.Text = math.floor(distance) .. " studs"
+                            distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                            distanceLabel.TextStrokeTransparency = 0.5
+                            distanceLabel.TextSize = 12
+                            distanceLabel.Font = Enum.Font.SourceSans
+                            distanceLabel.Parent = billboardGui
+                            
+                            billboardGui.Parent = espFolder
+                        else
+                            -- Update existing ESP
+                            local distanceLabel = existingESP:FindFirstChild("TextLabel", true)
+                            if distanceLabel then
+                                distanceLabel.Text = math.floor(distance) .. " studs"
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Update ESP every second
+spawn(function()
+    while wait(1) do
+        if espSettings.enabled then
+            updateFishESP()
+        end
+    end
+end)
+
+-- Auto fishing system
+local function isFishRarityAcceptable(fishName)
+    if not fishName or not fishData[fishName] then return false end
+    
+    -- If we have a target fish, only accept that fish
+    if autoFishingSettings.targetFish and autoFishingSettings.targetFish ~= "None" then
+        return fishName == autoFishingSettings.targetFish
+    end
+    
+    local fishInfo = fishData[fishName]
+    local rarity = fishInfo.Rarity
+    
+    if not rarity or not rarityRanking[rarity] or not rarityRanking[autoFishingSettings.minRarity] then
+        return false
+    end
+    
+    return rarityRanking[rarity] >= rarityRanking[autoFishingSettings.minRarity]
+end
+
+local function findFishingRemote()
+    -- Common remote names in fishing games
+    local remoteNames = {
+        "Fish", "CastRod", "StartFishing", "Cast", "CastLine", "ThrowLine",
+        "fish", "castRod", "startFishing", "cast", "castLine", "throwLine"
+    }
+    
+    -- Check for remotes in ReplicatedStorage
+    for _, remoteName in pairs(remoteNames) do
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                if obj.Name == remoteName or obj.Name:find(remoteName) then
+                    return obj
+                end
+            end
+        end
+    end
+    
+    -- If we can't find a specific fishing remote, try to find any usable remote
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and
+           (obj.Name:lower():find("fish") or obj.Name:lower():find("rod") or obj.Name:lower():find("cast")) then
+            return obj
+        end
+    end
+    
+    return nil
+end
+
+local function findSellRemote()
+    -- Common sell remote names
+    local remoteNames = {
+        "Sell", "SellFish", "SellAll", "Sell All", "Cash", "Exchange",
+        "sell", "sellFish", "sellAll", "cash", "exchange"
+    }
+    
+    -- Check for remotes in ReplicatedStorage
+    for _, remoteName in pairs(remoteNames) do
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+                if obj.Name == remoteName or obj.Name:find(remoteName) then
+                    return obj
+                end
+            end
+        end
+    end
+    
+    -- If we can't find a specific sell remote, try to find any usable remote
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and
+           (obj.Name:lower():find("sell") or obj.Name:lower():find("cash") or obj.Name:lower():find("money")) then
+            return obj
+        end
+    end
+    
+    return nil
+end
+
+local function sellFish()
+    local sellRemote = findSellRemote()
+    
+    if sellRemote then
+        -- Try to call the remote with various arguments
+        local success = false
+        
+        -- Try without arguments first
+        pcall(function()
+            if sellRemote:IsA("RemoteEvent") then
+                sellRemote:FireServer()
+                success = true
+            elseif sellRemote:IsA("RemoteFunction") then
+                sellRemote:InvokeServer()
+                success = true
+            end
+        end)
+        
+        if not success then
+            -- Try with a boolean argument (common for SellAll)
+            pcall(function()
+                if sellRemote:IsA("RemoteEvent") then
+                    sellRemote:FireServer(true)
+                    success = true
+                elseif sellRemote:IsA("RemoteFunction") then
+                    sellRemote:InvokeServer(true)
+                    success = true
                 end
             end)
         end
-    end)
-end
-
--- Safety cleanup function to reset everything if needed
-local function safeCleanup()
-    controllingBall = false
-    controlledBall = nil
-    moveDirection = Vector3.new(0, 0, 0)
-    
-    pcall(function()
-        if ballControlUI and ballControlUI.Parent then
-            ballControlUI:Destroy()
+        
+        if success then
+            OrionLib:MakeNotification({
+                Name = "Auto Sell",
+                Content = "Successfully sold fish",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Auto Sell Failed",
+                Content = "Found sell remote but failed to sell fish",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
         end
-    end)
-    
-    pcall(function()
-        if toggleButton and toggleButton.Parent then
-            toggleButton.Parent:Destroy()
+    else
+        -- Try to teleport to sell area as fallback
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:lower():find("sell") or obj.Name:lower():find("cash")) and 
+               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                
+                if obj:IsA("BasePart") then
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                else
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                end
+                
+                OrionLib:MakeNotification({
+                    Name = "Auto Sell",
+                    Content = "Teleported to sell area",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+                break
+            end
         end
-    end)
-    
-    globalEnv.BlueLockBallControlActive = false
-end
-
--- Creating UI elements for mobile
--- Check if the player is on a mobile device or wants mobile UI
-local isMobile = UserInputService.TouchEnabled or globalEnv.SkyXConfig.IsMobile
-
-if isMobile then
-    createToggleButton()
-    createNotification("Ball Control", "Script loaded! Click the button to control the ball.", 4)
-else
-    -- Create the toggle button for PC too
-    createToggleButton()
-    createNotification("Ball Control", "Script loaded! Press the button to control the ball.", 4)
-end
-
--- Update loop for ball movement with error handling
-local updateConnection
-updateConnection = RunService.RenderStepped:Connect(function()
-    pcall(function()
-        moveControlledBall()
-        updateUI()
-    end)
-end)
-
--- Handle player leaving
-local function onPlayerRemoving()
-    pcall(function()
-        if updateConnection then 
-            updateConnection:Disconnect()
-        end
-        safeCleanup()
-    end)
-end
-
-Players.PlayerRemoving:Connect(function(player)
-    if player == LocalPlayer then
-        onPlayerRemoving()
     end
-end)
+end
 
--- Handle script termination via chat command
-LocalPlayer.Chatted:Connect(function(msg)
-    if msg:lower() == "/ballcontrol off" or msg:lower() == "/stopball" then
-        onPlayerRemoving()
-        createNotification("Ball Control", "Script has been terminated", 3)
-    end
-end)
+-- Function to start auto fishing
+function startAutoFishing()
+    if not autoFishingSettings.enabled then return end
+    
+    spawn(function()
+        while autoFishingSettings.enabled do
+            -- Try to find the fishing remote
+            local fishingRemote = findFishingRemote()
+            
+            if fishingRemote then
+                -- Try to cast the fishing rod
+                local success = false
+                
+                pcall(function()
+                    if fishingRemote:IsA("RemoteEvent") then
+                        fishingRemote:FireServer()
+                        success = true
+                    elseif fishingRemote:IsA("RemoteFunction") then
+                        fishingRemote:InvokeServer()
+                        success = true
+                    end
+                end)
+                
+                if success then
+                    print("Cast fishing rod")
+                    
+                    -- Wait for a bite
+                    local startTime = os.time()
+                    local fishCaught = false
+                    
+                    while os.time() - startTime < autoFishingSettings.maxFishingTime and not fishCaught and autoFishingSettings.enabled do
+                        -- Check for any indicators of a fish bite
+                        for _, obj in pairs(Player.PlayerGui:GetDescendants()) do
+                            if obj:IsA("TextLabel") or obj:IsA("TextButton") then
+                                if obj.Text:lower():find("catch") or obj.Text:lower():find("reel") then
+                                    fishCaught = true
+                                    break
+                                end
+                            end
+                        end
+                        
+                        -- Also check for any GUI changes indicating a fish
+                        for _, obj in pairs(Player.PlayerGui:GetDescendants()) do
+                            if obj:IsA("Frame") or obj:IsA("ImageLabel") then
+                                if obj.Name:lower():find("fish") or obj.Name:lower():find("catch") or obj.Name:lower():find("bite") then
+                                    if obj.Visible and not obj:FindFirstChild("SkyXChecked") then
+                                        -- Mark this as checked
+                                        local marker = Instance.new("StringValue")
+                                        marker.Name = "SkyXChecked"
+                                        marker.Parent = obj
+                                        
+                                        fishCaught = true
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        
+                        wait(0.1)
+                    end
+                    
+                    if fishCaught and autoFishingSettings.enabled then
+                        -- Try to catch the fish
+                        pcall(function()
+                            -- Simulate clicking the catch button or pressing space
+                            mouse1click()
+                            VirtualUser:CaptureController()
+                            VirtualUser:ClickButton1(Vector2.new(0, 0))
+                            game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                        end)
+                        
+                        -- Wait for the caught fish display
+                        wait(1)
+                        
+                        -- Try to determine what fish was caught
+                        local caughtFish = "Unknown Fish"
+                        
+                        for _, obj in pairs(Player.PlayerGui:GetDescendants()) do
+                            if obj:IsA("TextLabel") and obj.Visible then
+                                for fishName, _ in pairs(fishData) do
+                                    if obj.Text:find(fishName) then
+                                        caughtFish = fishName
+                                        break
+                                    end
+                                end
+                                
+                                if caughtFish ~= "Unknown Fish" then
+                                    break
+                                end
+                            end
+                        end
+                        
+                        -- Check if this fish meets our rarity criteria
+                        local meetsCriteria = isFishRarityAcceptable(caughtFish)
+                        
+                        -- Update stats
+                        autoFishingSettings.fishCaughtCount = autoFishingSettings.fishCaughtCount + 1
+                        
+                        local fishInfo = fishData[caughtFish]
+                        if fishInfo and fishInfo.Rarity and 
+                           (fishInfo.Rarity == "Legendary" or fishInfo.Rarity == "Mythical" or fishInfo.Rarity == "Secret") then
+                            autoFishingSettings.rareCaughtCount = autoFishingSettings.rareCaughtCount + 1
+                        end
+                        
+                        -- Display notification
+                        local rarity = fishInfo and fishInfo.Rarity or "Unknown"
+                        OrionLib:MakeNotification({
+                            Name = "Fish Caught",
+                            Content = "Caught: " .. caughtFish .. " (Rarity: " .. rarity .. ")",
+                            Image = "rbxassetid://4483345998",
+                            Time = 3
+                        })
+                        
+                        -- Auto sell if enabled and fish doesn't meet criteria
+                        if autoFishingSettings.autoSell and 
+                           (not meetsCriteria or 
+                            (not autoFishingSettings.keepLegendaryPlus or 
+                             (fishInfo and fishInfo.Rarity and 
+                              rarityRanking[fishInfo.Rarity] < rarityRanking["Legendary"]))) then
+                            wait(1)
+                            sellFish()
+                        end
+                    end
+                    
+                    -- Wait before casting again
+                    wait(2)
+                else
+                    -- If we failed to cast, wait a bit and try again
+                    wait(5)
+                end
+            else
+                -- If we couldn't find the fishing remote, wait and try again
+                OrionLib:MakeNotification({
+                    Name = "Auto Fishing Error",
+                    Content = "Could not find fishing remote. Make sure you're in a fishing game.",
+                    Image = "rbxassetid://4483345998",
+                    Time = 5
+                })
+                wait(10)
+            end
+        end
+    end)
+end
 
--- Final loading notification
-createNotification("SkyX Hub", "Blue Lock Rivals Ball Control loaded successfully!", 3)
+-- Initial notification
+OrionLib:MakeNotification({
+    Name = "SkyX Hub Loaded",
+    Content = "Fishing Script loaded successfully!",
+    Image = "rbxassetid://4483345998",
+    Time = 5
+})
