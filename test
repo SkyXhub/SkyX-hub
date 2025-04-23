@@ -1,0 +1,1327 @@
+--[[
+    🌊 SkyX Hub - Tower of Hell Script 🌊
+    VERSION 1.2
+    
+    Features:
+    - Speed & Jump Height Modifications
+    - Anti-Fall Damage
+    - Auto-Win Teleport
+    - Checkpoint Teleports
+    - No-Kill Zones Bypass
+    - Item Grabber
+    - Anti-Anti-Cheat Protection
+    - Discord Webhook Integration
+    - Enhanced Mobile Compatibility
+    
+    Ocean Theme UI - Designed for mobile executors like Swift
+    
+    Using Orion Library: https://raw.githubusercontent.com/jensonhirst/Orion/main/source
+]]
+
+-- Global environment setup
+local globalEnv = getgenv and getgenv() or _G
+globalEnv.SkyXConfig = globalEnv.SkyXConfig or {
+    WebhookEnabled = true,
+    DiscordWebhookURL = "https://discord.com/api/webhooks/1364438745067290664/J6ZLEkt_lZtwbQnssigtUr5Uj80fhzQmdH0QoitsSwJr2xgDOjIzl5Kfo1Cr1UuFo-2v",
+    EnableErrorReporting = true,
+    MobileMode = true,
+    Version = "1.2.0",
+    Platform = (syn and "Synapse") or 
+              (KRNL_LOADED and "Krnl") or 
+              (secure_load and "Sentinel") or 
+              (identifyexecutor and identifyexecutor()) or 
+              "Unknown Executor"
+}
+
+-- Check for proper Roblox environment first
+if not game then
+    print("SkyX Tower of Hell Script: Game environment not available")
+    print("This script must be executed in a Roblox game environment")
+    return
+end
+
+-- Check if script is already running
+if globalEnv.TOHScriptLoaded then
+    warn("SkyX TOH Script is already running!")
+    return
+end
+
+-- Block Codex executor users (safely check environment)
+local function isCodex()
+    -- First verify we can safely check the executor
+    if not game then return false end
+    
+    local executorInfo = identifyexecutor and identifyexecutor() or getexecutorname and getexecutorname() or "Unknown"
+    if executorInfo then
+        executorInfo = tostring(executorInfo):lower()
+        if executorInfo:find("codex") then
+            return true
+        end
+    end
+    
+    -- Additional checks for Codex-specific environment variables or functions
+    local env = getgenv and getgenv() or _G
+    if env.is_codex or env.codex or env.Codex then
+        return true
+    end
+    
+    -- Check for Codex UI elements
+    local success, result = pcall(function()
+        local coreGui = game:GetService("CoreGui")
+        return coreGui:FindFirstChild("CodexHub") or coreGui:FindFirstChild("Codex")
+    end)
+    
+    if success and result then
+        return true
+    end
+    
+    return false
+end
+
+-- If Codex is detected, stop execution
+if isCodex() then
+    -- Safely get services
+    local Players = game:GetService("Players")
+    local CoreGui = game:GetService("CoreGui")
+    local TweenService = game:GetService("TweenService")
+    
+    -- Remove any existing SkyX GUIs
+    for _, gui in pairs(CoreGui:GetChildren()) do
+        if gui.Name == "SkyX_AntiCodex" then
+            gui:Destroy()
+        end
+    end
+    
+    -- Create a new GUI
+    local warningGui = Instance.new("ScreenGui")
+    warningGui.Name = "SkyX_AntiCodex"
+    warningGui.Parent = CoreGui
+    warningGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Create background frame
+    local background = Instance.new("Frame")
+    background.Name = "Background"
+    background.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    background.BorderSizePixel = 0
+    background.Position = UDim2.new(0.5, -200, 0.5, -125)
+    background.Size = UDim2.new(0, 400, 0, 250)
+    background.Parent = warningGui
+    background.ClipsDescendants = true
+    
+    -- Add corner radius
+    local cornerRadius = Instance.new("UICorner")
+    cornerRadius.CornerRadius = UDim.new(0, 8)
+    cornerRadius.Parent = background
+    
+    -- Title
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Name = "Title"
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Position = UDim2.new(0, 0, 0, 15)
+    titleLabel.Size = UDim2.new(1, 0, 0, 40)
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.Text = "SkyX - Anti-Codex"
+    titleLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+    titleLabel.TextSize = 24
+    titleLabel.Parent = background
+    
+    -- Message
+    local messageLabel = Instance.new("TextLabel")
+    messageLabel.Name = "Message"
+    messageLabel.BackgroundTransparency = 1
+    messageLabel.Position = UDim2.new(0, 20, 0, 70)
+    messageLabel.Size = UDim2.new(1, -40, 0, 100)
+    messageLabel.Font = Enum.Font.Gotham
+    messageLabel.Text = "CODEX DETECTED\n\nFUCK CODEX!\n\nUse a better executor like Fluxus, Electron or Swift."
+    messageLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    messageLabel.TextSize = 18
+    messageLabel.Parent = background
+    
+    -- Close button
+    local closeButton = Instance.new("TextButton")
+    closeButton.Name = "CloseButton"
+    closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+    closeButton.Position = UDim2.new(0.5, -75, 1, -60)
+    closeButton.Size = UDim2.new(0, 150, 0, 40)
+    closeButton.Font = Enum.Font.GothamBold
+    closeButton.Text = "CLOSE"
+    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    closeButton.TextSize = 16
+    closeButton.Parent = background
+    
+    -- Add corner radius to button
+    local buttonCorner = Instance.new("UICorner")
+    buttonCorner.CornerRadius = UDim.new(0, 6)
+    buttonCorner.Parent = closeButton
+    
+    -- Button click event
+    closeButton.MouseButton1Click:Connect(function()
+        warningGui:Destroy()
+    end)
+    
+    -- Animation effect
+    background.Position = UDim2.new(0.5, -200, 0, -250)
+    local tweenInfo = TweenInfo.new(0.6, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out)
+    local tween = TweenService:Create(background, tweenInfo, {Position = UDim2.new(0.5, -200, 0.5, -125)})
+    tween:Play()
+    
+    -- Exit script execution
+    return
+end
+
+-- Check if it's the correct game
+if game.PlaceId ~= 1962086868 and game.PlaceId ~= 3582763398 then
+    warn("This script is only for Tower of Hell! Current PlaceId:", game.PlaceId)
+    return
+end
+
+-- Mark as running
+getgenv().TOHScriptLoaded = true
+
+-- Add webhook tracking functionality
+local function sendWebhookData()
+    -- Use pcall to ensure this doesn't crash the script
+    pcall(function()
+        if not game or not game:GetService("Players") or not game:GetService("HttpService") then return end
+        
+        local HttpService = game:GetService("HttpService")
+        local player = game:GetService("Players").LocalPlayer
+        
+        if not player then return end
+        
+        -- Attempt to get game info
+        local gameId = game.PlaceId
+        local gameName = "Tower of Hell"
+        
+        -- Prepare webhook data
+        local webhookData = {
+            username = "SkyX Hub Execution Tracker",
+            avatar_url = "https://i.imgur.com/4M34hi2.png",
+            embeds = {
+                {
+                    title = "Tower of Hell Script Executed",
+                    description = "The Tower of Hell script has been executed by a user",
+                    color = 5814783, -- Blue color
+                    fields = {
+                        {
+                            name = "Game",
+                            value = gameName,
+                            inline = true
+                        },
+                        {
+                            name = "Player",
+                            value = player.Name,
+                            inline = true
+                        },
+                        {
+                            name = "User ID",
+                            value = tostring(player.UserId),
+                            inline = true
+                        },
+                        {
+                            name = "Executor",
+                            value = globalEnv.SkyXConfig.Platform,
+                            inline = true
+                        },
+                        {
+                            name = "Place ID",
+                            value = tostring(gameId),
+                            inline = true
+                        }
+                    },
+                    footer = {
+                        text = "SkyX Hub • " .. os.date("%Y-%m-%d %H:%M:%S")
+                    }
+                }
+            }
+        }
+        
+        -- Send to custom SkyX webhook API
+        local success, response = pcall(function()
+            return HttpService:PostAsync("https://skyxhub.replit.app/api/webhooks/execute", HttpService:JSONEncode({
+                executorName = globalEnv.SkyXConfig.Platform,
+                gameId = tostring(gameId),
+                gameName = gameName,
+                userId = tostring(player.UserId),
+                username = player.Name,
+                scriptName = "TowerOfHell_Script.lua",
+                clientInfo = "Platform: " .. globalEnv.SkyXConfig.Platform .. " | Game: " .. gameName .. " | Place ID: " .. gameId
+            }), Enum.HttpContentType.ApplicationJson)
+        end)
+        
+        -- Also try direct Discord webhook if available
+        if globalEnv.SkyXConfig.WebhookEnabled and globalEnv.SkyXConfig.DiscordWebhookURL and 
+           globalEnv.SkyXConfig.DiscordWebhookURL ~= "https://discord.com/api/webhooks/1234567890/your-webhook-here" then
+            
+            pcall(function()
+                HttpService:PostAsync(
+                    globalEnv.SkyXConfig.DiscordWebhookURL,
+                    HttpService:JSONEncode(webhookData),
+                    Enum.HttpContentType.ApplicationJson,
+                    false
+                )
+            end)
+        end
+    end)
+end
+
+-- Start webhook tracking in a separate thread
+spawn(function()
+    -- Wait a moment for the script to initialize
+    wait(2)
+    sendWebhookData()
+end)
+
+-- Services
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Local Player
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Variables for features
+getgenv().Noclip = false
+getgenv().InfiniteJump = false
+getgenv().AutoWin = false
+getgenv().AntiKillParts = false
+getgenv().GrabAllItems = false
+getgenv().SpeedValue = 16
+getgenv().JumpValue = 50
+
+-- Function to update character references when character changes
+LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
+    Character = NewCharacter
+    Humanoid = Character:WaitForChild("Humanoid")
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    
+    -- Re-apply settings after character respawn
+    if getgenv().SpeedValue then
+        Humanoid.WalkSpeed = getgenv().SpeedValue
+    end
+    
+    if getgenv().JumpValue then
+        Humanoid.JumpPower = getgenv().JumpValue
+    end
+end)
+
+-- Loading the Orion Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
+
+-- Create a safe notification function that won't error on mobile
+local function safeNotification(title, content, image, time)
+    pcall(function()
+        OrionLib:MakeNotification({
+            Name = title or "SkyX",
+            Content = content or "Notification",
+            Image = image or "rbxassetid://4483345998",
+            Time = time or 3
+        })
+    end)
+end
+
+-- Create a Window with mobile-friendly settings
+local Window = OrionLib:MakeWindow({
+    Name = "🌊 SkyX Hub - Tower of Hell 🌊", 
+    HidePremium = false, 
+    SaveConfig = true, 
+    ConfigFolder = "SkyXHub",
+    IntroEnabled = true,
+    IntroText = "SkyX Hub - Premium",
+    IntroIcon = "rbxassetid://10618644218",
+    Icon = "rbxassetid://10618644218",
+    CloseCallback = function()
+        -- Clean up when UI is closed
+        pcall(function()
+            getgenv().Noclip = false
+            getgenv().InfiniteJump = false
+            getgenv().AutoWin = false
+            getgenv().AntiKillParts = false
+            getgenv().GrabAllItems = false
+            
+            print("SkyX Hub closed - all features disabled")
+        end)
+    end
+})
+
+-- Function to safely create UI elements with error handling
+local function safeCreateTab(name, icon, premiumOnly)
+    local success, tab = pcall(function()
+        return Window:MakeTab({
+            Name = name,
+            Icon = icon or "rbxassetid://4483345998",
+            PremiumOnly = premiumOnly or false
+        })
+    end)
+    
+    if success and tab then
+        return tab
+    else
+        print("Failed to create tab: " .. name)
+        -- Create dummy tab with all required functions
+        return {
+            Name = name,
+            AddToggle = function() return {} end,
+            AddSlider = function() return {} end,
+            AddButton = function() return {} end,
+            AddDropdown = function() return {} end,
+            AddSection = function() return {
+                AddToggle = function() return {} end,
+                AddSlider = function() return {} end,
+                AddButton = function() return {} end,
+                AddDropdown = function() return {} end,
+                Name = "Dummy Section"
+            } end
+        }
+    end
+end
+
+-- Create Tabs with error handling
+local MainTab = safeCreateTab("Main", "rbxassetid://4483345998", false)
+local MovementTab = safeCreateTab("Movement", "rbxassetid://4483345998", false)
+local TeleportTab = safeCreateTab("Teleport", "rbxassetid://4483345998", false)
+local ItemsTab = safeCreateTab("Items", "rbxassetid://4483345998", false)
+local SettingsTab = safeCreateTab("Settings", "rbxassetid://4483345998", false)
+
+-- Function to get the current tower section
+local function getCurrentTower()
+    for _, v in pairs(Workspace:GetChildren()) do
+        if v.Name == "Tower" then
+            return v
+        end
+    end
+    return nil
+end
+
+-- Function to find the tower's top (finish area)
+local function getFinishPart()
+    local tower = getCurrentTower()
+    if not tower then return nil end
+    
+    local finishPart = nil
+    
+    -- Method 1: Find by specific name
+    finishPart = tower:FindFirstChild("Finish") or tower:FindFirstChild("FinishPart") or tower:FindFirstChild("Win")
+    if finishPart and finishPart:IsA("BasePart") then
+        return finishPart
+    end
+    
+    -- Method 2: Find by position (highest y position)
+    local highestY = -math.huge
+    local highestPart = nil
+    
+    for _, v in pairs(tower:GetDescendants()) do
+        if v:IsA("BasePart") and v.Position.Y > highestY then
+            highestY = v.Position.Y
+            highestPart = v
+        end
+    end
+    
+    if highestPart then
+        return highestPart
+    end
+    
+    return nil
+end
+
+-- Function to find kill parts (hazards)
+local function getKillParts()
+    local tower = getCurrentTower()
+    local killParts = {}
+    
+    if tower then
+        for _, v in pairs(tower:GetDescendants()) do
+            if v:IsA("BasePart") and (v.Name == "KillPart" or v.Name:find("Kill") or v.Name:find("Lava") or v.Name:find("Acid")) then
+                table.insert(killParts, v)
+            end
+        end
+    end
+    
+    return killParts
+end
+
+-- Function to teleport to the top of the tower
+local function teleportToTop()
+    local finishPart = getFinishPart()
+    if finishPart and Character and HumanoidRootPart then
+        HumanoidRootPart.CFrame = finishPart.CFrame + Vector3.new(0, 3, 0)
+        
+        OrionLib:MakeNotification({
+            Name = "SkyX",
+            Content = "Teleported to the top!",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    else
+        OrionLib:MakeNotification({
+            Name = "SkyX",
+            Content = "Couldn't find the finish part!",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+end
+
+-- Function to get all checkpoints
+local function getCheckpoints()
+    local tower = getCurrentTower()
+    local checkpoints = {}
+    
+    if tower then
+        -- Search by name patterns
+        for _, v in pairs(tower:GetDescendants()) do
+            if v:IsA("BasePart") and (
+                v.Name:lower():find("checkpoint") or 
+                v.Name:lower():find("check") or 
+                v.Name:lower():find("platform") or 
+                v.Name:lower():find("stage")
+            ) then
+                table.insert(checkpoints, v)
+            end
+        end
+        
+        -- If no explicit checkpoints found, find platforms by Y height intervals
+        if #checkpoints == 0 then
+            local platforms = {}
+            for _, v in pairs(tower:GetDescendants()) do
+                if v:IsA("BasePart") and v.Size.X > 5 and v.Size.Z > 5 then
+                    table.insert(platforms, v)
+                end
+            end
+            
+            -- Sort by Y position
+            table.sort(platforms, function(a, b)
+                return a.Position.Y < b.Position.Y
+            end)
+            
+            checkpoints = platforms
+        end
+    end
+    
+    -- Sort by Y position
+    table.sort(checkpoints, function(a, b)
+        return a.Position.Y < b.Position.Y
+    end)
+    
+    return checkpoints
+end
+
+-- Function to find all collectable items
+local function getCollectableItems()
+    local collectables = {}
+    
+    -- Method 1: Find by common properties first
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("Tool") or 
+           (v:IsA("Model") and v:FindFirstChildOfClass("Tool")) or
+           v.Name:lower():find("item") or 
+           v.Name:lower():find("collectable") or
+           v.Name:lower():find("gear") or
+           v.Name:lower():find("power") or
+           v.Name:lower():find("weapon") or
+           v.Name:lower():find("pickup") then
+            table.insert(collectables, v)
+        end
+    end
+    
+    -- Method 2: Look for specific Tower of Hell items by known names
+    local knownTOHItems = {
+        "Speed Coil", "Gravity Coil", "Fusion Coil", "Trowel", 
+        "Hourglass", "Helicopter", "Jetpack", "Teleport", "ForceField",
+        "Hook", "Shield", "Balloon", "Invisibility", "Double Jump"
+    }
+    
+    for _, itemName in ipairs(knownTOHItems) do
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v.Name == itemName or v.Name:find(itemName) then
+                -- Check if it's not already in our list
+                local found = false
+                for _, existing in pairs(collectables) do
+                    if existing == v then
+                        found = true
+                        break
+                    end
+                end
+                
+                if not found then
+                    table.insert(collectables, v)
+                end
+            end
+        end
+    end
+    
+    -- Method 3: Look for specific visual properties common to items
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if not table.find(collectables, v) and v:IsA("BasePart") then
+            -- Items often glow or have bright colors
+            if v.Material == Enum.Material.Neon or v.Transparency < 1 and v.Transparency > 0 then
+                -- Items are usually smaller and not thin like platforms
+                if v.Size.X < 4 and v.Size.Y < 4 and v.Size.Z < 4 and v.Size.X > 0.5 and v.Size.Y > 0.5 and v.Size.Z > 0.5 then
+                    table.insert(collectables, v)
+                end
+            end
+        end
+    end
+    
+    return collectables
+end
+
+-- Main Tab
+MainTab:AddSection({
+    Name = "Information"
+})
+
+MainTab:AddParagraph("SkyX Hub - Tower of Hell", 
+    "Created by SkyX Development\nVersion 1.0\n\nIf you encounter any issues, please report them to our Discord server.")
+
+MainTab:AddSection({
+    Name = "Main Features"
+})
+
+MainTab:AddToggle({
+    Name = "Anti-Fall Damage",
+    Default = false,
+    Flag = "antiFallToggle",
+    Save = true,
+    Callback = function(Value)
+        getgenv().AntiFallDamage = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Anti-Fall Damage Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create a connection to prevent fall damage
+            if getgenv().AntiFallConnection then
+                getgenv().AntiFallConnection:Disconnect()
+            end
+            
+            getgenv().AntiFallConnection = RunService.Heartbeat:Connect(function()
+                if Character and Character:FindFirstChild("Humanoid") then
+                    Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                    Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Anti-Fall Damage Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Disconnect the connection
+            if getgenv().AntiFallConnection then
+                getgenv().AntiFallConnection:Disconnect()
+                getgenv().AntiFallConnection = nil
+            end
+            
+            -- Reset the states
+            if Character and Character:FindFirstChild("Humanoid") then
+                Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+                Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+            end
+        end
+    end
+})
+
+MainTab:AddToggle({
+    Name = "Anti-Kill Parts",
+    Default = false,
+    Flag = "antiKillPartsToggle",
+    Save = true,
+    Callback = function(Value)
+        getgenv().AntiKillParts = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Anti-Kill Parts Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create a connection to handle kill parts
+            if getgenv().AntiKillPartsConnection then
+                getgenv().AntiKillPartsConnection:Disconnect()
+            end
+            
+            getgenv().AntiKillPartsConnection = RunService.Heartbeat:Connect(function()
+                local killParts = getKillParts()
+                for _, part in pairs(killParts) do
+                    part.CanCollide = false
+                    part.CanTouch = false
+                    part.CanQuery = false
+                    
+                    -- Make them transparent (optional)
+                    if not part:GetAttribute("SkyXModified") then
+                        part:SetAttribute("SkyXModified", true)
+                        part.Transparency = 0.7
+                    end
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Anti-Kill Parts Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Disconnect the connection
+            if getgenv().AntiKillPartsConnection then
+                getgenv().AntiKillPartsConnection:Disconnect()
+                getgenv().AntiKillPartsConnection = nil
+            end
+            
+            -- Reset kill parts to original state
+            local killParts = getKillParts()
+            for _, part in pairs(killParts) do
+                if part:GetAttribute("SkyXModified") then
+                    part.CanCollide = true
+                    part.CanTouch = true
+                    part.CanQuery = true
+                    part.Transparency = 0
+                    part:SetAttribute("SkyXModified", nil)
+                end
+            end
+        end
+    end
+})
+
+MainTab:AddToggle({
+    Name = "Auto-Win",
+    Default = false,
+    Flag = "autoWinToggle",
+    Save = true,
+    Callback = function(Value)
+        getgenv().AutoWin = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Auto-Win Enabled! Teleporting to the top...",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Teleport to the top
+            teleportToTop()
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Auto-Win Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Movement Tab
+MovementTab:AddSection({
+    Name = "Movement Modifications"
+})
+
+MovementTab:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 200,
+    Default = 16,
+    Color = Color3.fromRGB(0, 162, 255),
+    Increment = 1,
+    Flag = "walkSpeedSlider",
+    Save = true,
+    Callback = function(Value)
+        getgenv().SpeedValue = Value
+        
+        if Character and Character:FindFirstChild("Humanoid") then
+            Character.Humanoid.WalkSpeed = Value
+        end
+    end    
+})
+
+MovementTab:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 300,
+    Default = 50,
+    Color = Color3.fromRGB(0, 162, 255),
+    Increment = 5,
+    Flag = "jumpPowerSlider",
+    Save = true,
+    Callback = function(Value)
+        getgenv().JumpValue = Value
+        
+        if Character and Character:FindFirstChild("Humanoid") then
+            Character.Humanoid.JumpPower = Value
+            -- Also adjust jump height for newer Roblox versions
+            Character.Humanoid.JumpHeight = Value * 0.5
+        end
+    end    
+})
+
+MovementTab:AddToggle({
+    Name = "No-Clip",
+    Default = false,
+    Flag = "noclipToggle",
+    Save = true,
+    Callback = function(Value)
+        getgenv().Noclip = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "No-Clip Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create a connection to handle noclip
+            if getgenv().NoclipConnection then
+                getgenv().NoclipConnection:Disconnect()
+            end
+            
+            getgenv().NoclipConnection = RunService.Stepped:Connect(function()
+                if Character then
+                    for _, part in pairs(Character:GetDescendants()) do
+                        if part:IsA("BasePart") and part.CanCollide then
+                            part.CanCollide = false
+                        end
+                    end
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "No-Clip Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Disconnect the connection
+            if getgenv().NoclipConnection then
+                getgenv().NoclipConnection:Disconnect()
+                getgenv().NoclipConnection = nil
+            end
+            
+            -- Reset collision
+            if Character then
+                for _, part in pairs(Character:GetDescendants()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        part.CanCollide = true
+                    end
+                end
+            end
+        end
+    end
+})
+
+MovementTab:AddToggle({
+    Name = "Infinite Jump",
+    Default = false,
+    Flag = "infiniteJumpToggle",
+    Save = true,
+    Callback = function(Value)
+        getgenv().InfiniteJump = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Infinite Jump Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create a connection for infinite jump
+            if getgenv().InfiniteJumpConnection then
+                getgenv().InfiniteJumpConnection:Disconnect()
+            end
+            
+            getgenv().InfiniteJumpConnection = UserInputService.JumpRequest:Connect(function()
+                if Character and Character:FindFirstChild("Humanoid") then
+                    Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Infinite Jump Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Disconnect the connection
+            if getgenv().InfiniteJumpConnection then
+                getgenv().InfiniteJumpConnection:Disconnect()
+                getgenv().InfiniteJumpConnection = nil
+            end
+        end
+    end
+})
+
+-- Teleport Tab
+TeleportTab:AddSection({
+    Name = "Teleport Options"
+})
+
+TeleportTab:AddButton({
+    Name = "Teleport to Top",
+    Callback = function()
+        teleportToTop()
+    end
+})
+
+TeleportTab:AddButton({
+    Name = "Teleport to Start",
+    Callback = function()
+        -- Find the start part
+        local tower = getCurrentTower()
+        
+        if tower then
+            -- Method 1: Find by name
+            local startPart = tower:FindFirstChild("Start") or tower:FindFirstChild("StartPart") or tower:FindFirstChild("Spawn")
+            
+            -- Method 2: Find by position (lowest y position)
+            if not startPart then
+                local lowestY = math.huge
+                local lowestPart = nil
+                
+                for _, v in pairs(tower:GetDescendants()) do
+                    if v:IsA("BasePart") and v.Position.Y < lowestY then
+                        lowestY = v.Position.Y
+                        lowestPart = v
+                    end
+                end
+                
+                startPart = lowestPart
+            end
+            
+            if startPart and Character and HumanoidRootPart then
+                HumanoidRootPart.CFrame = startPart.CFrame + Vector3.new(0, 3, 0)
+                
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Teleported to the start!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "SkyX",
+                    Content = "Couldn't find the start part!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Couldn't find the tower!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Dynamically populate checkpoints
+TeleportTab:AddButton({
+    Name = "Refresh Checkpoints",
+    Callback = function()
+        -- Get all checkpoints
+        local checkpoints = getCheckpoints()
+        
+        -- Clear existing checkpoint buttons
+        for _, element in pairs(TeleportTab.Elements) do
+            if element.Type == "Button" and element.Name:find("Checkpoint") then
+                element:Remove()
+            end
+        end
+        
+        -- Create buttons for each checkpoint
+        for i, checkpoint in ipairs(checkpoints) do
+            TeleportTab:AddButton({
+                Name = "Checkpoint " .. i,
+                Callback = function()
+                    if Character and HumanoidRootPart then
+                        HumanoidRootPart.CFrame = checkpoint.CFrame + Vector3.new(0, 3, 0)
+                        
+                        OrionLib:MakeNotification({
+                            Name = "SkyX",
+                            Content = "Teleported to Checkpoint " .. i,
+                            Image = "rbxassetid://4483345998",
+                            Time = 3
+                        })
+                    end
+                end
+            })
+        end
+        
+        OrionLib:MakeNotification({
+            Name = "SkyX",
+            Content = "Found " .. #checkpoints .. " checkpoints!",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+TeleportTab:AddSection({
+    Name = "Advanced Teleport Features"
+})
+
+TeleportTab:AddButton({
+    Name = "⭐ Create Safe Path to Top ⭐",
+    Callback = function()
+        -- This is a premium feature that creates a safe path to the top by generating platforms
+        local tower = getCurrentTower()
+        if not tower then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Tower not found!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            return
+        end
+        
+        -- Find the finish part to determine the top
+        local finishPart = getFinishPart()
+        if not finishPart then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Could not find the top of the tower!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            return
+        end
+        
+        -- Get player position
+        local playerPos = Character.HumanoidRootPart.Position
+        
+        -- Create a safe path with platforms every 20 studs
+        local height = finishPart.Position.Y - playerPos.Y
+        local steps = math.ceil(height / 20)
+        
+        OrionLib:MakeNotification({
+            Name = "SkyX",
+            Content = "Creating safe path to the top... " .. steps .. " steps",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+        
+        -- Start creating the path
+        for i = 1, steps do
+            -- Calculate the position for this platform
+            local stepHeight = playerPos.Y + (i * 20)
+            local stepPosition = Vector3.new(playerPos.X, stepHeight, playerPos.Z)
+            
+            -- Create transparent platform (only visible to the player)
+            spawn(function()
+                -- Check for obstacles and adjust position if needed
+                local success, obstaclePos = pcall(function()
+                    -- Raycast to detect obstacles
+                    local rayParams = RaycastParams.new()
+                    rayParams.FilterDescendantsInstances = {Character}
+                    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+                    
+                    local rayOrigin = Vector3.new(stepPosition.X, stepPosition.Y - 10, stepPosition.Z)
+                    local rayDirection = Vector3.new(0, 20, 0)
+                    local rayResult = workspace:Raycast(rayOrigin, rayDirection, rayParams)
+                    
+                    if rayResult and rayResult.Instance and (rayResult.Instance.Name:find("Kill") or rayResult.Instance:GetAttribute("SkyXModified")) then
+                        -- Found an obstacle, adjust position
+                        return rayResult.Position + Vector3.new(5, 0, 5)
+                    end
+                    
+                    return stepPosition
+                end)
+                
+                -- Use adjusted position or default
+                local platformPosition = success and obstaclePos or stepPosition
+                
+                -- Create local platform for player only
+                local platform = Instance.new("Part")
+                platform.Size = Vector3.new(6, 0.5, 6)
+                platform.Anchored = true
+                platform.CanCollide = true
+                platform.CanTouch = true
+                platform.Transparency = 0.7
+                platform.Material = Enum.Material.ForceField
+                platform.Color = Color3.fromRGB(0, 162, 255)
+                platform.Position = platformPosition
+                platform.Parent = workspace
+                
+                -- Add visual effect
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = Color3.fromRGB(0, 162, 255)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.FillTransparency = 0.5
+                highlight.OutlineTransparency = 0.3
+                highlight.Parent = platform
+                
+                -- Add to cleanup list
+                if not getgenv().SafePathParts then
+                    getgenv().SafePathParts = {}
+                end
+                table.insert(getgenv().SafePathParts, platform)
+                
+                -- Destroy after 60 seconds
+                game:GetService("Debris"):AddItem(platform, 60)
+            end)
+            
+            -- Small delay to avoid lag
+            wait(0.1)
+        end
+        
+        OrionLib:MakeNotification({
+            Name = "SkyX",
+            Content = "Safe path created! Path will remain for 60 seconds",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+})
+
+TeleportTab:AddButton({
+    Name = "Clear Safe Path Platforms",
+    Callback = function()
+        if getgenv().SafePathParts then
+            for _, platform in pairs(getgenv().SafePathParts) do
+                if platform and platform.Parent then
+                    platform:Destroy()
+                end
+            end
+            getgenv().SafePathParts = {}
+            
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Cleared all safe path platforms",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "No safe path platforms to clear",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Items Tab
+ItemsTab:AddSection({
+    Name = "Items"
+})
+
+ItemsTab:AddToggle({
+    Name = "Grab All Items",
+    Default = false,
+    Flag = "grabItemsToggle",
+    Save = true,
+    Callback = function(Value)
+        getgenv().GrabAllItems = Value
+        
+        if Value then
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Grab All Items Enabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Create a connection to grab items
+            if getgenv().GrabItemsConnection then
+                getgenv().GrabItemsConnection:Disconnect()
+            end
+            
+            getgenv().GrabItemsConnection = RunService.Heartbeat:Connect(function()
+                local collectables = getCollectableItems()
+                
+                for _, collectable in pairs(collectables) do
+                    -- Handle different item types
+                    if collectable:IsA("Tool") and Character then
+                        collectable.Handle.CFrame = HumanoidRootPart.CFrame
+                    elseif collectable:IsA("Model") then
+                        local primaryPart = collectable.PrimaryPart or collectable:FindFirstChildWhichIsA("BasePart")
+                        if primaryPart and Character then
+                            primaryPart.CFrame = HumanoidRootPart.CFrame
+                        end
+                    end
+                end
+            end)
+        else
+            OrionLib:MakeNotification({
+                Name = "SkyX",
+                Content = "Grab All Items Disabled!",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+            
+            -- Disconnect the connection
+            if getgenv().GrabItemsConnection then
+                getgenv().GrabItemsConnection:Disconnect()
+                getgenv().GrabItemsConnection = nil
+            end
+        end
+    end
+})
+
+ItemsTab:AddButton({
+    Name = "Get All Items Once",
+    Callback = function()
+        local collectables = getCollectableItems()
+        local count = 0
+        
+        for _, collectable in pairs(collectables) do
+            -- Handle different item types
+            if collectable:IsA("Tool") and Character then
+                collectable.Handle.CFrame = HumanoidRootPart.CFrame
+                count = count + 1
+            elseif collectable:IsA("Model") then
+                local primaryPart = collectable.PrimaryPart or collectable:FindFirstChildWhichIsA("BasePart")
+                if primaryPart and Character then
+                    primaryPart.CFrame = HumanoidRootPart.CFrame
+                    count = count + 1
+                end
+            end
+        end
+        
+        OrionLib:MakeNotification({
+            Name = "SkyX",
+            Content = "Collected " .. count .. " items!",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+-- Anti-Cheat Bypass
+local function setupAntiCheatBypass()
+    -- Hook critical anti-cheat functions
+    local gmt = getrawmetatable(game)
+    setreadonly(gmt, false)
+    local oldNamecall = gmt.__namecall
+    
+    gmt.__namecall = newcclosure(function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        
+        -- Block anti-cheat remote events
+        if method == "FireServer" or method == "InvokeServer" then
+            local namecallString = tostring(self)
+            if namecallString:lower():find("cheat") or 
+               namecallString:lower():find("exploit") or 
+               namecallString:lower():find("check") or
+               namecallString:lower():find("violation") then
+                return
+            end
+        end
+        
+        return oldNamecall(self, ...)
+    end)
+    setreadonly(gmt, true)
+    
+    -- Modify default character values to avoid trip-wires
+    local mt = getrawmetatable(game)
+    local old = mt.__index
+    setreadonly(mt, false)
+    
+    mt.__index = newcclosure(function(t, k)
+        if t:IsA("Humanoid") and 
+          (k == "WalkSpeed" or k == "JumpPower" or k == "JumpHeight" or k == "HipHeight") then
+            if k == "WalkSpeed" then
+                return 16
+            elseif k == "JumpPower" then
+                return 50
+            elseif k == "JumpHeight" then
+                return 7.2
+            elseif k == "HipHeight" then
+                return 0
+            end
+        end
+        return old(t, k)
+    end)
+    setreadonly(mt, true)
+    
+    -- Disable known anti-exploit scripts
+    for _, v in pairs(game:GetDescendants()) do
+        if v:IsA("Script") and (
+            v.Name:lower():find("anti") or 
+            v.Name:lower():find("cheat") or 
+            v.Name:lower():find("exploit") or
+            v.Name:lower():find("check")) 
+        then
+            pcall(function()
+                v.Disabled = true
+            end)
+        end
+    end
+    
+    print("Anti-Cheat Bypass Enabled")
+end
+
+-- Call the anti-cheat bypass function
+setupAntiCheatBypass()
+
+-- Initial notification
+OrionLib:MakeNotification({
+    Name = "SkyX Hub Loaded!",
+    Content = "Tower of Hell script has been successfully loaded!",
+    Image = "rbxassetid://4483345998",
+    Time = 5
+})
+
+-- When the script ends, clean up all connections
+local function cleanupConnections()
+    if getgenv().NoclipConnection then
+        getgenv().NoclipConnection:Disconnect()
+        getgenv().NoclipConnection = nil
+    end
+    
+    if getgenv().InfiniteJumpConnection then
+        getgenv().InfiniteJumpConnection:Disconnect()
+        getgenv().InfiniteJumpConnection = nil
+    end
+    
+    if getgenv().AntiKillPartsConnection then
+        getgenv().AntiKillPartsConnection:Disconnect()
+        getgenv().AntiKillPartsConnection = nil
+    end
+    
+    if getgenv().GrabItemsConnection then
+        getgenv().GrabItemsConnection:Disconnect()
+        getgenv().GrabItemsConnection = nil
+    end
+    
+    if getgenv().AntiFallConnection then
+        getgenv().AntiFallConnection:Disconnect()
+        getgenv().AntiFallConnection = nil
+    end
+end
+
+-- Connect cleanup function to game close event
+game:BindToClose(function()
+    cleanupConnections()
+    getgenv().TOHScriptLoaded = false
+    
+    -- Reset the character to normal state
+    if Character and Character:FindFirstChild("Humanoid") then
+        Character.Humanoid.WalkSpeed = 16
+        Character.Humanoid.JumpPower = 50
+    end
+    
+    print("SkyX Hub - TOH Script cleanup completed!")
+end)
