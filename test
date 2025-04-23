@@ -1,6 +1,6 @@
 --[[
     🌊 SkyX Hub - Fishing Simulator Script 🌊
-    Version 1.0.0
+    FIXED VERSION 1.0.1
     
     Features:
     - Auto Fishing (Smart fish catching)
@@ -29,7 +29,7 @@ globalEnv.SkyXFishingScriptLoaded = true
 -- Set up SkyX global environment if not already defined
 if not globalEnv.SkyX then
     globalEnv.SkyX = {
-        Version = "1.0.0",
+        Version = "1.0.1",
         LoadTime = os.time(),
         Platform = (syn and "Synapse") or 
                   (KRNL_LOADED and "Krnl") or 
@@ -130,8 +130,8 @@ local function sendWebhookData()
     end)
 end
 
--- Send webhook notification
-sendWebhookData()
+-- Try to send webhook notification
+pcall(sendWebhookData)
 
 -- Game services
 local Players = game:GetService("Players")
@@ -157,10 +157,35 @@ local function setupAntiAFK()
 end
 
 -- Setup anti-AFK
-setupAntiAFK()
+pcall(setupAntiAFK)
 
--- Initialize UI Library (Orion)
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+--[[ Load UI Library - Try multiple libraries with fallbacks ]]
+local OrionLib
+
+-- Try to load Orion Library
+local success, result = pcall(function()
+    return loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+end)
+
+if not success then
+    -- Try to load another UI library as fallback
+    success, result = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/xHeptc/Kavo-UI-Library/main/source.lua"))()
+    end)
+    
+    if success then
+        -- Switch to Kavo UI mode
+        print("Using Kavo UI as fallback")
+        globalEnv.SkyXUIMode = "Kavo"
+    else
+        -- Last resort - Simplified UI
+        warn("Could not load any UI library, using simplified UI")
+        globalEnv.SkyXUIMode = "Simple"
+    end
+else
+    OrionLib = result
+    globalEnv.SkyXUIMode = "Orion"
+end
 
 -- Fish data from game
 local fishData = {}
@@ -168,8 +193,6 @@ local fishPools = {}
 
 -- Try to get the fish data from the game
 pcall(function()
-    local animations = ReplicatedStorage:WaitForChild("resources"):WaitForChild("animations"):WaitForChild("fish")
-    
     -- Check if there's a fish module in ReplicatedStorage
     for _, module in pairs(ReplicatedStorage:GetDescendants()) do
         if module:IsA("ModuleScript") and (module.Name:find("Fish") or module.Name:find("fish")) then
@@ -374,597 +397,89 @@ local autoFishingSettings = {
     rareCaughtCount = 0
 }
 
--- Create the main window
-local Window = OrionLib:MakeWindow({
-    Name = "SkyX Hub | Fishing Simulator", 
-    HidePremium = false, 
-    SaveConfig = true, 
-    ConfigFolder = "SkyXHub",
-    IntroEnabled = false
-})
-
--- Add tabs
-local MainTab = Window:MakeTab({
-    Name = "Auto Fish",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-local TeleportTab = Window:MakeTab({
-    Name = "Teleport",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-local ESPTab = Window:MakeTab({
-    Name = "ESP",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-local StatsTab = Window:MakeTab({
-    Name = "Stats",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-local SettingsTab = Window:MakeTab({
-    Name = "Settings",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Main tab
-MainTab:AddToggle({
-    Name = "Auto Fishing",
-    Default = false,
-    Callback = function(Value)
-        autoFishingSettings.enabled = Value
+-- Function to create a simplified notification system
+local function createNotification(title, text, duration)
+    pcall(function()
+        -- Create a ScreenGui for the notification
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "SkyXFishingNotification"
         
-        if Value then
-            OrionLib:MakeNotification({
-                Name = "Auto Fishing Enabled",
-                Content = "Auto fishing started with minimum rarity: " .. autoFishingSettings.minRarity,
-                Image = "rbxassetid://4483345998",
-                Time = 5
-            })
+        -- Try to parent it to the PlayerGui
+        pcall(function() 
+            screenGui.Parent = Player:WaitForChild("PlayerGui")
+        end)
+        
+        -- If that fails, try CoreGui
+        if not screenGui.Parent then
+            pcall(function()
+                screenGui.Parent = game:GetService("CoreGui")
+            end)
+        end
+        
+        -- Create main frame
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 250, 0, 100)
+        frame.Position = UDim2.new(0.5, -125, 0.1, 0)
+        frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        frame.BackgroundTransparency = 0.2
+        frame.BorderSizePixel = 0
+        frame.Parent = screenGui
+        
+        -- Add corner radius
+        local cornerRadius = Instance.new("UICorner")
+        cornerRadius.CornerRadius = UDim.new(0, 10)
+        cornerRadius.Parent = frame
+        
+        -- Title label
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(1, 0, 0.3, 0)
+        titleLabel.Position = UDim2.new(0, 0, 0, 0)
+        titleLabel.Text = title
+        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.TextSize = 16
+        titleLabel.Parent = frame
+        
+        -- Message label
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, -20, 0.7, -10)
+        textLabel.Position = UDim2.new(0, 10, 0.3, 0)
+        textLabel.Text = text
+        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Font = Enum.Font.Gotham
+        textLabel.TextSize = 14
+        textLabel.TextWrapped = true
+        textLabel.Parent = frame
+        
+        -- Animate in
+        frame.Position = UDim2.new(0.5, -125, -0.2, 0)
+        local tween = TweenService:Create(
+            frame, 
+            TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Position = UDim2.new(0.5, -125, 0.1, 0)}
+        )
+        tween:Play()
+        
+        -- Destroy after duration
+        task.spawn(function()
+            task.wait(duration or 3)
             
-            -- Start auto fishing loop
-            startAutoFishing()
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Fishing Disabled",
-                Content = "Auto fishing stopped",
-                Image = "rbxassetid://4483345998",
-                Time = 5
-            })
-        end
-    end    
-})
-
-MainTab:AddDropdown({
-    Name = "Minimum Rarity",
-    Default = "Common",
-    Options = {"Trash", "Common", "Uncommon", "Unusual", "Rare", "Legendary", "Mythical", "Secret"},
-    Callback = function(Value)
-        autoFishingSettings.minRarity = Value
-        OrionLib:MakeNotification({
-            Name = "Rarity Updated",
-            Content = "Minimum rarity set to: " .. Value,
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end    
-})
-
--- Create dropdown for target fish selection
-local targetFishOptions = {"None"}
-for fishName, _ in pairs(fishData) do
-    table.insert(targetFishOptions, fishName)
-end
-table.sort(targetFishOptions)
-
-MainTab:AddDropdown({
-    Name = "Target Fish",
-    Default = "None",
-    Options = targetFishOptions,
-    Callback = function(Value)
-        if Value == "None" then
-            autoFishingSettings.targetFish = nil
-        else
-            autoFishingSettings.targetFish = Value
-        end
-        
-        OrionLib:MakeNotification({
-            Name = "Target Fish Updated",
-            Content = Value == "None" and "No specific target fish" or "Target fish set to: " .. Value,
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end    
-})
-
-MainTab:AddToggle({
-    Name = "Auto Sell",
-    Default = false,
-    Callback = function(Value)
-        autoFishingSettings.autoSell = Value
-    end    
-})
-
-MainTab:AddToggle({
-    Name = "Keep Legendary+",
-    Default = true,
-    Callback = function(Value)
-        autoFishingSettings.keepLegendaryPlus = Value
-    end    
-})
-
--- Teleport tab
-TeleportTab:AddDropdown({
-    Name = "Select Location",
-    Default = "",
-    Options = fishingLocations,
-    Callback = function(Value)
-        -- Try to find the location in workspace
-        local found = false
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if obj.Name == Value or obj.Name:find(Value) then
-                if obj:IsA("BasePart") then
-                    -- Teleport to the part
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
-                    found = true
-                    break
-                elseif obj:IsA("Model") and obj.PrimaryPart then
-                    -- Teleport to the model
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
-                    found = true
-                    break
-                end
-            end
-        end
-        
-        if found then
-            OrionLib:MakeNotification({
-                Name = "Teleported",
-                Content = "Successfully teleported to " .. Value,
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Teleport Failed",
-                Content = "Could not find location: " .. Value,
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end    
-})
-
--- Add buttons for common locations found in many fishing games
-TeleportTab:AddButton({
-    Name = "Teleport to Shop",
-    Callback = function()
-        -- Try to find the shop in workspace
-        local shopFound = false
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():find("shop") or obj.Name:lower():find("store")) and 
-               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
-                
-                if obj:IsA("BasePart") then
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
-                else
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
-                end
-                
-                shopFound = true
-                OrionLib:MakeNotification({
-                    Name = "Teleported",
-                    Content = "Successfully teleported to Shop",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-                break
-            end
-        end
-        
-        if not shopFound then
-            OrionLib:MakeNotification({
-                Name = "Teleport Failed",
-                Content = "Could not find Shop",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end    
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Sell",
-    Callback = function()
-        -- Try to find the sell area in workspace
-        local sellFound = false
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():find("sell") or obj.Name:lower():find("cash")) and 
-               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
-                
-                if obj:IsA("BasePart") then
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
-                else
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
-                end
-                
-                sellFound = true
-                OrionLib:MakeNotification({
-                    Name = "Teleported",
-                    Content = "Successfully teleported to Sell Area",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-                break
-            end
-        end
-        
-        if not sellFound then
-            OrionLib:MakeNotification({
-                Name = "Teleport Failed",
-                Content = "Could not find Sell Area",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end    
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Dock",
-    Callback = function()
-        -- Try to find the dock in workspace
-        local dockFound = false
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():find("dock") or obj.Name:lower():find("pier")) and 
-               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
-                
-                if obj:IsA("BasePart") then
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
-                else
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
-                end
-                
-                dockFound = true
-                OrionLib:MakeNotification({
-                    Name = "Teleported",
-                    Content = "Successfully teleported to Dock",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-                break
-            end
-        end
-        
-        if not dockFound then
-            OrionLib:MakeNotification({
-                Name = "Teleport Failed",
-                Content = "Could not find Dock",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end    
-})
-
--- ESP tab
-local espSettings = {
-    enabled = false,
-    showLegendary = true,
-    showMythical = true,
-    showSecret = true,
-    maxDistance = 500
-}
-
-ESPTab:AddToggle({
-    Name = "ESP Enabled",
-    Default = false,
-    Callback = function(Value)
-        espSettings.enabled = Value
-    end    
-})
-
-ESPTab:AddToggle({
-    Name = "Show Legendary Fish",
-    Default = true,
-    Callback = function(Value)
-        espSettings.showLegendary = Value
-    end    
-})
-
-ESPTab:AddToggle({
-    Name = "Show Mythical Fish",
-    Default = true,
-    Callback = function(Value)
-        espSettings.showMythical = Value
-    end    
-})
-
-ESPTab:AddToggle({
-    Name = "Show Secret Fish",
-    Default = true,
-    Callback = function(Value)
-        espSettings.showSecret = Value
-    end    
-})
-
-ESPTab:AddSlider({
-    Name = "ESP Max Distance",
-    Min = 50,
-    Max = 2000,
-    Default = 500,
-    Color = Color3.fromRGB(97, 190, 255),
-    Increment = 50,
-    ValueName = "studs",
-    Callback = function(Value)
-        espSettings.maxDistance = Value
-    end    
-})
-
--- Stats tab
-local statsLabels = {
-    fishCaught = nil,
-    rareFishCaught = nil,
-    timePlayed = nil,
-    fishInventory = nil
-}
-
-StatsTab:AddLabel("Fish Caught: 0")
-statsLabels.fishCaught = StatsTab.Content[#StatsTab.Content]
-
-StatsTab:AddLabel("Rare Fish Caught (Legendary+): 0")
-statsLabels.rareFishCaught = StatsTab.Content[#StatsTab.Content]
-
-StatsTab:AddLabel("Time Played: 00:00:00")
-statsLabels.timePlayed = StatsTab.Content[#StatsTab.Content]
-
-StatsTab:AddLabel("Fish Inventory: Empty")
-statsLabels.fishInventory = StatsTab.Content[#StatsTab.Content]
-
--- Periodically update stats
-local startTime = os.time()
-spawn(function()
-    while true do
-        wait(1)
-        
-        -- Update time played
-        local timeElapsed = os.time() - startTime
-        local hours = math.floor(timeElapsed / 3600)
-        local minutes = math.floor((timeElapsed % 3600) / 60)
-        local seconds = timeElapsed % 60
-        
-        local timeString = string.format("%02d:%02d:%02d", hours, minutes, seconds)
-        statsLabels.timePlayed.Text = "Time Played: " .. timeString
-        
-        -- Update fish caught
-        statsLabels.fishCaught.Text = "Fish Caught: " .. autoFishingSettings.fishCaughtCount
-        
-        -- Update rare fish caught
-        statsLabels.rareFishCaught.Text = "Rare Fish Caught (Legendary+): " .. autoFishingSettings.rareCaughtCount
-        
-        -- Try to update fish inventory
-        local inventoryText = "Fish Inventory: "
-        local inventoryCount = 0
-        
-        -- Try to find inventory in player GUI
-        for _, gui in pairs(Player.PlayerGui:GetDescendants()) do
-            if gui:IsA("TextLabel") and (gui.Text:find("Inventory") or gui.Text:find("inventory")) then
-                -- Try to extract inventory count
-                local countText = gui.Text:match("(%d+)/%d+")
-                if countText then
-                    inventoryCount = tonumber(countText) or 0
-                    inventoryText = inventoryText .. countText
-                    break
-                end
-            end
-        end
-        
-        if inventoryCount == 0 then
-            inventoryText = inventoryText .. "Unknown"
-        end
-        
-        statsLabels.fishInventory.Text = inventoryText
-    end
-end)
-
--- Settings tab
-SettingsTab:AddToggle({
-    Name = "Anti-AFK",
-    Default = true,
-    Callback = function(Value)
-        -- Anti-AFK is already setup at the beginning, this is just to show it in the UI
-    end    
-})
-
-SettingsTab:AddButton({
-    Name = "Reset All Settings",
-    Callback = function()
-        autoFishingSettings.enabled = false
-        autoFishingSettings.minRarity = "Common"
-        autoFishingSettings.targetFish = nil
-        autoFishingSettings.autoSell = false
-        autoFishingSettings.keepLegendaryPlus = true
-        
-        espSettings.enabled = false
-        espSettings.showLegendary = true
-        espSettings.showMythical = true
-        espSettings.showSecret = true
-        espSettings.maxDistance = 500
-        
-        -- Reset the toggles in the UI
-        for _, tab in pairs(Window.Tabs) do
-            for _, element in pairs(tab.Elements) do
-                if element.Type == "Toggle" then
-                    element:Set(false)
-                end
-            end
-        end
-        
-        OrionLib:MakeNotification({
-            Name = "Settings Reset",
-            Content = "All settings have been reset to default",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end    
-})
-
-SettingsTab:AddButton({
-    Name = "Copy Discord Invite",
-    Callback = function()
-        setclipboard("https://discord.gg/ugyvkJXhFh")
-        OrionLib:MakeNotification({
-            Name = "Discord Invite Copied",
-            Content = "Discord invite link has been copied to clipboard",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end    
-})
-
-SettingsTab:AddButton({
-    Name = "Destroy GUI",
-    Callback = function()
-        autoFishingSettings.enabled = false
-        globalEnv.SkyXFishingScriptLoaded = false
-        
-        -- Remove ESP
-        for _, obj in pairs(game.CoreGui:GetChildren()) do
-            if obj.Name == "SkyXFishESP" then
-                obj:Destroy()
-            end
-        end
-        
-        OrionLib:Destroy()
-    end    
-})
-
--- ESP System
-local espFolder = Instance.new("Folder")
-espFolder.Name = "SkyXFishESP"
-espFolder.Parent = game.CoreGui
-
--- Function to update ESP for fish
-local function updateFishESP()
-    if not espSettings.enabled then
-        -- Hide all ESP
-        for _, esp in pairs(espFolder:GetChildren()) do
-            esp.Enabled = false
-        end
-        return
-    end
-    
-    -- Clear old ESP
-    for _, esp in pairs(espFolder:GetChildren()) do
-        esp.Enabled = true
-    end
-    
-    -- Find fish in the workspace
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") then
-            -- Check if this is a fish model
-            local fishName = obj.Name
+            local tweenOut = TweenService:Create(
+                frame, 
+                TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                {Position = UDim2.new(0.5, -125, -0.2, 0)}
+            )
+            tweenOut:Play()
             
-            -- Check if this fish is in our database
-            if fishData[fishName] then
-                local fishInfo = fishData[fishName]
-                local rarity = fishInfo.Rarity
-                
-                -- Check if we should show this rarity
-                local shouldShow = (rarity == "Legendary" and espSettings.showLegendary) or
-                                  (rarity == "Mythical" and espSettings.showMythical) or
-                                  (rarity == "Secret" and espSettings.showSecret)
-                
-                if shouldShow then
-                    -- Check distance
-                    local distance = (Character.HumanoidRootPart.Position - obj:GetModelCFrame().Position).Magnitude
-                    
-                    if distance <= espSettings.maxDistance then
-                        -- Check if we already have ESP for this fish
-                        local existingESP = espFolder:FindFirstChild("ESP_" .. obj:GetFullName())
-                        
-                        if not existingESP then
-                            -- Create ESP
-                            local billboardGui = Instance.new("BillboardGui")
-                            billboardGui.Name = "ESP_" .. obj:GetFullName()
-                            billboardGui.Adornee = obj:GetModelCFrame()
-                            billboardGui.Size = UDim2.new(0, 200, 0, 50)
-                            billboardGui.StudsOffset = Vector3.new(0, 2, 0)
-                            billboardGui.AlwaysOnTop = true
-                            
-                            local nameLabel = Instance.new("TextLabel")
-                            nameLabel.BackgroundTransparency = 1
-                            nameLabel.Size = UDim2.new(1, 0, 0.5, 0)
-                            nameLabel.Text = fishName
-                            nameLabel.TextColor3 = (rarity == "Legendary" and Color3.fromRGB(255, 215, 0)) or
-                                                  (rarity == "Mythical" and Color3.fromRGB(255, 0, 255)) or
-                                                  (rarity == "Secret" and Color3.fromRGB(255, 0, 0))
-                            nameLabel.TextStrokeTransparency = 0.5
-                            nameLabel.TextSize = 14
-                            nameLabel.Font = Enum.Font.SourceSansBold
-                            nameLabel.Parent = billboardGui
-                            
-                            local distanceLabel = Instance.new("TextLabel")
-                            distanceLabel.BackgroundTransparency = 1
-                            distanceLabel.Size = UDim2.new(1, 0, 0.5, 0)
-                            distanceLabel.Position = UDim2.new(0, 0, 0.5, 0)
-                            distanceLabel.Text = math.floor(distance) .. " studs"
-                            distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                            distanceLabel.TextStrokeTransparency = 0.5
-                            distanceLabel.TextSize = 12
-                            distanceLabel.Font = Enum.Font.SourceSans
-                            distanceLabel.Parent = billboardGui
-                            
-                            billboardGui.Parent = espFolder
-                        else
-                            -- Update existing ESP
-                            local distanceLabel = existingESP:FindFirstChild("TextLabel", true)
-                            if distanceLabel then
-                                distanceLabel.Text = math.floor(distance) .. " studs"
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
+            tweenOut.Completed:Wait()
+            screenGui:Destroy()
+        end)
+    end)
 end
 
--- Update ESP every second
-spawn(function()
-    while wait(1) do
-        if espSettings.enabled then
-            updateFishESP()
-        end
-    end
-end)
-
--- Auto fishing system
-local function isFishRarityAcceptable(fishName)
-    if not fishName or not fishData[fishName] then return false end
-    
-    -- If we have a target fish, only accept that fish
-    if autoFishingSettings.targetFish and autoFishingSettings.targetFish ~= "None" then
-        return fishName == autoFishingSettings.targetFish
-    end
-    
-    local fishInfo = fishData[fishName]
-    local rarity = fishInfo.Rarity
-    
-    if not rarity or not rarityRanking[rarity] or not rarityRanking[autoFishingSettings.minRarity] then
-        return false
-    end
-    
-    return rarityRanking[rarity] >= rarityRanking[autoFishingSettings.minRarity]
-end
-
+-- Function to detect and find the ball in the workspace
 local function findFishingRemote()
     -- Common remote names in fishing games
     local remoteNames = {
@@ -994,6 +509,7 @@ local function findFishingRemote()
     return nil
 end
 
+-- Function to find sell remote
 local function findSellRemote()
     -- Common sell remote names
     local remoteNames = {
@@ -1023,6 +539,7 @@ local function findSellRemote()
     return nil
 end
 
+-- Function to sell fish
 local function sellFish()
     local sellRemote = findSellRemote()
     
@@ -1055,19 +572,9 @@ local function sellFish()
         end
         
         if success then
-            OrionLib:MakeNotification({
-                Name = "Auto Sell",
-                Content = "Successfully sold fish",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
+            createNotification("Auto Sell", "Successfully sold fish", 3)
         else
-            OrionLib:MakeNotification({
-                Name = "Auto Sell Failed",
-                Content = "Found sell remote but failed to sell fish",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
+            createNotification("Auto Sell Failed", "Found sell remote but failed to sell fish", 3)
         end
     else
         -- Try to teleport to sell area as fallback
@@ -1081,24 +588,47 @@ local function sellFish()
                     Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
                 end
                 
-                OrionLib:MakeNotification({
-                    Name = "Auto Sell",
-                    Content = "Teleported to sell area",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
+                createNotification("Auto Sell", "Teleported to sell area", 3)
                 break
             end
         end
     end
 end
 
--- Function to start auto fishing
-function startAutoFishing()
+-- Function to check if fish rarity is acceptable
+local function isFishRarityAcceptable(fishName)
+    if not fishName or not fishData[fishName] then return false end
+    
+    -- If we have a target fish, only accept that fish
+    if autoFishingSettings.targetFish and autoFishingSettings.targetFish ~= "None" then
+        return fishName == autoFishingSettings.targetFish
+    end
+    
+    local fishInfo = fishData[fishName]
+    local rarity = fishInfo.Rarity
+    
+    if not rarity or not rarityRanking[rarity] or not rarityRanking[autoFishingSettings.minRarity] then
+        return false
+    end
+    
+    return rarityRanking[rarity] >= rarityRanking[autoFishingSettings.minRarity]
+end
+
+-- Function to auto fish
+local function startAutoFishing()
     if not autoFishingSettings.enabled then return end
+    
+    local isRunning = false
     
     spawn(function()
         while autoFishingSettings.enabled do
+            if isRunning then
+                wait(1)
+                continue
+            end
+            
+            isRunning = true
+            
             -- Try to find the fishing remote
             local fishingRemote = findFishingRemote()
             
@@ -1199,12 +729,7 @@ function startAutoFishing()
                         
                         -- Display notification
                         local rarity = fishInfo and fishInfo.Rarity or "Unknown"
-                        OrionLib:MakeNotification({
-                            Name = "Fish Caught",
-                            Content = "Caught: " .. caughtFish .. " (Rarity: " .. rarity .. ")",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
+                        createNotification("Fish Caught", "Caught: " .. caughtFish .. " (Rarity: " .. rarity .. ")", 3)
                         
                         -- Auto sell if enabled and fish doesn't meet criteria
                         if autoFishingSettings.autoSell and 
@@ -1225,22 +750,541 @@ function startAutoFishing()
                 end
             else
                 -- If we couldn't find the fishing remote, wait and try again
-                OrionLib:MakeNotification({
-                    Name = "Auto Fishing Error",
-                    Content = "Could not find fishing remote. Make sure you're in a fishing game.",
-                    Image = "rbxassetid://4483345998",
-                    Time = 5
-                })
+                createNotification("Auto Fishing Error", "Could not find fishing remote. Make sure you're in a fishing game.", 5)
                 wait(10)
             end
+            
+            isRunning = false
         end
     end)
 end
 
--- Initial notification
-OrionLib:MakeNotification({
-    Name = "SkyX Hub Loaded",
-    Content = "Fishing Script loaded successfully!",
-    Image = "rbxassetid://4483345998",
-    Time = 5
-})
+-- Create a simple UI if Orion fails to load
+if globalEnv.SkyXUIMode == "Simple" then
+    -- Create a basic UI
+    local function createSimpleUI()
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "SkyXFishingGUI"
+        
+        -- Try to parent to PlayerGui first
+        pcall(function()
+            screenGui.Parent = Player.PlayerGui
+        end)
+        
+        -- If that fails, try CoreGui
+        if not screenGui.Parent then
+            pcall(function()
+                screenGui.Parent = game:GetService("CoreGui")
+            end)
+        end
+        
+        -- Main frame
+        local mainFrame = Instance.new("Frame")
+        mainFrame.Name = "MainFrame"
+        mainFrame.Size = UDim2.new(0, 250, 0, 300)
+        mainFrame.Position = UDim2.new(0.02, 0, 0.5, -150)
+        mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        mainFrame.BackgroundTransparency = 0.2
+        mainFrame.BorderSizePixel = 0
+        mainFrame.Active = true
+        mainFrame.Draggable = true
+        mainFrame.Parent = screenGui
+        
+        -- Add corner radius
+        local cornerRadius = Instance.new("UICorner")
+        cornerRadius.CornerRadius = UDim.new(0, 10)
+        cornerRadius.Parent = mainFrame
+        
+        -- Title
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(1, -10, 0, 30)
+        titleLabel.Position = UDim2.new(0, 5, 0, 5)
+        titleLabel.Text = "SkyX Fishing"
+        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.TextSize = 18
+        titleLabel.Parent = mainFrame
+        
+        -- Auto Fish Toggle
+        local autoFishButton = Instance.new("TextButton")
+        autoFishButton.Size = UDim2.new(0.8, 0, 0, 40)
+        autoFishButton.Position = UDim2.new(0.1, 0, 0.2, 0)
+        autoFishButton.Text = "Auto Fishing: OFF"
+        autoFishButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        autoFishButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        autoFishButton.BackgroundTransparency = 0.2
+        autoFishButton.BorderSizePixel = 0
+        autoFishButton.Font = Enum.Font.Gotham
+        autoFishButton.TextSize = 14
+        autoFishButton.Parent = mainFrame
+        
+        -- Add corner radius to button
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 6)
+        buttonCorner.Parent = autoFishButton
+        
+        -- Teleport Button
+        local teleportButton = Instance.new("TextButton")
+        teleportButton.Size = UDim2.new(0.8, 0, 0, 40)
+        teleportButton.Position = UDim2.new(0.1, 0, 0.35, 0)
+        teleportButton.Text = "Teleport to Sell"
+        teleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        teleportButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        teleportButton.BackgroundTransparency = 0.2
+        teleportButton.BorderSizePixel = 0
+        teleportButton.Font = Enum.Font.Gotham
+        teleportButton.TextSize = 14
+        teleportButton.Parent = mainFrame
+        
+        -- Add corner radius to button
+        local teleportCorner = Instance.new("UICorner")
+        teleportCorner.CornerRadius = UDim.new(0, 6)
+        teleportCorner.Parent = teleportButton
+        
+        -- Sell Fish Button
+        local sellButton = Instance.new("TextButton")
+        sellButton.Size = UDim2.new(0.8, 0, 0, 40)
+        sellButton.Position = UDim2.new(0.1, 0, 0.5, 0)
+        sellButton.Text = "Sell Fish"
+        sellButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        sellButton.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        sellButton.BackgroundTransparency = 0.2
+        sellButton.BorderSizePixel = 0
+        sellButton.Font = Enum.Font.Gotham
+        sellButton.TextSize = 14
+        sellButton.Parent = mainFrame
+        
+        -- Add corner radius to button
+        local sellCorner = Instance.new("UICorner")
+        sellCorner.CornerRadius = UDim.new(0, 6)
+        sellCorner.Parent = sellButton
+        
+        -- Stats Label
+        local statsLabel = Instance.new("TextLabel")
+        statsLabel.Size = UDim2.new(0.8, 0, 0, 60)
+        statsLabel.Position = UDim2.new(0.1, 0, 0.65, 0)
+        statsLabel.Text = "Fish Caught: 0\nRare Fish: 0"
+        statsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        statsLabel.BackgroundTransparency = 1
+        statsLabel.Font = Enum.Font.Gotham
+        statsLabel.TextSize = 14
+        statsLabel.Parent = mainFrame
+        
+        -- Close Button
+        local closeButton = Instance.new("TextButton")
+        closeButton.Size = UDim2.new(0.8, 0, 0, 40)
+        closeButton.Position = UDim2.new(0.1, 0, 0.85, 0)
+        closeButton.Text = "Close"
+        closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        closeButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+        closeButton.BackgroundTransparency = 0.2
+        closeButton.BorderSizePixel = 0
+        closeButton.Font = Enum.Font.Gotham
+        closeButton.TextSize = 14
+        closeButton.Parent = mainFrame
+        
+        -- Add corner radius to button
+        local closeCorner = Instance.new("UICorner")
+        closeCorner.CornerRadius = UDim.new(0, 6)
+        closeCorner.Parent = closeButton
+        
+        -- Button Functions
+        autoFishButton.MouseButton1Click:Connect(function()
+            autoFishingSettings.enabled = not autoFishingSettings.enabled
+            autoFishButton.Text = "Auto Fishing: " .. (autoFishingSettings.enabled and "ON" or "OFF")
+            autoFishButton.BackgroundColor3 = autoFishingSettings.enabled and Color3.fromRGB(0, 120, 215) or Color3.fromRGB(40, 40, 40)
+            
+            if autoFishingSettings.enabled then
+                startAutoFishing()
+            end
+        end)
+        
+        teleportButton.MouseButton1Click:Connect(function()
+            -- Try to find the sell area
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if (obj.Name:lower():find("sell") or obj.Name:lower():find("cash")) and 
+                   (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                    
+                    if obj:IsA("BasePart") then
+                        Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                    else
+                        Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                    end
+                    
+                    createNotification("Teleport", "Teleported to sell area", 3)
+                    break
+                end
+            end
+        end)
+        
+        sellButton.MouseButton1Click:Connect(function()
+            sellFish()
+        end)
+        
+        closeButton.MouseButton1Click:Connect(function()
+            autoFishingSettings.enabled = false
+            screenGui:Destroy()
+            globalEnv.SkyXFishingScriptLoaded = false
+        end)
+        
+        -- Update stats periodically
+        spawn(function()
+            while wait(1) do
+                if not screenGui.Parent then break end
+                
+                statsLabel.Text = "Fish Caught: " .. autoFishingSettings.fishCaughtCount .. 
+                                 "\nRare Fish: " .. autoFishingSettings.rareCaughtCount
+            end
+        end)
+        
+        return screenGui
+    end
+    
+    -- Create simple UI
+    local simpleUI = createSimpleUI()
+    
+    -- Initial notification
+    createNotification("SkyX Fishing", "Simple mode activated!", 5)
+elseif globalEnv.SkyXUIMode == "Orion" then
+    -- Create UI using Orion Library
+    local Window = OrionLib:MakeWindow({
+        Name = "SkyX Hub | Fishing Simulator", 
+        HidePremium = false, 
+        SaveConfig = true, 
+        ConfigFolder = "SkyXHub",
+        IntroEnabled = false
+    })
+    
+    -- Add tabs
+    local MainTab = Window:MakeTab({
+        Name = "Auto Fish",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    local TeleportTab = Window:MakeTab({
+        Name = "Teleport",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    local SettingsTab = Window:MakeTab({
+        Name = "Settings",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    -- Main tab
+    MainTab:AddToggle({
+        Name = "Auto Fishing",
+        Default = false,
+        Callback = function(Value)
+            autoFishingSettings.enabled = Value
+            
+            if Value then
+                OrionLib:MakeNotification({
+                    Name = "Auto Fishing Enabled",
+                    Content = "Auto fishing started!",
+                    Image = "rbxassetid://4483345998",
+                    Time = 5
+                })
+                
+                -- Start auto fishing loop
+                startAutoFishing()
+            else
+                OrionLib:MakeNotification({
+                    Name = "Auto Fishing Disabled",
+                    Content = "Auto fishing stopped",
+                    Image = "rbxassetid://4483345998",
+                    Time = 5
+                })
+            end
+        end    
+    })
+    
+    MainTab:AddDropdown({
+        Name = "Minimum Rarity",
+        Default = "Common",
+        Options = {"Trash", "Common", "Uncommon", "Unusual", "Rare", "Legendary", "Mythical", "Secret"},
+        Callback = function(Value)
+            autoFishingSettings.minRarity = Value
+            OrionLib:MakeNotification({
+                Name = "Rarity Updated",
+                Content = "Minimum rarity set to: " .. Value,
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end    
+    })
+    
+    MainTab:AddToggle({
+        Name = "Auto Sell",
+        Default = false,
+        Callback = function(Value)
+            autoFishingSettings.autoSell = Value
+        end    
+    })
+    
+    MainTab:AddToggle({
+        Name = "Keep Legendary+",
+        Default = true,
+        Callback = function(Value)
+            autoFishingSettings.keepLegendaryPlus = Value
+        end    
+    })
+    
+    MainTab:AddButton({
+        Name = "Sell Fish Now",
+        Callback = function()
+            sellFish()
+        end
+    })
+    
+    -- Teleport tab
+    TeleportTab:AddButton({
+        Name = "Teleport to Shop",
+        Callback = function()
+            -- Try to find the shop in workspace
+            local shopFound = false
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if (obj.Name:lower():find("shop") or obj.Name:lower():find("store")) and 
+                   (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                    
+                    if obj:IsA("BasePart") then
+                        Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                    else
+                        Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                    end
+                    
+                    shopFound = true
+                    OrionLib:MakeNotification({
+                        Name = "Teleported",
+                        Content = "Successfully teleported to Shop",
+                        Image = "rbxassetid://4483345998",
+                        Time = 3
+                    })
+                    break
+                end
+            end
+            
+            if not shopFound then
+                OrionLib:MakeNotification({
+                    Name = "Teleport Failed",
+                    Content = "Could not find Shop",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end    
+    })
+    
+    TeleportTab:AddButton({
+        Name = "Teleport to Sell",
+        Callback = function()
+            -- Try to find the sell area in workspace
+            local sellFound = false
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if (obj.Name:lower():find("sell") or obj.Name:lower():find("cash")) and 
+                   (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                    
+                    if obj:IsA("BasePart") then
+                        Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                    else
+                        Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                    end
+                    
+                    sellFound = true
+                    OrionLib:MakeNotification({
+                        Name = "Teleported",
+                        Content = "Successfully teleported to Sell Area",
+                        Image = "rbxassetid://4483345998",
+                        Time = 3
+                    })
+                    break
+                end
+            end
+            
+            if not sellFound then
+                OrionLib:MakeNotification({
+                    Name = "Teleport Failed",
+                    Content = "Could not find Sell Area",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end    
+    })
+    
+    TeleportTab:AddButton({
+        Name = "Teleport to Dock",
+        Callback = function()
+            -- Try to find the dock in workspace
+            local dockFound = false
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if (obj.Name:lower():find("dock") or obj.Name:lower():find("pier")) and 
+                   (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                    
+                    if obj:IsA("BasePart") then
+                        Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                    else
+                        Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                    end
+                    
+                    dockFound = true
+                    OrionLib:MakeNotification({
+                        Name = "Teleported",
+                        Content = "Successfully teleported to Dock",
+                        Image = "rbxassetid://4483345998",
+                        Time = 3
+                    })
+                    break
+                end
+            end
+            
+            if not dockFound then
+                OrionLib:MakeNotification({
+                    Name = "Teleport Failed",
+                    Content = "Could not find Dock",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end    
+    })
+    
+    -- Settings tab
+    SettingsTab:AddToggle({
+        Name = "Anti-AFK",
+        Default = true,
+        Callback = function(Value)
+            -- Anti-AFK is already setup at the beginning, this is just to show it in the UI
+        end    
+    })
+    
+    SettingsTab:AddButton({
+        Name = "Copy Discord Invite",
+        Callback = function()
+            setclipboard("https://discord.gg/ugyvkJXhFh")
+            OrionLib:MakeNotification({
+                Name = "Discord Invite Copied",
+                Content = "Discord invite link has been copied to clipboard",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end    
+    })
+    
+    SettingsTab:AddButton({
+        Name = "Destroy GUI",
+        Callback = function()
+            autoFishingSettings.enabled = false
+            globalEnv.SkyXFishingScriptLoaded = false
+            
+            OrionLib:Destroy()
+        end    
+    })
+    
+    -- Initial notification
+    OrionLib:MakeNotification({
+        Name = "SkyX Hub Loaded",
+        Content = "Fishing Script loaded successfully!",
+        Image = "rbxassetid://4483345998",
+        Time = 5
+    })
+elseif globalEnv.SkyXUIMode == "Kavo" then
+    -- Use Kavo UI Library
+    local KavoLibrary = result
+    
+    local Window = KavoLibrary.CreateLib("SkyX Hub | Fishing Simulator", "Ocean")
+    
+    -- Main Page
+    local MainPage = Window:NewTab("Auto Fish")
+    local MainSection = MainPage:NewSection("Fishing")
+    
+    MainSection:NewToggle("Auto Fishing", "Auto fishes for you", function(state)
+        autoFishingSettings.enabled = state
+        
+        if state then
+            -- Start auto fishing loop
+            startAutoFishing()
+        end
+    end)
+    
+    MainSection:NewDropdown("Minimum Rarity", "Sets minimum fish rarity", {"Trash", "Common", "Uncommon", "Unusual", "Rare", "Legendary", "Mythical", "Secret"}, function(currentOption)
+        autoFishingSettings.minRarity = currentOption
+    end)
+    
+    MainSection:NewToggle("Auto Sell", "Automatically sells fish", function(state)
+        autoFishingSettings.autoSell = state
+    end)
+    
+    MainSection:NewToggle("Keep Legendary+", "Keep rare fish", function(state)
+        autoFishingSettings.keepLegendaryPlus = state
+    end)
+    
+    MainSection:NewButton("Sell Fish Now", "Sells all your fish", function()
+        sellFish()
+    end)
+    
+    -- Teleport Page
+    local TeleportPage = Window:NewTab("Teleport")
+    local TeleportSection = TeleportPage:NewSection("Locations")
+    
+    TeleportSection:NewButton("Teleport to Shop", "Teleports to the shop", function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:lower():find("shop") or obj.Name:lower():find("store")) and 
+               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                
+                if obj:IsA("BasePart") then
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                else
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                end
+                
+                break
+            end
+        end
+    end)
+    
+    TeleportSection:NewButton("Teleport to Sell", "Teleports to sell area", function()
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:lower():find("sell") or obj.Name:lower():find("cash")) and 
+               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
+                
+                if obj:IsA("BasePart") then
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
+                else
+                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
+                end
+                
+                break
+            end
+        end
+    end)
+    
+    -- Settings Page
+    local SettingsPage = Window:NewTab("Settings")
+    local SettingsSection = SettingsPage:NewSection("Settings")
+    
+    SettingsSection:NewToggle("Anti-AFK", "Prevents you from being kicked", function(state)
+        -- Anti-AFK is already setup
+    end)
+    
+    SettingsSection:NewButton("Copy Discord", "Copies Discord invite", function()
+        setclipboard("https://discord.gg/ugyvkJXhFh")
+    end)
+    
+    SettingsSection:NewButton("Destroy GUI", "Closes the GUI", function()
+        autoFishingSettings.enabled = false
+        globalEnv.SkyXFishingScriptLoaded = false
+        
+        KavoLibrary:ToggleUI()
+    end)
+    
+    -- Initial notification
+    createNotification("SkyX Fishing", "Script loaded successfully!", 5)
+end
+
+-- Return the configuration for external access
+return autoFishingSettings
