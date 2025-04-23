@@ -1,1023 +1,727 @@
 --[[
-    SkyX Hub - Fixed Arise Crossover Script
-    Original by Naaellx - Fixed and optimized for mobile by SkyX Team
-    
-    Mobile-compatible with Swift, Fluxus, and Electron support
-    No key system, completely free to use
+    SkyX Hub - Blue Lock Rivals Ball Control
+    Enhanced Mobile Version
+    Originally by twisted.maniac, improved by SkyX Team
 ]]
 
 -- Initialize environment with cross-platform compatibility
 local globalEnv = getgenv and getgenv() or _G
 
--- Global configuration
+-- Add global configuration
 if not globalEnv.SkyXConfig then
     globalEnv.SkyXConfig = {
         Platform = identifyexecutor and identifyexecutor() or "Unknown",
-        AutoDetectMobile = true,
-        WebhookEnabled = true,
-        DiscordWebhookURL = "https://discord.com/api/webhooks/1364438745067290664/J6ZLEkt_lZtwbQnssigtUr5Uj80fhzQmdH0QoitsSwJr2xgDOjIzl5Kfo1Cr1UuFo-2v"
+        AutoDetectMobile = true
     }
     
     -- Auto-detect mobile platforms
     if globalEnv.SkyXConfig.Platform:lower():find("fluxus") or 
        globalEnv.SkyXConfig.Platform:lower():find("hydrogen") or 
        globalEnv.SkyXConfig.Platform:lower():find("swift") or
-       globalEnv.SkyXConfig.Platform:lower():find("electron") then
+       globalEnv.SkyXConfig.Platform:lower():find("electron") or
+       globalEnv.SkyXConfig.Platform:lower():find("krnl") or
+       globalEnv.SkyXConfig.Platform:lower():find("delta") then
         globalEnv.SkyXConfig.IsMobile = true
     end
 end
 
--- Check if running in the correct environment
-if not game then
-    print("SkyX Hub: Game environment not available")
-    print("This script must be executed in a Roblox game environment")
-    return
-end
-
 -- Check if script is already running
-if globalEnv.AriseCrossoverScriptLoaded then
-    warn("SkyX Arise Crossover Script is already running!")
-    return
-end
-
--- Game ID check for Arise Crossover
-if game.PlaceId ~= 11596503273 and game.PlaceId ~= 12126380364 then
-    warn("This script is only for Arise Crossover! Current PlaceId:", game.PlaceId)
+if globalEnv.BlueLockBallControlActive then
+    warn("Blue Lock Rivals Ball Control script is already running!")
     return
 end
 
 -- Mark as running
-globalEnv.AriseCrossoverScriptLoaded = true
+globalEnv.BlueLockBallControlActive = true
 
--- Add webhook tracking functionality
-local function sendWebhookData()
-    -- Use pcall to ensure this doesn't crash the script
-    pcall(function()
-        if not game or not game:GetService("Players") or not game:GetService("HttpService") then return end
-        
-        local HttpService = game:GetService("HttpService")
-        local player = game:GetService("Players").LocalPlayer
-        
-        if not player then return end
-        
-        -- Attempt to get game info
-        local gameId = game.PlaceId
-        local gameName = "Arise Crossover"
-        
-        -- Prepare webhook data
-        local webhookData = {
-            username = "SkyX Hub Execution Tracker",
-            avatar_url = "https://i.imgur.com/4M34hi2.png",
-            embeds = {
-                {
-                    title = "Arise Crossover Script Executed",
-                    description = "The Arise Crossover script has been executed by a user",
-                    color = 5814783, -- Blue color
-                    fields = {
-                        {
-                            name = "Game",
-                            value = gameName,
-                            inline = true
-                        },
-                        {
-                            name = "Player",
-                            value = player.Name,
-                            inline = true
-                        },
-                        {
-                            name = "User ID",
-                            value = tostring(player.UserId),
-                            inline = true
-                        },
-                        {
-                            name = "Executor",
-                            value = globalEnv.SkyXConfig.Platform,
-                            inline = true
-                        },
-                        {
-                            name = "Place ID",
-                            value = tostring(gameId),
-                            inline = true
-                        }
-                    },
-                    footer = {
-                        text = "SkyX Hub • " .. os.date("%Y-%m-%d %H:%M:%S")
-                    }
-                }
-            }
-        }
-        
-        -- Send to custom SkyX webhook API
-        local success, response = pcall(function()
-            return HttpService:PostAsync("https://skyxhub.replit.app/api/webhooks/execute", HttpService:JSONEncode({
-                executorName = globalEnv.SkyXConfig.Platform,
-                gameId = tostring(gameId),
-                gameName = gameName,
-                userId = tostring(player.UserId),
-                username = player.Name,
-                scriptName = "Fixed_Arise_Crossover.lua",
-                clientInfo = "Platform: " .. globalEnv.SkyXConfig.Platform .. " | Game: " .. gameName .. " | Place ID: " .. gameId
-            }), Enum.HttpContentType.ApplicationJson)
-        end)
-        
-        -- Also try direct Discord webhook if available
-        if globalEnv.SkyXConfig.WebhookEnabled and globalEnv.SkyXConfig.DiscordWebhookURL and 
-           globalEnv.SkyXConfig.DiscordWebhookURL ~= "https://discord.com/api/webhooks/1234567890/your-webhook-here" then
-            
-            pcall(function()
-                HttpService:PostAsync(
-                    globalEnv.SkyXConfig.DiscordWebhookURL,
-                    HttpService:JSONEncode(webhookData),
-                    Enum.HttpContentType.ApplicationJson,
-                    false
-                )
-            end)
-        end
-    end)
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Local player
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    -- Wait for player to load if not already
+    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    LocalPlayer = Players.LocalPlayer
 end
 
--- Start webhook tracking in a separate thread
-spawn(function()
-    -- Wait a moment for the script to initialize
-    wait(2)
-    sendWebhookData()
-end)
+-- Configuration
+local config = {
+    speedIncrement = 5,
+    maxSpeed = 80,       -- Increased max speed
+    minSpeed = 1,
+    maxBallDistance = 25, -- Increased max distance for finding ball
+    buttonSize = UDim2.new(0, 50, 0, 40), -- Made buttons larger for mobile
+    uiTransparency = 0.4  -- Made UI less transparent
+}
 
--- Create a notification function that will work without the UI library if needed
-local NotificationLib = {}
+-- UI Elements
+local ballControlUI
+local speedTextLabel
+local directionTextLabel
+local statusTextLabel
+local moveButtons = {}
+local speedButtons = {}
+local toggleButton
 
-function NotificationLib:Notify(title, text, duration)
+-- Ball Control Variables
+local controllingBall = false
+local controlledBall = nil
+local controlSpeed = 25    -- Default speed increased
+local moveDirection = Vector3.new(0, 0, 0)
+local errorCount = 0
+local maxErrorCount = 5
+local lastForcedReset = 0
+local resetCooldown = 10
+
+-- Function to find the closest ball with error handling
+local function findClosestBall(player, maxDistance)
+    if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local playerPos = player.Character.HumanoidRootPart.Position
+    local closestBall = nil
+    local closestDistance = maxDistance
+    
+    -- First try to find the ball in the workspace
     pcall(function()
-        -- Create a simple notification GUI
-        local screenGui = Instance.new("ScreenGui")
-        screenGui.Name = "SkyXNotification"
-        screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        
-        -- Check if we can use CoreGui (some exploits restrict this)
+        for _, part in ipairs(workspace:GetDescendants()) do
+            -- Looking for parts that might be a ball (common names or properties)
+            if part:IsA("BasePart") and 
+               (part.Name == "Ball" or 
+                part.Name:lower():find("ball") or 
+                part.Name:lower():find("soccer") or
+                part.Shape == Enum.PartType.Ball) then
+                
+                local distance = (playerPos - part.Position).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestBall = part
+                end
+            end
+        end
+    end)
+    
+    -- If no ball found, try searching in replicated storage (this might be a fallback)
+    if not closestBall then
         pcall(function()
-            screenGui.Parent = game:GetService("CoreGui")
+            -- The ball might be stored as a model in replicated storage
+            for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
+                if (item:IsA("BasePart") or item:IsA("Model")) and 
+                   (item.Name == "Ball" or 
+                    item.Name:lower():find("ball") or 
+                    item.Name:lower():find("soccer")) then
+                    
+                    return item -- Return it if found
+                end
+            end
+        end)
+    end
+    
+    return closestBall
+end
+
+-- Function to create a notification
+local function createNotification(title, text, duration)
+    pcall(function()
+        -- Create a ScreenGui for the notification
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "BallControlNotification"
+        
+        -- Try to parent it to the PlayerGui
+        pcall(function() 
+            screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
         end)
         
-        -- If CoreGui failed, use PlayerGui as fallback
+        -- If that fails, try CoreGui
         if not screenGui.Parent then
-            screenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+            pcall(function()
+                screenGui.Parent = game:GetService("CoreGui")
+            end)
         end
         
-        -- Create notification frame
+        -- Create main frame
         local frame = Instance.new("Frame")
-        frame.Size = UDim2.new(0, 300, 0, 100)
-        frame.Position = UDim2.new(1, -310, 0, 10)
-        frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        frame.Size = UDim2.new(0, 250, 0, 100)
+        frame.Position = UDim2.new(0.5, -125, 0.1, 0)
+        frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        frame.BackgroundTransparency = 0.1
         frame.BorderSizePixel = 0
         frame.Parent = screenGui
         
         -- Add corner radius
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 6)
-        corner.Parent = frame
+        local cornerRadius = Instance.new("UICorner")
+        cornerRadius.CornerRadius = UDim.new(0, 10)
+        cornerRadius.Parent = frame
         
         -- Title label
         local titleLabel = Instance.new("TextLabel")
-        titleLabel.Size = UDim2.new(1, -10, 0, 30)
-        titleLabel.Position = UDim2.new(0, 5, 0, 5)
+        titleLabel.Size = UDim2.new(1, 0, 0.3, 0)
+        titleLabel.Position = UDim2.new(0, 0, 0, 0)
+        titleLabel.Text = title
+        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
         titleLabel.BackgroundTransparency = 1
         titleLabel.Font = Enum.Font.GothamBold
-        titleLabel.Text = title or "SkyX Hub"
-        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
         titleLabel.TextSize = 16
-        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
         titleLabel.Parent = frame
         
-        -- Content label
-        local contentLabel = Instance.new("TextLabel")
-        contentLabel.Size = UDim2.new(1, -10, 0, 60)
-        contentLabel.Position = UDim2.new(0, 5, 0, 35)
-        contentLabel.BackgroundTransparency = 1
-        contentLabel.Font = Enum.Font.Gotham
-        contentLabel.Text = text or ""
-        contentLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
-        contentLabel.TextSize = 14
-        contentLabel.TextWrapped = true
-        contentLabel.TextXAlignment = Enum.TextXAlignment.Left
-        contentLabel.TextYAlignment = Enum.TextYAlignment.Top
-        contentLabel.Parent = frame
+        -- Message label
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, -20, 0.7, -10)
+        textLabel.Position = UDim2.new(0, 10, 0.3, 0)
+        textLabel.Text = text
+        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Font = Enum.Font.Gotham
+        textLabel.TextSize = 14
+        textLabel.TextWrapped = true
+        textLabel.Parent = frame
         
         -- Animate in
-        frame.Position = UDim2.new(1, -310, -0.5, 0)
-        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-        local tween = game:GetService("TweenService"):Create(frame, tweenInfo, {Position = UDim2.new(1, -310, 0, 10)})
+        frame.Position = UDim2.new(0.5, -125, -0.2, 0)
+        local tween = TweenService:Create(
+            frame, 
+            TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Position = UDim2.new(0.5, -125, 0.1, 0)}
+        )
         tween:Play()
         
         -- Destroy after duration
-        spawn(function()
-            wait(duration or 5)
+        task.spawn(function()
+            task.wait(duration or 3)
             
-            -- Animate out
-            local tweenOut = game:GetService("TweenService"):Create(frame, tweenInfo, {Position = UDim2.new(1, -310, -0.5, 0)})
+            local tweenOut = TweenService:Create(
+                frame, 
+                TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                {Position = UDim2.new(0.5, -125, -0.2, 0)}
+            )
             tweenOut:Play()
+            
             tweenOut.Completed:Wait()
             screenGui:Destroy()
         end)
     end)
 end
 
--- Try to load Rayfield with fallback UI if it fails
-local Rayfield, isFallbackUI
-local success, result = pcall(function()
-    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-end)
-
-if success and result then
-    Rayfield = result
-    print("Rayfield loaded successfully")
-else
-    warn("Failed to load Rayfield UI. Using fallback UI.")
-    isFallbackUI = true
+-- Function to update UI
+local function updateUI()
+    if not ballControlUI then return end
     
-    -- Create a simple fallback UI
-    Rayfield = {}
-    
-    -- Mock Rayfield functions
-    function Rayfield:CreateWindow(config)
-        NotificationLib:Notify("SkyX Hub", "Loaded fallback UI for Arise Crossover (Mobile Compatibility Mode)", 5)
+    pcall(function()
+        speedTextLabel.Text = "Speed: " .. math.floor(controlSpeed)
         
-        local window = {}
-        
-        function window:CreateTab(name)
-            local tab = {}
-            
-            function tab:CreateSection(name)
-                return name
+        local dirString = "None"
+        if moveDirection.Magnitude > 0 then
+            local d = moveDirection.Unit
+            if d.X ~= 0 or d.Z ~= 0 then
+                local h = Vector3.new(d.X, 0, d.Z).Unit
+                dirString = h:Angle(Vector3.new(0, 0, -1))
+                -- Convert to degrees and make it a compass direction
+                dirString = math.deg(dirString)
+                if d.X < 0 then dirString = 360 - dirString end
+                dirString = math.floor(dirString) .. "°"
+            elseif d.Y > 0 then
+                dirString = "Up"
+            elseif d.Y < 0 then
+                dirString = "Down"
             end
-            
-            function tab:CreateToggle(config)
-                local toggle = {}
-                
-                -- Call the callback with default value
-                if config.Callback then
-                    config.Callback(config.Default or false)
-                end
-                
-                return toggle
-            end
-            
-            function tab:CreateButton(config)
-                local button = {}
-                
-                -- Execute the callback immediately if autoExecute is true
-                if config.autoExecute then
-                    spawn(function()
-                        if config.Callback then
-                            config.Callback()
-                        end
-                    end)
-                end
-                
-                return button
-            end
-            
-            function tab:CreateSlider(config)
-                local slider = {}
-                
-                -- Call the callback with default value
-                if config.Callback then
-                    config.Callback(config.Default or config.Min or 0)
-                end
-                
-                return slider
-            end
-            
-            function tab:CreateDropdown(config)
-                local dropdown = {}
-                
-                -- Call the callback with default value if specified
-                if config.Callback and config.Default then
-                    config.Callback(config.Default)
-                end
-                
-                return dropdown
-            end
-            
-            function tab:CreateParagraph(config)
-                -- Just a display element, no callback needed
-                return {}
-            end
-            
-            return tab
         end
         
-        return window
+        directionTextLabel.Text = "Direction: " .. dirString
+        
+        if controlledBall then
+            statusTextLabel.Text = "Ball: Active"
+        else
+            statusTextLabel.Text = "Ball: Not Found"
+        end
+    end)
+end
+
+-- Function to create the Ball Control UI with improved mobile support
+local function createBallControlUI()
+    if ballControlUI and ballControlUI.Parent then 
+        ballControlUI.Enabled = true
+        return 
     end
+
+    pcall(function()
+        ballControlUI = Instance.new("ScreenGui")
+        ballControlUI.Name = "BallControlUI"
+        
+        -- Try to parent to PlayerGui first
+        pcall(function()
+            ballControlUI.Parent = LocalPlayer.PlayerGui
+        end)
+        
+        -- If that fails, try CoreGui
+        if not ballControlUI.Parent then
+            pcall(function()
+                ballControlUI.Parent = game:GetService("CoreGui")
+            end)
+        end
+        
+        ballControlUI.ResetOnSpawn = false
+        ballControlUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+        local mainFrame = Instance.new("Frame")
+        mainFrame.Name = "MainFrame"
+        mainFrame.Size = UDim2.new(0, 250, 0, 220)  -- Made larger for mobile
+        mainFrame.Position = UDim2.new(0.02, 0, 0.25, 0)  -- Positioned away from standard mobile controls
+        mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        mainFrame.BackgroundTransparency = config.uiTransparency
+        mainFrame.BorderSizePixel = 0
+        mainFrame.Active = true
+        mainFrame.Draggable = true  -- Allow dragging UI
+        mainFrame.Parent = ballControlUI
+
+        -- Add corner radius
+        local cornerRadius = Instance.new("UICorner")
+        cornerRadius.CornerRadius = UDim.new(0, 10)
+        cornerRadius.Parent = mainFrame
+        
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(0.8, 0, 0.2, 0)
+        titleLabel.Position = UDim2.new(0, 10, 0, 0)
+        titleLabel.Text = "Ball Control"
+        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.TextSize = 16
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        titleLabel.Parent = mainFrame
+
+        speedTextLabel = Instance.new("TextLabel")
+        speedTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
+        speedTextLabel.Position = UDim2.new(0, 10, 0.2, 0)
+        speedTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        speedTextLabel.BackgroundTransparency = 1
+        speedTextLabel.Font = Enum.Font.Gotham
+        speedTextLabel.TextSize = 14
+        speedTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        speedTextLabel.Parent = mainFrame
+
+        directionTextLabel = Instance.new("TextLabel")
+        directionTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
+        directionTextLabel.Position = UDim2.new(0, 10, 0.35, 0)
+        directionTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        directionTextLabel.BackgroundTransparency = 1
+        directionTextLabel.Font = Enum.Font.Gotham
+        directionTextLabel.TextSize = 14
+        directionTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        directionTextLabel.Parent = mainFrame
+        
+        statusTextLabel = Instance.new("TextLabel")
+        statusTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
+        statusTextLabel.Position = UDim2.new(0, 10, 0.5, 0)
+        statusTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        statusTextLabel.BackgroundTransparency = 1
+        statusTextLabel.Font = Enum.Font.Gotham
+        statusTextLabel.TextSize = 14
+        statusTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        statusTextLabel.Parent = mainFrame
+
+        local closeButton = Instance.new("TextButton")
+        closeButton.Size = UDim2.new(0.15, 0, 0.15, 0)
+        closeButton.Position = UDim2.new(0.85, 0, 0, 0)
+        closeButton.Text = "X"
+        closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        closeButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+        closeButton.BackgroundTransparency = 0.2
+        closeButton.Font = Enum.Font.GothamBold
+        closeButton.TextSize = 16
+        closeButton.Parent = mainFrame
+        
+        -- Add corner radius to close button
+        local closeCorner = Instance.new("UICorner")
+        closeCorner.CornerRadius = UDim.new(0, 5)
+        closeCorner.Parent = closeButton
+        
+        closeButton.MouseButton1Click:Connect(function()
+            controllingBall = false
+            controlledBall = nil
+            if ballControlUI then
+                ballControlUI.Enabled = false
+            end
+        end)
+
+        local buttonSize = config.buttonSize
+        local buttonSpacing = 10
+        local buttonYOffset = 0.65
+
+        -- Function to create move buttons with improved error handling
+        local function createMoveButton(text, direction, position)
+            local button = Instance.new("TextButton")
+            button.Size = buttonSize
+            button.Position = position
+            button.Text = text
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            button.BackgroundTransparency = 0.3
+            button.Font = Enum.Font.GothamBold
+            button.TextSize = 14
+            button.Parent = mainFrame
+            
+            -- Add corner radius to button
+            local buttonCorner = Instance.new("UICorner")
+            buttonCorner.CornerRadius = UDim.new(0, 5)
+            buttonCorner.Parent = button
+            
+            -- Mobile-friendly controls
+            button.TouchLongPress:Connect(function()
+                moveDirection = direction
+                button.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+                updateUI()
+            end)
+            
+            button.MouseButton1Down:Connect(function()
+                moveDirection = direction
+                button.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+                updateUI()
+            end)
+            
+            button.MouseButton1Up:Connect(function()
+                if moveDirection == direction then
+                    moveDirection = Vector3.new(0, 0, 0)
+                    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+                    updateUI()
+                end
+            end)
+            
+            button.TouchEnded:Connect(function()
+                if moveDirection == direction then
+                    moveDirection = Vector3.new(0, 0, 0)
+                    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+                    updateUI()
+                end
+            end)
+            
+            return button
+        end
+
+        -- Creating a proper directional control layout
+        local centerX = 0.25
+        local centerY = buttonYOffset + 0.12
+        local buttonOffset = buttonSize.X.Offset + buttonSpacing
+        
+        moveButtons["Forward"] = createMoveButton("↑", Vector3.new(0, 0, -1), 
+            UDim2.new(centerX, 0, centerY - 0.15, 0))
+            
+        moveButtons["Backward"] = createMoveButton("↓", Vector3.new(0, 0, 1), 
+            UDim2.new(centerX, 0, centerY + 0.15, 0))
+            
+        moveButtons["Left"] = createMoveButton("←", Vector3.new(-1, 0, 0), 
+            UDim2.new(centerX - 0.15, 0, centerY, 0))
+            
+        moveButtons["Right"] = createMoveButton("→", Vector3.new(1, 0, 0), 
+            UDim2.new(centerX + 0.15, 0, centerY, 0))
+            
+        moveButtons["Up"] = createMoveButton("⬆", Vector3.new(0, 1, 0), 
+            UDim2.new(0.75, 0, centerY - 0.15, 0))
+            
+        moveButtons["Down"] = createMoveButton("⬇", Vector3.new(0, -1, 0), 
+            UDim2.new(0.75, 0, centerY + 0.15, 0))
+
+        -- Speed buttons with improved formatting and placement
+        speedButtons["Increase"] = Instance.new("TextButton")
+        speedButtons["Increase"].Size = UDim2.new(0, 40, 0, 40)
+        speedButtons["Increase"].Position = UDim2.new(0.6, 0, buttonYOffset + 0.35, 0)
+        speedButtons["Increase"].Text = "+"
+        speedButtons["Increase"].TextColor3 = Color3.fromRGB(255, 255, 255)
+        speedButtons["Increase"].BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        speedButtons["Increase"].BackgroundTransparency = 0.3
+        speedButtons["Increase"].Font = Enum.Font.GothamBold
+        speedButtons["Increase"].TextSize = 24
+        speedButtons["Increase"].Parent = mainFrame
+        
+        -- Add corner radius to speed button
+        local increaseCorner = Instance.new("UICorner")
+        increaseCorner.CornerRadius = UDim.new(0, 5)
+        increaseCorner.Parent = speedButtons["Increase"]
+
+        speedButtons["Increase"].MouseButton1Click:Connect(function()
+            controlSpeed = math.clamp(controlSpeed + config.speedIncrement, config.minSpeed, config.maxSpeed)
+            updateUI()
+        end)
+
+        speedButtons["Decrease"] = Instance.new("TextButton")
+        speedButtons["Decrease"].Size = UDim2.new(0, 40, 0, 40)
+        speedButtons["Decrease"].Position = UDim2.new(0.3, 0, buttonYOffset + 0.35, 0)
+        speedButtons["Decrease"].Text = "-"
+        speedButtons["Decrease"].TextColor3 = Color3.fromRGB(255, 255, 255)
+        speedButtons["Decrease"].BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+        speedButtons["Decrease"].BackgroundTransparency = 0.3
+        speedButtons["Decrease"].Font = Enum.Font.GothamBold
+        speedButtons["Decrease"].TextSize = 24
+        speedButtons["Decrease"].Parent = mainFrame
+        
+        -- Add corner radius to speed button
+        local decreaseCorner = Instance.new("UICorner")
+        decreaseCorner.CornerRadius = UDim.new(0, 5)
+        decreaseCorner.Parent = speedButtons["Decrease"]
+
+        speedButtons["Decrease"].MouseButton1Click:Connect(function()
+            controlSpeed = math.clamp(controlSpeed - config.speedIncrement, config.minSpeed, config.maxSpeed)
+            updateUI()
+        end)
+        
+        -- Reset button to re-find the ball
+        local resetButton = Instance.new("TextButton")
+        resetButton.Size = UDim2.new(0, 80, 0, 30)
+        resetButton.Position = UDim2.new(0.5, -40, 0.9, 0)
+        resetButton.Text = "Reset Ball"
+        resetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        resetButton.BackgroundColor3 = Color3.fromRGB(0, 80, 120)
+        resetButton.BackgroundTransparency = 0.3
+        resetButton.Font = Enum.Font.GothamBold
+        resetButton.TextSize = 12
+        resetButton.Parent = mainFrame
+        
+        -- Add corner radius to reset button
+        local resetCorner = Instance.new("UICorner")
+        resetCorner.CornerRadius = UDim.new(0, 5)
+        resetCorner.Parent = resetButton
+        
+        resetButton.MouseButton1Click:Connect(function()
+            local now = tick()
+            if now - lastForcedReset < resetCooldown then
+                createNotification("Cooldown", "Please wait " .. math.ceil(resetCooldown - (now - lastForcedReset)) .. " seconds", 2)
+                return
+            end
+            
+            lastForcedReset = now
+            
+            local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
+            if ball then
+                controlledBall = ball
+                createNotification("Ball Found", "Now controlling a new ball!", 2)
+            else
+                createNotification("No Ball Found", "Could not find a ball nearby", 2)
+            end
+            updateUI()
+        end)
+
+        ballControlUI.Enabled = true
+        updateUI()
+    end)
+end
+
+-- Function to handle toggling control (Mobile friendly)
+local function toggleBallControl()
+    if controllingBall then
+        controllingBall = false
+        controlledBall = nil
+        
+        if ballControlUI then
+            ballControlUI.Enabled = false
+        end
+        
+        createNotification("Ball Control", "Deactivated", 2)
+    else
+        local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
+        if ball then
+            controllingBall = true
+            controlledBall = ball
+            createBallControlUI()
+            createNotification("Ball Control", "Activated! Use the controls to move the ball.", 3)
+        else
+            createNotification("Ball Control", "No ball found nearby to control.", 3)
+        end
+    end
+end
+
+-- Create a button to toggle control (Mobile)
+local function createToggleButton()
+    if toggleButton and toggleButton.Parent then
+        toggleButton.Enabled = true
+        return
+    end
+
+    pcall(function()
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "BallControlToggle"
+        
+        -- Try to parent to PlayerGui first
+        pcall(function()
+            screenGui.Parent = LocalPlayer.PlayerGui
+        end)
+        
+        -- If that fails, try CoreGui
+        if not screenGui.Parent then
+            pcall(function()
+                screenGui.Parent = game:GetService("CoreGui")
+            end)
+        end
+        
+        screenGui.ResetOnSpawn = false
+        screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+        toggleButton = Instance.new("TextButton")
+        toggleButton.Name = "ToggleBallControl"
+        toggleButton.Size = UDim2.new(0, 100, 0, 50)
+        toggleButton.Position = UDim2.new(0.02, 0, 0.1, 0)
+        toggleButton.Text = "⚽ Control"
+        toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 70, 120)
+        toggleButton.BackgroundTransparency = 0.2
+        toggleButton.Font = Enum.Font.GothamBold
+        toggleButton.TextSize = 14
+        toggleButton.Parent = screenGui
+        toggleButton.ZIndex = 5
+        
+        -- Add corner radius
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 8)
+        buttonCorner.Parent = toggleButton
+        
+        toggleButton.MouseButton1Click:Connect(toggleBallControl)
+    end)
+end
+
+-- Enhanced function to move the ball with better physics control
+local function moveControlledBall()
+    if not controllingBall or not controlledBall then return end
     
-    -- Create a basic notification using our fallback
-    NotificationLib:Notify(
-        "Mobile UI Loaded", 
-        "SkyX Arise Crossover script is running in mobile compatibility mode. Some UI features may be limited.", 
-        5
-    )
-end
-
--- Services
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local VirtualUser = game:GetService("VirtualUser")
-
--- Local Player
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-
--- Safe check for critical game elements
-local enemiesFolder = workspace:FindFirstChild("__Main") and 
-                     workspace.__Main:FindFirstChild("__Enemies") and 
-                     workspace.__Main.__Enemies:FindFirstChild("Client")
-
-local bridgeNetEvent = game:GetService("ReplicatedStorage"):FindFirstChild("BridgeNet2") and
-                      game:GetService("ReplicatedStorage").BridgeNet2:FindFirstChild("dataRemoteEvent")
-
-if not enemiesFolder then
-    warn("Enemies folder not found! The game structure may have changed.")
-    NotificationLib:Notify("Error", "Enemy folder not found. Game structure may have changed.", 5)
-end
-
-if not bridgeNetEvent then
-    warn("BridgeNet2 event not found! The game structure may have changed.")
-    NotificationLib:Notify("Error", "BridgeNet2 event not found. Game structure may have changed.", 5)
-end
-
--- Variables for features
-globalEnv.AutoAttack = false
-globalEnv.SoondooFarm = false
-globalEnv.GonsheeFarm = false
-
--- Function to update character references when character changes
-LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
-    Character = NewCharacter
-    Humanoid = Character:WaitForChild("Humanoid")
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-end)
-
--- Anti-AFK
-LocalPlayer.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-    wait(1)
-    VirtualUser:Button2Up(Vector2.new(0, 0), Workspace.CurrentCamera.CFrame)
-end)
-
--- Auto Attack Function
-local function setupAutoAttack()
-    if not enemiesFolder or not bridgeNetEvent then
-        warn("Required game elements not found. Auto attack may not work.")
-        NotificationLib:Notify("Error", "Game elements for auto attack not found.", 5)
+    -- Verify ball still exists in the game
+    if not controlledBall.Parent or not controlledBall:IsDescendantOf(workspace) then
+        controlledBall = nil
+        errorCount = errorCount + 1
+        
+        if errorCount >= maxErrorCount then
+            -- If too many errors, try to find a new ball
+            local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
+            if ball then
+                controlledBall = ball
+                errorCount = 0
+                createNotification("Ball Control", "Ball lost and reconnected", 2)
+            else
+                createNotification("Ball Control", "Ball lost - move closer to a ball", 3)
+            end
+        end
+        
+        updateUI()
         return
     end
     
-    local playerDetectionRadius = 10
-    local petDetectionRadius = 10
-    local punchLoopConnection = nil
-    local lastPetTarget = nil
-    local lastPlayerTarget = nil
+    -- Reset error count when ball is working
+    errorCount = 0
     
-    local function findNearestNPC(radius)
-        local nearestNPC = nil
-        local nearestDistance = math.huge
-        
-        for _, npc in pairs(enemiesFolder:GetChildren()) do
-            if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") then
-                local npcRootPart = npc.HumanoidRootPart
-                local distance = (HumanoidRootPart.Position - npcRootPart.Position).Magnitude
-                
-                if distance < radius and distance < nearestDistance then
-                    nearestDistance = distance
-                    nearestNPC = npc
-                end
-            end
-        end
-        
-        return nearestNPC
-    end
-    
-    local function getTopPets()
-        local petList = {}
-        
-        pcall(function()
-            local inventoryPets = LocalPlayer.leaderstats.Inventory.Pets
+    -- Different movement approaches to try
+    pcall(function()
+        -- Attempt 1: Using velocity manipulation (works for most balls)
+        if moveDirection.Magnitude > 0 then
+            local targetVelocity = moveDirection.Unit * controlSpeed
             
-            for _, petFolder in ipairs(inventoryPets:GetChildren()) do
-                if petFolder:IsA("Folder") then
-                    local levelAttribute = petFolder:GetAttribute("Level")
-                    if levelAttribute then
-                        table.insert(petList, {
-                            pet = petFolder.Name,
-                            level = levelAttribute
-                        })
-                    end
-                end
-            end
-            
-            table.sort(petList, function(a, b)
-                return a.level > b.level
-            end)
-        end)
-        
-        local topPets = {}
-        for i = 1, math.min(4, #petList) do
-            table.insert(topPets, petList[i].pet)
-        end
-        
-        return topPets
-    end
-    
-    local function punchLoop(npcName)
-        if not npcName then return end
-        
-        local args = {
-            [1] = {
-                [1] = {
-                    ["Event"] = "PunchAttack",
-                    ["Enemy"] = npcName
-                },
-                [2] = "\4"
-            }
-        }
-        
-        pcall(function()
-            bridgeNetEvent:FireServer(unpack(args))
-        end)
-    end
-    
-    local function attackPets(npcName)
-        if not npcName then return end
-        
-        local topPets = getTopPets()
-        local petPositions = {}
-        
-        -- Dynamically build pet positions around the target
-        for i, petName in ipairs(topPets) do
-            local angle = (i - 1) * (math.pi / 2) -- Distributes pets in a semicircle
-            local posX = math.cos(angle) * 5
-            local posZ = math.sin(angle) * 5
-            
-            petPositions[petName] = HumanoidRootPart.Position + Vector3.new(posX, 0, posZ)
-        end
-        
-        local petAttackArgs = {
-            [1] = {
-                [1] = {
-                    ["PetPos"] = {},
-                    ["AttackType"] = "All",
-                    ["Event"] = "Attack",
-                    ["Enemy"] = npcName
-                },
-                [2] = "\7"
-            }
-        }
-        
-        for _, petName in ipairs(topPets) do
-            if petPositions[petName] then
-                petAttackArgs[1][1]["PetPos"][petName] = petPositions[petName]
-            end
-        end
-        
-        pcall(function()
-            bridgeNetEvent:FireServer(unpack(petAttackArgs))
-        end)
-    end
-    
-    local function checkProximity()
-        if not globalEnv.AutoAttack then return end
-        
-        local nearestNPCForPlayer = findNearestNPC(playerDetectionRadius)
-        local nearestNPCForPets = findNearestNPC(petDetectionRadius)
-        
-        if nearestNPCForPets and nearestNPCForPets.Name ~= lastPetTarget then
-            print("Nearest NPC (Pets): " .. nearestNPCForPets.Name)
-            attackPets(nearestNPCForPets.Name)
-            lastPetTarget = nearestNPCForPets.Name
-        end
-        
-        if nearestNPCForPlayer then
-            if nearestNPCForPlayer.Name ~= lastPlayerTarget then
-                print("Nearest NPC (Player): " .. nearestNPCForPlayer.Name)
-                lastPlayerTarget = nearestNPCForPlayer.Name
-            end
-            
-            if punchLoopConnection then
-                punchLoopConnection:Disconnect()
-            end
-            
-            punchLoopConnection = RunService.Heartbeat:Connect(function()
-                punchLoop(nearestNPCForPlayer.Name)
-            end)
-        elseif punchLoopConnection then
-            punchLoopConnection:Disconnect()
-            punchLoopConnection = nil
-            lastPlayerTarget = nil
-        end
-    end
-    
-    -- Set up the main proximity check loop
-    globalEnv.autoAttackConnection = RunService.Heartbeat:Connect(checkProximity)
-    
-    -- Stop auto attack when needed
-    local function stopAutoAttack()
-        if globalEnv.autoAttackConnection then
-            globalEnv.autoAttackConnection:Disconnect()
-            globalEnv.autoAttackConnection = nil
-        end
-        
-        if punchLoopConnection then
-            punchLoopConnection:Disconnect()
-            punchLoopConnection = nil
-        end
-        
-        lastPetTarget = nil
-        lastPlayerTarget = nil
-    end
-    
-    return stopAutoAttack
-end
-
--- Soondoo Farm Function
-local function setupSoondooFarm()
-    local soondooLocations = {
-        CFrame.new(555.987366, 27.638092, 153.378983),
-        CFrame.new(615.902832, 38.4664612, -23.1269665),
-        CFrame.new(558.342346, 36.8911018, -20.6030388),
-        CFrame.new(623.534912, 27.6380959, 138.817123),
-        CFrame.new(493.286682, 30.9406681, 18.0997391)
-    }
-    
-    local currentTargetIndex = 1
-    local targetNPC = nil
-    local soondooHeartbeatConnection = nil
-    
-    local function findNPCAtLocation(location)
-        if not enemiesFolder then return nil end
-        
-        for _, npc in pairs(enemiesFolder:GetChildren()) do
-            if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") then
-                local npcRootPart = npc.HumanoidRootPart
-                local distance = (npcRootPart.Position - location.Position).Magnitude
-                if distance < 5 then
-                    return npc
-                end
-            end
-        end
-        return nil
-    end
-    
-    local function tweenCharacter(targetCFrame)
-        local tweenInfo = TweenInfo.new(
-            1, -- Time
-            Enum.EasingStyle.Linear,
-            Enum.EasingDirection.Out,
-            0, -- RepeatCount
-            false, -- Reverses
-            0 -- DelayTime
-        )
-        
-        local tween = TweenService:Create(HumanoidRootPart, tweenInfo, {CFrame = targetCFrame})
-        tween:Play()
-        return tween
-    end
-    
-    local function checkSoondooProximity()
-        if not globalEnv.SoondooFarm then return end
-        
-        if targetNPC and targetNPC:FindFirstChild("HealthBar") and 
-           targetNPC.HealthBar:FindFirstChild("Main") and
-           targetNPC.HealthBar.Main:FindFirstChild("Bar") and
-           targetNPC.HealthBar.Main.Bar:FindFirstChild("Amount") and
-           targetNPC.HealthBar.Main.Bar.Amount.Text == "0 HP" then
-            
-            currentTargetIndex = currentTargetIndex + 1
-            if currentTargetIndex > #soondooLocations then
-                currentTargetIndex = 1
-            end
-            targetNPC = nil
-        end
-        
-        if not targetNPC then
-            targetNPC = findNPCAtLocation(soondooLocations[currentTargetIndex])
-            if targetNPC then
-                tweenCharacter(soondooLocations[currentTargetIndex])
-                print("Soondoo: Tweening to location " .. currentTargetIndex)
-            end
-        end
-    end
-    
-    local function startSoondoo()
-        if not HumanoidRootPart then
-            warn("Character not found for Soondoo farm")
-            return
-        end
-        
-        tweenCharacter(soondooLocations[currentTargetIndex])
-        targetNPC = findNPCAtLocation(soondooLocations[currentTargetIndex])
-        print("Soondoo: Initial tween to location 1")
-        
-        soondooHeartbeatConnection = RunService.Heartbeat:Connect(checkSoondooProximity)
-    end
-    
-    local function stopSoondoo()
-        if soondooHeartbeatConnection then
-            soondooHeartbeatConnection:Disconnect()
-            soondooHeartbeatConnection = nil
-            print("Soondoo movement stopped.")
-        end
-    end
-    
-    startSoondoo()
-    return stopSoondoo
-end
-
--- Gonshee Farm Function
-local function setupGonsheeFarm()
-    local gonsheeLocations = {
-        CFrame.new(409.754791, 28.7839146, 77.2221298),
-        CFrame.new(427.516449, 28.4950428, 10.139122),
-        CFrame.new(577.832947, 27.6630726, -161.732498),
-        CFrame.new(515.446899, 27.6630707, -146.634628),
-        CFrame.new(514.245667, 27.6630573, -68.8822021)
-    }
-    
-    local currentGonsheeTargetIndex = 1
-    local targetGonsheeNPC = nil
-    local gonsheeHeartbeatConnection = nil
-    
-    local function findNPCAtLocation(location)
-        if not enemiesFolder then return nil end
-        
-        for _, npc in pairs(enemiesFolder:GetChildren()) do
-            if npc:IsA("Model") and npc:FindFirstChild("HumanoidRootPart") then
-                local npcRootPart = npc.HumanoidRootPart
-                local distance = (npcRootPart.Position - location.Position).Magnitude
-                if distance < 5 then
-                    return npc
-                end
-            end
-        end
-        return nil
-    end
-    
-    local function tweenCharacter(targetCFrame)
-        local tweenInfo = TweenInfo.new(
-            1, -- Time
-            Enum.EasingStyle.Linear,
-            Enum.EasingDirection.Out,
-            0, -- RepeatCount
-            false, -- Reverses
-            0 -- DelayTime
-        )
-        
-        local tween = TweenService:Create(HumanoidRootPart, tweenInfo, {CFrame = targetCFrame})
-        tween:Play()
-        return tween
-    end
-    
-    local function checkGonsheeProximity()
-        if not globalEnv.GonsheeFarm then return end
-        
-        if targetGonsheeNPC and targetGonsheeNPC:FindFirstChild("HealthBar") and 
-           targetGonsheeNPC.HealthBar:FindFirstChild("Main") and
-           targetGonsheeNPC.HealthBar.Main:FindFirstChild("Bar") and
-           targetGonsheeNPC.HealthBar.Main.Bar:FindFirstChild("Amount") and
-           targetGonsheeNPC.HealthBar.Main.Bar.Amount.Text == "0 HP" then
-            
-            currentGonsheeTargetIndex = currentGonsheeTargetIndex + 1
-            if currentGonsheeTargetIndex > #gonsheeLocations then
-                currentGonsheeTargetIndex = 1
-            end
-            targetGonsheeNPC = nil
-        end
-        
-        if not targetGonsheeNPC then
-            targetGonsheeNPC = findNPCAtLocation(gonsheeLocations[currentGonsheeTargetIndex])
-            if targetGonsheeNPC then
-                tweenCharacter(gonsheeLocations[currentGonsheeTargetIndex])
-                print("Gonshee: Tweening to location " .. currentGonsheeTargetIndex)
-            end
-        end
-    end
-    
-    local function startGonshee()
-        if not HumanoidRootPart then
-            warn("Character not found for Gonshee farm")
-            return
-        end
-        
-        tweenCharacter(gonsheeLocations[currentGonsheeTargetIndex])
-        targetGonsheeNPC = findNPCAtLocation(gonsheeLocations[currentGonsheeTargetIndex])
-        print("Gonshee: Initial tween to location 1")
-        
-        gonsheeHeartbeatConnection = RunService.Heartbeat:Connect(checkGonsheeProximity)
-    end
-    
-    local function stopGonshee()
-        if gonsheeHeartbeatConnection then
-            gonsheeHeartbeatConnection:Disconnect()
-            gonsheeHeartbeatConnection = nil
-            print("Gonshee movement stopped.")
-        end
-    end
-    
-    startGonshee()
-    return stopGonshee
-end
-
--- Create Window
-local Window = Rayfield:CreateWindow({
-    Name = "Arise Crossover [Fixed]",
-    Icon = 0,
-    LoadingTitle = "SkyX Hub",
-    LoadingSubtitle = "by SkyX Team",
-    Theme = "Default",
-    DisableRayfieldPrompts = false,
-    DisableBuildWarnings = false,
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = nil,
-        FileName = "SkyX_Arise"
-    },
-    Discord = {
-        Enabled = false,
-        Invite = "https://discord.gg/skyx",
-        RememberJoins = true
-    },
-    KeySystem = false
-})
-
--- Create Tabs
-local MainTab = Window:CreateTab("Auto Farm", nil)
-local IslandsTab = Window:CreateTab("Islands", nil)
-local SettingsTab = Window:CreateTab("Settings", nil)
-
--- Main Section
-local MainSection = MainTab:CreateSection("Main")
-
--- Auto Attack Toggle
-local AutoAttackToggle = MainTab:CreateToggle({
-    Name = "Auto Attack",
-    CurrentValue = false,
-    Flag = "AutoAttack",
-    Callback = function(Value)
-        globalEnv.AutoAttack = Value
-        
-        if Value then
-            NotificationLib:Notify("Auto Attack", "Auto Attack Enabled", 3)
-            globalEnv.stopAutoAttack = setupAutoAttack()
-        else
-            NotificationLib:Notify("Auto Attack", "Auto Attack Disabled", 3)
-            if globalEnv.stopAutoAttack then
-                globalEnv.stopAutoAttack()
-            end
-        end
-    end,
-})
-
--- Auto Farm NPC
-local NPCSection = MainTab:CreateSection("NPC Farm")
-
--- Soondoo Farm Toggle
-MainTab:CreateToggle({
-    Name = "Soondoo Farm",
-    CurrentValue = false,
-    Flag = "SoondooFarm",
-    Callback = function(Value)
-        globalEnv.SoondooFarm = Value
-        
-        if Value then
-            NotificationLib:Notify("Soondoo Farm", "Soondoo Farming Enabled", 3)
-            globalEnv.stopSoondooFarm = setupSoondooFarm()
-        else
-            NotificationLib:Notify("Soondoo Farm", "Soondoo Farming Disabled", 3)
-            if globalEnv.stopSoondooFarm then
-                globalEnv.stopSoondooFarm()
-            end
-        end
-    end,
-})
-
--- Gonshee Farm Toggle
-MainTab:CreateToggle({
-    Name = "Gonshee Farm",
-    CurrentValue = false,
-    Flag = "GonsheeFarm",
-    Callback = function(Value)
-        globalEnv.GonsheeFarm = Value
-        
-        if Value then
-            NotificationLib:Notify("Gonshee Farm", "Gonshee Farming Enabled", 3)
-            globalEnv.stopGonsheeFarm = setupGonsheeFarm()
-        else
-            NotificationLib:Notify("Gonshee Farm", "Gonshee Farming Disabled", 3)
-            if globalEnv.stopGonsheeFarm then
-                globalEnv.stopGonsheeFarm()
-            end
-        end
-    end,
-})
-
--- Auto Skills Toggle
-MainTab:CreateToggle({
-    Name = "Auto Skills",
-    CurrentValue = false,
-    Flag = "AutoSkills",
-    Callback = function(Value)
-        globalEnv.AutoSkills = Value
-        
-        if Value then
-            NotificationLib:Notify("Auto Skills", "Auto Skills Enabled", 3)
-            
-            -- Create a loop for auto skills
-            if globalEnv.AutoSkillsConnection then
-                globalEnv.AutoSkillsConnection:Disconnect()
-            end
-            
-            globalEnv.AutoSkillsConnection = RunService.Heartbeat:Connect(function()
-                if not globalEnv.AutoSkills then return end
-                
-                -- Use skills based on their cooldowns
-                pcall(function()
-                    -- Simulate keyboard presses for skills
-                    for _, key in ipairs({"Q", "E", "R", "F"}) do
-                        keypress(key)
-                        wait(0.1)
-                        keyrelease(key)
-                    end
-                    
-                    -- Try to use remote events for skills if available
-                    if bridgeNetEvent then
-                        local skillArgs = {
-                            [1] = {
-                                [1] = {
-                                    ["Event"] = "UseSkill",
-                                    ["SkillName"] = "Skill1" -- Change based on game's actual skill names
-                                },
-                                [2] = "\5"
-                            }
-                        }
-                        
-                        bridgeNetEvent:FireServer(unpack(skillArgs))
-                    end
-                end)
-                
-                -- Don't spam skills, add delay
-                wait(3)
-            end)
-        else
-            NotificationLib:Notify("Auto Skills", "Auto Skills Disabled", 3)
-            
-            if globalEnv.AutoSkillsConnection then
-                globalEnv.AutoSkillsConnection:Disconnect()
-                globalEnv.AutoSkillsConnection = nil
-            end
-        end
-    end,
-})
-
--- Character Stats
-local StatsSection = MainTab:CreateSection("Character Stats")
-
--- Attack Speed
-MainTab:CreateSlider({
-    Name = "Attack Speed",
-    Range = {1, 10},
-    Increment = 1,
-    Suffix = "x",
-    CurrentValue = 1,
-    Flag = "AttackSpeed",
-    Callback = function(Value)
-        -- Attempt to modify attack speed if possible
-        -- This is just a placeholder, actual implementation depends on game mechanics
-        pcall(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Stats") then
-                -- Update attack speed stat if the game has this property
-            end
-        end)
-        
-        NotificationLib:Notify("Attack Speed", "Set to " .. Value .. "x", 3)
-    end,
-})
-
--- Islands Tab
-local IslandSection = IslandsTab:CreateSection("Teleport to Islands")
-
--- Island Teleport Buttons
-local islands = {
-    ["Main Island"] = Vector3.new(466.0532531738281, 27.771806716918945, 92.96633911132812),
-    ["Fire Island"] = Vector3.new(558.342346, 36.8911018, -20.6030388),
-    ["Ice Island"] = Vector3.new(577.832947, 27.6630726, -161.732498),
-    ["Training Area"] = Vector3.new(615.902832, 38.4664612, -23.1269665)
-}
-
-for islandName, position in pairs(islands) do
-    IslandsTab:CreateButton({
-        Name = "Teleport to " .. islandName,
-        Callback = function()
-            if Character and HumanoidRootPart then
-                -- Use tweening for smoother teleport
-                local tweenInfo = TweenInfo.new(
-                    1, -- Time
-                    Enum.EasingStyle.Quad,
-                    Enum.EasingDirection.Out,
-                    0, -- RepeatCount
-                    false, -- Reverses
-                    0 -- DelayTime
-                )
-                
-                local tween = TweenService:Create(
-                    HumanoidRootPart, 
-                    tweenInfo, 
-                    {CFrame = CFrame.new(position)}
-                )
-                
-                tween:Play()
-                NotificationLib:Notify("Teleport", "Teleporting to " .. islandName, 3)
-            end
-        end,
-    })
-end
-
--- Settings Tab
-local SettingsSection = SettingsTab:CreateSection("Script Settings")
-
-SettingsTab:CreateToggle({
-    Name = "Discord Webhooks",
-    CurrentValue = true,
-    Flag = "Webhooks",
-    Callback = function(Value)
-        globalEnv.SkyXConfig.WebhookEnabled = Value
-        NotificationLib:Notify("Settings", "Webhooks " .. (Value and "Enabled" or "Disabled"), 3)
-    end,
-})
-
-SettingsTab:CreateButton({
-    Name = "Join Discord",
-    Callback = function()
-        pcall(function()
-            if setclipboard then
-                setclipboard("https://discord.gg/skyx")
-                NotificationLib:Notify("Discord", "Invite link copied to clipboard!", 3)
+            -- Try different approaches to move the ball
+            if controlledBall:GetPropertyChangedSignal("AssemblyLinearVelocity") then
+                -- Newer physics ball
+                controlledBall.AssemblyLinearVelocity = targetVelocity
+            elseif controlledBall:FindFirstChild("BodyVelocity") then
+                -- Ball has a BodyVelocity
+                controlledBall.BodyVelocity.Velocity = targetVelocity
             else
-                NotificationLib:Notify("Discord", "Join: discord.gg/skyx", 5)
+                -- Create new body velocity
+                pcall(function()
+                    local bodyVelocity = controlledBall:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
+                    bodyVelocity.Parent = controlledBall
+                    bodyVelocity.MaxForce = Vector3.new(1000000, 1000000, 1000000)
+                    bodyVelocity.Velocity = targetVelocity
+                    bodyVelocity.P = 1250
+                end)
             end
-        end)
-    end,
-})
-
-SettingsTab:CreateButton({
-    Name = "Destroy UI",
-    Callback = function()
-        -- Clean up all connections
-        if globalEnv.stopAutoAttack then
-            globalEnv.stopAutoAttack()
-        end
-        
-        if globalEnv.stopSoondooFarm then
-            globalEnv.stopSoondooFarm()
-        end
-        
-        if globalEnv.stopGonsheeFarm then
-            globalEnv.stopGonsheeFarm()
-        end
-        
-        if globalEnv.AutoSkillsConnection then
-            globalEnv.AutoSkillsConnection:Disconnect()
-            globalEnv.AutoSkillsConnection = nil
-        end
-        
-        globalEnv.AriseCrossoverScriptLoaded = false
-        
-        if not isFallbackUI then
+            
+            -- Attempt 2: Use CFrame teleportation as fallback
+            if controlledBall:GetAttribute("ControlFailed") then
+                pcall(function()
+                    controlledBall.CFrame = controlledBall.CFrame + (moveDirection.Unit * controlSpeed * 0.1)
+                end)
+            end
+        else
+            -- Stop the ball
             pcall(function()
-                Rayfield:Destroy()
+                if controlledBall:GetPropertyChangedSignal("AssemblyLinearVelocity") then
+                    controlledBall.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end
+                
+                local bodyVelocity = controlledBall:FindFirstChild("BodyVelocity")
+                if bodyVelocity then
+                    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                end
             end)
         end
-        
-        NotificationLib:Notify("UI Destroyed", "SkyX Hub UI has been destroyed", 3)
-    end,
-})
-
--- Credits Section
-local CreditsSection = SettingsTab:CreateSection("Credits")
-
-SettingsTab:CreateParagraph({
-    Title = "Credits",
-    Content = "Original script by Naaellx\nFixed and improved by SkyX Team\nMobile compatibility by SkyX"
-})
-
--- Welcome notification
-NotificationLib:Notify("SkyX Hub", "Arise Crossover script loaded successfully!", 5)
-
--- If it's a mobile executor, show special notification
-if globalEnv.SkyXConfig.IsMobile then
-    wait(1)
-    NotificationLib:Notify("Mobile Mode", "Mobile optimizations enabled for " .. globalEnv.SkyXConfig.Platform, 5)
+    end)
 end
+
+-- Safety cleanup function to reset everything if needed
+local function safeCleanup()
+    controllingBall = false
+    controlledBall = nil
+    moveDirection = Vector3.new(0, 0, 0)
+    
+    pcall(function()
+        if ballControlUI and ballControlUI.Parent then
+            ballControlUI:Destroy()
+        end
+    end)
+    
+    pcall(function()
+        if toggleButton and toggleButton.Parent then
+            toggleButton.Parent:Destroy()
+        end
+    end)
+    
+    globalEnv.BlueLockBallControlActive = false
+end
+
+-- Creating UI elements for mobile
+-- Check if the player is on a mobile device or wants mobile UI
+local isMobile = UserInputService.TouchEnabled or globalEnv.SkyXConfig.IsMobile
+
+if isMobile then
+    createToggleButton()
+    createNotification("Ball Control", "Script loaded! Click the button to control the ball.", 4)
+else
+    -- Create the toggle button for PC too
+    createToggleButton()
+    createNotification("Ball Control", "Script loaded! Press the button to control the ball.", 4)
+end
+
+-- Update loop for ball movement with error handling
+local updateConnection
+updateConnection = RunService.RenderStepped:Connect(function()
+    pcall(function()
+        moveControlledBall()
+        updateUI()
+    end)
+end)
+
+-- Handle player leaving
+local function onPlayerRemoving()
+    pcall(function()
+        if updateConnection then 
+            updateConnection:Disconnect()
+        end
+        safeCleanup()
+    end)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+    if player == LocalPlayer then
+        onPlayerRemoving()
+    end
+end)
+
+-- Handle script termination via chat command
+LocalPlayer.Chatted:Connect(function(msg)
+    if msg:lower() == "/ballcontrol off" or msg:lower() == "/stopball" then
+        onPlayerRemoving()
+        createNotification("Ball Control", "Script has been terminated", 3)
+    end
+end)
+
+-- Final loading notification
+createNotification("SkyX Hub", "Blue Lock Rivals Ball Control loaded successfully!", 3)
