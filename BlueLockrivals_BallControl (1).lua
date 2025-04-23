@@ -1,0 +1,727 @@
+--[[
+    SkyX Hub - Blue Lock Rivals Ball Control
+    Enhanced Mobile Version
+    Originally by twisted.maniac, improved by SkyX Team
+]]
+
+-- Initialize environment with cross-platform compatibility
+local globalEnv = getgenv and getgenv() or _G
+
+-- Add global configuration
+if not globalEnv.SkyXConfig then
+    globalEnv.SkyXConfig = {
+        Platform = identifyexecutor and identifyexecutor() or "Unknown",
+        AutoDetectMobile = true
+    }
+    
+
+    if globalEnv.SkyXConfig.Platform:lower():find("fluxus") or 
+       globalEnv.SkyXConfig.Platform:lower():find("hydrogen") or 
+       globalEnv.SkyXConfig.Platform:lower():find("swift") or
+       globalEnv.SkyXConfig.Platform:lower():find("electron") or
+       globalEnv.SkyXConfig.Platform:lower():find("krnl") or
+       globalEnv.SkyXConfig.Platform:lower():find("delta") then
+        globalEnv.SkyXConfig.IsMobile = true
+    end
+end
+
+-- Check if script is already running
+if globalEnv.BlueLockBallControlActive then
+    warn("Blue Lock Rivals Ball Control script is already running!")
+    return
+end
+
+-- Mark as running
+globalEnv.BlueLockBallControlActive = true
+
+-- Services
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Local player
+local LocalPlayer = Players.LocalPlayer
+if not LocalPlayer then
+    -- Wait for player to load if not already
+    Players:GetPropertyChangedSignal("LocalPlayer"):Wait()
+    LocalPlayer = Players.LocalPlayer
+end
+
+-- Configuration
+local config = {
+    speedIncrement = 5,
+    maxSpeed = 80,       -- Increased max speed
+    minSpeed = 1,
+    maxBallDistance = 25, -- Increased max distance for finding ball
+    buttonSize = UDim2.new(0, 50, 0, 40), -- Made buttons larger for mobile
+    uiTransparency = 0.4  -- Made UI less transparent
+}
+
+-- UI Elements
+local ballControlUI
+local speedTextLabel
+local directionTextLabel
+local statusTextLabel
+local moveButtons = {}
+local speedButtons = {}
+local toggleButton
+
+-- Ball Control Variables
+local controllingBall = false
+local controlledBall = nil
+local controlSpeed = 25    -- Default speed increased
+local moveDirection = Vector3.new(0, 0, 0)
+local errorCount = 0
+local maxErrorCount = 5
+local lastForcedReset = 0
+local resetCooldown = 10
+
+-- Function to find the closest ball with error handling
+local function findClosestBall(player, maxDistance)
+    if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+    
+    local playerPos = player.Character.HumanoidRootPart.Position
+    local closestBall = nil
+    local closestDistance = maxDistance
+    
+    -- First try to find the ball in the workspace
+    pcall(function()
+        for _, part in ipairs(workspace:GetDescendants()) do
+            -- Looking for parts that might be a ball (common names or properties)
+            if part:IsA("BasePart") and 
+               (part.Name == "Ball" or 
+                part.Name:lower():find("ball") or 
+                part.Name:lower():find("soccer") or
+                part.Shape == Enum.PartType.Ball) then
+                
+                local distance = (playerPos - part.Position).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestBall = part
+                end
+            end
+        end
+    end)
+    
+    -- If no ball found, try searching in replicated storage (this might be a fallback)
+    if not closestBall then
+        pcall(function()
+            -- The ball might be stored as a model in replicated storage
+            for _, item in ipairs(ReplicatedStorage:GetDescendants()) do
+                if (item:IsA("BasePart") or item:IsA("Model")) and 
+                   (item.Name == "Ball" or 
+                    item.Name:lower():find("ball") or 
+                    item.Name:lower():find("soccer")) then
+                    
+                    return item -- Return it if found
+                end
+            end
+        end)
+    end
+    
+    return closestBall
+end
+
+-- Function to create a notification
+local function createNotification(title, text, duration)
+    pcall(function()
+        -- Create a ScreenGui for the notification
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "BallControlNotification"
+        
+        -- Try to parent it to the PlayerGui
+        pcall(function() 
+            screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+        end)
+        
+        -- If that fails, try CoreGui
+        if not screenGui.Parent then
+            pcall(function()
+                screenGui.Parent = game:GetService("CoreGui")
+            end)
+        end
+        
+        -- Create main frame
+        local frame = Instance.new("Frame")
+        frame.Size = UDim2.new(0, 250, 0, 100)
+        frame.Position = UDim2.new(0.5, -125, 0.1, 0)
+        frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        frame.BackgroundTransparency = 0.1
+        frame.BorderSizePixel = 0
+        frame.Parent = screenGui
+        
+        -- Add corner radius
+        local cornerRadius = Instance.new("UICorner")
+        cornerRadius.CornerRadius = UDim.new(0, 10)
+        cornerRadius.Parent = frame
+        
+        -- Title label
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(1, 0, 0.3, 0)
+        titleLabel.Position = UDim2.new(0, 0, 0, 0)
+        titleLabel.Text = title
+        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.TextSize = 16
+        titleLabel.Parent = frame
+        
+        -- Message label
+        local textLabel = Instance.new("TextLabel")
+        textLabel.Size = UDim2.new(1, -20, 0.7, -10)
+        textLabel.Position = UDim2.new(0, 10, 0.3, 0)
+        textLabel.Text = text
+        textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        textLabel.BackgroundTransparency = 1
+        textLabel.Font = Enum.Font.Gotham
+        textLabel.TextSize = 14
+        textLabel.TextWrapped = true
+        textLabel.Parent = frame
+        
+        -- Animate in
+        frame.Position = UDim2.new(0.5, -125, -0.2, 0)
+        local tween = TweenService:Create(
+            frame, 
+            TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {Position = UDim2.new(0.5, -125, 0.1, 0)}
+        )
+        tween:Play()
+        
+        -- Destroy after duration
+        task.spawn(function()
+            task.wait(duration or 3)
+            
+            local tweenOut = TweenService:Create(
+                frame, 
+                TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+                {Position = UDim2.new(0.5, -125, -0.2, 0)}
+            )
+            tweenOut:Play()
+            
+            tweenOut.Completed:Wait()
+            screenGui:Destroy()
+        end)
+    end)
+end
+
+-- Function to update UI
+local function updateUI()
+    if not ballControlUI then return end
+    
+    pcall(function()
+        speedTextLabel.Text = "Speed: " .. math.floor(controlSpeed)
+        
+        local dirString = "None"
+        if moveDirection.Magnitude > 0 then
+            local d = moveDirection.Unit
+            if d.X ~= 0 or d.Z ~= 0 then
+                local h = Vector3.new(d.X, 0, d.Z).Unit
+                dirString = h:Angle(Vector3.new(0, 0, -1))
+                -- Convert to degrees and make it a compass direction
+                dirString = math.deg(dirString)
+                if d.X < 0 then dirString = 360 - dirString end
+                dirString = math.floor(dirString) .. "°"
+            elseif d.Y > 0 then
+                dirString = "Up"
+            elseif d.Y < 0 then
+                dirString = "Down"
+            end
+        end
+        
+        directionTextLabel.Text = "Direction: " .. dirString
+        
+        if controlledBall then
+            statusTextLabel.Text = "Ball: Active"
+        else
+            statusTextLabel.Text = "Ball: Not Found"
+        end
+    end)
+end
+
+-- Function to create the Ball Control UI with improved mobile support
+local function createBallControlUI()
+    if ballControlUI and ballControlUI.Parent then 
+        ballControlUI.Enabled = true
+        return 
+    end
+
+    pcall(function()
+        ballControlUI = Instance.new("ScreenGui")
+        ballControlUI.Name = "BallControlUI"
+        
+        -- Try to parent to PlayerGui first
+        pcall(function()
+            ballControlUI.Parent = LocalPlayer.PlayerGui
+        end)
+        
+        -- If that fails, try CoreGui
+        if not ballControlUI.Parent then
+            pcall(function()
+                ballControlUI.Parent = game:GetService("CoreGui")
+            end)
+        end
+        
+        ballControlUI.ResetOnSpawn = false
+        ballControlUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+        local mainFrame = Instance.new("Frame")
+        mainFrame.Name = "MainFrame"
+        mainFrame.Size = UDim2.new(0, 250, 0, 220)  -- Made larger for mobile
+        mainFrame.Position = UDim2.new(0.02, 0, 0.25, 0)  -- Positioned away from standard mobile controls
+        mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+        mainFrame.BackgroundTransparency = config.uiTransparency
+        mainFrame.BorderSizePixel = 0
+        mainFrame.Active = true
+        mainFrame.Draggable = true  -- Allow dragging UI
+        mainFrame.Parent = ballControlUI
+
+        -- Add corner radius
+        local cornerRadius = Instance.new("UICorner")
+        cornerRadius.CornerRadius = UDim.new(0, 10)
+        cornerRadius.Parent = mainFrame
+        
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(0.8, 0, 0.2, 0)
+        titleLabel.Position = UDim2.new(0, 10, 0, 0)
+        titleLabel.Text = "Ball Control"
+        titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.TextSize = 16
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        titleLabel.Parent = mainFrame
+
+        speedTextLabel = Instance.new("TextLabel")
+        speedTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
+        speedTextLabel.Position = UDim2.new(0, 10, 0.2, 0)
+        speedTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        speedTextLabel.BackgroundTransparency = 1
+        speedTextLabel.Font = Enum.Font.Gotham
+        speedTextLabel.TextSize = 14
+        speedTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        speedTextLabel.Parent = mainFrame
+
+        directionTextLabel = Instance.new("TextLabel")
+        directionTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
+        directionTextLabel.Position = UDim2.new(0, 10, 0.35, 0)
+        directionTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        directionTextLabel.BackgroundTransparency = 1
+        directionTextLabel.Font = Enum.Font.Gotham
+        directionTextLabel.TextSize = 14
+        directionTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        directionTextLabel.Parent = mainFrame
+        
+        statusTextLabel = Instance.new("TextLabel")
+        statusTextLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
+        statusTextLabel.Position = UDim2.new(0, 10, 0.5, 0)
+        statusTextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        statusTextLabel.BackgroundTransparency = 1
+        statusTextLabel.Font = Enum.Font.Gotham
+        statusTextLabel.TextSize = 14
+        statusTextLabel.TextXAlignment = Enum.TextXAlignment.Left
+        statusTextLabel.Parent = mainFrame
+
+        local closeButton = Instance.new("TextButton")
+        closeButton.Size = UDim2.new(0.15, 0, 0.15, 0)
+        closeButton.Position = UDim2.new(0.85, 0, 0, 0)
+        closeButton.Text = "X"
+        closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        closeButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
+        closeButton.BackgroundTransparency = 0.2
+        closeButton.Font = Enum.Font.GothamBold
+        closeButton.TextSize = 16
+        closeButton.Parent = mainFrame
+        
+        -- Add corner radius to close button
+        local closeCorner = Instance.new("UICorner")
+        closeCorner.CornerRadius = UDim.new(0, 5)
+        closeCorner.Parent = closeButton
+        
+        closeButton.MouseButton1Click:Connect(function()
+            controllingBall = false
+            controlledBall = nil
+            if ballControlUI then
+                ballControlUI.Enabled = false
+            end
+        end)
+
+        local buttonSize = config.buttonSize
+        local buttonSpacing = 10
+        local buttonYOffset = 0.65
+
+        -- Function to create move buttons with improved error handling
+        local function createMoveButton(text, direction, position)
+            local button = Instance.new("TextButton")
+            button.Size = buttonSize
+            button.Position = position
+            button.Text = text
+            button.TextColor3 = Color3.fromRGB(255, 255, 255)
+            button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+            button.BackgroundTransparency = 0.3
+            button.Font = Enum.Font.GothamBold
+            button.TextSize = 14
+            button.Parent = mainFrame
+            
+            -- Add corner radius to button
+            local buttonCorner = Instance.new("UICorner")
+            buttonCorner.CornerRadius = UDim.new(0, 5)
+            buttonCorner.Parent = button
+            
+            -- Mobile-friendly controls
+            button.TouchLongPress:Connect(function()
+                moveDirection = direction
+                button.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+                updateUI()
+            end)
+            
+            button.MouseButton1Down:Connect(function()
+                moveDirection = direction
+                button.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+                updateUI()
+            end)
+            
+            button.MouseButton1Up:Connect(function()
+                if moveDirection == direction then
+                    moveDirection = Vector3.new(0, 0, 0)
+                    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+                    updateUI()
+                end
+            end)
+            
+            button.TouchEnded:Connect(function()
+                if moveDirection == direction then
+                    moveDirection = Vector3.new(0, 0, 0)
+                    button.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+                    updateUI()
+                end
+            end)
+            
+            return button
+        end
+
+        -- Creating a proper directional control layout
+        local centerX = 0.25
+        local centerY = buttonYOffset + 0.12
+        local buttonOffset = buttonSize.X.Offset + buttonSpacing
+        
+        moveButtons["Forward"] = createMoveButton("↑", Vector3.new(0, 0, -1), 
+            UDim2.new(centerX, 0, centerY - 0.15, 0))
+            
+        moveButtons["Backward"] = createMoveButton("↓", Vector3.new(0, 0, 1), 
+            UDim2.new(centerX, 0, centerY + 0.15, 0))
+            
+        moveButtons["Left"] = createMoveButton("←", Vector3.new(-1, 0, 0), 
+            UDim2.new(centerX - 0.15, 0, centerY, 0))
+            
+        moveButtons["Right"] = createMoveButton("→", Vector3.new(1, 0, 0), 
+            UDim2.new(centerX + 0.15, 0, centerY, 0))
+            
+        moveButtons["Up"] = createMoveButton("⬆", Vector3.new(0, 1, 0), 
+            UDim2.new(0.75, 0, centerY - 0.15, 0))
+            
+        moveButtons["Down"] = createMoveButton("⬇", Vector3.new(0, -1, 0), 
+            UDim2.new(0.75, 0, centerY + 0.15, 0))
+
+        -- Speed buttons with improved formatting and placement
+        speedButtons["Increase"] = Instance.new("TextButton")
+        speedButtons["Increase"].Size = UDim2.new(0, 40, 0, 40)
+        speedButtons["Increase"].Position = UDim2.new(0.6, 0, buttonYOffset + 0.35, 0)
+        speedButtons["Increase"].Text = "+"
+        speedButtons["Increase"].TextColor3 = Color3.fromRGB(255, 255, 255)
+        speedButtons["Increase"].BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+        speedButtons["Increase"].BackgroundTransparency = 0.3
+        speedButtons["Increase"].Font = Enum.Font.GothamBold
+        speedButtons["Increase"].TextSize = 24
+        speedButtons["Increase"].Parent = mainFrame
+        
+        -- Add corner radius to speed button
+        local increaseCorner = Instance.new("UICorner")
+        increaseCorner.CornerRadius = UDim.new(0, 5)
+        increaseCorner.Parent = speedButtons["Increase"]
+
+        speedButtons["Increase"].MouseButton1Click:Connect(function()
+            controlSpeed = math.clamp(controlSpeed + config.speedIncrement, config.minSpeed, config.maxSpeed)
+            updateUI()
+        end)
+
+        speedButtons["Decrease"] = Instance.new("TextButton")
+        speedButtons["Decrease"].Size = UDim2.new(0, 40, 0, 40)
+        speedButtons["Decrease"].Position = UDim2.new(0.3, 0, buttonYOffset + 0.35, 0)
+        speedButtons["Decrease"].Text = "-"
+        speedButtons["Decrease"].TextColor3 = Color3.fromRGB(255, 255, 255)
+        speedButtons["Decrease"].BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+        speedButtons["Decrease"].BackgroundTransparency = 0.3
+        speedButtons["Decrease"].Font = Enum.Font.GothamBold
+        speedButtons["Decrease"].TextSize = 24
+        speedButtons["Decrease"].Parent = mainFrame
+        
+        -- Add corner radius to speed button
+        local decreaseCorner = Instance.new("UICorner")
+        decreaseCorner.CornerRadius = UDim.new(0, 5)
+        decreaseCorner.Parent = speedButtons["Decrease"]
+
+        speedButtons["Decrease"].MouseButton1Click:Connect(function()
+            controlSpeed = math.clamp(controlSpeed - config.speedIncrement, config.minSpeed, config.maxSpeed)
+            updateUI()
+        end)
+        
+        -- Reset button to re-find the ball
+        local resetButton = Instance.new("TextButton")
+        resetButton.Size = UDim2.new(0, 80, 0, 30)
+        resetButton.Position = UDim2.new(0.5, -40, 0.9, 0)
+        resetButton.Text = "Reset Ball"
+        resetButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        resetButton.BackgroundColor3 = Color3.fromRGB(0, 80, 120)
+        resetButton.BackgroundTransparency = 0.3
+        resetButton.Font = Enum.Font.GothamBold
+        resetButton.TextSize = 12
+        resetButton.Parent = mainFrame
+        
+        -- Add corner radius to reset button
+        local resetCorner = Instance.new("UICorner")
+        resetCorner.CornerRadius = UDim.new(0, 5)
+        resetCorner.Parent = resetButton
+        
+        resetButton.MouseButton1Click:Connect(function()
+            local now = tick()
+            if now - lastForcedReset < resetCooldown then
+                createNotification("Cooldown", "Please wait " .. math.ceil(resetCooldown - (now - lastForcedReset)) .. " seconds", 2)
+                return
+            end
+            
+            lastForcedReset = now
+            
+            local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
+            if ball then
+                controlledBall = ball
+                createNotification("Ball Found", "Now controlling a new ball!", 2)
+            else
+                createNotification("No Ball Found", "Could not find a ball nearby", 2)
+            end
+            updateUI()
+        end)
+
+        ballControlUI.Enabled = true
+        updateUI()
+    end)
+end
+
+-- Function to handle toggling control (Mobile friendly)
+local function toggleBallControl()
+    if controllingBall then
+        controllingBall = false
+        controlledBall = nil
+        
+        if ballControlUI then
+            ballControlUI.Enabled = false
+        end
+        
+        createNotification("Ball Control", "Deactivated", 2)
+    else
+        local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
+        if ball then
+            controllingBall = true
+            controlledBall = ball
+            createBallControlUI()
+            createNotification("Ball Control", "Activated! Use the controls to move the ball.", 3)
+        else
+            createNotification("Ball Control", "No ball found nearby to control.", 3)
+        end
+    end
+end
+
+-- Create a button to toggle control (Mobile)
+local function createToggleButton()
+    if toggleButton and toggleButton.Parent then
+        toggleButton.Enabled = true
+        return
+    end
+
+    pcall(function()
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "BallControlToggle"
+        
+        -- Try to parent to PlayerGui first
+        pcall(function()
+            screenGui.Parent = LocalPlayer.PlayerGui
+        end)
+        
+        -- If that fails, try CoreGui
+        if not screenGui.Parent then
+            pcall(function()
+                screenGui.Parent = game:GetService("CoreGui")
+            end)
+        end
+        
+        screenGui.ResetOnSpawn = false
+        screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+        toggleButton = Instance.new("TextButton")
+        toggleButton.Name = "ToggleBallControl"
+        toggleButton.Size = UDim2.new(0, 100, 0, 50)
+        toggleButton.Position = UDim2.new(0.02, 0, 0.1, 0)
+        toggleButton.Text = "⚽ Control"
+        toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 70, 120)
+        toggleButton.BackgroundTransparency = 0.2
+        toggleButton.Font = Enum.Font.GothamBold
+        toggleButton.TextSize = 14
+        toggleButton.Parent = screenGui
+        toggleButton.ZIndex = 5
+        
+        -- Add corner radius
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 8)
+        buttonCorner.Parent = toggleButton
+        
+        toggleButton.MouseButton1Click:Connect(toggleBallControl)
+    end)
+end
+
+-- Enhanced function to move the ball with better physics control
+local function moveControlledBall()
+    if not controllingBall or not controlledBall then return end
+    
+    -- Verify ball still exists in the game
+    if not controlledBall.Parent or not controlledBall:IsDescendantOf(workspace) then
+        controlledBall = nil
+        errorCount = errorCount + 1
+        
+        if errorCount >= maxErrorCount then
+            -- If too many errors, try to find a new ball
+            local ball = findClosestBall(LocalPlayer, config.maxBallDistance)
+            if ball then
+                controlledBall = ball
+                errorCount = 0
+                createNotification("Ball Control", "Ball lost and reconnected", 2)
+            else
+                createNotification("Ball Control", "Ball lost - move closer to a ball", 3)
+            end
+        end
+        
+        updateUI()
+        return
+    end
+    
+    -- Reset error count when ball is working
+    errorCount = 0
+    
+    -- Different movement approaches to try
+    pcall(function()
+        -- Attempt 1: Using velocity manipulation (works for most balls)
+        if moveDirection.Magnitude > 0 then
+            local targetVelocity = moveDirection.Unit * controlSpeed
+            
+            -- Try different approaches to move the ball
+            if controlledBall:GetPropertyChangedSignal("AssemblyLinearVelocity") then
+                -- Newer physics ball
+                controlledBall.AssemblyLinearVelocity = targetVelocity
+            elseif controlledBall:FindFirstChild("BodyVelocity") then
+                -- Ball has a BodyVelocity
+                controlledBall.BodyVelocity.Velocity = targetVelocity
+            else
+                -- Create new body velocity
+                pcall(function()
+                    local bodyVelocity = controlledBall:FindFirstChild("BodyVelocity") or Instance.new("BodyVelocity")
+                    bodyVelocity.Parent = controlledBall
+                    bodyVelocity.MaxForce = Vector3.new(1000000, 1000000, 1000000)
+                    bodyVelocity.Velocity = targetVelocity
+                    bodyVelocity.P = 1250
+                end)
+            end
+            
+            -- Attempt 2: Use CFrame teleportation as fallback
+            if controlledBall:GetAttribute("ControlFailed") then
+                pcall(function()
+                    controlledBall.CFrame = controlledBall.CFrame + (moveDirection.Unit * controlSpeed * 0.1)
+                end)
+            end
+        else
+            -- Stop the ball
+            pcall(function()
+                if controlledBall:GetPropertyChangedSignal("AssemblyLinearVelocity") then
+                    controlledBall.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                end
+                
+                local bodyVelocity = controlledBall:FindFirstChild("BodyVelocity")
+                if bodyVelocity then
+                    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+                end
+            end)
+        end
+    end)
+end
+
+-- Safety cleanup function to reset everything if needed
+local function safeCleanup()
+    controllingBall = false
+    controlledBall = nil
+    moveDirection = Vector3.new(0, 0, 0)
+    
+    pcall(function()
+        if ballControlUI and ballControlUI.Parent then
+            ballControlUI:Destroy()
+        end
+    end)
+    
+    pcall(function()
+        if toggleButton and toggleButton.Parent then
+            toggleButton.Parent:Destroy()
+        end
+    end)
+    
+    globalEnv.BlueLockBallControlActive = false
+end
+
+-- Creating UI elements for mobile
+-- Check if the player is on a mobile device or wants mobile UI
+local isMobile = UserInputService.TouchEnabled or globalEnv.SkyXConfig.IsMobile
+
+if isMobile then
+    createToggleButton()
+    createNotification("Ball Control", "Script loaded! Click the button to control the ball.", 4)
+else
+    -- Create the toggle button for PC too
+    createToggleButton()
+    createNotification("Ball Control", "Script loaded! Press the button to control the ball.", 4)
+end
+
+-- Update loop for ball movement with error handling
+local updateConnection
+updateConnection = RunService.RenderStepped:Connect(function()
+    pcall(function()
+        moveControlledBall()
+        updateUI()
+    end)
+end)
+
+-- Handle player leaving
+local function onPlayerRemoving()
+    pcall(function()
+        if updateConnection then 
+            updateConnection:Disconnect()
+        end
+        safeCleanup()
+    end)
+end
+
+Players.PlayerRemoving:Connect(function(player)
+    if player == LocalPlayer then
+        onPlayerRemoving()
+    end
+end)
+
+-- Handle script termination via chat command
+LocalPlayer.Chatted:Connect(function(msg)
+    if msg:lower() == "/ballcontrol off" or msg:lower() == "/stopball" then
+        onPlayerRemoving()
+        createNotification("Ball Control", "Script has been terminated", 3)
+    end
+end)
+
+-- Final loading notification
+createNotification("SkyX Hub", "Blue Lock Rivals Ball Control loaded successfully!", 3)
