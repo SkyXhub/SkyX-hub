@@ -1,876 +1,315 @@
 --[[
-    🌊 SkyX Hub - Key System 🌊
-    Version 1.0.0
+    SkyX UI Library Demo
     
-    A secure key verification system for SkyX Hub scripts.
-    This system manages key verification, expiration, and linking to Discord.
-    
-    Features:
-    - Key verification against predefined valid keys
-    - Discord integration for key management
-    - Support for timed keys (daily, weekly, monthly)
-    - Hardware ID linking to prevent key sharing
-    - Mobile-friendly UI for key entry
-    - Works across all supported executors (Synapse, KRNL, Fluxus, Electron, Delta, etc.)
+    This script demonstrates the features of our custom SkyX UI Library
 ]]
 
--- Initialize the key system module
-local SkyXKeySystem = {}
+-- Load the SkyX UI Library
+local SkyXUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua"))()
 
--- Set up the global environment
-local globalEnv = getgenv and getgenv() or _G
+-- Create a window
+local Window = SkyXUI:CreateWindow({
+    Title = "SkyX UI Demo",
+    Position = UDim2.new(0.5, -300, 0.5, -200),
+    Size = UDim2.new(0, 600, 0, 400),
+    Theme = "Ocean" -- Available themes: Ocean, Dark, Light, Crimson, Forest
+})
 
--- Set up SkyX global environment if not already defined
-if not globalEnv.SkyX then
-    globalEnv.SkyX = {
-        Version = "2.2.0",
-        LoadTime = os.time(),
-        Platform = (syn and "Synapse") or 
-                  (KRNL_LOADED and "Krnl") or 
-                  (secure_load and "Sentinel") or 
-                  (fluxus and "Fluxus") or
-                  (delta and "Delta") or
-                  (identifyexecutor and identifyexecutor()) or 
-                  "Unknown Executor",
-        AntiBanEnabled = true,
-        WebhookEnabled = true,
-        DiscordWebhookURL = "https://discord.com/api/webhooks/1364438745067290664/J6ZLEkt_lZtwbQnssigtUr5Uj80fhzQmdH0QoitsSwJr2xgDOjIzl5Kfo1Cr1UuFo-2v",
-        KeySystem = {
-            Enabled = true,
-            Verified = false,
-            KeysUrl = "https://pastebin.com/raw/YourPastebinID", -- Replace with your Pastebin ID
-            ValidKeys = {
-                "SKYX-FREE-KEY123",  -- Default testing key
-                "SKYX-MOBILE-KEY456", -- Mobile users key
-                "SKYX-PREMIUM-KEY789" -- Premium key
-            },
-            SavedKey = "",
-            KeyExpiration = 0,
-            KeyType = "" -- "free", "premium", "mobile", etc.
-        }
-    }
-end
+-- Create tabs
+local HomeTab = Window:AddTab({
+    Name = "Home",
+    Icon = "rbxassetid://4483345998" -- Optional icon
+})
 
--- Initialize local variables for the module
-local keySystemConfig = globalEnv.SkyX.KeySystem
-local validKeys = keySystemConfig.ValidKeys
-local playerHWID = ""
+local ControlsTab = Window:AddTab({
+    Name = "Controls",
+    Icon = "rbxassetid://4483345998"
+})
 
--- Get HTTP service for web requests
-local function getHTTPService()
-    return game:GetService("HttpService")
-end
+local ThemesTab = Window:AddTab({
+    Name = "Themes",
+    Icon = "rbxassetid://4483345998"
+})
 
--- Generate a hardware ID
-local function generateHWID()
-    -- Attempt to get a unique identifier based on available executor functions
-    local hwid = ""
-    
-    -- Try different methods based on the executor
-    if syn and syn.crypt then
-        -- Synapse X
-        if syn.crypt.hash then
-            hwid = syn.crypt.hash("md5", game:GetService("RbxAnalyticsService"):GetClientId())
-        else
-            hwid = syn.crypt.encrypt(game:GetService("RbxAnalyticsService"):GetClientId(), "hwid_key_synx")
-        end
-    elseif KRNL_LOADED and crypt then
-        -- KRNL
-        hwid = crypt.hash(game:GetService("RbxAnalyticsService"):GetClientId())
-    elseif fluxus and fluxus.crypt then
-        -- Fluxus
-        hwid = fluxus.crypt.hash(game:GetService("RbxAnalyticsService"):GetClientId())
-    elseif identifyexecutor and identifyexecutor():find("ScriptWare") then
-        -- Script-Ware
-        hwid = sha1(game:GetService("RbxAnalyticsService"):GetClientId())
-    elseif delta then
-        -- Delta
-        hwid = game:GetService("RbxAnalyticsService"):GetClientId()
-    else
-        -- Fallback to client ID with some basic obfuscation
-        local clientId = game:GetService("RbxAnalyticsService"):GetClientId()
-        hwid = string.gsub(clientId, "-", "")
-        hwid = string.reverse(hwid)
+local SettingsTab = Window:AddTab({
+    Name = "Settings",
+    Icon = "rbxassetid://4483345998"
+})
+
+-- Add content to the Home tab
+local WelcomeSection = HomeTab:AddSection({
+    Name = "Welcome"
+})
+
+WelcomeSection:AddLabel("Welcome to SkyX UI Library")
+WelcomeSection:AddLabel("This is a demo of the available components")
+WelcomeSection:AddSeparator()
+WelcomeSection:AddLabel("Use the tabs to explore different features")
+
+-- Add a buttons section
+local ButtonsSection = ControlsTab:AddSection({
+    Name = "Buttons"
+})
+
+ButtonsSection:AddButton({
+    Text = "Regular Button",
+    Callback = function()
+        SkyXUI:Notify({
+            Title = "Button Clicked",
+            Text = "You clicked the regular button!",
+            Duration = 3,
+            Type = "Info"
+        })
     end
-    
-    -- Format the HWID
-    return string.sub(hwid, 1, 32)
-end
+})
 
--- Save key data to the executor's file system if supported
-local function saveKeyData(key, expiration, keyType)
-    local success, result = pcall(function()
-        local keyData = {
-            key = key,
-            expiration = expiration,
-            hwid = playerHWID,
-            keyType = keyType
-        }
-        
-        local jsonData = getHTTPService():JSONEncode(keyData)
-        
-        -- Try to save using various executor APIs
-        if writefile then
-            writefile("SkyXHub_KeyData.json", jsonData)
-            return true
-        elseif fluxus and fluxus.writefile then
-            fluxus.writefile("SkyXHub_KeyData.json", jsonData)
-            return true
-        elseif delta and delta.writefile then
-            delta.writefile("SkyXHub_KeyData.json", jsonData)
-            return true
-        end
-        
-        return false
-    end)
-    
-    return success and result or false
-end
+ButtonsSection:AddButton({
+    Text = "Action Button",
+    Callback = function()
+        SkyXUI:Notify({
+            Title = "Action Performed",
+            Text = "Action completed successfully!",
+            Duration = 3,
+            Type = "Success"
+        })
+    end
+})
 
--- Load key data from the executor's file system if supported
-local function loadKeyData()
-    local success, result = pcall(function()
-        local content = ""
-        
-        -- Try to read using various executor APIs
-        if readfile and isfile and isfile("SkyXHub_KeyData.json") then
-            content = readfile("SkyXHub_KeyData.json")
-        elseif fluxus and fluxus.readfile and fluxus.isfile and fluxus.isfile("SkyXHub_KeyData.json") then
-            content = fluxus.readfile("SkyXHub_KeyData.json")
-        elseif delta and delta.readfile and delta.isfile and delta.isfile("SkyXHub_KeyData.json") then
-            content = delta.readfile("SkyXHub_KeyData.json")
-        else
-            return nil
-        end
-        
-        if content and content ~= "" then
-            local keyData = getHTTPService():JSONDecode(content)
-            
-            -- Verify HWID match to prevent key sharing
-            if keyData.hwid == playerHWID then
-                return keyData
-            end
-        end
-        
-        return nil
-    end)
-    
-    return success and result or nil
-end
+-- Add a toggles section
+local TogglesSection = ControlsTab:AddSection({
+    Name = "Toggles"
+})
 
--- Check if the key is valid and not expired
-local function isKeyValidAndNotExpired(key, userHWID)
-    -- Simple validation against the local list
-    local isValid = false
-    local keyType = "unknown"
-    
-    for _, validKey in ipairs(validKeys) do
-        if key == validKey then
-            isValid = true
-            
-            -- Determine key type
-            if string.find(key, "FREE") then
-                keyType = "free"
-            elseif string.find(key, "PREMIUM") then
-                keyType = "premium"
-            elseif string.find(key, "MOBILE") then
-                keyType = "mobile"
-            end
-            
-            break
-        end
+local autoFarmToggle = TogglesSection:AddToggle({
+    Text = "Auto Farm",
+    Default = false,
+    Callback = function(value)
+        SkyXUI:Notify({
+            Title = "Toggle Changed",
+            Text = "Auto Farm: " .. (value and "Enabled" or "Disabled"),
+            Duration = 3,
+            Type = value and "Success" or "Info"
+        })
     end
-    
-    if not isValid then
-        return false, "invalid", keyType
-    end
-    
-    -- Check if this is a new key or matches saved HWID
-    local savedKeyData = loadKeyData()
-    if savedKeyData then
-        if savedKeyData.key == key and savedKeyData.hwid ~= userHWID then
-            return false, "hwid_mismatch", keyType
-        end
-        
-        -- Check if key is expired
-        if os.time() > savedKeyData.expiration then
-            return false, "expired", keyType
-        end
-    end
-    
-    -- Default expiration: 7 days
-    local expiration = os.time() + (7 * 24 * 60 * 60)
-    
-    -- Save key data
-    saveKeyData(key, expiration, keyType)
-    
-    return true, "valid", keyType
-end
+})
 
--- Try to fetch keys from external source
-local function fetchKeysFromRemote()
-    pcall(function()
-        if keySystemConfig.KeysUrl and keySystemConfig.KeysUrl ~= "" then
-            local http = getHTTPService()
-            local success, keysData = pcall(function()
-                return http:GetAsync(keySystemConfig.KeysUrl)
-            end)
-            
-            if success and keysData and keysData ~= "" then
-                local lines = {}
-                for line in keysData:gmatch("[^\r\n]+") do
-                    table.insert(lines, line)
-                end
-                
-                if #lines > 0 then
-                    -- Update valid keys
-                    keySystemConfig.ValidKeys = lines
-                    validKeys = lines
-                end
-            end
-        end
-    end)
-end
+local espToggle = TogglesSection:AddToggle({
+    Text = "ESP",
+    Default = true,
+    Callback = function(value)
+        -- ESP functionality would go here
+    end
+})
 
--- Create a mobile-friendly UI for key entry
-local function createKeyUI()
-    -- Services
-    local Players = game:GetService("Players")
-    local CoreGui = game:GetService("CoreGui")
-    local TweenService = game:GetService("TweenService")
-    local UserInputService = game:GetService("UserInputService")
-    
-    -- Remove existing UI if present
-    for _, gui in pairs(CoreGui:GetChildren()) do
-        if gui.Name == "SkyXKeySystem" then
-            gui:Destroy()
-        end
+-- Add a sliders section
+local SlidersSection = ControlsTab:AddSection({
+    Name = "Sliders"
+})
+
+local walkSpeedSlider = SlidersSection:AddSlider({
+    Text = "Walk Speed",
+    Min = 16,
+    Max = 100,
+    Default = 16,
+    Callback = function(value)
+        -- Set walk speed functionality would go here
     end
-    
-    -- Create key UI
-    local keyUI = Instance.new("ScreenGui")
-    keyUI.Name = "SkyXKeySystem"
-    keyUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    
-    -- Determine parent based on executor
-    if syn and syn.protect_gui then
-        syn.protect_gui(keyUI)
-        keyUI.Parent = CoreGui
-    elseif gethui then
-        keyUI.Parent = gethui()
-    else
-        keyUI.Parent = CoreGui
+})
+
+local jumpPowerSlider = SlidersSection:AddSlider({
+    Text = "Jump Power",
+    Min = 50,
+    Max = 200,
+    Default = 50,
+    Callback = function(value)
+        -- Set jump power functionality would go here
     end
-    
-    -- Create main frame
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, 400, 0, 300)
-    mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
-    mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-    mainFrame.BorderSizePixel = 0
-    mainFrame.ClipsDescendants = true
-    mainFrame.Parent = keyUI
-    
-    -- Add corner radius
-    local cornerRadius = Instance.new("UICorner")
-    cornerRadius.CornerRadius = UDim.new(0, 10)
-    cornerRadius.Parent = mainFrame
-    
-    -- Add title
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Name = "Title"
-    titleLabel.Size = UDim2.new(1, 0, 0, 50)
-    titleLabel.Position = UDim2.new(0, 0, 0, 10)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.Text = "SkyX Hub - Key System"
-    titleLabel.TextColor3 = Color3.fromRGB(97, 190, 255) -- Ocean blue
-    titleLabel.TextSize = 24
-    titleLabel.Parent = mainFrame
-    
-    -- Add description
-    local descLabel = Instance.new("TextLabel")
-    descLabel.Name = "Description"
-    descLabel.Size = UDim2.new(0.9, 0, 0, 40)
-    descLabel.Position = UDim2.new(0.05, 0, 0, 60)
-    descLabel.BackgroundTransparency = 1
-    descLabel.Font = Enum.Font.Gotham
-    descLabel.Text = "Join our Discord server to get your key: discord.gg/ugyvkJXhFh"
-    descLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    descLabel.TextSize = 16
-    descLabel.TextWrapped = true
-    descLabel.Parent = mainFrame
-    
-    -- Add key text box (larger for mobile)
-    local keyBox = Instance.new("TextBox")
-    keyBox.Name = "KeyBox"
-    keyBox.Size = UDim2.new(0.9, 0, 0, 50) -- Larger for mobile users
-    keyBox.Position = UDim2.new(0.05, 0, 0, 120)
-    keyBox.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
-    keyBox.BorderSizePixel = 0
-    keyBox.Font = Enum.Font.Gotham
-    keyBox.PlaceholderText = "Enter your key here"
-    keyBox.Text = ""
-    keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-    keyBox.TextSize = 18
-    keyBox.ClearTextOnFocus = false
-    keyBox.Parent = mainFrame
-    
-    -- Add corner radius to text box
-    local boxCorner = Instance.new("UICorner")
-    boxCorner.CornerRadius = UDim.new(0, 6)
-    boxCorner.Parent = keyBox
-    
-    -- Add submit button (larger for mobile)
-    local submitButton = Instance.new("TextButton")
-    submitButton.Name = "SubmitButton"
-    submitButton.Size = UDim2.new(0.9, 0, 0, 50) -- Larger for mobile users
-    submitButton.Position = UDim2.new(0.05, 0, 0, 185)
-    submitButton.BackgroundColor3 = Color3.fromRGB(97, 190, 255) -- Ocean blue
-    submitButton.BorderSizePixel = 0
-    submitButton.Font = Enum.Font.GothamBold
-    submitButton.Text = "SUBMIT"
-    submitButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    submitButton.TextSize = 18
-    submitButton.Parent = mainFrame
-    
-    -- Add corner radius to submit button
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = submitButton
-    
-    -- Add get key button
-    local getKeyButton = Instance.new("TextButton")
-    getKeyButton.Name = "GetKeyButton"
-    getKeyButton.Size = UDim2.new(0.9, 0, 0, 40)
-    getKeyButton.Position = UDim2.new(0.05, 0, 0, 250)
-    getKeyButton.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
-    getKeyButton.BorderSizePixel = 0
-    getKeyButton.Font = Enum.Font.Gotham
-    getKeyButton.Text = "Join Discord Server"
-    getKeyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    getKeyButton.TextSize = 16
-    getKeyButton.Parent = mainFrame
-    
-    -- Add corner radius to get key button
-    local getKeyCorner = Instance.new("UICorner")
-    getKeyCorner.CornerRadius = UDim.new(0, 6)
-    getKeyCorner.Parent = getKeyButton
-    
-    -- Add status label
-    local statusLabel = Instance.new("TextLabel")
-    statusLabel.Name = "Status"
-    statusLabel.Size = UDim2.new(0.9, 0, 0, 30)
-    statusLabel.Position = UDim2.new(0.05, 0, 0, 300)
-    statusLabel.BackgroundTransparency = 1
-    statusLabel.Font = Enum.Font.Gotham
-    statusLabel.Text = ""
-    statusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    statusLabel.TextSize = 14
-    statusLabel.Parent = mainFrame
-    statusLabel.Visible = false
-    
-    -- Function to update status
-    local function updateStatus(message, color)
-        statusLabel.Text = message
-        statusLabel.TextColor3 = color or Color3.fromRGB(255, 255, 255)
-        statusLabel.Visible = true
-        
-        -- Hide after 5 seconds
-        spawn(function()
-            wait(5)
-            statusLabel.Visible = false
-        end)
+})
+
+-- Add a dropdowns section
+local DropdownsSection = ControlsTab:AddSection({
+    Name = "Dropdowns"
+})
+
+local weaponDropdown = DropdownsSection:AddDropdown({
+    Text = "Select Weapon",
+    Items = {"Sword", "Gun", "Bow", "Magic Staff", "Dagger"},
+    Default = "Sword",
+    Callback = function(value)
+        SkyXUI:Notify({
+            Title = "Weapon Selected",
+            Text = "You selected: " .. value,
+            Duration = 3,
+            Type = "Info"
+        })
     end
-    
-    -- Button click effect
-    local function buttonEffect(button)
-        local originalColor = button.BackgroundColor3
-        button.BackgroundColor3 = Color3.fromRGB(
-            math.clamp(originalColor.R * 255 - 30, 0, 255) / 255,
-            math.clamp(originalColor.G * 255 - 30, 0, 255) / 255,
-            math.clamp(originalColor.B * 255 - 30, 0, 255) / 255
-        )
-        
-        wait(0.1)
-        
-        button.BackgroundColor3 = originalColor
-    end
-    
-    -- Submit button click event
-    submitButton.MouseButton1Click:Connect(function()
-        buttonEffect(submitButton)
-        
-        local key = keyBox.Text
-        if key == "" then
-            updateStatus("Please enter a key", Color3.fromRGB(255, 100, 100))
-            return
-        end
-        
-        -- Verify key
-        local isValid, reason, keyType = isKeyValidAndNotExpired(key, playerHWID)
-        
-        if isValid then
-            -- Save the key and mark as verified
-            keySystemConfig.Verified = true
-            keySystemConfig.SavedKey = key
-            keySystemConfig.KeyType = keyType
-            
-            -- Show success message
-            updateStatus("Key verified successfully!", Color3.fromRGB(100, 255, 100))
-            
-            -- Close UI after 1 second
-            wait(1)
-            keyUI:Destroy()
-            
-            -- Return to callback if provided
-            if globalEnv.SkyX.KeySystem.Callback then
-                globalEnv.SkyX.KeySystem.Callback(true, keyType)
-            end
-        else
-            local errorMsg = "Invalid key"
-            
-            if reason == "expired" then
-                errorMsg = "Key has expired"
-            elseif reason == "hwid_mismatch" then
-                errorMsg = "Key is linked to a different device"
-            end
-            
-            updateStatus(errorMsg, Color3.fromRGB(255, 100, 100))
-        end
-    end)
-    
-    -- Get key button click event
-    getKeyButton.MouseButton1Click:Connect(function()
-        buttonEffect(getKeyButton)
-        
-        -- Open link to get key (Discord server or key system website)
-        local discordInvite = "https://discord.gg/ugyvkJXhFh"
-        local linkOpened = false
-        
-        if syn and syn.request then
-            syn.request({
-                Url = discordInvite,
-                Method = "GET"
+})
+
+-- Add a textbox section
+local TextboxSection = ControlsTab:AddSection({
+    Name = "Textboxes"
+})
+
+local nameTextbox = TextboxSection:AddTextbox({
+    Text = "Your Name",
+    Placeholder = "Enter your name...",
+    Default = "",
+    Callback = function(value, enterPressed)
+        if enterPressed then
+            SkyXUI:Notify({
+                Title = "Name Changed",
+                Text = "Hello, " .. value .. "!",
+                Duration = 3,
+                Type = "Info"
             })
-            linkOpened = true
-        elseif http and http.request then
-            http.request({
-                Url = discordInvite,
-                Method = "GET"
-            })
-            linkOpened = true
-        elseif request then
-            request({
-                Url = discordInvite,
-                Method = "GET"
-            })
-            linkOpened = true
-        elseif fluxus and fluxus.request then
-            fluxus.request({
-                Url = discordInvite,
-                Method = "GET"
-            })
-            linkOpened = true
-        end
-        
-        if linkOpened then
-            updateStatus("Discord invite opened in browser", Color3.fromRGB(100, 255, 100))
-        else
-            updateStatus("Join our Discord server: discord.gg/ugyvkJXhFh", Color3.fromRGB(255, 255, 100))
-        end
-    end)
-    
-    -- UI Animation
-    mainFrame.Position = UDim2.new(0.5, -200, 0, -350)
-    local tweenInfo = TweenInfo.new(0.6, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out)
-    local tween = TweenService:Create(mainFrame, tweenInfo, {Position = UDim2.new(0.5, -200, 0.5, -150)})
-    tween:Play()
-    
-    -- Return the UI object
-    return keyUI
-end
-
--- Main function to check key
-function SkyXKeySystem.checkKey(callback)
-    -- Store callback if provided
-    if callback then
-        globalEnv.SkyX.KeySystem.Callback = callback
-    end
-    
-    -- If key system is disabled, skip verification
-    if not keySystemConfig.Enabled then
-        keySystemConfig.Verified = true
-        if callback then
-            callback(true, "system_disabled")
-        end
-        return true
-    end
-    
-    -- Get player HWID
-    playerHWID = generateHWID()
-    
-    -- Try to fetch remote keys
-    fetchKeysFromRemote()
-    
-    -- Check if we have a saved key
-    local savedKeyData = loadKeyData()
-    if savedKeyData then
-        local isValid, reason, keyType = isKeyValidAndNotExpired(savedKeyData.key, playerHWID)
-        
-        if isValid then
-            keySystemConfig.Verified = true
-            keySystemConfig.SavedKey = savedKeyData.key
-            keySystemConfig.KeyType = keyType
-            keySystemConfig.KeyExpiration = savedKeyData.expiration
-            
-            if callback then
-                callback(true, keyType)
-            end
-            
-            return true
         end
     end
-    
-    -- No valid saved key, show UI
-    createKeyUI()
-    
-    -- Return false since verification is pending
-    return false
-end
+})
 
--- Function to check if key is verified
-function SkyXKeySystem.isVerified()
-    return keySystemConfig.Verified
-end
+-- Add a color picker section
+local ColorSection = ControlsTab:AddSection({
+    Name = "Color Pickers"
+})
 
--- Function to get key type (free, premium, etc.)
-function SkyXKeySystem.getKeyType()
-    return keySystemConfig.KeyType
-end
+local colorPicker = ColorSection:AddColorPicker({
+    Text = "UI Accent Color",
+    Default = Color3.fromRGB(0, 120, 215),
+    Callback = function(color)
+        -- Color picker functionality would go here
+    end
+})
 
--- Function to log key usage via webhook
-function SkyXKeySystem.logKeyUsage(scriptName)
-    -- Only log if webhook is enabled
-    if not globalEnv.SkyX.WebhookEnabled or not globalEnv.SkyX.DiscordWebhookURL then
-        return
-    end
-    
-    -- Use Roblox's spawn function or a fallback
-    local runAsync = spawn or function(f) 
-        local thread = coroutine.create(f)
-        coroutine.resume(thread)
-    end
-    
-    runAsync(function()
-        pcall(function()
-            -- Only proceed if key system is enabled and verified
-            if not (keySystemConfig.Enabled and keySystemConfig.Verified) then
-                return
-            end
-            
-            local gameId = game.PlaceId
-            local gameName = game:GetService("MarketplaceService"):GetProductInfo(gameId).Name
-            local executor = globalEnv.SkyX.Platform
-            local playerId = game:GetService("Players").LocalPlayer.UserId
-            local playerName = game:GetService("Players").LocalPlayer.Name
-            
-            -- Format the Discord webhook data
-            local webhookData = {
-                username = "SkyX Hub Key System",
-                avatar_url = "https://i.imgur.com/4M34hi2.png",
-                embeds = {
-                    {
-                        title = "Key Used",
-                        description = "A key has been used to execute a script",
-                        color = 5814783, -- Green color
-                        fields = {
-                            {
-                                name = "Script",
-                                value = scriptName,
-                                inline = true
-                            },
-                            {
-                                name = "Key Type",
-                                value = keySystemConfig.KeyType,
-                                inline = true
-                            },
-                            {
-                                name = "Game",
-                                value = gameName,
-                                inline = true
-                            },
-                            {
-                                name = "Player",
-                                value = playerName,
-                                inline = true
-                            },
-                            {
-                                name = "User ID",
-                                value = tostring(playerId),
-                                inline = true
-                            },
-                            {
-                                name = "Executor",
-                                value = executor,
-                                inline = true
-                            }
-                        },
-                        footer = {
-                            text = "SkyX Hub • " .. os.date("%Y-%m-%d %H:%M:%S")
-                        }
-                    }
-                }
-            }
-            
-            -- Send directly to Discord webhook
-            local httpService = game:GetService("HttpService")
-            local jsonData = httpService:JSONEncode(webhookData)
-            
-            local success, response = pcall(function()
-                return httpService:PostAsync(
-                    globalEnv.SkyX.DiscordWebhookURL,
-                    jsonData,
-                    Enum.HttpContentType.ApplicationJson,
-                    false
-                )
-            end)
-        end)
-    end)
-end
+-- Add theme switcher
+local ThemeSection = ThemesTab:AddSection({
+    Name = "Theme Selection"
+})
 
--- Function to load the appropriate script based on game
-function SkyXKeySystem.loadScript()
-    if not keySystemConfig.Verified then
-        print("Key verification required before loading scripts")
-        return false
+ThemeSection:AddButton({
+    Text = "Ocean Theme",
+    Callback = function()
+        SkyXUI:SetTheme("Ocean")
+        SkyXUI:Notify({
+            Title = "Theme Changed",
+            Text = "Theme set to Ocean",
+            Duration = 3,
+            Type = "Info"
+        })
     end
-    
-    local gameId = game.PlaceId
-    
-    -- Define script mapping
-    local scriptMapping = {
-        -- Murder Mystery 2
-        [66654135] = {
-            name = "Murder Mystery 2",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/MM2_Script_Orion_Clean.lua"
-        },
-        
-        -- Bubble Gum Simulator
-        [2512643572] = {
-            name = "Bubble Gum Simulator",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/BubbleGumSim_Script.lua"
-        },
-        
-        -- Tower of Hell
-        [1962086868] = {
-            name = "Tower of Hell",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/TowerOfHell_Script.lua"
-        },
-        
-        -- Blox Fruits
-        [2753915549] = { -- Sea 1
-            name = "Blox Fruits (Sea 1)",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_BloxFruits_Script.lua"
-        },
-        [4442272183] = { -- Sea 2
-            name = "Blox Fruits (Sea 2)",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_BloxFruits_Script.lua"
-        },
-        [7449423635] = { -- Sea 3
-            name = "Blox Fruits (Sea 3)",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_BloxFruits_Script.lua"
-        },
-        
-        -- Blue Lock Rivals (Fixed Version)
-        [14732631912] = {
-            name = "Blue Lock Rivals",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/BlueLockrivals_BallControl_Fixed.lua"
-        },
-        
-        -- Arise Crossover
-        [13127800756] = {
-            name = "Arise Crossover",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/AriseCrossover_Script.lua"
-        },
-        
-        -- Fishing Simulator Games
-        [2866967438] = { -- Fishing Simulator
-            name = "Fishing Simulator",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_Fishing_Orion.lua"
-        },
-        [4638533056] = { -- Fishing Simulator 2
-            name = "Fishing Simulator 2",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_Fishing_Orion.lua"
-        },
-        [9049840490] = { -- Anime Fishing Simulator
-            name = "Anime Fishing Simulator",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_Fishing_Orion.lua"
-        },
-        [8070343234] = { -- Fishing Frenzy
-            name = "Fishing Frenzy",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_Fishing_Orion.lua"
-        },
-        [7026828578] = { -- Realistic Fishing Simulator
-            name = "Realistic Fishing Simulator",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_Fishing_Orion.lua"
-        },
-        [3623549100] = { -- Fishing Empire
-            name = "Fishing Empire",
-            url = "https://raw.githubusercontent.com/your-username/your-repo/main/SkyX_Fishing_Orion.lua"
-        }
-    }
-    
-    -- Check if game is supported
-    local gameInfo = scriptMapping[gameId]
-    if not gameInfo then
-        print("Game not supported: " .. game:GetService("MarketplaceService"):GetProductInfo(gameId).Name)
-        SkyXKeySystem.showUnsupportedGameUI()
-        return false
-    end
-    
-    -- Log key usage
-    SkyXKeySystem.logKeyUsage(gameInfo.name)
-    
-    -- Load the script
-    local success, result = pcall(function()
-        return loadstring(game:HttpGet(gameInfo.url))()
-    end)
-    
-    if not success then
-        warn("Failed to load script: " .. tostring(result))
-        return false
-    end
-    
-    print("Successfully loaded script for: " .. gameInfo.name)
-    return true
-end
+})
 
--- Function to show unsupported game UI
-function SkyXKeySystem.showUnsupportedGameUI()
-    -- Services
-    local Players = game:GetService("Players")
-    local CoreGui = game:GetService("CoreGui")
-    local TweenService = game:GetService("TweenService")
-    
-    -- Get game info
-    local gameId = game.PlaceId
-    local gameName = game:GetService("MarketplaceService"):GetProductInfo(gameId).Name
-    
-    -- Remove any existing notification
-    for _, gui in pairs(CoreGui:GetChildren()) do
-        if gui.Name == "SkyXUnsupportedGame" then
-            gui:Destroy()
-        end
+ThemeSection:AddButton({
+    Text = "Dark Theme",
+    Callback = function()
+        SkyXUI:SetTheme("Dark")
+        SkyXUI:Notify({
+            Title = "Theme Changed",
+            Text = "Theme set to Dark",
+            Duration = 3,
+            Type = "Info"
+        })
     end
-    
-    -- Create notification GUI
-    local notificationGui = Instance.new("ScreenGui")
-    notificationGui.Name = "SkyXUnsupportedGame"
-    
-    -- Determine parent based on executor
-    if syn and syn.protect_gui then
-        syn.protect_gui(notificationGui)
-        notificationGui.Parent = CoreGui
-    elseif gethui then
-        notificationGui.Parent = gethui()
-    else
-        notificationGui.Parent = CoreGui
-    end
-    
-    -- Create frame
-    local frame = Instance.new("Frame")
-    frame.Name = "NotificationFrame"
-    frame.Size = UDim2.new(0, 300, 0, 200)
-    frame.Position = UDim2.new(0.5, -150, 0, -220)
-    frame.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-    frame.BorderSizePixel = 0
-    frame.Parent = notificationGui
-    
-    -- Add corner radius
-    local cornerRadius = Instance.new("UICorner")
-    cornerRadius.CornerRadius = UDim.new(0, 8)
-    cornerRadius.Parent = frame
-    
-    -- Add title
-    local title = Instance.new("TextLabel")
-    title.Name = "Title"
-    title.Size = UDim2.new(1, 0, 0, 40)
-    title.Position = UDim2.new(0, 0, 0, 10)
-    title.BackgroundTransparency = 1
-    title.Font = Enum.Font.GothamBold
-    title.Text = "SkyX Hub"
-    title.TextColor3 = Color3.fromRGB(97, 190, 255) -- Ocean blue
-    title.TextSize = 22
-    title.Parent = frame
-    
-    -- Add message
-    local message = Instance.new("TextLabel")
-    message.Name = "Message"
-    message.Size = UDim2.new(0.9, 0, 0, 60)
-    message.Position = UDim2.new(0.05, 0, 0, 50)
-    message.BackgroundTransparency = 1
-    message.Font = Enum.Font.Gotham
-    message.Text = "This game is not supported yet.\nGame: " .. gameName .. "\nPlace ID: " .. gameId
-    message.TextColor3 = Color3.fromRGB(255, 255, 255)
-    message.TextSize = 14
-    message.TextWrapped = true
-    message.Parent = frame
-    
-    -- Add discord message
-    local discordMessage = Instance.new("TextLabel")
-    discordMessage.Name = "DiscordMessage"
-    discordMessage.Size = UDim2.new(0.9, 0, 0, 40)
-    discordMessage.Position = UDim2.new(0.05, 0, 0, 110)
-    discordMessage.BackgroundTransparency = 1
-    discordMessage.Font = Enum.Font.Gotham
-    discordMessage.Text = "Join our Discord for more scripts:\ndiscord.gg/ugyvkJXhFh"
-    discordMessage.TextColor3 = Color3.fromRGB(114, 137, 218) -- Discord color
-    discordMessage.TextSize = 14
-    discordMessage.TextWrapped = true
-    discordMessage.Parent = frame
-    
-    -- Add close button
-    local closeButton = Instance.new("TextButton")
-    closeButton.Name = "CloseButton"
-    closeButton.Size = UDim2.new(0.8, 0, 0, 40)
-    closeButton.Position = UDim2.new(0.1, 0, 1, -50)
-    closeButton.BackgroundColor3 = Color3.fromRGB(97, 190, 255)
-    closeButton.BorderSizePixel = 0
-    closeButton.Font = Enum.Font.GothamBold
-    closeButton.Text = "CLOSE"
-    closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    closeButton.TextSize = 16
-    closeButton.Parent = frame
-    
-    -- Add corner radius to button
-    local buttonCorner = Instance.new("UICorner")
-    buttonCorner.CornerRadius = UDim.new(0, 6)
-    buttonCorner.Parent = closeButton
-    
-    -- Close button click event
-    closeButton.MouseButton1Click:Connect(function()
-        notificationGui:Destroy()
-    end)
-    
-    -- Animation
-    local tweenInfo = TweenInfo.new(0.6, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out)
-    local tween = TweenService:Create(frame, tweenInfo, {Position = UDim2.new(0.5, -150, 0, 20)})
-    tween:Play()
-    
-    -- Auto close after 10 seconds
-    spawn(function()
-        wait(10)
-        if notificationGui and notificationGui.Parent then
-            local closeTween = TweenService:Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(0.5, -150, 0, -220)})
-            closeTween:Play()
-            closeTween.Completed:Connect(function()
-                notificationGui:Destroy()
-            end)
-        end
-    end)
-end
+})
 
--- Return the module
-return SkyXKeySystem
+ThemeSection:AddButton({
+    Text = "Light Theme",
+    Callback = function()
+        SkyXUI:SetTheme("Light")
+        SkyXUI:Notify({
+            Title = "Theme Changed",
+            Text = "Theme set to Light",
+            Duration = 3,
+            Type = "Info"
+        })
+    end
+})
+
+ThemeSection:AddButton({
+    Text = "Crimson Theme",
+    Callback = function()
+        SkyXUI:SetTheme("Crimson")
+        SkyXUI:Notify({
+            Title = "Theme Changed",
+            Text = "Theme set to Crimson",
+            Duration = 3,
+            Type = "Info"
+        })
+    end
+})
+
+ThemeSection:AddButton({
+    Text = "Forest Theme",
+    Callback = function()
+        SkyXUI:SetTheme("Forest")
+        SkyXUI:Notify({
+            Title = "Theme Changed",
+            Text = "Theme set to Forest",
+            Duration = 3,
+            Type = "Info"
+        })
+    end
+})
+
+-- Add settings
+local SettingsSection = SettingsTab:AddSection({
+    Name = "UI Settings"
+})
+
+local roundedCornersToggle = SettingsSection:AddToggle({
+    Text = "Rounded Corners",
+    Default = true,
+    Callback = function(value)
+        -- In a real implementation, this would update the UI
+        -- but for this demo, we'll just show a notification
+        SkyXUI:Notify({
+            Title = "Setting Changed",
+            Text = "Rounded corners: " .. (value and "Enabled" or "Disabled") .. "\n(Requires restart)",
+            Duration = 3,
+            Type = "Info"
+        })
+    end
+})
+
+local enableSoundsToggle = SettingsSection:AddToggle({
+    Text = "UI Sounds",
+    Default = true,
+    Callback = function(value)
+        SkyXUI:Notify({
+            Title = "Setting Changed",
+            Text = "UI sounds: " .. (value and "Enabled" or "Disabled"),
+            Duration = 3,
+            Type = "Info"
+        })
+    end
+})
+
+-- Credits section
+local CreditsSection = SettingsTab:AddSection({
+    Name = "Credits"
+})
+
+CreditsSection:AddLabel("SkyX UI Library v1.0.0")
+CreditsSection:AddLabel("Created by SkyX Team")
+CreditsSection:AddSeparator()
+CreditsSection:AddButton({
+    Text = "Copy Discord Invite",
+    Callback = function()
+        setclipboard("https://discord.gg/ugyvkJXhFh")
+        SkyXUI:Notify({
+            Title = "Discord Invite",
+            Text = "Discord invite copied to clipboard!",
+            Duration = 3,
+            Type = "Success"
+        })
+    end
+})
+
+-- Show a welcome notification
+SkyXUI:Notify({
+    Title = "SkyX UI Library",
+    Text = "Welcome to the SkyX UI Library Demo!",
+    Duration = 5,
+    Type = "Info"
+})
+
+-- Return the UI library for other scripts to use
+return SkyXUI
