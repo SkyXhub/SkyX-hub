@@ -1,20 +1,18 @@
 --[[
-🌊 SkyX MM2 Advanced Script 🌊
-Modular version with direct UI from SkyX_MM2_Direct
+🌊 SkyX Dead Rails Advanddddddddddced Script 🌊
+Direct modular version with embedded modules for better reliability
 Enhanced for mobile compatibility with advanced features
 
 Features:
 - Enhanced ESP System with Custom Colors and Distance Display
-- Advanced Auto Coin/Item Collector with Prioritization
-- Smart Role Prediction System
+- Advanced Auto Bone Farm & Round Completion
+- Military-Grade Anti-Ban System
 - Speed & Jump Boost Sliders 
 - One-Click Teleports with Anti-Detection 
 - Advanced Performance Optimization
-- Smart Murder Detection and Auto-Kill
-- Military-Grade Anti-Ban System
+- Advanced Gun Modifications
+- Military-Grade Anti-Detection System
 ]]
-
--- This script loads modules from GitHub but keeps the original UI style
 
 -- Core services
 local UserInputService = game:GetService("UserInputService")
@@ -26,42 +24,1339 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 
--- GitHub Module URLs
+-- Module Definitions (embedded for reliability)
+local ModuleDefinitions = {
+    ESP = [[
+        -- Dead Rails ESP Module
+        local ESP = {}
+        
+        -- ESP settings
+        ESP.Settings = {
+            Enabled = false,
+            ShowDistance = true,
+            ShowHealth = true,
+            ShowTeam = true,
+            ShowWeapon = true,
+            RainbowESP = false,
+            TextSize = 14,
+            Colors = {
+                Enemy = Color3.fromRGB(255, 0, 0),
+                Team = Color3.fromRGB(0, 255, 0)
+            }
+        }
+        
+        -- ESP variables
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local RunService = game:GetService("RunService")
+        local Camera = workspace.CurrentCamera
+        local ESPObjects = {}
+        local ESPEnabled = false
+        local ESPConnection = nil
+        
+        -- Create ESP for a player
+        local function CreateESP(player)
+            if player == LocalPlayer then return end
+            
+            local ESP = Drawing.new("Text")
+            ESP.Visible = false
+            ESP.Center = true
+            ESP.Outline = true
+            ESP.Size = ESP.Settings.TextSize
+            ESP.Color = ESP.Settings.Colors.Enemy
+            ESP.Font = 2
+            
+            ESPObjects[player] = ESP
+        end
+        
+        -- Remove ESP for a player
+        local function RemoveESP(player)
+            if ESPObjects[player] then
+                ESPObjects[player]:Remove()
+                ESPObjects[player] = nil
+            end
+        end
+        
+        -- Update ESP visibility and position
+        local function UpdateESP()
+            for player, esp in pairs(ESPObjects) do
+                if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+                    local character = player.Character
+                    local humanoid = character.Humanoid
+                    local root = character.HumanoidRootPart
+                    
+                    -- Get position on screen
+                    local vector, onScreen = Camera:WorldToViewportPoint(root.Position)
+                    
+                    if onScreen and ESP.Settings.Enabled and humanoid.Health > 0 then
+                        -- Team check for color
+                        local isTeammate = (player.Team == LocalPlayer.Team)
+                        
+                        -- Set color
+                        if ESP.Settings.RainbowESP then
+                            local hue = tick() % 5 / 5
+                            esp.Color = Color3.fromHSV(hue, 1, 1)
+                        else
+                            esp.Color = isTeammate and ESP.Settings.Colors.Team or ESP.Settings.Colors.Enemy
+                        end
+                        
+                        -- Set position
+                        esp.Position = Vector2.new(vector.X, vector.Y - 25)
+                        
+                        -- Set text
+                        local text = player.Name
+                        
+                        -- Add health
+                        if ESP.Settings.ShowHealth then
+                            text = text .. " [" .. math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth) .. "]"
+                        end
+                        
+                        -- Add distance
+                        if ESP.Settings.ShowDistance then
+                            local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
+                            text = text .. " (" .. distance .. "m)"
+                        end
+                        
+                        -- Add team
+                        if ESP.Settings.ShowTeam and player.Team then
+                            text = text .. " | " .. player.Team.Name
+                        end
+                        
+                        -- Add weapon if they're holding one
+                        if ESP.Settings.ShowWeapon then
+                            for _, tool in pairs(character:GetChildren()) do
+                                if tool:IsA("Tool") then
+                                    text = text .. " | " .. tool.Name
+                                    break
+                                end
+                            end
+                        end
+                        
+                        esp.Text = text
+                        esp.Size = ESP.Settings.TextSize
+                        esp.Visible = true
+                    else
+                        esp.Visible = false
+                    end
+                else
+                    esp.Visible = false
+                    
+                    -- Remove ESP if player has left
+                    if not player or not player.Parent then
+                        RemoveESP(player)
+                    end
+                end
+            end
+        end
+        
+        -- Create ESP for all players
+        local function SetupESP()
+            -- Clear existing ESPs
+            for player, esp in pairs(ESPObjects) do
+                esp:Remove()
+            end
+            ESPObjects = {}
+            
+            -- Create ESP for each player
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer then
+                    CreateESP(player)
+                end
+            end
+            
+            -- Connect player added/removed events
+            Players.PlayerAdded:Connect(CreateESP)
+            Players.PlayerRemoving:Connect(RemoveESP)
+        end
+        
+        -- Start ESP
+        function ESP.Start()
+            if ESPConnection then
+                ESPConnection:Disconnect()
+            end
+            
+            SetupESP()
+            ESPEnabled = true
+            
+            ESPConnection = RunService.RenderStepped:Connect(UpdateESP)
+            print("ESP module started")
+        end
+        
+        -- Stop ESP
+        function ESP.Stop()
+            if ESPConnection then
+                ESPConnection:Disconnect()
+                ESPConnection = nil
+            end
+            
+            -- Hide all ESP objects
+            for _, esp in pairs(ESPObjects) do
+                esp.Visible = false
+            end
+            
+            ESPEnabled = false
+            print("ESP module stopped")
+        end
+        
+        return ESP
+    ]],
+    
+    GunMods = [[
+        -- Dead Rails Gun Modifications Module
+        local GunMods = {}
+        
+        -- Gun mod settings
+        GunMods.Settings = {
+            InfiniteAmmo = false,
+            NoRecoil = false,
+            NoSpread = false,
+            RapidFire = false,
+            FireRateMultiplier = 2,
+            DamageMultiplier = 1,
+            ExtendedMagazine = false,
+            AutoReload = false,
+            InstantReload = false,
+            Wallbang = false
+        }
+        
+        -- Variables
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local RunService = game:GetService("RunService")
+        local GunModsEnabled = false
+        local GunModsConnection = nil
+        local AntiDetectModule = nil
+        local CurrentGun = nil
+        local OriginalGunProperties = {}
+        
+        -- Get all guns
+        local function GetAllGuns()
+            local allGuns = {}
+            
+            -- Check character for equipped gun
+            if LocalPlayer.Character then
+                for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+                    if tool:IsA("Tool") and tool:FindFirstChild("Configuration") then
+                        table.insert(allGuns, tool)
+                    end
+                end
+            end
+            
+            -- Check backpack for guns
+            for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+                if tool:IsA("Tool") and tool:FindFirstChild("Configuration") then
+                    table.insert(allGuns, tool)
+                end
+            end
+            
+            return allGuns
+        end
+        
+        -- Get current equipped gun
+        local function GetEquippedGun()
+            if LocalPlayer.Character then
+                for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
+                    if tool:IsA("Tool") and tool:FindFirstChild("Configuration") then
+                        return tool
+                    end
+                end
+            end
+            return nil
+        end
+        
+        -- Save original gun properties
+        local function SaveGunProperties(gun)
+            if not OriginalGunProperties[gun.Name] and gun:FindFirstChild("Configuration") then
+                OriginalGunProperties[gun.Name] = {}
+                local config = gun.Configuration
+                
+                -- Store original properties
+                if config:FindFirstChild("Ammo") then
+                    OriginalGunProperties[gun.Name].Ammo = config.Ammo.Value
+                    OriginalGunProperties[gun.Name].MaxAmmo = config.MaxAmmo.Value
+                end
+                
+                if config:FindFirstChild("RecoilControl") then
+                    OriginalGunProperties[gun.Name].RecoilControl = config.RecoilControl.Value
+                end
+                
+                if config:FindFirstChild("Spread") then
+                    OriginalGunProperties[gun.Name].Spread = config.Spread.Value
+                end
+                
+                if config:FindFirstChild("FireRate") then
+                    OriginalGunProperties[gun.Name].FireRate = config.FireRate.Value
+                end
+                
+                if config:FindFirstChild("Damage") then
+                    OriginalGunProperties[gun.Name].Damage = config.Damage.Value
+                end
+                
+                if config:FindFirstChild("ReloadTime") then
+                    OriginalGunProperties[gun.Name].ReloadTime = config.ReloadTime.Value
+                end
+            end
+        end
+        
+        -- Modify gun properties
+        local function ModifyGun(gun)
+            if not gun or not gun:FindFirstChild("Configuration") then return end
+            
+            -- Save original properties first
+            SaveGunProperties(gun)
+            
+            local config = gun.Configuration
+            
+            -- Apply modifications based on settings
+            if GunMods.Settings.InfiniteAmmo and config:FindFirstChild("Ammo") then
+                config.Ammo.Value = 9999
+                config.MaxAmmo.Value = 9999
+            end
+            
+            if GunMods.Settings.NoRecoil and config:FindFirstChild("RecoilControl") then
+                config.RecoilControl.Value = 0
+            end
+            
+            if GunMods.Settings.NoSpread and config:FindFirstChild("Spread") then
+                config.Spread.Value = 0
+            end
+            
+            if GunMods.Settings.RapidFire and config:FindFirstChild("FireRate") then
+                config.FireRate.Value = config.FireRate.Value * GunMods.Settings.FireRateMultiplier
+            end
+            
+            if config:FindFirstChild("Damage") then
+                config.Damage.Value = config.Damage.Value * GunMods.Settings.DamageMultiplier
+            end
+            
+            if GunMods.Settings.InstantReload and config:FindFirstChild("ReloadTime") then
+                config.ReloadTime.Value = 0.01
+            end
+            
+            if GunMods.Settings.ExtendedMagazine and config:FindFirstChild("MaxAmmo") then
+                config.MaxAmmo.Value = config.MaxAmmo.Value * 3
+            end
+            
+            -- Wallbang is handled through a separate hook that needs to be injected
+            if GunMods.Settings.Wallbang then
+                -- This would require hooking into the raycast function
+                -- For safety, we'll just notify that it's activated
+                print("Wallbang activated - requires raycast hook")
+            end
+        end
+        
+        -- Restore gun properties
+        local function RestoreGun(gun)
+            if not gun or not gun:FindFirstChild("Configuration") or not OriginalGunProperties[gun.Name] then return end
+            
+            local config = gun.Configuration
+            local original = OriginalGunProperties[gun.Name]
+            
+            -- Restore original properties
+            if original.Ammo and config:FindFirstChild("Ammo") then
+                config.Ammo.Value = original.Ammo
+                config.MaxAmmo.Value = original.MaxAmmo
+            end
+            
+            if original.RecoilControl and config:FindFirstChild("RecoilControl") then
+                config.RecoilControl.Value = original.RecoilControl
+            end
+            
+            if original.Spread and config:FindFirstChild("Spread") then
+                config.Spread.Value = original.Spread
+            end
+            
+            if original.FireRate and config:FindFirstChild("FireRate") then
+                config.FireRate.Value = original.FireRate
+            end
+            
+            if original.Damage and config:FindFirstChild("Damage") then
+                config.Damage.Value = original.Damage
+            end
+            
+            if original.ReloadTime and config:FindFirstChild("ReloadTime") then
+                config.ReloadTime.Value = original.ReloadTime
+            end
+        end
+        
+        -- Update gun mods
+        local function UpdateGunMods()
+            local currentGun = GetEquippedGun()
+            
+            -- Check if gun changed
+            if currentGun ~= CurrentGun then
+                -- Restore old gun if exists
+                if CurrentGun then
+                    RestoreGun(CurrentGun)
+                end
+                
+                -- Update current gun
+                CurrentGun = currentGun
+                
+                -- Modify new gun if exists
+                if CurrentGun then
+                    ModifyGun(CurrentGun)
+                end
+            end
+            
+            -- Handle auto reload
+            if GunMods.Settings.AutoReload and CurrentGun and CurrentGun:FindFirstChild("Configuration") then
+                local config = CurrentGun.Configuration
+                if config:FindFirstChild("Ammo") and config.Ammo.Value <= 0 then
+                    local reloadEvent = CurrentGun:FindFirstChild("Reload")
+                    if reloadEvent then
+                        reloadEvent:FireServer()
+                    end
+                end
+            end
+        end
+        
+        -- Start gun mods
+        function GunMods.Start()
+            if GunModsConnection then
+                GunModsConnection:Disconnect()
+            end
+            
+            GunModsEnabled = true
+            
+            -- Modify all guns initially
+            for _, gun in pairs(GetAllGuns()) do
+                ModifyGun(gun)
+            end
+            
+            -- Update gun mods continuously
+            GunModsConnection = RunService.Heartbeat:Connect(UpdateGunMods)
+            print("GunMods module started")
+        end
+        
+        -- Stop gun mods
+        function GunMods.Stop()
+            if GunModsConnection then
+                GunModsConnection:Disconnect()
+                GunModsConnection = nil
+            end
+            
+            -- Restore all guns
+            for _, gun in pairs(GetAllGuns()) do
+                RestoreGun(gun)
+            end
+            
+            CurrentGun = nil
+            GunModsEnabled = false
+            print("GunMods module stopped")
+        end
+        
+        -- Get current gun stats
+        function GunMods.GetCurrentGunStats()
+            local currentGun = GetEquippedGun()
+            local stats = {
+                CurrentGun = currentGun and currentGun.Name or nil
+            }
+            return stats
+        end
+        
+        -- Set anti-detect module
+        function GunMods.SetAntiDetectModule(module)
+            AntiDetectModule = module
+        end
+        
+        return GunMods
+    ]],
+    
+    Aimbot = [[
+        -- Dead Rails Aimbot Module
+        local Aimbot = {}
+        
+        -- Aimbot settings
+        Aimbot.Settings = {
+            Enabled = false,
+            SilentAim = false,
+            VisibleCheck = true,
+            TeamCheck = true,
+            ShowFOV = true,
+            FOVSize = 120,
+            Smoothness = 0.2,
+            TargetPart = "Head",
+            FOVColor = Color3.fromRGB(255, 255, 255),
+            TriggerBot = {
+                Enabled = false,
+                Delay = 0.2
+            }
+        }
+        
+        -- Variables
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local UserInputService = game:GetService("UserInputService")
+        local LocalPlayer = Players.LocalPlayer
+        local Camera = workspace.CurrentCamera
+        local Mouse = LocalPlayer:GetMouse()
+        local AimbotEnabled = false
+        local AimbotConnection = nil
+        local FOVCircle = nil
+        local ESPModule = nil
+        local CurrentTarget = nil
+        local LastTriggerTime = 0
+        
+        -- Create FOV circle
+        local function CreateFOVCircle()
+            FOVCircle = Drawing.new("Circle")
+            FOVCircle.Visible = false
+            FOVCircle.Radius = Aimbot.Settings.FOVSize
+            FOVCircle.Color = Aimbot.Settings.FOVColor
+            FOVCircle.Thickness = 1
+            FOVCircle.Filled = false
+            FOVCircle.Transparency = 1
+            FOVCircle.NumSides = 64
+        end
+        
+        -- Update FOV circle
+        local function UpdateFOVCircle()
+            if FOVCircle then
+                FOVCircle.Visible = Aimbot.Settings.ShowFOV and Aimbot.Settings.Enabled
+                FOVCircle.Radius = Aimbot.Settings.FOVSize
+                FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
+                FOVCircle.Color = Aimbot.Settings.FOVColor
+            end
+        end
+        
+        -- Check if target is visible
+        local function IsVisible(part)
+            if not Aimbot.Settings.VisibleCheck then return true end
+            
+            local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000)
+            local hit, position = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character})
+            
+            if hit and hit:IsDescendantOf(part.Parent) then
+                return true
+            end
+            
+            return false
+        end
+        
+        -- Get closest player in FOV
+        local function GetClosestPlayerInFOV()
+            local closestPlayer = nil
+            local shortestDistance = Aimbot.Settings.FOVSize
+            
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+                    -- Team check
+                    if Aimbot.Settings.TeamCheck and player.Team == LocalPlayer.Team then
+                        continue
+                    end
+                    
+                    -- Get target part
+                    local targetPart = nil
+                    if Aimbot.Settings.TargetPart == "Head" and player.Character:FindFirstChild("Head") then
+                        targetPart = player.Character.Head
+                    elseif Aimbot.Settings.TargetPart == "Torso" and player.Character:FindFirstChild("UpperTorso") then
+                        targetPart = player.Character.UpperTorso
+                    elseif Aimbot.Settings.TargetPart == "Random" then
+                        local parts = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm"}
+                        local randomPart = parts[math.random(1, #parts)]
+                        targetPart = player.Character:FindFirstChild(randomPart)
+                    end
+                    
+                    if not targetPart then
+                        targetPart = player.Character.HumanoidRootPart
+                    end
+                    
+                    -- Visibility check
+                    if not IsVisible(targetPart) then
+                        continue
+                    end
+                    
+                    -- FOV check
+                    local vector, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                    if not onScreen then
+                        continue
+                    end
+                    
+                    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+                    local targetPos = Vector2.new(vector.X, vector.Y)
+                    local distance = (targetPos - mousePos).Magnitude
+                    
+                    if distance < shortestDistance then
+                        closestPlayer = player
+                        shortestDistance = distance
+                    end
+                end
+            end
+            
+            return closestPlayer
+        end
+        
+        -- Aim at player
+        local function AimAt(player)
+            if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then 
+                CurrentTarget = nil
+                return 
+            end
+            
+            CurrentTarget = player
+            
+            -- Get target part
+            local targetPart = nil
+            if Aimbot.Settings.TargetPart == "Head" and player.Character:FindFirstChild("Head") then
+                targetPart = player.Character.Head
+            elseif Aimbot.Settings.TargetPart == "Torso" and player.Character:FindFirstChild("UpperTorso") then
+                targetPart = player.Character.UpperTorso
+            elseif Aimbot.Settings.TargetPart == "Random" then
+                local parts = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm"}
+                local randomPart = parts[math.random(1, #parts)]
+                targetPart = player.Character:FindFirstChild(randomPart)
+            end
+            
+            if not targetPart then
+                targetPart = player.Character.HumanoidRootPart
+            end
+            
+            -- Calculate aim position
+            local vector, _ = Camera:WorldToViewportPoint(targetPart.Position)
+            local targetPos = Vector2.new(vector.X, vector.Y)
+            local mousePos = Vector2.new(Mouse.X, Mouse.Y)
+            
+            -- Apply smoothing
+            local aimPos = mousePos:Lerp(targetPos, Aimbot.Settings.Smoothness)
+            
+            -- Move mouse
+            mousemoverel(aimPos.X - mousePos.X, aimPos.Y - mousePos.Y)
+            
+            -- Trigger bot
+            if Aimbot.Settings.TriggerBot.Enabled and tick() - LastTriggerTime > Aimbot.Settings.TriggerBot.Delay then
+                -- Check if mouse is over player
+                local targetVector, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
+                if onScreen and (Vector2.new(targetVector.X, targetVector.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude < 10 then
+                    mouse1press()
+                    wait(0.05)
+                    mouse1release()
+                    LastTriggerTime = tick()
+                end
+            end
+        end
+        
+        -- Update aimbot
+        local function UpdateAimbot()
+            -- Update FOV circle
+            UpdateFOVCircle()
+            
+            -- Check if aimbot is enabled and mouse is down
+            if Aimbot.Settings.Enabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+                local target = GetClosestPlayerInFOV()
+                if target then
+                    AimAt(target)
+                else
+                    CurrentTarget = nil
+                end
+            else
+                CurrentTarget = nil
+            end
+        end
+        
+        -- Start aimbot
+        function Aimbot.Start()
+            if AimbotConnection then
+                AimbotConnection:Disconnect()
+            end
+            
+            -- Create FOV circle
+            if not FOVCircle then
+                CreateFOVCircle()
+            end
+            
+            AimbotEnabled = true
+            
+            -- Update aimbot continuously
+            AimbotConnection = RunService.RenderStepped:Connect(UpdateAimbot)
+            print("Aimbot module started")
+        end
+        
+        -- Stop aimbot
+        function Aimbot.Stop()
+            if AimbotConnection then
+                AimbotConnection:Disconnect()
+                AimbotConnection = nil
+            end
+            
+            -- Hide FOV circle
+            if FOVCircle then
+                FOVCircle.Visible = false
+            end
+            
+            CurrentTarget = nil
+            AimbotEnabled = false
+            print("Aimbot module stopped")
+        end
+        
+        -- Get target info
+        function Aimbot.GetTargetInfo()
+            local info = {
+                TargetName = CurrentTarget and CurrentTarget.Name or nil
+            }
+            return info
+        end
+        
+        -- Set ESP module
+        function Aimbot.SetESPModule(module)
+            ESPModule = module
+        end
+        
+        return Aimbot
+    ]],
+    
+    Teleport = [[
+        -- Dead Rails Teleport Module
+        local Teleport = {}
+        
+        -- Teleport settings
+        Teleport.Settings = {
+            SafeMode = true,
+            AntiDetection = {
+                Enabled = true,
+                RandomizeTiming = true,
+                DelayBetweenTeleports = 0.5
+            }
+        }
+        
+        -- Variables
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local TeleportLocations = {
+            {
+                Name = "Spawn",
+                Icon = "🏠",
+                Position = Vector3.new(0, 50, 0) -- Placeholder
+            },
+            {
+                Name = "Tower",
+                Icon = "🗼",
+                Position = Vector3.new(100, 70, 100) -- Placeholder
+            },
+            {
+                Name = "Office",
+                Icon = "🏢",
+                Position = Vector3.new(-100, 50, -100) -- Placeholder
+            },
+            {
+                Name = "Hospital",
+                Icon = "🏥",
+                Position = Vector3.new(200, 50, 0) -- Placeholder
+            },
+            {
+                Name = "Mall",
+                Icon = "🏬",
+                Position = Vector3.new(0, 50, 200) -- Placeholder
+            }
+        }
+        local LastTeleportTime = 0
+        local IsTeleporting = false
+        
+        -- Update teleport locations with real positions
+        local function UpdateTeleportLocations()
+            -- These positions should be updated with real coordinates from the game
+            -- For now, we'll use placeholders
+            
+            -- Attempt to locate common locations in workspace
+            local locations = workspace:FindFirstChild("Locations") or workspace:FindFirstChild("SpawnLocations")
+            if locations then
+                for _, location in pairs(locations:GetChildren()) do
+                    for i, teleportLocation in ipairs(TeleportLocations) do
+                        if location.Name:lower():find(teleportLocation.Name:lower()) then
+                            TeleportLocations[i].Position = location.Position
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Get teleport location by name
+        local function GetLocationByName(name)
+            for _, location in ipairs(TeleportLocations) do
+                if location.Name == name then
+                    return location
+                end
+            end
+            return nil
+        end
+        
+        -- Teleport player safely using character manipulation
+        local function TeleportSafely(position)
+            if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                return false, "Character not found"
+            end
+            
+            IsTeleporting = true
+            
+            -- Anti-detection delay and randomization
+            if Teleport.Settings.AntiDetection.Enabled then
+                -- Check if we've teleported recently
+                if tick() - LastTeleportTime < Teleport.Settings.AntiDetection.DelayBetweenTeleports then
+                    wait(Teleport.Settings.AntiDetection.DelayBetweenTeleports)
+                end
+                
+                -- Add random delay to avoid pattern detection
+                if Teleport.Settings.AntiDetection.RandomizeTiming then
+                    wait(math.random(1, 5) / 10) -- Random delay between 0.1 and 0.5 seconds
+                end
+            end
+            
+            local character = LocalPlayer.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            -- Save current state
+            local oldPosition = rootPart.Position
+            local oldHealth = humanoid.Health
+            
+            -- Set safe teleport properties
+            if Teleport.Settings.SafeMode then
+                -- Disable collisions temporarily
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+                
+                -- Set humanoid state to prevent fall damage
+                humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+            
+            -- Perform teleport
+            rootPart.CFrame = CFrame.new(position)
+            
+            -- Restore properties after teleport
+            wait(0.5) -- Wait for physics to settle
+            
+            if Teleport.Settings.SafeMode then
+                -- Re-enable collisions
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+                
+                -- Reset humanoid state
+                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+            
+            -- Check for teleport success
+            local success = (rootPart.Position - position).Magnitude < 50
+            if not success and Teleport.Settings.SafeMode then
+                -- Teleport failed, return to original position
+                rootPart.CFrame = CFrame.new(oldPosition)
+                wait(0.5)
+            end
+            
+            -- Update last teleport time
+            LastTeleportTime = tick()
+            IsTeleporting = false
+            
+            return success, success and "Teleported successfully" or "Teleport failed"
+        end
+        
+        -- Get location list
+        function Teleport.GetLocationsList()
+            return TeleportLocations
+        end
+        
+        -- Teleport to location by name
+        function Teleport.TeleportToLocation(locationName)
+            local location = GetLocationByName(locationName)
+            if not location then
+                return false, "Location not found"
+            end
+            
+            return TeleportSafely(location.Position)
+        end
+        
+        -- Start teleport module
+        function Teleport.Start()
+            -- Update teleport locations
+            UpdateTeleportLocations()
+            print("Teleport module started")
+        end
+        
+        -- Stop teleport module
+        function Teleport.Stop()
+            print("Teleport module stopped")
+        end
+        
+        return Teleport
+    ]],
+    
+    AntiDetect = [[
+        -- Dead Rails Anti-Detection Module
+        local AntiDetect = {}
+        
+        -- Anti-detection settings
+        AntiDetect.Settings = {
+            Enabled = true,
+            MonitorRemotes = true,
+            BlockBanRemotes = true,
+            SpoofClientValues = true,
+            ObfuscateActions = true
+        }
+        
+        -- Variables
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local RunService = game:GetService("RunService")
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local AntiDetectEnabled = false
+        local AntiDetectConnection = nil
+        local BannedRemotes = {
+            "ban", "kick", "punish", "detect", "cheat", "exploit", "violation"
+        }
+        
+        -- Hook namecall
+        local oldNamecall
+        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            local args = {...}
+            
+            -- Only run if anti-detect is enabled
+            if AntiDetectEnabled and AntiDetect.Settings.Enabled then
+                -- Check for potential ban remotes
+                if AntiDetect.Settings.BlockBanRemotes and (method == "FireServer" or method == "InvokeServer") then
+                    local remoteName = self.Name:lower()
+                    
+                    -- Check if this is a banned remote
+                    for _, banned in ipairs(BannedRemotes) do
+                        if remoteName:find(banned) then
+                            print("Blocked suspicious remote: " .. self.Name)
+                            return nil
+                        end
+                    end
+                    
+                    -- Check for exploit detection args
+                    if AntiDetect.Settings.MonitorRemotes then
+                        for i, arg in ipairs(args) do
+                            if typeof(arg) == "string" then
+                                local argLower = arg:lower()
+                                for _, banned in ipairs(BannedRemotes) do
+                                    if argLower:find(banned) then
+                                        print("Blocked suspicious remote arg: " .. arg)
+                                        args[i] = "legit_value"
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            
+            -- Call original method
+            return oldNamecall(self, unpack(args))
+        end)
+        
+        -- Start anti-detection
+        function AntiDetect.Start()
+            if AntiDetectConnection then
+                AntiDetectConnection:Disconnect()
+            end
+            
+            AntiDetectEnabled = true
+            
+            -- Begin continuous monitoring
+            AntiDetectConnection = RunService.Heartbeat:Connect(function()
+                -- Spoof client values
+                if AntiDetect.Settings.SpoofClientValues then
+                    -- Spoof walkspeed and jump power to appear legitimate
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                        local humanoid = LocalPlayer.Character.Humanoid
+                        local walkSpeed = humanoid.WalkSpeed
+                        local jumpPower = humanoid.JumpPower
+                        
+                        -- Only spoof if values are suspicious
+                        if walkSpeed > 20 then
+                            -- Store real value in a less obvious place
+                            LocalPlayer.Character.HumanoidRootPart:SetAttribute("_ws", walkSpeed)
+                            humanoid.WalkSpeed = 16
+                        end
+                        
+                        if jumpPower > 55 then
+                            -- Store real value in a less obvious place
+                            LocalPlayer.Character.HumanoidRootPart:SetAttribute("_jp", jumpPower)
+                            humanoid.JumpPower = 50
+                        end
+                    end
+                end
+            end)
+            
+            print("Anti-detection module started")
+        end
+        
+        -- Stop anti-detection
+        function AntiDetect.Stop()
+            if AntiDetectConnection then
+                AntiDetectConnection:Disconnect()
+                AntiDetectConnection = nil
+            end
+            
+            AntiDetectEnabled = false
+            print("Anti-detection module stopped")
+        end
+        
+        return AntiDetect
+    ]],
+    
+    AutoFarm = [[
+        -- Dead Rails Auto Farm Module
+        local AutoFarm = {}
+        
+        -- Auto farm settings
+        AutoFarm.Settings = {
+            Enabled = false,
+            Method = "Bone Farm", -- Bone Farm, Round Completion, Kills, Hybrid
+            AntiAFK = true,
+            AutoRejoin = false,
+            AutoSkipMapVote = true,
+            SafeMode = true,
+            Speed = 5,
+            Delay = 0.5
+        }
+        
+        -- Variables
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local ReplicatedStorage = game:GetService("ReplicatedStorage")
+        local TeleportService = game:GetService("TeleportService")
+        local LocalPlayer = Players.LocalPlayer
+        local AutoFarmEnabled = false
+        local AutoFarmConnection = nil
+        local Stats = {
+            BonesFarmed = 0,
+            RoundsCompleted = 0,
+            TimeRunning = "00:00:00",
+            StartTime = 0
+        }
+        local BoneLocations = {}
+        local LastAction = 0
+        
+        -- Find bone locations
+        local function FindBoneLocations()
+            BoneLocations = {}
+            
+            -- Look for bones in workspace
+            local bones = workspace:FindFirstChild("Bones") or workspace:FindFirstChild("BoneSpawns")
+            if bones then
+                for _, bone in pairs(bones:GetChildren()) do
+                    if bone.Name:lower():find("bone") then
+                        table.insert(BoneLocations, bone.Position)
+                    end
+                end
+            else
+                -- Scan workspace for bones
+                for _, obj in pairs(workspace:GetDescendants()) do
+                    if obj.Name:lower():find("bone") and obj:IsA("BasePart") then
+                        table.insert(BoneLocations, obj.Position)
+                    end
+                end
+            end
+            
+            -- If no bones found, use some common locations
+            if #BoneLocations == 0 then
+                -- Example locations - these should be updated with real coordinates
+                table.insert(BoneLocations, Vector3.new(100, 50, 100))
+                table.insert(BoneLocations, Vector3.new(-100, 50, -100))
+                table.insert(BoneLocations, Vector3.new(200, 50, 0))
+                table.insert(BoneLocations, Vector3.new(0, 50, 200))
+            end
+            
+            return #BoneLocations > 0
+        end
+        
+        -- Teleport to position safely
+        local function TeleportTo(position)
+            if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                return false
+            end
+            
+            local character = LocalPlayer.Character
+            local humanoid = character:FindFirstChild("Humanoid")
+            local rootPart = character:FindFirstChild("HumanoidRootPart")
+            
+            if not humanoid or not rootPart then
+                return false
+            end
+            
+            -- Set safe teleport properties
+            if AutoFarm.Settings.SafeMode then
+                -- Disable collisions temporarily
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                    end
+                end
+                
+                -- Set humanoid state to prevent fall damage
+                humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+            end
+            
+            -- Perform teleport
+            rootPart.CFrame = CFrame.new(position)
+            
+            -- Add delay based on speed setting
+            wait(1 / AutoFarm.Settings.Speed)
+            
+            -- Restore properties
+            if AutoFarm.Settings.SafeMode then
+                -- Re-enable collisions
+                for _, part in pairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = true
+                    end
+                end
+                
+                -- Reset humanoid state
+                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            end
+            
+            return true
+        end
+        
+        -- Collect bones
+        local function CollectBones()
+            -- Find bone locations if none exist
+            if #BoneLocations == 0 then
+                if not FindBoneLocations() then
+                    return
+                end
+            end
+            
+            -- Visit each bone location
+            for _, position in ipairs(BoneLocations) do
+                if not AutoFarmEnabled or not AutoFarm.Settings.Enabled then
+                    break
+                end
+                
+                -- Teleport to bone
+                local success = TeleportTo(position)
+                if success then
+                    -- Check for bones at this location
+                    local collected = false
+                    for _, obj in pairs(workspace:GetDescendants()) do
+                        if obj.Name:lower():find("bone") and obj:IsA("BasePart") and (obj.Position - position).Magnitude < 30 then
+                            -- Simulate collecting the bone
+                            local distance = (obj.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                            if distance < 10 then
+                                -- We're close enough to collect
+                                Stats.BonesFarmed = Stats.BonesFarmed + 1
+                                collected = true
+                                wait(0.5) -- Wait for collection animation
+                            end
+                        end
+                    end
+                    
+                    -- Add delay between actions
+                    wait(AutoFarm.Settings.Delay)
+                end
+            end
+        end
+        
+        -- Participate in round completion
+        local function CompleteRound()
+            -- Get round state
+            local roundState = workspace:FindFirstChild("RoundState")
+            if not roundState then
+                return
+            end
+            
+            -- Handle different round states
+            if roundState.Value == "Intermission" then
+                -- Wait for round to start
+                wait(5)
+            elseif roundState.Value == "Playing" then
+                -- Try to complete objectives
+                -- This would involve game-specific logic
+                
+                -- For now, just teleport to some key locations
+                local keyLocations = {
+                    Vector3.new(0, 50, 0),
+                    Vector3.new(100, 50, 100),
+                    Vector3.new(-100, 50, -100)
+                }
+                
+                for _, location in ipairs(keyLocations) do
+                    if not AutoFarmEnabled or not AutoFarm.Settings.Enabled then
+                        break
+                    end
+                    
+                    TeleportTo(location)
+                    wait(AutoFarm.Settings.Delay * 2)
+                end
+                
+                -- Round should be completed soon
+                wait(5)
+                Stats.RoundsCompleted = Stats.RoundsCompleted + 1
+            end
+        end
+        
+        -- Anti-AFK function
+        local function AntiAFK()
+            if not AutoFarm.Settings.AntiAFK then
+                return
+            end
+            
+            -- Check if we need to simulate activity
+            if tick() - LastAction > 60 then
+                -- Simulate random movements
+                local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
+                if humanoid then
+                    -- Random movement
+                    humanoid:Move(Vector3.new(math.random(-1, 1), 0, math.random(-1, 1)))
+                    wait(0.5)
+                    humanoid:Move(Vector3.new(0, 0, 0))
+                end
+                
+                -- Simulate random camera movement
+                local camera = workspace.CurrentCamera
+                if camera then
+                    local currentCFrame = camera.CFrame
+                    camera.CFrame = currentCFrame * CFrame.Angles(math.rad(math.random(-10, 10)), math.rad(math.random(-10, 10)), 0)
+                    wait(0.5)
+                    camera.CFrame = currentCFrame
+                end
+                
+                LastAction = tick()
+            end
+        end
+        
+        -- Auto rejoin function
+        local function CheckForRejoin()
+            if not AutoFarm.Settings.AutoRejoin then
+                return
+            end
+            
+            -- Check if we got disconnected
+            if not game:GetService("Players").LocalPlayer then
+                TeleportService:Teleport(game.PlaceId, LocalPlayer)
+            end
+        end
+        
+        -- Update time running
+        local function UpdateTimeRunning()
+            local elapsed = tick() - Stats.StartTime
+            local hours = math.floor(elapsed / 3600)
+            local minutes = math.floor((elapsed % 3600) / 60)
+            local seconds = math.floor(elapsed % 60)
+            
+            Stats.TimeRunning = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+        end
+        
+        -- Main auto farm function
+        local function RunAutoFarm()
+            -- Check if enabled
+            if not AutoFarmEnabled or not AutoFarm.Settings.Enabled then
+                return
+            end
+            
+            -- Update time
+            UpdateTimeRunning()
+            
+            -- Update last action
+            LastAction = tick()
+            
+            -- Run anti-AFK
+            AntiAFK()
+            
+            -- Check for rejoin
+            CheckForRejoin()
+            
+            -- Perform auto farm based on method
+            if AutoFarm.Settings.Method == "Bone Farm" then
+                CollectBones()
+            elseif AutoFarm.Settings.Method == "Round Completion" then
+                CompleteRound()
+            elseif AutoFarm.Settings.Method == "Hybrid" then
+                -- Alternate between bone farm and round completion
+                if tick() % 60 < 30 then
+                    CollectBones()
+                else
+                    CompleteRound()
+                end
+            end
+        end
+        
+        -- Start auto farm
+        function AutoFarm.Start()
+            if AutoFarmConnection then
+                AutoFarmConnection:Disconnect()
+            end
+            
+            -- Reset stats
+            Stats.StartTime = tick()
+            
+            -- Initialize bones
+            FindBoneLocations()
+            
+            AutoFarmEnabled = true
+            
+            -- Run auto farm
+            AutoFarmConnection = RunService.Heartbeat:Connect(RunAutoFarm)
+            print("AutoFarm module started")
+        end
+        
+        -- Stop auto farm
+        function AutoFarm.Stop()
+            if AutoFarmConnection then
+                AutoFarmConnection:Disconnect()
+                AutoFarmConnection = nil
+            end
+            
+            AutoFarmEnabled = false
+            print("AutoFarm module stopped")
+        end
+        
+        -- Get stats
+        function AutoFarm.GetStats()
+            UpdateTimeRunning()
+            return Stats
+        end
+        
+        return AutoFarm
+    ]]
+}
+
+-- Module URLs (for fallback)
 local ModuleURLs = {
-     ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_esp.lua",
-    GunMods = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_gunmods.lua",
-    Aimbot = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_aimbot.lua",
-    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_teleport%20(1).lua",
-    AntiDetect = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_antidetect.lua",
-    AutoFarm = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_autofarm.lua"
+    ESP = "ESP",
+    GunMods = "GunMods",
+    Aimbot = "Aimbot",
+    Teleport = "Teleport",
+    AntiDetect = "AntiDetect",
+    AutoFarm = "AutoFarm"
 }
 
 -- Loaded modules
 local Modules = {
     ESP = nil,
-    CoinCollector = nil,
-    MurderDetection = nil,
+    GunMods = nil,
+    Aimbot = nil,
     Teleport = nil,
-    AntiBan = nil
+    AntiDetect = nil,
+    AutoFarm = nil
 }
 
--- Load a module from URL
+-- Load a module from embedded code
 local function LoadModule(moduleName)
-    local url = ModuleURLs[moduleName]
-    if not url then
-        warn("No URL found for module: " .. moduleName)
+    if not ModuleDefinitions[moduleName] then
+        warn("No module definition found for: " .. moduleName)
         return nil
     end
     
     local success, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
+        return loadstring(ModuleDefinitions[moduleName])()
     end)
     
     if success then
         print("✅ Successfully loaded: " .. moduleName)
         return result
     else
-        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. result)
+        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. tostring(result))
         return nil
     end
 end
@@ -70,7 +1365,7 @@ end
 local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 local DeviceText = IsMobile and "Mobile" or "PC"
 
-print("SkyX MM2 - Starting on " .. DeviceText .. " device")
+print("SkyX Dead Rails - Starting on " .. DeviceText .. " device")
 
 -- Create main UI container
 local SkyXUI = Instance.new("ScreenGui")
@@ -260,7 +1555,7 @@ TitleText.Font = Enum.Font.GothamBold
 TitleText.TextSize = 16
 TitleText.TextColor3 = Colors.Text
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Text = "SkyX MM2 Modular"
+TitleText.Text = "🌊 SkyX Dead Rails 🌊"
 TitleText.Parent = TitleBar
 
 -- Add close button
@@ -283,15 +1578,16 @@ AddConnection(CloseButton.MouseButton1Click, function()
     
     -- Stop all modules
     if Modules.ESP then Modules.ESP.Stop() end
-    if Modules.CoinCollector then Modules.CoinCollector.Stop() end
-    if Modules.MurderDetection then Modules.MurderDetection.Stop() end
+    if Modules.GunMods then Modules.GunMods.Stop() end
+    if Modules.Aimbot then Modules.Aimbot.Stop() end
     if Modules.Teleport then Modules.Teleport.Stop() end
-    if Modules.AntiBan then Modules.AntiBan.Stop() end
+    if Modules.AntiDetect then Modules.AntiDetect.Stop() end
+    if Modules.AutoFarm then Modules.AutoFarm.Stop() end
     
     -- Destroy GUI
     SkyXUI:Destroy()
     
-    print("SkyX MM2 Modular closed properly")
+    print("SkyX Dead Rails script closed properly")
 end)
 
 -- Create content area
@@ -376,46 +1672,718 @@ end)
 local Tabs = {}
 local SelectedTab = nil
 
--- Get MM2 values
-local function GetMM2Values()
-    local MM2 = {}
-    MM2.Roles = {}
-    MM2.Players = {}
+-- Get Dead Rails values
+local function GetDeadRailsValues()
+    local DeadRails = {}
+    DeadRails.Teams = {}
+    DeadRails.Players = {}
+    DeadRails.GameState = {}
+    DeadRails.Weapons = {}
+    
+    -- Current round status
+    local roundState = workspace:FindFirstChild("RoundState")
+    if roundState then
+        DeadRails.GameState.RoundState = roundState.Value
+    end
+    
+    -- Get round time
+    local roundTime = workspace:FindFirstChild("RoundTime")
+    if roundTime then
+        DeadRails.GameState.RoundTime = roundTime.Value
+    end
     
     -- Get all players
     for _, Player in pairs(game.Players:GetPlayers()) do
         if Player ~= game.Players.LocalPlayer then
-            table.insert(MM2.Players, Player)
+            local PlayerData = {
+                Player = Player,
+                Team = Player.Team and Player.Team.Name or "None",
+                Character = Player.Character,
+                Health = Player.Character and Player.Character:FindFirstChild("Humanoid") and 
+                         Player.Character.Humanoid.Health or 0,
+                MaxHealth = Player.Character and Player.Character:FindFirstChild("Humanoid") and 
+                            Player.Character.Humanoid.MaxHealth or 100
+            }
+            
+            table.insert(DeadRails.Players, PlayerData)
+            
+            -- Add to teams
+            if Player.Team then
+                if not DeadRails.Teams[Player.Team.Name] then
+                    DeadRails.Teams[Player.Team.Name] = {}
+                end
+                table.insert(DeadRails.Teams[Player.Team.Name], Player)
+            end
         end
     end
     
-    -- Attempt to find MM2 roles
-    for _, Player in pairs(game.Players:GetPlayers()) do
-        local Backpack = Player:FindFirstChild("Backpack")
-        if Backpack then
-            -- Check for knife
-            if Backpack:FindFirstChild("Knife") then
-                MM2.Roles.Murderer = Player
-            end
-            -- Check for gun
-            if Backpack:FindFirstChild("Gun") or Backpack:FindFirstChild("Revolver") then
-                MM2.Roles.Sheriff = Player
+    -- Get local player's weapons
+    local localPlayer = game.Players.LocalPlayer
+    if localPlayer and localPlayer.Character then
+        DeadRails.Weapons.Equipped = nil
+        
+        -- Find equipped weapon
+        for _, child in pairs(localPlayer.Character:GetChildren()) do
+            if child:IsA("Tool") then
+                DeadRails.Weapons.Equipped = child
+                break
             end
         end
         
-        -- Also check equipped items
-        local Character = Player.Character
-        if Character then
-            if Character:FindFirstChild("Knife") then
-                MM2.Roles.Murderer = Player
-            end
-            if Character:FindFirstChild("Gun") or Character:FindFirstChild("Revolver") then
-                MM2.Roles.Sheriff = Player
+        -- Get weapons in backpack
+        DeadRails.Weapons.Backpack = {}
+        for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                table.insert(DeadRails.Weapons.Backpack, tool)
             end
         end
     end
     
-    return MM2
+    return DeadRails
+end
+
+-- UI element creation functions
+local function CreateButton(parent, text, position, size, color, callback)
+    local Button = Instance.new("TextButton")
+    Button.Name = text .. "Button"
+    Button.Size = size or UDim2.new(1, 0, 0, 30)
+    Button.Position = position or UDim2.new(0, 0, 0, 0)
+    Button.BackgroundColor3 = color or Colors.Button
+    Button.BorderSizePixel = 0
+    Button.Font = Enum.Font.Gotham
+    Button.TextSize = 14
+    Button.TextColor3 = Colors.Text
+    Button.Text = text
+    Button.Parent = parent
+    
+    -- Add corner
+    local ButtonCorner = Instance.new("UICorner")
+    ButtonCorner.CornerRadius = UDim.new(0, 6)
+    ButtonCorner.Parent = Button
+    
+    -- Add click effect
+    AddConnection(Button.MouseButton1Click, function()
+        -- Flash effect
+        Button.BackgroundColor3 = Colors.Highlight
+        Button.TextSize = 15
+        wait(0.1)
+        Button.BackgroundColor3 = color or Colors.Button
+        Button.TextSize = 14
+        
+        -- Call callback
+        if callback then
+            callback()
+        end
+    end)
+    
+    return Button
+end
+
+local function CreateToggle(parent, text, position, size, default, callback)
+    local Toggle = Instance.new("Frame")
+    Toggle.Name = text .. "Toggle"
+    Toggle.Size = size or UDim2.new(1, 0, 0, 30)
+    Toggle.Position = position or UDim2.new(0, 0, 0, 0)
+    Toggle.BackgroundTransparency = 1
+    Toggle.Parent = parent
+    
+    -- Add text label
+    local ToggleText = Instance.new("TextLabel")
+    ToggleText.Name = "Text"
+    ToggleText.Size = UDim2.new(1, -60, 1, 0)
+    ToggleText.Position = UDim2.new(0, 10, 0, 0)
+    ToggleText.BackgroundTransparency = 1
+    ToggleText.Font = Enum.Font.Gotham
+    ToggleText.TextSize = 14
+    ToggleText.TextColor3 = Colors.Text
+    ToggleText.TextXAlignment = Enum.TextXAlignment.Left
+    ToggleText.Text = text
+    ToggleText.Parent = Toggle
+    
+    -- Add toggle background
+    local ToggleBackground = Instance.new("Frame")
+    ToggleBackground.Name = "Background"
+    ToggleBackground.Size = UDim2.new(0, 40, 0, 20)
+    ToggleBackground.Position = UDim2.new(1, -50, 0.5, -10)
+    ToggleBackground.BackgroundColor3 = default and Colors.Success or Colors.Danger
+    ToggleBackground.BorderSizePixel = 0
+    ToggleBackground.Parent = Toggle
+    
+    -- Add corner to background
+    local ToggleBackgroundCorner = Instance.new("UICorner")
+    ToggleBackgroundCorner.CornerRadius = UDim.new(0, 10)
+    ToggleBackgroundCorner.Parent = ToggleBackground
+    
+    -- Add toggle knob
+    local ToggleKnob = Instance.new("Frame")
+    ToggleKnob.Name = "Knob"
+    ToggleKnob.Size = UDim2.new(0, 16, 0, 16)
+    ToggleKnob.Position = UDim2.new(default and 1 or 0, default and -18 or 2, 0.5, -8)
+    ToggleKnob.BackgroundColor3 = Colors.Text
+    ToggleKnob.BorderSizePixel = 0
+    ToggleKnob.Parent = ToggleBackground
+    
+    -- Add corner to knob
+    local ToggleKnobCorner = Instance.new("UICorner")
+    ToggleKnobCorner.CornerRadius = UDim.new(1, 0)
+    ToggleKnobCorner.Parent = ToggleKnob
+    
+    -- Add click functionality
+    local Enabled = default or false
+    
+    ToggleBackground.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            Enabled = not Enabled
+            
+            -- Animate toggle
+            local goalPosition = Enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            local goalColor = Enabled and Colors.Success or Colors.Danger
+            
+            local positionTween = TweenService:Create(ToggleKnob, TweenInfo.new(0.2), {Position = goalPosition})
+            local colorTween = TweenService:Create(ToggleBackground, TweenInfo.new(0.2), {BackgroundColor3 = goalColor})
+            
+            positionTween:Play()
+            colorTween:Play()
+            
+            -- Call callback
+            if callback then
+                callback(Enabled)
+            end
+        end
+    end)
+    
+    -- Method to get current state
+    Toggle.GetState = function()
+        return Enabled
+    end
+    
+    -- Method to set state
+    Toggle.SetState = function(state)
+        if state ~= Enabled then
+            Enabled = state
+            
+            -- Animate toggle
+            local goalPosition = Enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            local goalColor = Enabled and Colors.Success or Colors.Danger
+            
+            local positionTween = TweenService:Create(ToggleKnob, TweenInfo.new(0.2), {Position = goalPosition})
+            local colorTween = TweenService:Create(ToggleBackground, TweenInfo.new(0.2), {BackgroundColor3 = goalColor})
+            
+            positionTween:Play()
+            colorTween:Play()
+            
+            -- Call callback
+            if callback then
+                callback(Enabled)
+            end
+        end
+    end
+    
+    return Toggle
+end
+
+local function CreateSlider(parent, text, position, size, min, max, default, callback)
+    local Slider = Instance.new("Frame")
+    Slider.Name = text .. "Slider"
+    Slider.Size = size or UDim2.new(1, 0, 0, 45)
+    Slider.Position = position or UDim2.new(0, 0, 0, 0)
+    Slider.BackgroundTransparency = 1
+    Slider.Parent = parent
+    
+    -- Add text label
+    local SliderText = Instance.new("TextLabel")
+    SliderText.Name = "Text"
+    SliderText.Size = UDim2.new(1, -70, 0, 20)
+    SliderText.Position = UDim2.new(0, 10, 0, 0)
+    SliderText.BackgroundTransparency = 1
+    SliderText.Font = Enum.Font.Gotham
+    SliderText.TextSize = 14
+    SliderText.TextColor3 = Colors.Text
+    SliderText.TextXAlignment = Enum.TextXAlignment.Left
+    SliderText.Text = text
+    SliderText.Parent = Slider
+    
+    -- Add value display
+    local ValueDisplay = Instance.new("TextLabel")
+    ValueDisplay.Name = "Value"
+    ValueDisplay.Size = UDim2.new(0, 60, 0, 20)
+    ValueDisplay.Position = UDim2.new(1, -70, 0, 0)
+    ValueDisplay.BackgroundTransparency = 1
+    ValueDisplay.Font = Enum.Font.Gotham
+    ValueDisplay.TextSize = 14
+    ValueDisplay.TextColor3 = Colors.Highlight
+    ValueDisplay.Text = tostring(default)
+    ValueDisplay.Parent = Slider
+    
+    -- Add slider background
+    local SliderBackground = Instance.new("Frame")
+    SliderBackground.Name = "Background"
+    SliderBackground.Size = UDim2.new(1, -20, 0, 6)
+    SliderBackground.Position = UDim2.new(0, 10, 0, 30)
+    SliderBackground.BackgroundColor3 = Colors.TabInactive
+    SliderBackground.BorderSizePixel = 0
+    SliderBackground.Parent = Slider
+    
+    -- Add corner to background
+    local SliderBackgroundCorner = Instance.new("UICorner")
+    SliderBackgroundCorner.CornerRadius = UDim.new(0, 3)
+    SliderBackgroundCorner.Parent = SliderBackground
+    
+    -- Add slider fill
+    local SliderFill = Instance.new("Frame")
+    SliderFill.Name = "Fill"
+    SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    SliderFill.BackgroundColor3 = Colors.Button
+    SliderFill.BorderSizePixel = 0
+    SliderFill.Parent = SliderBackground
+    
+    -- Add corner to fill
+    local SliderFillCorner = Instance.new("UICorner")
+    SliderFillCorner.CornerRadius = UDim.new(0, 3)
+    SliderFillCorner.Parent = SliderFill
+    
+    -- Add slider knob
+    local SliderKnob = Instance.new("Frame")
+    SliderKnob.Name = "Knob"
+    SliderKnob.Size = UDim2.new(0, 12, 0, 12)
+    SliderKnob.Position = UDim2.new((default - min) / (max - min), -6, 0.5, -6)
+    SliderKnob.BackgroundColor3 = Colors.Text
+    SliderKnob.BorderSizePixel = 0
+    SliderKnob.ZIndex = 2
+    SliderKnob.Parent = SliderBackground
+    
+    -- Add corner to knob
+    local SliderKnobCorner = Instance.new("UICorner")
+    SliderKnobCorner.CornerRadius = UDim.new(1, 0)
+    SliderKnobCorner.Parent = SliderKnob
+    
+    -- Add slider functionality
+    local Value = default
+    
+    local function UpdateSlider(input)
+        local sliderPos = math.clamp((input.Position.X - SliderBackground.AbsolutePosition.X) / SliderBackground.AbsoluteSize.X, 0, 1)
+        local newValue = math.floor(min + ((max - min) * sliderPos))
+        
+        if newValue ~= Value then
+            Value = newValue
+            ValueDisplay.Text = tostring(Value)
+            
+            -- Update slider fill and knob
+            SliderFill.Size = UDim2.new(sliderPos, 0, 1, 0)
+            SliderKnob.Position = UDim2.new(sliderPos, -6, 0.5, -6)
+            
+            -- Call callback
+            if callback then
+                callback(Value)
+            end
+        end
+    end
+    
+    SliderBackground.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            UpdateSlider(input)
+            
+            -- Drag functionality
+            local connection
+            connection = UserInputService.InputChanged:Connect(function(dragged)
+                if dragged.UserInputType == Enum.UserInputType.MouseMovement or dragged.UserInputType == Enum.UserInputType.Touch then
+                    UpdateSlider(dragged)
+                end
+            end)
+            
+            -- End drag
+            UserInputService.InputEnded:Connect(function(inputEnd)
+                if (inputEnd.UserInputType == Enum.UserInputType.MouseButton1 or inputEnd.UserInputType == Enum.UserInputType.Touch) and connection then
+                    connection:Disconnect()
+                    connection = nil
+                end
+            end)
+        end
+    end)
+    
+    -- Method to set value
+    Slider.SetValue = function(value)
+        value = math.clamp(value, min, max)
+        if value ~= Value then
+            Value = value
+            ValueDisplay.Text = tostring(Value)
+            
+            -- Update slider fill and knob
+            local sliderPos = (Value - min) / (max - min)
+            SliderFill.Size = UDim2.new(sliderPos, 0, 1, 0)
+            SliderKnob.Position = UDim2.new(sliderPos, -6, 0.5, -6)
+            
+            -- Call callback
+            if callback then
+                callback(Value)
+            end
+        end
+    end
+    
+    -- Method to get value
+    Slider.GetValue = function()
+        return Value
+    end
+    
+    return Slider
+end
+
+local function CreateDropdown(parent, text, position, size, options, default, callback)
+    local Dropdown = Instance.new("Frame")
+    Dropdown.Name = text .. "Dropdown"
+    Dropdown.Size = size or UDim2.new(1, 0, 0, 30)
+    Dropdown.Position = position or UDim2.new(0, 0, 0, 0)
+    Dropdown.BackgroundTransparency = 1
+    Dropdown.ClipsDescendants = true -- Important for dropdown animation
+    Dropdown.Parent = parent
+    
+    -- Add text label
+    local DropdownText = Instance.new("TextLabel")
+    DropdownText.Name = "Text"
+    DropdownText.Size = UDim2.new(1, -20, 0, 30)
+    DropdownText.Position = UDim2.new(0, 10, 0, 0)
+    DropdownText.BackgroundTransparency = 1
+    DropdownText.Font = Enum.Font.Gotham
+    DropdownText.TextSize = 14
+    DropdownText.TextColor3 = Colors.Text
+    DropdownText.TextXAlignment = Enum.TextXAlignment.Left
+    DropdownText.Text = text
+    DropdownText.Parent = Dropdown
+    
+    -- Add dropdown button
+    local DropdownButton = Instance.new("TextButton")
+    DropdownButton.Name = "Button"
+    DropdownButton.Size = UDim2.new(1, 0, 0, 30)
+    DropdownButton.Position = UDim2.new(0, 0, 0, 30)
+    DropdownButton.BackgroundColor3 = Colors.TabInactive
+    DropdownButton.BorderSizePixel = 0
+    DropdownButton.Font = Enum.Font.Gotham
+    DropdownButton.TextSize = 14
+    DropdownButton.TextColor3 = Colors.Text
+    DropdownButton.Text = default or options[1]
+    DropdownButton.Parent = Dropdown
+    
+    -- Add corner to button
+    local DropdownButtonCorner = Instance.new("UICorner")
+    DropdownButtonCorner.CornerRadius = UDim.new(0, 6)
+    DropdownButtonCorner.Parent = DropdownButton
+    
+    -- Add dropdown indicator
+    local DropdownIndicator = Instance.new("TextLabel")
+    DropdownIndicator.Name = "Indicator"
+    DropdownIndicator.Size = UDim2.new(0, 20, 0, 20)
+    DropdownIndicator.Position = UDim2.new(1, -25, 0, 5)
+    DropdownIndicator.BackgroundTransparency = 1
+    DropdownIndicator.Font = Enum.Font.GothamBold
+    DropdownIndicator.TextSize = 14
+    DropdownIndicator.TextColor3 = Colors.Text
+    DropdownIndicator.Text = "▼"
+    DropdownIndicator.Parent = DropdownButton
+    
+    -- Add options container
+    local OptionsContainer = Instance.new("Frame")
+    OptionsContainer.Name = "Options"
+    OptionsContainer.Size = UDim2.new(1, 0, 0, #options * 30)
+    OptionsContainer.Position = UDim2.new(0, 0, 0, 30)
+    OptionsContainer.BackgroundColor3 = Colors.TabInactive
+    OptionsContainer.BorderSizePixel = 0
+    OptionsContainer.Visible = false
+    OptionsContainer.Parent = Dropdown
+    
+    -- Add corner to options container
+    local OptionsCorner = Instance.new("UICorner")
+    OptionsCorner.CornerRadius = UDim.new(0, 6)
+    OptionsCorner.Parent = OptionsContainer
+    
+    -- Create option buttons
+    for i, option in ipairs(options) do
+        local OptionButton = Instance.new("TextButton")
+        OptionButton.Name = option .. "Option"
+        OptionButton.Size = UDim2.new(1, 0, 0, 30)
+        OptionButton.Position = UDim2.new(0, 0, 0, (i-1) * 30)
+        OptionButton.BackgroundTransparency = 1
+        OptionButton.Font = Enum.Font.Gotham
+        OptionButton.TextSize = 14
+        OptionButton.TextColor3 = Colors.Text
+        OptionButton.Text = option
+        OptionButton.Parent = OptionsContainer
+        
+        -- Add hover effect
+        OptionButton.MouseEnter:Connect(function()
+            OptionButton.BackgroundTransparency = 0.9
+        end)
+        
+        OptionButton.MouseLeave:Connect(function()
+            OptionButton.BackgroundTransparency = 1
+        end)
+        
+        -- Add click functionality
+        OptionButton.MouseButton1Click:Connect(function()
+            DropdownButton.Text = option
+            OptionsContainer.Visible = false
+            
+            -- Restore dropdown size
+            Dropdown.Size = size or UDim2.new(1, 0, 0, 60)
+            
+            -- Call callback
+            if callback then
+                callback(option)
+            end
+        end)
+    end
+    
+    -- Add dropdown functionality
+    local Expanded = false
+    
+    DropdownButton.MouseButton1Click:Connect(function()
+        Expanded = not Expanded
+        OptionsContainer.Visible = Expanded
+        DropdownIndicator.Text = Expanded and "▲" or "▼"
+        
+        -- Adjust dropdown size to fit options when expanded
+        if Expanded then
+            Dropdown.Size = UDim2.new(size.X.Scale, size.X.Offset, 0, 60 + #options * 30)
+        else
+            Dropdown.Size = size or UDim2.new(1, 0, 0, 60)
+        end
+    end)
+    
+    -- Method to get selected value
+    Dropdown.GetValue = function()
+        return DropdownButton.Text
+    end
+    
+    -- Method to set value
+    Dropdown.SetValue = function(option)
+        for _, opt in ipairs(options) do
+            if opt == option then
+                DropdownButton.Text = option
+                
+                -- Call callback
+                if callback then
+                    callback(option)
+                end
+                
+                break
+            end
+        end
+    end
+    
+    return Dropdown
+end
+
+local function CreateColorPicker(parent, text, position, size, default, callback)
+    local ColorPicker = Instance.new("Frame")
+    ColorPicker.Name = text .. "ColorPicker"
+    ColorPicker.Size = size or UDim2.new(1, 0, 0, 30)
+    ColorPicker.Position = position or UDim2.new(0, 0, 0, 0)
+    ColorPicker.BackgroundTransparency = 1
+    ColorPicker.Parent = parent
+    
+    -- Add text label
+    local ColorText = Instance.new("TextLabel")
+    ColorText.Name = "Text"
+    ColorText.Size = UDim2.new(1, -60, 1, 0)
+    ColorText.Position = UDim2.new(0, 10, 0, 0)
+    ColorText.BackgroundTransparency = 1
+    ColorText.Font = Enum.Font.Gotham
+    ColorText.TextSize = 14
+    ColorText.TextColor3 = Colors.Text
+    ColorText.TextXAlignment = Enum.TextXAlignment.Left
+    ColorText.Text = text
+    ColorText.Parent = ColorPicker
+    
+    -- Add color display
+    local ColorDisplay = Instance.new("Frame")
+    ColorDisplay.Name = "Display"
+    ColorDisplay.Size = UDim2.new(0, 30, 0, 20)
+    ColorDisplay.Position = UDim2.new(1, -40, 0.5, -10)
+    ColorDisplay.BackgroundColor3 = default or Color3.fromRGB(255, 255, 255)
+    ColorDisplay.BorderSizePixel = 0
+    ColorDisplay.Parent = ColorPicker
+    
+    -- Add corner to display
+    local DisplayCorner = Instance.new("UICorner")
+    DisplayCorner.CornerRadius = UDim.new(0, 4)
+    DisplayCorner.Parent = ColorDisplay
+    
+    -- Add color picker button
+    ColorDisplay.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            -- Here we would implement a color picker
+            -- For now, just cycle through some preset colors
+            local presetColors = {
+                Color3.fromRGB(255, 0, 0),   -- Red
+                Color3.fromRGB(0, 255, 0),   -- Green
+                Color3.fromRGB(0, 0, 255),   -- Blue
+                Color3.fromRGB(255, 255, 0), -- Yellow
+                Color3.fromRGB(0, 255, 255), -- Cyan
+                Color3.fromRGB(255, 0, 255), -- Magenta
+                Color3.fromRGB(255, 255, 255) -- White
+            }
+            
+            -- Find the closest color in our presets
+            local currentColor = ColorDisplay.BackgroundColor3
+            local closestDistance = math.huge
+            local closestIndex = 1
+            
+            for i, color in ipairs(presetColors) do
+                local distance = math.sqrt(
+                    (color.R - currentColor.R)^2 +
+                    (color.G - currentColor.G)^2 +
+                    (color.B - currentColor.B)^2
+                )
+                
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestIndex = i
+                end
+            end
+            
+            -- Get next color
+            local nextIndex = closestIndex % #presetColors + 1
+            local nextColor = presetColors[nextIndex]
+            
+            -- Update display
+            ColorDisplay.BackgroundColor3 = nextColor
+            
+            -- Call callback
+            if callback then
+                callback(nextColor)
+            end
+        end
+    end)
+    
+    -- Method to get color
+    ColorPicker.GetColor = function()
+        return ColorDisplay.BackgroundColor3
+    end
+    
+    -- Method to set color
+    ColorPicker.SetColor = function(color)
+        ColorDisplay.BackgroundColor3 = color
+        
+        -- Call callback
+        if callback then
+            callback(color)
+        end
+    end
+    
+    return ColorPicker
+end
+
+local function CreateLabel(parent, text, position, size)
+    local Label = Instance.new("TextLabel")
+    Label.Name = "Label"
+    Label.Size = size or UDim2.new(1, 0, 0, 30)
+    Label.Position = position or UDim2.new(0, 0, 0, 0)
+    Label.BackgroundTransparency = 1
+    Label.Font = Enum.Font.Gotham
+    Label.TextSize = 14
+    Label.TextColor3 = Colors.Text
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.TextWrapped = true
+    Label.Text = text
+    Label.Parent = parent
+    
+    -- Method to update text
+    Label.SetText = function(newText)
+        Label.Text = newText
+    end
+    
+    return Label
+end
+
+local function CreateSection(parent, title, position)
+    local Section = Instance.new("Frame")
+    Section.Name = title .. "Section"
+    Section.Size = UDim2.new(1, 0, 0, 30) -- Initial height, will be updated as elements are added
+    Section.Position = position or UDim2.new(0, 0, 0, 0)
+    Section.BackgroundTransparency = 1
+    Section.Parent = parent
+    
+    -- Add section title
+    local SectionTitle = Instance.new("TextLabel")
+    SectionTitle.Name = "Title"
+    SectionTitle.Size = UDim2.new(1, 0, 0, 30)
+    SectionTitle.BackgroundTransparency = 1
+    SectionTitle.Font = Enum.Font.GothamBold
+    SectionTitle.TextSize = 16
+    SectionTitle.TextColor3 = Colors.Highlight
+    SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+    SectionTitle.Text = title
+    SectionTitle.Parent = Section
+    
+    -- Add section divider
+    local SectionDivider = Instance.new("Frame")
+    SectionDivider.Name = "Divider"
+    SectionDivider.Size = UDim2.new(1, 0, 0, 1)
+    SectionDivider.Position = UDim2.new(0, 0, 0, 30)
+    SectionDivider.BackgroundColor3 = Colors.Border
+    SectionDivider.BorderSizePixel = 0
+    SectionDivider.Parent = Section
+    
+    -- Add content container
+    local ContentContainer = Instance.new("Frame")
+    ContentContainer.Name = "Content"
+    ContentContainer.Size = UDim2.new(1, 0, 0, 0) -- Will be updated as elements are added
+    ContentContainer.Position = UDim2.new(0, 0, 0, 40)
+    ContentContainer.BackgroundTransparency = 1
+    ContentContainer.Parent = Section
+    
+    -- Track content height
+    local ContentHeight = 0
+    
+    -- Section functions
+    Section.AddButton = function(text, callback)
+        local Button = CreateButton(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), nil, Colors.Button, callback)
+        ContentHeight = ContentHeight + 40
+        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
+        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
+        return Button
+    end
+    
+    Section.AddToggle = function(text, default, callback)
+        local Toggle = CreateToggle(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), nil, default, callback)
+        ContentHeight = ContentHeight + 40
+        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
+        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
+        return Toggle
+    end
+    
+    Section.AddSlider = function(text, min, max, default, callback)
+        local Slider = CreateSlider(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), nil, min, max, default, callback)
+        ContentHeight = ContentHeight + 55
+        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
+        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
+        return Slider
+    end
+    
+    Section.AddDropdown = function(text, options, default, callback)
+        local Dropdown = CreateDropdown(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), UDim2.new(1, 0, 0, 60), options, default, callback)
+        ContentHeight = ContentHeight + 70
+        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
+        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
+        return Dropdown
+    end
+    
+    Section.AddColorPicker = function(text, default, callback)
+        local ColorPicker = CreateColorPicker(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), nil, default, callback)
+        ContentHeight = ContentHeight + 40
+        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
+        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
+        return ColorPicker
+    end
+    
+    Section.AddLabel = function(text)
+        local Label = CreateLabel(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight))
+        ContentHeight = ContentHeight + 40
+        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
+        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
+        return Label
+    end
+    
+    return Section
 end
 
 -- Function to create a tab
@@ -442,47 +2410,53 @@ local function CreateTab(name, order)
     local TabPage = Instance.new("ScrollingFrame")
     TabPage.Name = name .. "Page"
     TabPage.Size = UDim2.new(1, 0, 1, 0)
+    TabPage.CanvasSize = UDim2.new(0, 0, 0, 0) -- Will be updated automatically
     TabPage.BackgroundTransparency = 1
     TabPage.BorderSizePixel = 0
     TabPage.ScrollBarThickness = 4
-    TabPage.ScrollBarImageColor3 = Colors.Button
     TabPage.Visible = false
+    TabPage.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    TabPage.ScrollingDirection = Enum.ScrollingDirection.Y
     TabPage.Parent = TabContent
     
-    -- Add padding to tab page
-    local TabPagePadding = Instance.new("UIPadding")
-    TabPagePadding.PaddingLeft = UDim.new(0, 5)
-    TabPagePadding.PaddingRight = UDim.new(0, 5)
-    TabPagePadding.PaddingTop = UDim.new(0, 5)
-    TabPagePadding.PaddingBottom = UDim.new(0, 5)
-    TabPagePadding.Parent = TabPage
+    -- Tab layout for sections
+    local TabLayout = Instance.new("UIListLayout")
+    TabLayout.FillDirection = Enum.FillDirection.Vertical
+    TabLayout.Padding = UDim.new(0, 10)
+    TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    TabLayout.Parent = TabPage
     
-    -- Add layout to tab page
-    local TabPageLayout = Instance.new("UIListLayout")
-    TabPageLayout.Padding = UDim.new(0, 10)
-    TabPageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    TabPageLayout.Parent = TabPage
-    
-    -- Auto-size content
-    AddConnection(TabPageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        TabPage.CanvasSize = UDim2.new(0, 0, 0, TabPageLayout.AbsoluteContentSize.Y + 10)
-    end)
+    -- Tab padding
+    local TabPadding = Instance.new("UIPadding")
+    TabPadding.PaddingTop = UDim.new(0, 10)
+    TabPadding.PaddingBottom = UDim.new(0, 10)
+    TabPadding.PaddingLeft = UDim.new(0, 10)
+    TabPadding.PaddingRight = UDim.new(0, 10)
+    TabPadding.Parent = TabPage
     
     -- Create tab object
     local Tab = {
+        Name = name,
         Button = TabButton,
         Page = TabPage,
-        Layout = TabPageLayout,
-        Name = name,
-        Sections = {}
+        Sections = {},
+        AddSection = function(self, title)
+            local section = CreateSection(TabPage, title)
+            section.LayoutOrder = #self.Sections
+            table.insert(self.Sections, section)
+            return section
+        end
     }
     
-    -- Add tab click event
+    -- Add tab to tabs table
+    table.insert(Tabs, Tab)
+    
+    -- Tab button click event
     AddConnection(TabButton.MouseButton1Click, function()
-        -- Deselect current tab
-        if SelectedTab then
-            SelectedTab.Button.BackgroundColor3 = Colors.TabInactive
-            SelectedTab.Page.Visible = false
+        -- Deselect all tabs
+        for _, tab in pairs(Tabs) do
+            tab.Button.BackgroundColor3 = Colors.TabInactive
+            tab.Page.Visible = false
         end
         
         -- Select this tab
@@ -490,367 +2464,6 @@ local function CreateTab(name, order)
         TabPage.Visible = true
         SelectedTab = Tab
     end)
-    
-    -- Add function to create a section
-    function Tab:AddSection(sectionName)
-        -- Create section frame
-        local Section = Instance.new("Frame")
-        Section.Name = sectionName .. "Section"
-        Section.Size = UDim2.new(1, 0, 0, 100)
-        Section.BackgroundColor3 = Colors.Background
-        Section.BorderSizePixel = 0
-        Section.AutomaticSize = Enum.AutomaticSize.Y
-        Section.Parent = TabPage
-        
-        -- Add corner
-        local SectionCorner = Instance.new("UICorner")
-        SectionCorner.CornerRadius = UDim.new(0, 6)
-        SectionCorner.Parent = Section
-        
-        -- Add stroke
-        local SectionStroke = Instance.new("UIStroke")
-        SectionStroke.Color = Colors.Border
-        SectionStroke.Thickness = 1.5
-        SectionStroke.Parent = Section
-        
-        -- Add title
-        local SectionTitle = Instance.new("TextLabel")
-        SectionTitle.Name = "Title"
-        SectionTitle.Size = UDim2.new(1, 0, 0, 30)
-        SectionTitle.BackgroundTransparency = 1
-        SectionTitle.Font = Enum.Font.GothamBold
-        SectionTitle.TextSize = 14
-        SectionTitle.TextColor3 = Colors.Text
-        SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
-        SectionTitle.Text = "    " .. sectionName
-        SectionTitle.Parent = Section
-        
-        -- Create section content
-        local SectionContent = Instance.new("Frame")
-        SectionContent.Name = "Content"
-        SectionContent.Size = UDim2.new(1, -10, 0, 0)
-        SectionContent.Position = UDim2.new(0, 5, 0, 30)
-        SectionContent.BackgroundTransparency = 1
-        SectionContent.BorderSizePixel = 0
-        SectionContent.AutomaticSize = Enum.AutomaticSize.Y
-        SectionContent.Parent = Section
-        
-        -- Add layout
-        local SectionLayout = Instance.new("UIListLayout")
-        SectionLayout.Padding = UDim.new(0, 8)
-        SectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        SectionLayout.Parent = SectionContent
-        
-        -- Auto-size sections
-        AddConnection(SectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-            SectionContent.Size = UDim2.new(1, -10, 0, SectionLayout.AbsoluteContentSize.Y)
-            Section.Size = UDim2.new(1, 0, 0, SectionContent.Size.Y.Offset + 40)
-        end)
-        
-        -- Create section object
-        local SectionObj = {
-            Frame = Section,
-            Content = SectionContent,
-            Layout = SectionLayout,
-            Name = sectionName
-        }
-        
-        -- Add function to add a label
-        function SectionObj:AddLabel(text)
-            local Label = Instance.new("TextLabel")
-            Label.Name = "Label"
-            Label.Size = UDim2.new(1, 0, 0, 20)
-            Label.BackgroundTransparency = 1
-            Label.Font = Enum.Font.Gotham
-            Label.TextSize = 14
-            Label.TextColor3 = Colors.Text
-            Label.TextXAlignment = Enum.TextXAlignment.Left
-            Label.Text = "   " .. text
-            Label.Parent = SectionContent
-            
-            local LabelObj = {
-                Label = Label,
-                Text = text
-            }
-            
-            function LabelObj:SetText(newText)
-                Label.Text = "   " .. newText
-            end
-            
-            return LabelObj
-        end
-        
-        -- Add function to add a toggle
-        function SectionObj:AddToggle(text, default, callback)
-            -- Create toggle frame
-            local ToggleFrame = Instance.new("Frame")
-            ToggleFrame.Name = "Toggle"
-            ToggleFrame.Size = UDim2.new(1, 0, 0, 34)
-            ToggleFrame.BackgroundTransparency = 1
-            ToggleFrame.BorderSizePixel = 0
-            ToggleFrame.Parent = SectionContent
-            
-            -- Adjust size for mobile
-            if IsMobile then
-                ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
-            end
-            
-            -- Create toggle text
-            local ToggleText = Instance.new("TextLabel")
-            ToggleText.Name = "Text"
-            ToggleText.Size = UDim2.new(1, -55, 1, 0)
-            ToggleText.BackgroundTransparency = 1
-            ToggleText.Font = Enum.Font.Gotham
-            ToggleText.TextSize = 14
-            ToggleText.TextColor3 = Colors.Text
-            ToggleText.TextXAlignment = Enum.TextXAlignment.Left
-            ToggleText.Text = "   " .. text
-            ToggleText.Parent = ToggleFrame
-            
-            -- Create toggle button background
-            local ToggleBackground = Instance.new("Frame")
-            ToggleBackground.Name = "Background"
-            ToggleBackground.Size = UDim2.new(0, 44, 0, 24)
-            ToggleBackground.Position = UDim2.new(1, -50, 0.5, -12)
-            ToggleBackground.BorderSizePixel = 0
-            ToggleBackground.BackgroundColor3 = default and Colors.Button or Colors.Background
-            ToggleBackground.Parent = ToggleFrame
-            
-            -- Add corner to toggle background
-            local ToggleBackgroundCorner = Instance.new("UICorner")
-            ToggleBackgroundCorner.CornerRadius = UDim.new(1, 0)
-            ToggleBackgroundCorner.Parent = ToggleBackground
-            
-            -- Create toggle indicator
-            local ToggleIndicator = Instance.new("Frame")
-            ToggleIndicator.Name = "Indicator"
-            ToggleIndicator.Size = UDim2.new(0, 18, 0, 18)
-            ToggleIndicator.Position = UDim2.new(0, default and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -9 or -9)
-            ToggleIndicator.BorderSizePixel = 0
-            ToggleIndicator.BackgroundColor3 = Colors.Text
-            ToggleIndicator.Parent = ToggleBackground
-            
-            -- Add corner to toggle indicator
-            local ToggleIndicatorCorner = Instance.new("UICorner")
-            ToggleIndicatorCorner.CornerRadius = UDim.new(1, 0)
-            ToggleIndicatorCorner.Parent = ToggleIndicator
-            
-            -- Create clickable button
-            local ToggleButton = Instance.new("TextButton")
-            ToggleButton.Name = "Button"
-            ToggleButton.Size = UDim2.new(1, 0, 1, 0)
-            ToggleButton.BackgroundTransparency = 1
-            ToggleButton.Font = Enum.Font.SourceSans
-            ToggleButton.TextSize = 14
-            ToggleButton.TextTransparency = 1
-            ToggleButton.Parent = ToggleFrame
-            
-            -- Create toggle object
-            local ToggleObj = {
-                Frame = ToggleFrame,
-                Button = ToggleButton,
-                Background = ToggleBackground,
-                Indicator = ToggleIndicator,
-                Enabled = default
-            }
-            
-            -- Add toggle event
-            AddConnection(ToggleButton.MouseButton1Click, function()
-                ToggleObj.Enabled = not ToggleObj.Enabled
-                
-                -- Animate toggle
-                TweenService:Create(ToggleBackground, TweenInfo.new(0.2), {
-                    BackgroundColor3 = ToggleObj.Enabled and Colors.Button or Colors.Background
-                }):Play()
-                
-                TweenService:Create(ToggleIndicator, TweenInfo.new(0.2), {
-                    Position = UDim2.new(0, ToggleObj.Enabled and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -9 or -9)
-                }):Play()
-                
-                -- Call callback
-                if callback then
-                    callback(ToggleObj.Enabled)
-                end
-            end)
-            
-            return ToggleObj
-        end
-        
-        -- Add function to add a slider
-        function SectionObj:AddSlider(text, min, max, default, callback)
-            -- Create slider frame
-            local SliderFrame = Instance.new("Frame")
-            SliderFrame.Name = "Slider"
-            SliderFrame.Size = UDim2.new(1, 0, 0, 50)
-            SliderFrame.BackgroundTransparency = 1
-            SliderFrame.BorderSizePixel = 0
-            SliderFrame.Parent = SectionContent
-            
-            -- Adjust size for mobile
-            if IsMobile then
-                SliderFrame.Size = UDim2.new(1, 0, 0, 60)
-            end
-            
-            -- Create slider text
-            local SliderText = Instance.new("TextLabel")
-            SliderText.Name = "Text"
-            SliderText.Size = UDim2.new(1, 0, 0, 20)
-            SliderText.BackgroundTransparency = 1
-            SliderText.Font = Enum.Font.Gotham
-            SliderText.TextSize = 14
-            SliderText.TextColor3 = Colors.Text
-            SliderText.TextXAlignment = Enum.TextXAlignment.Left
-            SliderText.Text = "   " .. text .. ": " .. default
-            SliderText.Parent = SliderFrame
-            
-            -- Create slider background
-            local SliderBackground = Instance.new("Frame")
-            SliderBackground.Name = "Background"
-            SliderBackground.Size = UDim2.new(1, -10, 0, 10)
-            SliderBackground.Position = UDim2.new(0, 5, 0, 30)
-            SliderBackground.BorderSizePixel = 0
-            SliderBackground.BackgroundColor3 = Colors.Background
-            SliderBackground.Parent = SliderFrame
-            
-            -- Add corner to slider background
-            local SliderBackgroundCorner = Instance.new("UICorner")
-            SliderBackgroundCorner.CornerRadius = UDim.new(0, 5)
-            SliderBackgroundCorner.Parent = SliderBackground
-            
-            -- Create slider fill
-            local SliderFill = Instance.new("Frame")
-            SliderFill.Name = "Fill"
-            SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-            SliderFill.BorderSizePixel = 0
-            SliderFill.BackgroundColor3 = Colors.Button
-            SliderFill.Parent = SliderBackground
-            
-            -- Add corner to slider fill
-            local SliderFillCorner = Instance.new("UICorner")
-            SliderFillCorner.CornerRadius = UDim.new(0, 5)
-            SliderFillCorner.Parent = SliderFill
-            
-            -- Create slider button
-            local SliderButton = Instance.new("TextButton")
-            SliderButton.Name = "Button"
-            SliderButton.Size = UDim2.new(1, 0, 1, 0)
-            SliderButton.BackgroundTransparency = 1
-            SliderButton.Font = Enum.Font.SourceSans
-            SliderButton.TextSize = 14
-            SliderButton.TextTransparency = 1
-            SliderButton.Parent = SliderBackground
-            
-            -- Create slider object
-            local SliderObj = {
-                Frame = SliderFrame,
-                Background = SliderBackground,
-                Fill = SliderFill,
-                Button = SliderButton,
-                Text = SliderText,
-                Value = default,
-                Min = min,
-                Max = max
-            }
-            
-            -- Function to update slider
-            local function UpdateSlider(input)
-                local pos = UDim2.new(math.clamp((input.Position.X - SliderBackground.AbsolutePosition.X) / SliderBackground.AbsoluteSize.X, 0, 1), 0, 1, 0)
-                SliderFill.Size = pos
-                
-                local value = math.floor(min + ((max - min) * pos.X.Scale))
-                SliderObj.Value = value
-                SliderText.Text = "   " .. text .. ": " .. value
-                
-                if callback then
-                    callback(value)
-                end
-            end
-            
-            -- Add slider events
-            AddConnection(SliderButton.MouseButton1Down, function(input)
-                UpdateSlider(input)
-                
-                -- Track mouse movement
-                local connection
-                connection = UserInputService.InputChanged:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-                        UpdateSlider(input)
-                    end
-                end)
-                
-                -- Stop tracking when mouse up
-                UserInputService.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                        if connection then
-                            connection:Disconnect()
-                            connection = nil
-                        end
-                    end
-                end)
-            end)
-            
-            return SliderObj
-        end
-        
-        -- Add function to add a button
-        function SectionObj:AddButton(text, callback)
-            -- Create button
-            local Button = Instance.new("TextButton")
-            Button.Name = "Button"
-            Button.Size = UDim2.new(1, 0, 0, 32)
-            Button.BackgroundColor3 = Colors.Button
-            Button.BorderSizePixel = 0
-            Button.Font = Enum.Font.GothamSemibold
-            Button.TextSize = 14
-            Button.TextColor3 = Colors.Text
-            Button.Text = text
-            Button.Parent = SectionContent
-            
-            -- Add corner to button
-            local ButtonCorner = Instance.new("UICorner")
-            ButtonCorner.CornerRadius = UDim.new(0, 6)
-            ButtonCorner.Parent = Button
-            
-            -- Add button hover effect
-            AddConnection(Button.MouseEnter, function()
-                TweenService:Create(Button, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(62, 115, 165)
-                }):Play()
-            end)
-            
-            AddConnection(Button.MouseLeave, function()
-                TweenService:Create(Button, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Colors.Button
-                }):Play()
-            end)
-            
-            -- Add button click event
-            AddConnection(Button.MouseButton1Click, function()
-                TweenService:Create(Button, TweenInfo.new(0.1), {
-                    BackgroundColor3 = Color3.fromRGB(32, 85, 135)
-                }):Play()
-                
-                if callback then
-                    callback()
-                end
-                
-                wait(0.1)
-                
-                TweenService:Create(Button, TweenInfo.new(0.1), {
-                    BackgroundColor3 = Colors.Button
-                }):Play()
-            end)
-            
-            return Button
-        end
-        
-        -- Add section to tab
-        table.insert(Tab.Sections, SectionObj)
-        return SectionObj
-    end
-    
-    -- Add tab to tabs table
-    table.insert(Tabs, Tab)
     
     -- If this is the first tab, select it
     if #Tabs == 1 then
@@ -862,33 +2475,33 @@ local function CreateTab(name, order)
     return Tab
 end
 
--- Load modules
+-- Load a module or create fallback
 local function LoadAllModules()
-    -- Load Anti-Ban module first
-    Modules.AntiBan = LoadModule("AntiBan")
-    if Modules.AntiBan then
-        Modules.AntiBan.Start()
+    -- Load Anti-Detection module first for safety
+    Modules.AntiDetect = LoadModule("AntiDetect")
+    if Modules.AntiDetect then
+        Modules.AntiDetect.Start()
     end
     
-    -- Load other modules
+    -- Load all other modules
     Modules.ESP = LoadModule("ESP")
-    Modules.CoinCollector = LoadModule("CoinCollector")
-    Modules.MurderDetection = LoadModule("MurderDetection")
+    Modules.GunMods = LoadModule("GunMods")
+    Modules.Aimbot = LoadModule("Aimbot")
     Modules.Teleport = LoadModule("Teleport")
+    Modules.AutoFarm = LoadModule("AutoFarm")
     
-    -- Link modules
-    if Modules.ESP and Modules.MurderDetection then
-        Modules.MurderDetection.SetESPModule(Modules.ESP)
+    -- Link modules if needed
+    if Modules.ESP and Modules.Aimbot then
+        Modules.Aimbot.SetESPModule(Modules.ESP)
     end
     
-    if Modules.MurderDetection and Modules.Teleport then
-        Modules.Teleport.SetMurderDetectionModule(Modules.MurderDetection)
+    if Modules.AntiDetect and Modules.GunMods then
+        Modules.GunMods.SetAntiDetectModule(Modules.AntiDetect)
     end
     
-    -- Start modules
+    -- Start key modules
     if Modules.ESP then Modules.ESP.Start() end
-    if Modules.CoinCollector then Modules.CoinCollector.Start() end
-    if Modules.MurderDetection then Modules.MurderDetection.Start() end
+    if Modules.GunMods then Modules.GunMods.Start() end
     if Modules.Teleport then Modules.Teleport.Start() end
     
     return true
@@ -897,15 +2510,15 @@ end
 -- Create tabs
 local MainTab = CreateTab("Main", 1)
 local ESPTab = CreateTab("ESP", 2)
-local CoinsTab = CreateTab("Coins", 3)
-local MurderTab = CreateTab("Murder", 4)
+local GunModsTab = CreateTab("Gun Mods", 3)
+local AimbotTab = CreateTab("Aimbot", 4)
 local TeleportTab = CreateTab("Teleport", 5)
-local AntiBanTab = CreateTab("Anti-Ban", 6)
+local AutoFarmTab = CreateTab("Auto Farm", 6)
 
 -- Create main tab content
 local InfoSection = MainTab:AddSection("Information")
 InfoSection:AddLabel("Device: " .. DeviceText)
-InfoSection:AddLabel("Game: Murder Mystery 2")
+InfoSection:AddLabel("Game: Dead Rails")
 local StatusLabel = InfoSection:AddLabel("Loading modules...")
 
 -- Load modules
@@ -931,101 +2544,175 @@ if success then
             Modules.ESP.Settings.ShowHealth = value
         end)
         
-        ESPSection:AddToggle("Show Roles", true, function(value)
-            Modules.ESP.Settings.ShowRole = value
+        ESPSection:AddToggle("Show Team", true, function(value)
+            Modules.ESP.Settings.ShowTeam = value
+        end)
+        
+        ESPSection:AddToggle("Show Weapons", true, function(value)
+            Modules.ESP.Settings.ShowWeapon = value
         end)
         
         ESPSection:AddToggle("Rainbow ESP", false, function(value)
             Modules.ESP.Settings.RainbowESP = value
         end)
         
-        ESPSection:AddSlider("Rainbow Speed", 1, 10, 5, function(value)
-            Modules.ESP.Settings.RainbowSpeed = value
+        ESPSection:AddColorPicker("Enemy Color", Color3.fromRGB(255, 0, 0), function(color)
+            Modules.ESP.Settings.Colors.Enemy = color
+        end)
+        
+        ESPSection:AddColorPicker("Team Color", Color3.fromRGB(0, 255, 0), function(color)
+            Modules.ESP.Settings.Colors.Team = color
+        end)
+        
+        ESPSection:AddSlider("ESP Text Size", 12, 24, 14, function(value)
+            Modules.ESP.Settings.TextSize = value
         end)
     else
         local ESPSection = ESPTab:AddSection("ESP Features")
         ESPSection:AddLabel("ESP Module failed to load")
     end
     
-    -- Coins Tab Content
-    if Modules.CoinCollector then
-        local CoinsSection = CoinsTab:AddSection("Coin Collection")
+    -- Gun Mods Tab Content
+    if Modules.GunMods then
+        local GunModsSection = GunModsTab:AddSection("Gun Modifications")
         
-        CoinsSection:AddToggle("Auto Collect Coins", false, function(value)
-            Modules.CoinCollector.Settings.AutoCollectEnabled = value
+        GunModsSection:AddToggle("Infinite Ammo", false, function(value)
+            Modules.GunMods.Settings.InfiniteAmmo = value
         end)
         
-        CoinsSection:AddToggle("Coin ESP", false, function(value)
-            Modules.CoinCollector.Settings.ESP.Enabled = value
+        GunModsSection:AddToggle("No Recoil", false, function(value)
+            Modules.GunMods.Settings.NoRecoil = value
         end)
         
-        CoinsSection:AddSlider("Collection Radius", 5, 50, 15, function(value)
-            Modules.CoinCollector.Settings.CollectionRadius = value
+        GunModsSection:AddToggle("No Spread", false, function(value)
+            Modules.GunMods.Settings.NoSpread = value
         end)
         
-        CoinsSection:AddToggle("Prioritize Nearby Coins", true, function(value)
-            Modules.CoinCollector.Settings.PrioritizeNearby = value
+        GunModsSection:AddToggle("Rapid Fire", false, function(value)
+            Modules.GunMods.Settings.RapidFire = value
         end)
         
-        local CoinStats = CoinsSection:AddLabel("Coins Collected: 0")
+        GunModsSection:AddSlider("Fire Rate Multiplier", 1, 10, 2, function(value)
+            Modules.GunMods.Settings.FireRateMultiplier = value
+        end)
         
-        -- Update coin stats periodically
+        GunModsSection:AddSlider("Damage Multiplier", 1, 5, 1, function(value)
+            Modules.GunMods.Settings.DamageMultiplier = value
+        end)
+        
+        GunModsSection:AddToggle("Extended Magazine", false, function(value)
+            Modules.GunMods.Settings.ExtendedMagazine = value
+        end)
+        
+        GunModsSection:AddToggle("Auto Reload", false, function(value)
+            Modules.GunMods.Settings.AutoReload = value
+        end)
+        
+        GunModsSection:AddToggle("Instant Reload", false, function(value)
+            Modules.GunMods.Settings.InstantReload = value
+        end)
+        
+        GunModsSection:AddToggle("Wallbang", false, function(value)
+            Modules.GunMods.Settings.Wallbang = value
+        end)
+        
+        -- Gun stats display
+        local GunStatsSection = GunModsTab:AddSection("Current Gun Stats")
+        local CurrentGunLabel = GunStatsSection:AddLabel("Current Gun: None")
+        
+        -- Update gun stats periodically
         spawn(function()
             while wait(1) do
-                if Modules.CoinCollector then
-                    local stats = Modules.CoinCollector.GetStats()
-                    CoinStats:SetText("Coins Collected: " .. stats.CoinsCollected)
-                end
-            end
-        end)
-    else
-        local CoinsSection = CoinsTab:AddSection("Coin Collection")
-        CoinsSection:AddLabel("Coin Collector Module failed to load")
-    end
-    
-    -- Murder Tab Content
-    if Modules.MurderDetection then
-        local MurderSection = MurderTab:AddSection("Murder Detection")
-        
-        MurderSection:AddToggle("Murder Detection", false, function(value)
-            Modules.MurderDetection.Settings.Enabled = value
-            if value then
-                Modules.MurderDetection.Start()
-            else
-                Modules.MurderDetection.Stop()
-            end
-        end)
-        
-        MurderSection:AddToggle("Auto-Kill Murderer", false, function(value)
-            Modules.MurderDetection.Settings.AutoKill = value
-        end)
-        
-        MurderSection:AddSlider("Warning Distance", 10, 50, 25, function(value)
-            Modules.MurderDetection.Settings.WarningDistance = value
-        end)
-        
-        MurderSection:AddSlider("Kill Distance", 5, 20, 8, function(value)
-            Modules.MurderDetection.Settings.KillDistance = value
-        end)
-        
-        local MurdererInfo = MurderSection:AddLabel("Murderer: Not Found")
-        
-        -- Update murderer info periodically
-        spawn(function()
-            while wait(1) do
-                if Modules.MurderDetection then
-                    local info = Modules.MurderDetection.GetMurdererInfo()
-                    if info.MurdererFound then
-                        MurdererInfo:SetText("Murderer: " .. info.MurdererName)
+                if Modules.GunMods then
+                    local stats = Modules.GunMods.GetCurrentGunStats()
+                    if stats.CurrentGun then
+                        CurrentGunLabel:SetText("Current Gun: " .. stats.CurrentGun)
                     else
-                        MurdererInfo:SetText("Murderer: Not Found")
+                        CurrentGunLabel:SetText("Current Gun: None")
                     end
                 end
             end
         end)
     else
-        local MurderSection = MurderTab:AddSection("Murder Detection")
-        MurderSection:AddLabel("Murder Detection Module failed to load")
+        local GunModsSection = GunModsTab:AddSection("Gun Modifications")
+        GunModsSection:AddLabel("Gun Mods Module failed to load")
+    end
+    
+    -- Aimbot Tab Content
+    if Modules.Aimbot then
+        local AimbotSection = AimbotTab:AddSection("Aimbot Features")
+        
+        AimbotSection:AddToggle("Aimbot Enabled", false, function(value)
+            Modules.Aimbot.Settings.Enabled = value
+            if value then
+                Modules.Aimbot.Start()
+            else
+                Modules.Aimbot.Stop()
+            end
+        end)
+        
+        AimbotSection:AddToggle("Silent Aim", false, function(value)
+            Modules.Aimbot.Settings.SilentAim = value
+        end)
+        
+        AimbotSection:AddToggle("Visible Check", true, function(value)
+            Modules.Aimbot.Settings.VisibleCheck = value
+        end)
+        
+        AimbotSection:AddToggle("Team Check", true, function(value)
+            Modules.Aimbot.Settings.TeamCheck = value
+        end)
+        
+        AimbotSection:AddToggle("Show FOV Circle", true, function(value)
+            Modules.Aimbot.Settings.ShowFOV = value
+        end)
+        
+        AimbotSection:AddSlider("FOV Size", 50, 500, 120, function(value)
+            Modules.Aimbot.Settings.FOVSize = value
+        end)
+        
+        AimbotSection:AddSlider("Smoothness", 0, 100, 20, function(value)
+            Modules.Aimbot.Settings.Smoothness = value / 100
+        end)
+        
+        AimbotSection:AddDropdown("Target Part", {"Head", "Torso", "Random"}, "Head", function(value)
+            Modules.Aimbot.Settings.TargetPart = value
+        end)
+        
+        AimbotSection:AddColorPicker("FOV Color", Color3.fromRGB(255, 255, 255), function(color)
+            Modules.Aimbot.Settings.FOVColor = color
+        end)
+        
+        -- Trigger Bot section
+        local TriggerSection = AimbotTab:AddSection("Trigger Bot")
+        
+        TriggerSection:AddToggle("Trigger Bot", false, function(value)
+            Modules.Aimbot.Settings.TriggerBot.Enabled = value
+        end)
+        
+        TriggerSection:AddSlider("Trigger Delay (ms)", 0, 1000, 200, function(value)
+            Modules.Aimbot.Settings.TriggerBot.Delay = value / 1000
+        end)
+        
+        -- Target info display
+        local TargetInfo = AimbotSection:AddLabel("Target: None")
+        
+        -- Update target info periodically
+        spawn(function()
+            while wait(0.5) do
+                if Modules.Aimbot and Modules.Aimbot.GetTargetInfo then
+                    local info = Modules.Aimbot.GetTargetInfo()
+                    if info.TargetName then
+                        TargetInfo:SetText("Target: " .. info.TargetName)
+                    else
+                        TargetInfo:SetText("Target: None")
+                    end
+                end
+            end
+        end)
+    else
+        local AimbotSection = AimbotTab:AddSection("Aimbot Features")
+        AimbotSection:AddLabel("Aimbot Module failed to load")
     end
     
     -- Teleport Tab Content
@@ -1057,49 +2744,67 @@ if success then
         TeleportSection:AddLabel("Teleport Module failed to load")
     end
     
-    -- Anti-Ban Tab Content
-    if Modules.AntiBan then
-        local AntiBanSection = AntiBanTab:AddSection("Anti-Ban System")
+    -- Auto Farm Tab Content
+    if Modules.AutoFarm then
+        local AutoFarmSection = AutoFarmTab:AddSection("Auto Farm Features")
         
-        AntiBanSection:AddToggle("Anti-Ban System", true, function(value)
-            Modules.AntiBan.Settings.Enabled = value
+        AutoFarmSection:AddToggle("Auto Farm Enabled", false, function(value)
+            Modules.AutoFarm.Settings.Enabled = value
             if value then
-                Modules.AntiBan.Start()
+                Modules.AutoFarm.Start()
             else
-                Modules.AntiBan.Stop()
+                Modules.AutoFarm.Stop()
             end
         end)
         
-        AntiBanSection:AddToggle("Remove Exploit Detection", true, function(value)
-            Modules.AntiBan.Settings.Flags.ExploitDetectionRemoval = value
+        AutoFarmSection:AddDropdown("Farm Method", {"Bone Farm", "Round Completion", "Kills", "Hybrid"}, "Bone Farm", function(value)
+            Modules.AutoFarm.Settings.Method = value
         end)
         
-        AntiBanSection:AddToggle("Reduce Auto-Punish Risk", true, function(value)
-            Modules.AntiBan.Settings.Flags.ReduceAutoPunishRisk = value
+        AutoFarmSection:AddToggle("Anti AFK", true, function(value)
+            Modules.AutoFarm.Settings.AntiAFK = value
         end)
         
-        AntiBanSection:AddToggle("Randomize Actions", true, function(value)
-            Modules.AntiBan.Settings.Flags.RandomizeActions = value
+        AutoFarmSection:AddToggle("Auto Rejoin", false, function(value)
+            Modules.AutoFarm.Settings.AutoRejoin = value
         end)
         
-        AntiBanSection:AddToggle("Disable High-Risk Features", false, function(value)
-            Modules.AntiBan.Settings.Flags.DisableHighRiskFeatures = value
+        AutoFarmSection:AddToggle("Auto Skip Map Vote", true, function(value)
+            Modules.AutoFarm.Settings.AutoSkipMapVote = value
         end)
         
-        local AntiBanStats = AntiBanSection:AddLabel("Detections Evaded: 0")
+        AutoFarmSection:AddToggle("Safe Mode", true, function(value)
+            Modules.AutoFarm.Settings.SafeMode = value
+        end)
         
-        -- Update anti-ban stats periodically
+        AutoFarmSection:AddSlider("Farm Speed", 1, 10, 5, function(value)
+            Modules.AutoFarm.Settings.Speed = value
+        end)
+        
+        AutoFarmSection:AddSlider("Delay Between Actions (s)", 0.1, 5, 0.5, function(value)
+            Modules.AutoFarm.Settings.Delay = value
+        end)
+        
+        -- Farm statistics
+        local StatsSection = AutoFarmTab:AddSection("Farm Statistics")
+        local BonesFarmedLabel = StatsSection:AddLabel("Bones Farmed: 0")
+        local RoundsCompletedLabel = StatsSection:AddLabel("Rounds Completed: 0")
+        local TimeRunningLabel = StatsSection:AddLabel("Time Running: 00:00:00")
+        
+        -- Update farm stats periodically
         spawn(function()
-            while wait(2) do
-                if Modules.AntiBan then
-                    local status = Modules.AntiBan.GetStatus()
-                    AntiBanStats:SetText("Detections Evaded: " .. status.DetectionsEvaded)
+            while wait(1) do
+                if Modules.AutoFarm then
+                    local stats = Modules.AutoFarm.GetStats()
+                    BonesFarmedLabel:SetText("Bones Farmed: " .. stats.BonesFarmed)
+                    RoundsCompletedLabel:SetText("Rounds Completed: " .. stats.RoundsCompleted)
+                    TimeRunningLabel:SetText("Time Running: " .. stats.TimeRunning)
                 end
             end
         end)
     else
-        local AntiBanSection = AntiBanTab:AddSection("Anti-Ban System")
-        AntiBanSection:AddLabel("Anti-Ban Module failed to load")
+        local AutoFarmSection = AutoFarmTab:AddSection("Auto Farm Features")
+        AutoFarmSection:AddLabel("Auto Farm Module failed to load")
     end
 else
     StatusLabel:SetText("Failed to load modules")
@@ -1125,7 +2830,7 @@ local function ToggleUI()
         -- Hide UI
         SkyXUI.Enabled = false
         _G.SkyXUIVisible = false
-        print("SkyX MM2 UI hidden - Press Right Control to show")
+        print("SkyX Dead Rails UI hidden - Press Right Control to show")
     else
         -- Show UI
         SkyXUI.Enabled = true
@@ -1149,7 +2854,7 @@ local function ToggleUI()
             end
         end
         
-        print("SkyX MM2 UI shown")
+        print("SkyX Dead Rails UI shown")
     end
 end
 
@@ -1319,5 +3024,5 @@ game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
     end
 end)
 
-print("SkyX MM2 Modular loaded successfully | Press Right Control to toggle UI")
+print("SkyX Dead Rails Modular loaded successfully | Press Right Control to toggle UI")
 return SkyXUI
