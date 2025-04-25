@@ -1,65 +1,69 @@
 --[[
-    🌊 SkyX Hub - MM2 Modern Script 🌊
-    ULTRA MODERN VERSION 5.0
+    🌊 SkyX Hub - MM2 Script (Modern UI) 🌊
+    SkyX MM2 Direct Modern Edition
     
-    Features:
-    - Brand new sleek UI design with smooth animations
-    - Dark, ultra-modern aesthetic with customized controls
-    - Optimized performance and mobile compatibility
-    - All original MM2 features in a more elegant package
+    Made for: Murder Mystery 2
+    Premium features: None (100% Free)
     
     Optimized for mobile executors (Swift, Fluxus, KRNL, Delta, etc.)
 ]]
 
--- Check for valid Roblox environment
-local success, services = pcall(function()
-    local Players = game:GetService("Players") 
-    local Workspace = game:GetService("Workspace")
-    local RunService = game:GetService("RunService")
-    local UserInputService = game:GetService("UserInputService")
-    local TweenService = game:GetService("TweenService")
-    
-    local LocalPlayer = Players.LocalPlayer
-    local Camera = Workspace.CurrentCamera
-    local Mouse = LocalPlayer:GetMouse()
-    
-    return {
-        Players = Players,
-        Workspace = Workspace,
-        RunService = RunService,
-        UserInputService = UserInputService,
-        TweenService = TweenService,
-        LocalPlayer = LocalPlayer,
-        Camera = Camera,
-        Mouse = Mouse
-    }
-end)
-
-if not success then
-    print("Not running in proper Roblox environment")
-    print("This script should only be executed in a Roblox game environment")
+-- Game check
+if game.PlaceId ~= 142823291 and game.PlaceId ~= 183364845 and game.PlaceId ~= 5526738743 then
+    warn("This script is only for Murder Mystery 2. Please execute in MM2.")
     return
 end
 
--- Extract services for easier access
-local Players = services.Players
-local Workspace = services.Workspace
-local RunService = services.RunService
-local UserInputService = services.UserInputService
-local TweenService = services.TweenService
-local LocalPlayer = services.LocalPlayer
-local Camera = services.Camera
-local Mouse = services.Mouse
+-- Load Modern UI Library
+local SkyXModern = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyX-Scripts/SkyX/main/UI/SkyXModern.lua'))()
 
--- Prevent duplicate execution
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+
+-- Prevent multiple execution
 if _G.SkyXMM2Loaded then
-    print("SkyX MM2 Script is already running")
+    warn("SkyX MM2 is already running. Press RightControl to toggle UI.")
     return
 end
 _G.SkyXMM2Loaded = true
 
--- Load SkyX Modern UI Library
-local SkyXModern = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua'))()
+-- Constants
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+-- Character variables
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local RootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Settings
+local Settings = {
+    EspEnabled = false,
+    ShowNames = true,
+    ShowDistance = true,
+    ShowRoles = true,
+    ShowBox = true,
+    MurderDetection = false,
+    CoinCollector = false,
+    WalkSpeed = 16,
+    JumpPower = 50,
+    Noclip = false,
+    Fly = false,
+    IsFlying = false,
+    FlySpeed = 50,
+    CurrentMurderer = nil,
+    CurrentSheriff = nil,
+    SelectedPlayer = nil,
+}
+
+-- ESP objects container
+local EspObjects = {}
 
 -- Create window
 local Window = SkyXModern:CreateWindow({
@@ -67,62 +71,47 @@ local Window = SkyXModern:CreateWindow({
     LoadingTitle = "SkyX Hub",
     LoadingSubtitle = "Murder Mystery 2 Script",
     ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "SkyXHub",
-        FileName = "MM2Config"
+        Enabled = false
     },
     Theme = {
-        -- Main background colors
-        BackgroundColor = Color3.fromRGB(18, 18, 24),
-        SidebarColor = Color3.fromRGB(24, 24, 34),
-        ContainerColor = Color3.fromRGB(30, 30, 40),
-        
-        -- Accent and highlight colors
-        HighlightColor = Color3.fromRGB(80, 120, 255),    -- Bright blue accent
-        
-        -- Text colors
-        TextColor = Color3.fromRGB(240, 240, 245),       -- Almost white text
-        SubTextColor = Color3.fromRGB(180, 180, 190),    -- Light gray secondary text
-        HeadingColor = Color3.fromRGB(255, 255, 255),    -- Pure white headings
-        
-        -- UI component colors
-        ButtonColor = Color3.fromRGB(40, 40, 55),         -- Base button color
-        ButtonHoverColor = Color3.fromRGB(50, 50, 70),    -- Button hover state
-        
-        -- Toggle and slider colors
-        ToggleOffColor = Color3.fromRGB(60, 60, 80),      -- Toggle in off state
-        ToggleOnColor = Color3.fromRGB(80, 120, 255),     -- Toggle in on state
-        SliderBackgroundColor = Color3.fromRGB(40, 40, 60), -- Slider track
-        SliderFilledColor = Color3.fromRGB(80, 120, 255),  -- Filled part of slider
-        
-        -- Other UI elements
-        BorderColor = Color3.fromRGB(50, 50, 70),        -- Border for containers
-        TabColor = Color3.fromRGB(30, 30, 45),           -- Tab button color
-        TabActiveColor = Color3.fromRGB(80, 120, 255),   -- Selected tab color
-        InputBackgroundColor = Color3.fromRGB(30, 30, 45), -- Input field background
-        DropdownColor = Color3.fromRGB(30, 30, 45),        -- Dropdown menu color
-        
-        -- Status colors
-        ErrorColor = Color3.fromRGB(255, 85, 85),        -- Error red
-        SuccessColor = Color3.fromRGB(85, 255, 127),     -- Success green
-        WarningColor = Color3.fromRGB(255, 185, 85)      -- Warning yellow/orange
+        BackgroundColor = Color3.fromRGB(15, 15, 20),
+        SidebarColor = Color3.fromRGB(20, 20, 30),
+        ContainerColor = Color3.fromRGB(25, 25, 35),
+        HighlightColor = Color3.fromRGB(80, 120, 255),
+        TextColor = Color3.fromRGB(240, 240, 245),
+        SubTextColor = Color3.fromRGB(180, 180, 190),
+        HeadingColor = Color3.fromRGB(255, 255, 255),
+        ButtonColor = Color3.fromRGB(35, 35, 45),
+        ButtonHoverColor = Color3.fromRGB(45, 45, 60),
+        ToggleOffColor = Color3.fromRGB(60, 60, 80),
+        ToggleOnColor = Color3.fromRGB(80, 120, 255),
+        SliderBackgroundColor = Color3.fromRGB(35, 35, 50),
+        SliderFilledColor = Color3.fromRGB(80, 120, 255),
+        BorderColor = Color3.fromRGB(45, 45, 65),
+        TabColor = Color3.fromRGB(25, 25, 40),
+        TabActiveColor = Color3.fromRGB(80, 120, 255),
+        InputBackgroundColor = Color3.fromRGB(25, 25, 40),
+        DropdownColor = Color3.fromRGB(25, 25, 40),
+        ErrorColor = Color3.fromRGB(255, 85, 85),
+        SuccessColor = Color3.fromRGB(85, 255, 127),
+        WarningColor = Color3.fromRGB(255, 185, 85)
     }
 })
 
--- Create tabs with modern icons
+-- Create tabs
 local MainTab = Window:CreateTab({
     Name = "Main",
-    Icon = "rbxassetid://7733658133" -- Dashboard icon
+    Icon = "rbxassetid://7733658133" -- Home icon
 })
 
 local ESPTab = Window:CreateTab({
     Name = "ESP",
-    Icon = "rbxassetid://7733911690" -- Vision/eye icon
+    Icon = "rbxassetid://7733911690" -- Eye icon
 })
 
-local TeleportsTab = Window:CreateTab({
+local TeleportTab = Window:CreateTab({
     Name = "Teleport",
-    Icon = "rbxassetid://7734053495" -- Location/map icon
+    Icon = "rbxassetid://7734053495" -- Map icon
 })
 
 local PlayerTab = Window:CreateTab({
@@ -135,101 +124,164 @@ local SettingsTab = Window:CreateTab({
     Icon = "rbxassetid://7734053495" -- Gear icon
 })
 
--- Create main tab content
-local GameSection = MainTab:CreateSection("Game Features")
+-- Main tab content
+local MainSection = MainTab:CreateSection("Game Features")
 
--- Add toggles and buttons
-local ESPToggle = GameSection:CreateToggle({
-    Name = "Show ESP",
-    Default = false,
+MainSection:CreateToggle({
+    Name = "ESP",
+    Default = Settings.EspEnabled,
     Callback = function(Value)
-        print("ESP Toggled:", Value)
+        Settings.EspEnabled = Value
+        
+        -- Toggle ESP visibility
+        for player, objects in pairs(EspObjects) do
+            for _, object in pairs(objects) do
+                if object and object.Visible ~= nil then
+                    object.Visible = Value
+                end
+            end
+        end
     end
 })
 
-local CoinCollectorToggle = GameSection:CreateToggle({
-    Name = "Auto Collect Coins",
-    Default = false,
-    Callback = function(Value)
-        print("Auto Collect Coins Toggled:", Value)
-    end
-})
-
-local MurderDetectionToggle = GameSection:CreateToggle({
+MainSection:CreateToggle({
     Name = "Murder Detection",
-    Default = false,
+    Default = Settings.MurderDetection,
     Callback = function(Value)
-        print("Murder Detection Toggled:", Value)
+        Settings.MurderDetection = Value
     end
 })
 
-local RefreshButton = GameSection:CreateButton({
-    Name = "Refresh Players",
-    Callback = function()
-        print("Refreshing players...")
+MainSection:CreateToggle({
+    Name = "Auto Collect Coins",
+    Default = Settings.CoinCollector,
+    Callback = function(Value)
+        Settings.CoinCollector = Value
     end
 })
 
--- Create game status section
-local StatusSection = MainTab:CreateSection("Game Status")
+local InfoSection = MainTab:CreateSection("Game Info")
 
--- Create ESP tab content
+local MurderLabel = InfoSection:CreateButton({
+    Name = "Murderer: Unknown",
+    Callback = function() end
+})
+
+local SheriffLabel = InfoSection:CreateButton({
+    Name = "Sheriff: Unknown",
+    Callback = function() end
+})
+
+local MapLabel = InfoSection:CreateButton({
+    Name = "Map: Loading...",
+    Callback = function() end
+})
+
+-- ESP tab content
 local ESPSettingsSection = ESPTab:CreateSection("ESP Settings")
 
-local ShowNamesToggle = ESPSettingsSection:CreateToggle({
+ESPSettingsSection:CreateToggle({
     Name = "Show Names",
-    Default = true,
+    Default = Settings.ShowNames,
     Callback = function(Value)
-        print("Show Names:", Value)
+        Settings.ShowNames = Value
     end
 })
 
-local ShowRolesToggle = ESPSettingsSection:CreateToggle({
-    Name = "Show Roles",
-    Default = true,
-    Callback = function(Value)
-        print("Show Roles:", Value)
-    end
-})
-
-local ShowDistanceToggle = ESPSettingsSection:CreateToggle({
+ESPSettingsSection:CreateToggle({
     Name = "Show Distance",
-    Default = true,
+    Default = Settings.ShowDistance,
     Callback = function(Value)
-        print("Show Distance:", Value)
+        Settings.ShowDistance = Value
     end
 })
 
-local ESPColorSection = ESPTab:CreateSection("ESP Colors")
+ESPSettingsSection:CreateToggle({
+    Name = "Show Roles",
+    Default = Settings.ShowRoles,
+    Callback = function(Value)
+        Settings.ShowRoles = Value
+    end
+})
 
--- Create teleport tab content
-local TeleportSection = TeleportsTab:CreateSection("Map Teleports")
+ESPSettingsSection:CreateToggle({
+    Name = "Show Box",
+    Default = Settings.ShowBox,
+    Callback = function(Value)
+        Settings.ShowBox = Value
+    end
+})
 
-local LobbyButton = TeleportSection:CreateButton({
+-- Teleport tab content
+local TeleportSection = TeleportTab:CreateSection("Map Teleports")
+
+TeleportSection:CreateButton({
     Name = "Teleport to Lobby",
     Callback = function()
-        print("Teleporting to Lobby...")
+        -- Logic to teleport to lobby
+        local lobbySpawns = workspace:FindFirstChild("LobbySpawns")
+        if lobbySpawns and lobbySpawns:FindFirstChild("Spawn") then
+            local spawn = lobbySpawns.Spawn
+            Character:SetPrimaryPartCFrame(spawn.CFrame + Vector3.new(0, 5, 0))
+        end
     end
 })
 
-local MapButton = TeleportSection:CreateButton({
+TeleportSection:CreateButton({
     Name = "Teleport to Map",
     Callback = function()
-        print("Teleporting to Map...")
+        -- Logic to teleport to the map
+        local mapSpawns = workspace:FindFirstChild("MapSpawns")
+        if mapSpawns and mapSpawns:FindFirstChild("Spawn") then
+            local spawn = mapSpawns.Spawn
+            Character:SetPrimaryPartCFrame(spawn.CFrame + Vector3.new(0, 5, 0))
+        end
+    end
+})
+
+local PlayerTeleportSection = TeleportTab:CreateSection("Player Teleports")
+
+-- Create player dropdown for teleport
+local PlayerDropdown = PlayerTeleportSection:CreateDropdown({
+    Name = "Select Player",
+    Options = {"None"},
+    Default = "None",
+    Callback = function(Value)
+        if Value == "None" then
+            Settings.SelectedPlayer = nil
+        else
+            Settings.SelectedPlayer = Value
+        end
+    end
+})
+
+PlayerTeleportSection:CreateButton({
+    Name = "Teleport to Player",
+    Callback = function()
+        if Settings.SelectedPlayer then
+            local targetPlayer = Players:FindFirstChild(Settings.SelectedPlayer)
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local targetHRP = targetPlayer.Character.HumanoidRootPart
+                Character:SetPrimaryPartCFrame(targetHRP.CFrame + Vector3.new(0, 2, 0))
+            end
+        end
     end
 })
 
 -- Player tab content
-local PlayerSection = PlayerTab:CreateSection("Player Settings")
+local PlayerSection = PlayerTab:CreateSection("Character Settings")
 
 local WalkspeedSlider = PlayerSection:CreateSlider({
-    Name = "Walk Speed",
+    Name = "Walkspeed",
     Min = 16,
     Max = 100,
-    Default = 16,
+    Default = Settings.WalkSpeed,
     Increment = 1,
     Callback = function(Value)
-        print("Walk Speed set to:", Value)
+        Settings.WalkSpeed = Value
+        if Humanoid then
+            Humanoid.WalkSpeed = Value
+        end
     end
 })
 
@@ -237,63 +289,262 @@ local JumpPowerSlider = PlayerSection:CreateSlider({
     Name = "Jump Power",
     Min = 50,
     Max = 200,
-    Default = 50,
+    Default = Settings.JumpPower,
     Increment = 1,
     Callback = function(Value)
-        print("Jump Power set to:", Value)
+        Settings.JumpPower = Value
+        if Humanoid then
+            Humanoid.JumpPower = Value
+        end
     end
 })
 
-local NoclipToggle = PlayerSection:CreateToggle({
+local MobilitySection = PlayerTab:CreateSection("Mobility")
+
+MobilitySection:CreateToggle({
     Name = "Noclip",
-    Default = false,
+    Default = Settings.Noclip,
     Callback = function(Value)
-        print("Noclip Toggled:", Value)
+        Settings.Noclip = Value
     end
 })
 
-local FlyToggle = PlayerSection:CreateToggle({
+local FlyToggle = MobilitySection:CreateToggle({
     Name = "Fly",
-    Default = false,
+    Default = Settings.Fly,
     Callback = function(Value)
-        print("Fly Toggled:", Value)
+        Settings.Fly = Value
+        
+        if Value and not Settings.IsFlying then
+            EnableFly()
+        elseif not Value and Settings.IsFlying then
+            DisableFly()
+        end
     end
 })
 
--- Create miscellaneous section for teleport tab
-local MiscSection = TeleportsTab:CreateSection("Player Teleports")
-
-local PlayerDropdown = MiscSection:CreateDropdown({
-    Name = "Select Player",
-    Options = {"None"},
-    Default = "None",
+local FlySpeedSlider = MobilitySection:CreateSlider({
+    Name = "Fly Speed",
+    Min = 1,
+    Max = 200,
+    Default = Settings.FlySpeed,
+    Increment = 1,
     Callback = function(Value)
-        print("Selected Player:", Value)
-    end
-})
-
-local TeleportToPlayerButton = MiscSection:CreateButton({
-    Name = "Teleport to Player",
-    Callback = function()
-        print("Teleporting to selected player...")
+        Settings.FlySpeed = Value
     end
 })
 
 -- Settings tab content
 local SettingsSection = SettingsTab:CreateSection("UI Settings")
 
-local UnloadButton = SettingsSection:CreateButton({
+SettingsSection:CreateButton({
     Name = "Unload Script",
     Callback = function()
+        for player, objects in pairs(EspObjects) do
+            for _, object in pairs(objects) do
+                if object and typeof(object) == "Instance" then
+                    object:Destroy()
+                end
+            end
+        end
+        
+        EspObjects = {}
+        ToggleNoClip(false)
+        DisableFly()
+        
         _G.SkyXMM2Loaded = false
-        print("Unloading SkyX Hub MM2...")
+        
+        if _G.ToggleSkyXUI then
+            _G.ToggleSkyXUI()
+        end
     end
 })
 
--- Function to update players list
-local function UpdatePlayersList()
-    local playerNames = {"None"}
+-- Functions
+-- Create ESP for a player
+function CreatePlayerESP(player)
+    if player == LocalPlayer then return end
+    if EspObjects[player] then return end
     
+    EspObjects[player] = {}
+    
+    -- Create Name ESP
+    local nameESP = Drawing.new("Text")
+    nameESP.Text = player.Name
+    nameESP.Size = 18
+    nameESP.Color = Color3.fromRGB(255, 255, 255)
+    nameESP.Center = true
+    nameESP.Outline = true
+    nameESP.OutlineColor = Color3.fromRGB(0, 0, 0)
+    nameESP.Visible = Settings.EspEnabled
+    EspObjects[player].Name = nameESP
+    
+    -- Create Box ESP
+    local boxESP = Drawing.new("Square")
+    boxESP.Thickness = 1
+    boxESP.Color = Color3.fromRGB(255, 255, 255)
+    boxESP.Filled = false
+    boxESP.Transparency = 1
+    boxESP.Visible = Settings.EspEnabled and Settings.ShowBox
+    EspObjects[player].Box = boxESP
+    
+    -- Create Role ESP
+    local roleESP = Drawing.new("Text")
+    roleESP.Text = "Innocent"
+    roleESP.Size = 14
+    roleESP.Color = Color3.fromRGB(0, 255, 0)  -- Innocent green
+    roleESP.Center = true
+    roleESP.Outline = true
+    roleESP.OutlineColor = Color3.fromRGB(0, 0, 0)
+    roleESP.Visible = Settings.EspEnabled and Settings.ShowRoles
+    EspObjects[player].Role = roleESP
+end
+
+-- Remove ESP for a player
+function RemovePlayerESP(player)
+    if not EspObjects[player] then return end
+    
+    for _, object in pairs(EspObjects[player]) do
+        if object and typeof(object) == "userdata" and object.Remove then
+            object:Remove()
+        end
+    end
+    
+    EspObjects[player] = nil
+end
+
+-- Update ESP for all players
+function UpdateESP()
+    for player, objects in pairs(EspObjects) do
+        if not player or not player.Parent or not player:IsDescendantOf(Players) then
+            RemovePlayerESP(player)
+            continue
+        end
+        
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") or not character:FindFirstChild("Humanoid") then
+            -- Hide ESP if character is not available
+            for _, object in pairs(objects) do
+                if object and object.Visible ~= nil then
+                    object.Visible = false
+                end
+            end
+            continue
+        end
+        
+        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character:FindFirstChild("Humanoid")
+        
+        if humanoid.Health <= 0 then
+            -- Hide ESP if player is dead
+            for _, object in pairs(objects) do
+                if object and object.Visible ~= nil then
+                    object.Visible = false
+                end
+            end
+            continue
+        end
+        
+        -- Get screen position
+        local vector, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+        
+        if not onScreen then
+            -- Hide ESP if off screen
+            for _, object in pairs(objects) do
+                if object and object.Visible ~= nil then
+                    object.Visible = false
+                end
+            end
+            continue
+        end
+        
+        -- Calculate distance
+        local distance = (RootPart.Position - humanoidRootPart.Position).Magnitude
+        local distanceText = math.floor(distance) .. "m"
+        
+        -- Determine player role
+        local roleText = "Innocent"
+        local roleColor = Color3.fromRGB(0, 255, 0)  -- Green for innocent
+        
+        if Settings.CurrentMurderer and Settings.CurrentMurderer == player then
+            roleText = "Murderer"
+            roleColor = Color3.fromRGB(255, 0, 0)  -- Red for murderer
+        elseif Settings.CurrentSheriff and Settings.CurrentSheriff == player then
+            roleText = "Sheriff"
+            roleColor = Color3.fromRGB(0, 0, 255)  -- Blue for sheriff
+        end
+        
+        -- Update Name ESP
+        if objects.Name then
+            objects.Name.Position = Vector2.new(vector.X, vector.Y - 40)
+            objects.Name.Text = player.Name .. (Settings.ShowDistance and " (" .. distanceText .. ")" or "")
+            objects.Name.Visible = Settings.EspEnabled and Settings.ShowNames
+        end
+        
+        -- Update Box ESP
+        if objects.Box then
+            -- Calculate box size based on distance
+            local size = 50000 / distance
+            local boxSize = Vector2.new(size / 3, size * 1.5)
+            objects.Box.Position = Vector2.new(vector.X - boxSize.X / 2, vector.Y - boxSize.Y / 2)
+            objects.Box.Size = boxSize
+            objects.Box.Visible = Settings.EspEnabled and Settings.ShowBox
+        end
+        
+        -- Update Role ESP
+        if objects.Role then
+            objects.Role.Position = Vector2.new(vector.X, vector.Y - 25)
+            objects.Role.Text = roleText
+            objects.Role.Color = roleColor
+            objects.Role.Visible = Settings.EspEnabled and Settings.ShowRoles
+        end
+    end
+end
+
+-- Detect player roles
+function DetectPlayerRoles()
+    if not Settings.MurderDetection then
+        return
+    end
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local character = player.Character
+            if character then
+                -- Check for knife (Murderer)
+                for _, item in pairs(character:GetChildren()) do
+                    if item:IsA("Tool") and item.Name == "Knife" then
+                        Settings.CurrentMurderer = player
+                        MurderLabel:Update("Murderer: " .. player.Name)
+                    end
+                end
+                
+                -- Check for gun (Sheriff)
+                for _, item in pairs(character:GetChildren()) do
+                    if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") then
+                        Settings.CurrentSheriff = player
+                        SheriffLabel:Update("Sheriff: " .. player.Name)
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Detect the current map
+function DetectMap()
+    local mapFolder = workspace:FindFirstChild("Map")
+    if mapFolder and mapFolder:FindFirstChild("MapName") then
+        local mapName = mapFolder.MapName.Value
+        MapLabel:Update("Map: " .. mapName)
+    else
+        MapLabel:Update("Map: Lobby")
+    end
+end
+
+-- Update player dropdown options
+function UpdatePlayersList()
+    local playerNames = {"None"}
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then
             table.insert(playerNames, player.Name)
@@ -303,10 +554,288 @@ local function UpdatePlayersList()
     PlayerDropdown:UpdateOptions(playerNames)
 end
 
--- Update players list initially and when players join/leave
+-- Collect coins automatically
+function CollectCoins()
+    if not Settings.CoinCollector then
+        return
+    end
+    
+    for _, coin in pairs(workspace:GetChildren()) do
+        if coin.Name == "Coin" and coin:FindFirstChild("CoinCollectible") then
+            local coinPart = coin:FindFirstChild("CoinCollectible")
+            local distance = (RootPart.Position - coinPart.Position).Magnitude
+            
+            if distance <= 14 then
+                -- Already close enough to collect
+                continue
+            end
+            
+            -- Teleport to coin
+            Character:SetPrimaryPartCFrame(CFrame.new(coinPart.Position + Vector3.new(0, 2, 0)))
+            wait(0.1)  -- Small delay between teleports
+        end
+    end
+end
+
+-- NoClip function
+function ToggleNoClip(enabled)
+    if enabled then
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    else
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- Flying functions
+local FlyControls = {
+    W = false,
+    A = false,
+    S = false,
+    D = false,
+    E = false,
+    Q = false
+}
+
+function EnableFly()
+    Settings.IsFlying = true
+    
+    local bodyVelocity = Instance.new("BodyVelocity")
+    bodyVelocity.Name = "SkyXFlightForce"
+    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    bodyVelocity.Parent = RootPart
+    
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed then
+            if input.KeyCode == Enum.KeyCode.W then
+                FlyControls.W = true
+            elseif input.KeyCode == Enum.KeyCode.A then
+                FlyControls.A = true
+            elseif input.KeyCode == Enum.KeyCode.S then
+                FlyControls.S = true
+            elseif input.KeyCode == Enum.KeyCode.D then
+                FlyControls.D = true
+            elseif input.KeyCode == Enum.KeyCode.E then
+                FlyControls.E = true
+            elseif input.KeyCode == Enum.KeyCode.Q then
+                FlyControls.Q = true
+            end
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if not gameProcessed then
+            if input.KeyCode == Enum.KeyCode.W then
+                FlyControls.W = false
+            elseif input.KeyCode == Enum.KeyCode.A then
+                FlyControls.A = false
+            elseif input.KeyCode == Enum.KeyCode.S then
+                FlyControls.S = false
+            elseif input.KeyCode == Enum.KeyCode.D then
+                FlyControls.D = false
+            elseif input.KeyCode == Enum.KeyCode.E then
+                FlyControls.E = false
+            elseif input.KeyCode == Enum.KeyCode.Q then
+                FlyControls.Q = false
+            end
+        end
+    end)
+    
+    -- Mobile fly controls
+    if IsMobile then
+        local TouchControlsFrame = Instance.new("Frame")
+        TouchControlsFrame.Name = "SkyXFlyControls"
+        TouchControlsFrame.Size = UDim2.new(1, 0, 1, 0)
+        TouchControlsFrame.BackgroundTransparency = 1
+        TouchControlsFrame.Parent = LocalPlayer:WaitForChild("PlayerGui")
+        
+        local UpButton = Instance.new("TextButton")
+        UpButton.Text = "↑"
+        UpButton.Size = UDim2.new(0.1, 0, 0.1, 0)
+        UpButton.Position = UDim2.new(0.85, 0, 0.4, 0)
+        UpButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        UpButton.BackgroundTransparency = 0.5
+        UpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        UpButton.Font = Enum.Font.SourceSansBold
+        UpButton.TextSize = 30
+        UpButton.Parent = TouchControlsFrame
+        
+        local DownButton = Instance.new("TextButton")
+        DownButton.Text = "↓"
+        DownButton.Size = UDim2.new(0.1, 0, 0.1, 0)
+        DownButton.Position = UDim2.new(0.85, 0, 0.55, 0)
+        DownButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+        DownButton.BackgroundTransparency = 0.5
+        DownButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        DownButton.Font = Enum.Font.SourceSansBold
+        DownButton.TextSize = 30
+        DownButton.Parent = TouchControlsFrame
+        
+        UpButton.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                FlyControls.E = true
+            end
+        end)
+        
+        UpButton.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                FlyControls.E = false
+            end
+        end)
+        
+        DownButton.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                FlyControls.Q = true
+            end
+        end)
+        
+        DownButton.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.Touch then
+                FlyControls.Q = false
+            end
+        end)
+    end
+    
+    -- Fly loop
+    spawn(function()
+        while Settings.IsFlying and Settings.Fly and bodyVelocity and bodyVelocity.Parent do
+            local flySpeed = Settings.FlySpeed
+            local direction = Vector3.new(0, 0, 0)
+            
+            if FlyControls.W then
+                direction = direction + (Camera.CFrame.LookVector * flySpeed)
+            end
+            if FlyControls.S then
+                direction = direction - (Camera.CFrame.LookVector * flySpeed)
+            end
+            if FlyControls.A then
+                direction = direction - (Camera.CFrame.RightVector * flySpeed)
+            end
+            if FlyControls.D then
+                direction = direction + (Camera.CFrame.RightVector * flySpeed)
+            end
+            if FlyControls.E then
+                direction = direction + Vector3.new(0, flySpeed, 0)
+            end
+            if FlyControls.Q then
+                direction = direction - Vector3.new(0, flySpeed, 0)
+            end
+            
+            bodyVelocity.Velocity = direction
+            wait()
+        end
+    end)
+end
+
+function DisableFly()
+    Settings.IsFlying = false
+    
+    -- Remove flight force
+    local bodyVelocity = RootPart:FindFirstChild("SkyXFlightForce")
+    if bodyVelocity then
+        bodyVelocity:Destroy()
+    end
+    
+    -- Remove mobile controls if they exist
+    if IsMobile then
+        local touchControls = LocalPlayer.PlayerGui:FindFirstChild("SkyXFlyControls")
+        if touchControls then
+            touchControls:Destroy()
+        end
+    end
+    
+    -- Reset controls
+    for control in pairs(FlyControls) do
+        FlyControls[control] = false
+    end
+end
+
+-- Connect events
+LocalPlayer.CharacterAdded:Connect(function(newCharacter)
+    Character = newCharacter
+    Humanoid = newCharacter:WaitForChild("Humanoid")
+    RootPart = newCharacter:WaitForChild("HumanoidRootPart")
+    
+    -- Update character stats
+    Humanoid.WalkSpeed = Settings.WalkSpeed
+    Humanoid.JumpPower = Settings.JumpPower
+    
+    -- Disable flying
+    Settings.IsFlying = false
+    
+    -- Reconnect noclip
+    if Settings.Noclip then
+        ToggleNoClip(true)
+    end
+    
+    -- Reconnect flying
+    if Settings.Fly then
+        wait(1)  -- Wait for character to initialize
+        EnableFly()
+    end
+end)
+
+Players.PlayerAdded:Connect(function(player)
+    CreatePlayerESP(player)
+    UpdatePlayersList()
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    RemovePlayerESP(player)
+    
+    -- Reset role labels if the player leaving was murderer or sheriff
+    if Settings.CurrentMurderer == player then
+        Settings.CurrentMurderer = nil
+        MurderLabel:Update("Murderer: Unknown")
+    end
+    
+    if Settings.CurrentSheriff == player then
+        Settings.CurrentSheriff = nil
+        SheriffLabel:Update("Sheriff: Unknown")
+    end
+    
+    UpdatePlayersList()
+end)
+
+-- Create ESP for existing players
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        CreatePlayerESP(player)
+    end
+end
+
+-- Main update loop
+RunService.RenderStepped:Connect(function()
+    if not _G.SkyXMM2Loaded then return end
+    
+    -- Update ESP
+    UpdateESP()
+    
+    -- Apply noclip
+    if Settings.Noclip then
+        ToggleNoClip(true)
+    end
+    
+    -- Update roles detection
+    DetectPlayerRoles()
+    
+    -- Detect map
+    DetectMap()
+    
+    -- Collect coins if enabled
+    if Settings.CoinCollector then
+        CollectCoins()
+    end
+end)
+
+-- Initialize
 UpdatePlayersList()
-
-Players.PlayerAdded:Connect(UpdatePlayersList)
-Players.PlayerRemoving:Connect(UpdatePlayersList)
-
-print("SkyX MM2 Modern UI loaded successfully | Press Right Control to toggle UI")
+print("SkyX Hub - MM2 Modern UI loaded successfully | Press Right Control to toggle UI")
