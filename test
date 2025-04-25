@@ -1,5 +1,5 @@
 --[[
-    🌊 SkyX Hub - Mobile UI Demo 🌊
+    🌊 SkyX Hub - Mobile UIgg Demo 🌊
     
     This demo showcases the mobile-friendly features of the SkyXOrion UI Library
     
@@ -19,27 +19,26 @@ if not game then
     return
 end
 
--- Set up mock environment for testing
-local Players = game:GetService("Players")
+-- Set up safer environment for testing
+local Players = game:GetService("Players") 
 local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:FindFirstChild("Humanoid")
-local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+local Character, Humanoid, HumanoidRootPart
+
+-- Safely get character references
+pcall(function()
+    Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    if Character then
+        Humanoid = Character:FindFirstChild("Humanoid")
+        HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    end
+end)
 
 -- Load our enhanced SkyXOrion UI
 local SkyXOrion = {}
 
 local success, result = pcall(function()
-    -- Load the official SkyX UI Library from GitHub
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua"))()
-    
-    -- Fallback to local version if GitHub version fails
-    -- if isfile and isfile("SkyXOrion.lua") then
-    --     return loadstring(readfile("SkyXOrion.lua"))()
-    -- else
-    --     -- Fallback to the original Orion if our enhanced version isn't available
-    --     return loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
-    -- end
+    -- Direct load with no pcall wrapper to see actual errors
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua", true))()
 end)
 
 if success then
