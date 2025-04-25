@@ -1,436 +1,57 @@
 --[[
-    🌊 SkyX Hub - Mobile UIgg Demo 🌊
+    🌊 SkyX Hub Demo Script 🌊
     
-    This demo showcases the mobile-friendly features of the SkyXOrion UI Library
+    This script demonstrates a simplified UI that focuses on making buttons and tabs visible.
     
-    Key Features:
-    - Swipe gestures between tabs
-    - Larger touch targets for mobile users
-    - Smooth animations optimized for mobile
-    - Auto-sizing based on device screen size
-    - Haptic feedback on supported devices
-    - Ocean-themed visual style
+    It uses no external dependencies or icon loading to ensure everything appears correctly.
 ]]
 
--- Check if running in a Roblox environment
-if not game then
-    print("Not running in proper Roblox environment")
-    print("This script should only be executed in a Roblox game environment")
-    return
-end
+-- Load the basic UI library
+local SkyXBasic = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/SkyX-hub/main/SkyX_Basic_UI.lua"))()
 
--- Set up safer environment for testing
-local Players = game:GetService("Players") 
-local LocalPlayer = Players.LocalPlayer
-local Character, Humanoid, HumanoidRootPart
+-- Create the main window
+local Window = SkyXBasic:CreateWindow("SkyX Hub - Basic Demo")
 
--- Safely get character references
-pcall(function()
-    Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    if Character then
-        Humanoid = Character:FindFirstChild("Humanoid")
-        HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
-    end
+-- Show initial notification
+Window:Notify("Basic UI Loaded", "This is a simplified version designed to ensure buttons and tabs appear correctly", 5)
+
+-- First tab - Main
+local MainTab = Window:CreateTab("Main")
+
+-- Sections
+local InfoSection = MainTab:CreateSection("Information")
+InfoSection:AddLabel("Welcome to SkyX Hub Basic")
+InfoSection:AddLabel("Version: 1.0.0")
+InfoSection:AddLabel("This UI uses direct assets - no GitHub loading")
+
+local FeaturesSection = MainTab:CreateSection("Features")
+FeaturesSection:AddButton("Example Button", function()
+    Window:Notify("Button Clicked", "This button works!", 3)
 end)
 
--- Load our enhanced SkyXOrion UI
-local SkyXOrion = {}
-
-local success, result = pcall(function()
-    -- Direct load with no pcall wrapper to see actual errors
-    return loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua", true))()
+local TestToggle = FeaturesSection:AddToggle("Example Toggle", false, function(value)
+    Window:Notify("Toggle Changed", "Toggle is now: " .. (value and "ON" or "OFF"), 3)
 end)
 
-if success then
-    SkyXOrion = result
-else
-    -- If loading fails, use a fallback
-    SkyXOrion = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
-    warn("Could not load SkyXOrion, using original Orion instead")
-end
+-- Second tab - Settings
+local SettingsTab = Window:CreateTab("Settings")
 
--- Create a window with our mobile-optimized UI
-local Window = SkyXOrion:MakeWindow({
-    Name = "🌊 SkyX Mobile Demo 🌊",
-    HidePremium = false,
-    SaveConfig = false,
-    ConfigFolder = "SkyXDemo",
-    IntroEnabled = true,
-    IntroText = "SkyX Mobile UI Demo",
-    IntroIcon = "rbxassetid://10618644218",
-    Icon = "rbxassetid://10618644218"
-})
+local AppearanceSection = SettingsTab:CreateSection("Appearance")
+AppearanceSection:AddButton("Test Visibility", function()
+    Window:Notify("UI Test", "If you can see this notification, the UI is working correctly!", 3)
+end)
 
--- Create multiple tabs to demonstrate swipe feature
-local HomeTab = Window:MakeTab({
-    Name = "Home",
-    Icon = "home",
-    PremiumOnly = false
-})
+-- Third tab - Credits
+local CreditsTab = Window:CreateTab("Credits")
 
-local WeaponsTab = Window:MakeTab({
-    Name = "Weapons",
-    Icon = "sword",
-    PremiumOnly = false
-})
+local CreditsSection = CreditsTab:CreateSection("SkyX Team")
+CreditsSection:AddLabel("Created by: SkyX Team")
+CreditsSection:AddLabel("Thanks for using SkyX Hub!")
 
-local FarmingTab = Window:MakeTab({
-    Name = "Farming",
-    Icon = "tree",
-    PremiumOnly = false
-})
+-- Add exit button
+CreditsSection:AddButton("Exit", function()
+    SkyXBasic:Destroy()
+end)
 
-local TeleportTab = Window:MakeTab({
-    Name = "Teleport",
-    Icon = "map-pin",
-    PremiumOnly = false
-})
-
-local SettingsTab = Window:MakeTab({
-    Name = "Settings",
-    Icon = "settings",
-    PremiumOnly = false
-})
-
--- Add content to Home Tab
-local WelcomeSection = HomeTab:AddSection({
-    Name = "Welcome"
-})
-
-WelcomeSection:AddLabel({
-    Name = "👋 Welcome to SkyX Mobile UI Demo!"
-})
-
-WelcomeSection:AddLabel({
-    Name = "Try swiping left/right to change tabs"
-})
-
-local DeviceInfoSection = HomeTab:AddSection({
-    Name = "Device Information"
-})
-
-DeviceInfoSection:AddButton({
-    Name = "Check Device Type",
-    Callback = function()
-        local UserInputService = game:GetService("UserInputService")
-        local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
-        
-        SkyXOrion:MakeNotification({
-            Name = "Device Info",
-            Content = "You are using a " .. (isMobile and "Mobile" or "PC") .. " device",
-            Image = "rbxassetid://4483345998",
-            Time = 5
-        })
-    end
-})
-
-DeviceInfoSection:AddButton({
-    Name = "Show Screen Size",
-    Callback = function()
-        local viewportSize = workspace.CurrentCamera.ViewportSize
-        
-        SkyXOrion:MakeNotification({
-            Name = "Screen Info",
-            Content = "Size: " .. viewportSize.X .. " x " .. viewportSize.Y,
-            Image = "rbxassetid://4483345998",
-            Time = 5
-        })
-    end
-})
-
--- Add content to Weapons Tab
-local WeaponsSection = WeaponsTab:AddSection({
-    Name = "Test Mobile Touch Controls"
-})
-
--- Demonstrate large touch targets for toggles
-local godModeEnabled = false
-WeaponsSection:AddToggle({
-    Name = "God Mode",
-    Default = false,
-    Callback = function(Value)
-        godModeEnabled = Value
-        
-        SkyXOrion:MakeNotification({
-            Name = "God Mode",
-            Content = Value and "God Mode enabled" or "God Mode disabled",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-        
-        -- In a real script, you'd apply god mode here
-        if Humanoid then
-            task.spawn(function()
-                while godModeEnabled and Humanoid do
-                    Humanoid.Health = Humanoid.MaxHealth
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end
-})
-
--- Demonstrate buttons with haptic feedback
-WeaponsSection:AddButton({
-    Name = "Give All Weapons",
-    Callback = function()
-        SkyXOrion:MakeNotification({
-            Name = "Weapons",
-            Content = "All weapons added to inventory!",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
-WeaponsSection:AddButton({
-    Name = "Infinite Ammo",
-    Callback = function()
-        SkyXOrion:MakeNotification({
-            Name = "Ammo",
-            Content = "Infinite ammo enabled!",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
--- Demonstrate sliders with larger touch targets
-WeaponsSection:AddSlider({
-    Name = "Weapon Damage",
-    Min = 1,
-    Max = 100,
-    Default = 50,
-    Color = Color3.fromRGB(42, 95, 145),
-    Increment = 1,
-    ValueName = "x",
-    Callback = function(Value)
-        SkyXOrion:MakeNotification({
-            Name = "Damage",
-            Content = "Damage set to " .. Value .. "x",
-            Image = "rbxassetid://4483345998",
-            Time = 1
-        })
-    end    
-})
-
--- Add content to Farming Tab
-local AutoFarmSection = FarmingTab:AddSection({
-    Name = "Auto Farm Features"
-})
-
--- Demonstrate toggles with mobile-friendly tap areas
-AutoFarmSection:AddToggle({
-    Name = "Auto Farm",
-    Default = false,
-    Callback = function(Value)
-        SkyXOrion:MakeNotification({
-            Name = "Auto Farm",
-            Content = Value and "Auto farming enabled" or "Auto farming disabled",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
-AutoFarmSection:AddToggle({
-    Name = "Auto Collect Items",
-    Default = false,
-    Callback = function(Value)
-        SkyXOrion:MakeNotification({
-            Name = "Items",
-            Content = Value and "Auto collect enabled" or "Auto collect disabled",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
--- Demonstrate large buttons that are easy to tap
-AutoFarmSection:AddButton({
-    Name = "Collect All Nearby Items",
-    Callback = function()
-        SkyXOrion:MakeNotification({
-            Name = "Items",
-            Content = "Collected all nearby items!",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
-local FarmSettingsSection = FarmingTab:AddSection({
-    Name = "Farm Settings"
-})
-
--- Show a slider with larger touch area
-FarmSettingsSection:AddSlider({
-    Name = "Farm Radius",
-    Min = 10,
-    Max = 100,
-    Default = 50,
-    Color = Color3.fromRGB(42, 95, 145),
-    Increment = 5,
-    ValueName = "studs",
-    Callback = function(Value)
-        SkyXOrion:MakeNotification({
-            Name = "Farm Radius",
-            Content = "Set to " .. Value .. " studs",
-            Image = "rbxassetid://4483345998",
-            Time = 1
-        })
-    end    
-})
-
--- Add content to Teleport Tab
-local TeleportSection = TeleportTab:AddSection({
-    Name = "Teleport Locations"
-})
-
--- Add teleport buttons with nice spacing for mobile taps
-TeleportSection:AddButton({
-    Name = "Teleport to Spawn",
-    Callback = function()
-        SkyXOrion:MakeNotification({
-            Name = "Teleport",
-            Content = "Teleported to Spawn",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-        
-        -- In a real script you'd teleport the player
-        if HumanoidRootPart then
-            task.spawn(function()
-                local spawnPos = workspace:FindFirstChild("SpawnLocation")
-                if spawnPos then
-                    HumanoidRootPart.CFrame = spawnPos.CFrame + Vector3.new(0, 5, 0)
-                end
-            end)
-        end
-    end
-})
-
-TeleportSection:AddButton({
-    Name = "Teleport to Shop",
-    Callback = function()
-        SkyXOrion:MakeNotification({
-            Name = "Teleport",
-            Content = "Teleported to Shop",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
-TeleportSection:AddButton({
-    Name = "Teleport to Boss Arena",
-    Callback = function()
-        SkyXOrion:MakeNotification({
-            Name = "Teleport",
-            Content = "Teleported to Boss Arena",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
--- Add content to Settings Tab to demonstrate UI themes
-local ThemeSection = SettingsTab:AddSection({
-    Name = "UI Themes"
-})
-
--- Add theme buttons
-ThemeSection:AddButton({
-    Name = "Ocean Theme",
-    Callback = function()
-        if SkyXOrion.SelectedTheme and SkyXOrion.SetTheme then
-            SkyXOrion.SelectedTheme = "Ocean"
-            SkyXOrion:SetTheme()
-        end
-        
-        SkyXOrion:MakeNotification({
-            Name = "Theme",
-            Content = "Changed to Ocean theme",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
-ThemeSection:AddButton({
-    Name = "Midnight Theme",
-    Callback = function()
-        if SkyXOrion.SelectedTheme and SkyXOrion.SetTheme then
-            SkyXOrion.SelectedTheme = "Midnight"
-            SkyXOrion:SetTheme()
-        end
-        
-        SkyXOrion:MakeNotification({
-            Name = "Theme",
-            Content = "Changed to Midnight theme",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
-ThemeSection:AddButton({
-    Name = "Default Theme",
-    Callback = function()
-        if SkyXOrion.SelectedTheme and SkyXOrion.SetTheme then
-            SkyXOrion.SelectedTheme = "Default"
-            SkyXOrion:SetTheme()
-        end
-        
-        SkyXOrion:MakeNotification({
-            Name = "Theme",
-            Content = "Changed to Default theme",
-            Image = "rbxassetid://4483345998",
-            Time = 3
-        })
-    end
-})
-
-local InfoSection = SettingsTab:AddSection({
-    Name = "Mobile UI Demo Information"
-})
-
-InfoSection:AddLabel({
-    Name = "SkyX Hub - Mobile UI Demo"
-})
-
-InfoSection:AddLabel({
-    Name = "Enhanced features for mobile devices:"
-})
-
-InfoSection:AddLabel({
-    Name = "• Swipe to navigate between tabs"
-})
-
-InfoSection:AddLabel({
-    Name = "• Double-tap to center UI"
-})
-
-InfoSection:AddLabel({
-    Name = "• Larger touch targets for all elements"
-})
-
-InfoSection:AddLabel({
-    Name = "• Optimized performance for mobile"
-})
-
--- Show a welcome notification when the script is loaded
-SkyXOrion:MakeNotification({
-    Name = "Mobile UI Demo Loaded",
-    Content = "Swipe between tabs to try the mobile features!",
-    Image = "rbxassetid://10618644218",
-    Time = 5
-})
-
--- Show additional tip about double-tap feature
-SkyXOrion:MakeNotification({
-    Name = "Mobile Tip",
-    Content = "Double-tap the top bar to center the UI!",
-    Image = "rbxassetid://4483345998",
-    Time = 5
-})
+-- Return UI to enable script hub functionality
+return Window
