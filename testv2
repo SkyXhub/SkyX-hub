@@ -1,17 +1,13 @@
 --[[
-🌊 SkyX Dead Rails Advancebbbbbbbbbbbbbbbbbbbbbbbbd Script 🌊
-Modular version with direct UI from SkyX_MM2_Direct_Modular
-Enhanced for mobile compatibility with advanced features
+🌊 SkyX Hub - Dead Rails Orion UI 🌊
+Complete script with Orion UI for Dead Rails
 
 Features:
 - Enhanced ESP System with Custom Colors and Distance Display
-- Advanced Auto Gun & Item Collector 
-- Smart Enemy Prediction System
-- Speed & Jump Boost Sliders 
-- One-Click Teleports with Anti-Detection
+- Advanced Auto Bone Farm & Round Completion
 - Military-Grade Anti-Ban System
-- Weapon Mods with No Recoil/Spread
-- Automatic Aimbot Assistance
+- Weapon Mods and Aimbot
+- Mobile compatibility with touch controls
 ]]
 
 -- Game check
@@ -20,1813 +16,777 @@ if game.PlaceId ~= 6729832410 and game.PlaceId ~= 12355337193 then
     return
 end
 
--- Core services
+-- Device detection
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+local DeviceText = IsMobile and "Mobile" or "PC"
+
+print("SkyX Dead Rails Orion - Starting on " .. DeviceText .. " device")
+
+-- Prevent multiple execution
+if _G.SkyXDeadRailsLoaded then
+    warn("SkyX Dead Rails is already running!")
+    return
+end
+_G.SkyXDeadRailsLoaded = true
+
+-- Send notification function
+local function Notify(title, text, duration)
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = title or "SkyX Hub",
+        Text = text or "Script is running!",
+        Duration = duration or 5
+    })
+end
+
+-- Core services
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 
--- GitHub Module URLs
-local ModuleURLs = {
-    ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_esp.lua",
-    GunMods = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_gunmods.lua",
-    Aimbot = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_aimbot.lua",
-    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_teleport.lua",
-    AntiBan = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Anti-Ban.lua",
-    AntiDetection = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_antidetect.lua"
-}
-
--- Loaded modules
-local Modules = {
-    ESP = nil,
-    GunMods = nil,
-    Aimbot = nil,
-    Teleport = nil,
-    AntiBan = nil,
-    AntiDetection = nil
-}
-
--- Advanced Anti-Detection System (integrated directly to ensure it loads first)
-local AntiDetection = {}
-
--- Dead Rails Anti-Cheat Bypass System
-local function SetupAntiDetection()
-    print("Setting up advanced anti-detection...")
-    
-    -- Table to store the original functions we'll be hooking
-    local OriginalFunctions = {}
-    
-    -- Hook function creation (prevents detection through hooking detection)
-    local function CreateSecureHook(obj, methodName, hookFunction)
-        -- Store original function
-        if not OriginalFunctions[obj] then
-            OriginalFunctions[obj] = {}
-        end
-        
-        OriginalFunctions[obj][methodName] = obj[methodName]
-        
-        -- Create secure proxy function that looks identical to original
-        local hookedFunction = function(...)
-            return hookFunction(OriginalFunctions[obj][methodName], ...)
-        end
-        
-        -- Apply metatable to make the function appear identical
-        local proxy = newproxy(true)
-        local mt = getmetatable(proxy)
-        mt.__call = hookedFunction
-        
-        -- Replace with secure hook using rawset to avoid detection
-        rawset(obj, methodName, proxy)
-    end
-    
-    -- Spoof teleport detection
-    local function SpoofTeleport()
-        -- Hook HumanoidRootPart CFrame setter
-        local characterHooks = {}
-        
-        -- Hook character teleportation events
-        local function hookCharacter(character)
-            if not character then return end
-            
-            -- Wait for HumanoidRootPart
-            local hrp = character:WaitForChild("HumanoidRootPart", 10)
-            if not hrp then return end
-            
-            -- Store hook to prevent duplicate hooks
-            if characterHooks[character] then return end
-            characterHooks[character] = true
-            
-            -- Cache last position for realistic movement
-            local lastValidPosition = hrp.CFrame
-            local lastTeleportTime = tick()
-            
-            -- Distance threshold for teleport detection
-            local MAX_SAFE_DISTANCE = 50
-            local MIN_TELEPORT_INTERVAL = 0.1
-            
-            -- Create hook for :SetPrimaryPartCFrame
-            if character.SetPrimaryPartCFrame and not OriginalFunctions[character] then
-                CreateSecureHook(character, "SetPrimaryPartCFrame", function(original, self, targetCFrame)
-                    local currentTime = tick()
-                    local timeSinceLastTeleport = currentTime - lastTeleportTime
-                    
-                    -- Calculate distance
-                    local distance = (targetCFrame.Position - lastValidPosition.Position).Magnitude
-                    
-                    -- If teleporting too far, use intermediate steps
-                    if distance > MAX_SAFE_DISTANCE and timeSinceLastTeleport < MIN_TELEPORT_INTERVAL then
-                        -- Break teleport into steps to avoid detection
-                        spawn(function()
-                            local steps = math.ceil(distance / MAX_SAFE_DISTANCE)
-                            local startPos = lastValidPosition.Position
-                            local endPos = targetCFrame.Position
-                            
-                            for i = 1, steps do
-                                local stepPosition = startPos:Lerp(endPos, i/steps)
-                                local stepCFrame = CFrame.new(stepPosition, stepPosition + targetCFrame.LookVector)
-                                
-                                -- Call original with intermediate position
-                                original(self, stepCFrame)
-                                
-                                -- Delay between steps based on distance
-                                local stepDelay = 0.05 * (distance / MAX_SAFE_DISTANCE)
-                                wait(stepDelay)
-                            end
-                            
-                            -- Final accurate position
-                            original(self, targetCFrame)
-                            lastValidPosition = targetCFrame
-                            lastTeleportTime = tick()
-                        end)
-                        
-                        return
-                    end
-                    
-                    -- Normal teleport for safe distances
-                    lastValidPosition = targetCFrame
-                    lastTeleportTime = currentTime
-                    return original(self, targetCFrame)
-                end)
-            end
-            
-            -- Hook Humanoid functions to evade detection
-            local humanoid = character:FindFirstChildOfClass("Humanoid")
-            if humanoid then
-                local originalJumpPower = humanoid.JumpPower
-                local originalWalkSpeed = humanoid.WalkSpeed
-                
-                -- Speed and jump changes
-                CreateSecureHook(humanoid, "ChangeState", function(original, self, state)
-                    -- Block certain flags that might trigger anti-cheat
-                    if _G.Noclip and state == Enum.HumanoidStateType.Physics then
-                        return
-                    end
-                    
-                    return original(self, state)
-                end)
-                
-                -- Set up property change detectors
-                humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
-                    -- Prevent extreme sudden changes that might flag
-                    if humanoid.WalkSpeed > 100 and not _G.BypassedWalkSpeed then
-                        humanoid.WalkSpeed = math.min(humanoid.WalkSpeed, 100)
-                    end
-                    
-                    -- Remember legitimate changes
-                    originalWalkSpeed = humanoid.WalkSpeed
-                end)
-                
-                humanoid:GetPropertyChangedSignal("JumpPower"):Connect(function()
-                    -- Prevent extreme sudden changes that might flag
-                    if humanoid.JumpPower > 200 and not _G.BypassedJumpPower then
-                        humanoid.JumpPower = math.min(humanoid.JumpPower, 200)
-                    end
-                    
-                    -- Remember legitimate changes
-                    originalJumpPower = humanoid.JumpPower
-                end)
-            end
-        end
-        
-        -- Hook new characters when player respawns
-        LocalPlayer.CharacterAdded:Connect(hookCharacter)
-        
-        -- Hook current character
-        if LocalPlayer.Character then
-            hookCharacter(LocalPlayer.Character)
-        end
-    end
-    
-    -- Anti Remote Spy Detection
-    local function SetupAntiRemoteSpy()
-        -- Fireserver and invokeserver hooks
-        local remoteEvent = Instance.new("RemoteEvent")
-        local remoteFunction = Instance.new("RemoteFunction")
-        
-        local fireServer = remoteEvent.FireServer
-        local invokeServer = remoteFunction.InvokeServer
-        
-        -- Create proxies for remote firing that disallow certain detection methods
-        CreateSecureHook(remoteEvent, "FireServer", function(original, self, ...)
-            -- Check if this is an anti-cheat remote
-            local args = {...}
-            if self and self.Name and (
-                self.Name:lower():find("anti") or
-                self.Name:lower():find("cheat") or
-                self.Name:lower():find("detect") or
-                self.Name:lower():find("check")
-            ) then
-                -- Modify suspicious arguments
-                for i, arg in pairs(args) do
-                    if typeof(arg) == "boolean" and arg == false then
-                        args[i] = true -- Flip suspicious boolean flags
-                    elseif typeof(arg) == "string" and 
-                          (arg:lower():find("exploit") or arg:lower():find("cheat") or arg:lower():find("hack")) then
-                        args[i] = "verified" -- Replace suspicious strings
-                    end
-                end
-                
-                -- Call with modified arguments
-                return original(self, unpack(args))
-            end
-            
-            -- Normal execution
-            return original(self, ...)
-        end)
-        
-        -- Same for invoke server
-        CreateSecureHook(remoteFunction, "InvokeServer", function(original, self, ...)
-            -- Check if this is an anti-cheat remote
-            local args = {...}
-            if self and self.Name and (
-                self.Name:lower():find("anti") or
-                self.Name:lower():find("cheat") or
-                self.Name:lower():find("detect") or
-                self.Name:lower():find("check")
-            ) then
-                -- Modify suspicious arguments
-                for i, arg in pairs(args) do
-                    if typeof(arg) == "boolean" and arg == false then
-                        args[i] = true -- Flip suspicious boolean flags
-                    elseif typeof(arg) == "string" and 
-                          (arg:lower():find("exploit") or arg:lower():find("cheat") or arg:lower():find("hack")) then
-                        args[i] = "verified" -- Replace suspicious strings
-                    end
-                end
-                
-                -- Call with modified arguments
-                return original(self, unpack(args))
-            end
-            
-            -- Normal execution
-            return original(self, ...)
-        end)
-    end
-    
-    -- Anti-detection for fly and noclip
-    local function SetupAntiPhysicsBypass()
-        local physicsService = game:GetService("PhysicsService")
-        local runService = game:GetService("RunService")
-        
-        -- Create detection-safe noclip
-        _G.SafeNoclip = function(enabled)
-            if LocalPlayer.Character then
-                for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        if enabled then
-                            -- Instead of setting CanCollide false directly (which can be detected),
-                            -- we modify the collision group to one that doesn't collide with anything
-                            part.CollisionGroup = "SkyXNoCollide"
-                        else
-                            part.CollisionGroup = "Default"
-                        end
-                    end
-                end
-            end
-        end
-        
-        -- Setup collision groups
-        pcall(function()
-            physicsService:CreateCollisionGroup("SkyXNoCollide")
-            physicsService:CollisionGroupSetCollidable("SkyXNoCollide", "Default", false)
-        end)
-        
-        -- Set up anti-fly detection
-        _G.SafeFly = function(enabled, rootPart)
-            if not rootPart then
-                if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    return
-                end
-                rootPart = LocalPlayer.Character.HumanoidRootPart
-            end
-            
-            if enabled then
-                -- Setup hidden velocity instead of visible BodyVelocity
-                if not rootPart:FindFirstChild("SkyXFlyVelocity") then
-                    local velPart = Instance.new("Part")
-                    velPart.Name = "SkyXFlyVelocity"
-                    velPart.Anchored = true
-                    velPart.CanCollide = false
-                    velPart.Transparency = 1
-                    velPart.Size = Vector3.new(0, 0, 0)
-                    
-                    -- Create weld to avoid detection
-                    local weld = Instance.new("Weld")
-                    weld.Part0 = velPart
-                    weld.Part1 = rootPart
-                    weld.C0 = CFrame.new()
-                    weld.C1 = CFrame.new()
-                    weld.Parent = velPart
-                    
-                    velPart.Parent = rootPart
-                    
-                    -- Add custom flying behavior through custom physics
-                    local flyConnection = runService.Heartbeat:Connect(function()
-                        if rootPart and rootPart.Parent and _G.Flying then
-                            local flyDirection = Vector3.new(0, 0, 0)
-                            local flySpeed = _G.FlySpeed or 50
-                            
-                            -- Calculate direction
-                            if UserInputService:IsKeyDown(Enum.KeyCode.W) or (_G.MobileControls and _G.MobileControls.Forward) then
-                                flyDirection = flyDirection + (Camera.CFrame.LookVector * flySpeed)
-                            end
-                            if UserInputService:IsKeyDown(Enum.KeyCode.S) or (_G.MobileControls and _G.MobileControls.Backward) then
-                                flyDirection = flyDirection - (Camera.CFrame.LookVector * flySpeed)
-                            end
-                            if UserInputService:IsKeyDown(Enum.KeyCode.A) or (_G.MobileControls and _G.MobileControls.Left) then
-                                flyDirection = flyDirection - (Camera.CFrame.RightVector * flySpeed)
-                            end
-                            if UserInputService:IsKeyDown(Enum.KeyCode.D) or (_G.MobileControls and _G.MobileControls.Right) then
-                                flyDirection = flyDirection + (Camera.CFrame.RightVector * flySpeed)
-                            end
-                            if UserInputService:IsKeyDown(Enum.KeyCode.E) or UserInputService:IsKeyDown(Enum.KeyCode.Space) or (_G.MobileControls and _G.MobileControls.Up) then
-                                flyDirection = flyDirection + Vector3.new(0, flySpeed, 0)
-                            end
-                            if UserInputService:IsKeyDown(Enum.KeyCode.Q) or UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or (_G.MobileControls and _G.MobileControls.Down) then
-                                flyDirection = flyDirection - Vector3.new(0, flySpeed, 0)
-                            end
-                            
-                            -- Apply the velocity in a way that looks more natural to anti-cheat
-                            if not _G.LastPosition then
-                                _G.LastPosition = rootPart.Position
-                            end
-                            
-                            local targetPosition = _G.LastPosition + (flyDirection * 0.016) -- Based on frame time
-                            
-                            -- Apply with smooth lerping to avoid detection
-                            rootPart.CFrame = rootPart.CFrame:Lerp(
-                                CFrame.new(targetPosition, targetPosition + Camera.CFrame.LookVector),
-                                0.6 -- Smooth factor
-                            )
-                            
-                            _G.LastPosition = rootPart.Position
-                            
-                            -- Apply stability if enabled
-                            if _G.UseGyro then
-                                rootPart.CFrame = CFrame.new(rootPart.Position, rootPart.Position + Camera.CFrame.LookVector)
-                            end
-                        end
-                    end)
-                    
-                    -- Store connection for cleanup
-                    _G.FlyConnection = flyConnection
-                end
-            else
-                -- Clean up
-                _G.LastPosition = nil
-                
-                if _G.FlyConnection then
-                    _G.FlyConnection:Disconnect()
-                    _G.FlyConnection = nil
-                end
-                
-                local velPart = rootPart:FindFirstChild("SkyXFlyVelocity")
-                if velPart then
-                    velPart:Destroy()
-                end
-            end
-        end
-    end
-    
-    -- Anti-detection for bone farm teleports
-    local function SetupAntiFarmDetection()
-        -- Track teleport history to identify patterns
-        local teleportHistory = {}
-        local MAX_HISTORY = 10
-        local lastFarmTeleport = tick()
-        
-        -- Safe teleport with random delay and path variation
-        _G.SafeFarmTeleport = function(position)
-            local currentTime = tick()
-            local timeSinceLast = currentTime - lastFarmTeleport
-            
-            -- Add to history
-            table.insert(teleportHistory, 1, {
-                position = position,
-                time = currentTime
-            })
-            
-            -- Trim history
-            if #teleportHistory > MAX_HISTORY then
-                table.remove(teleportHistory)
-            end
-            
-            -- Check for suspicious pattern (too many teleports in short time)
-            local teleportCount = 0
-            for _, teleport in ipairs(teleportHistory) do
-                if currentTime - teleport.time < 3 then -- Last 3 seconds
-                    teleportCount = teleportCount + 1
-                end
-            end
-            
-            -- If too many teleports, add random delay
-            local shouldDelay = teleportCount > 5 or timeSinceLast < 0.2
-            
-            if shouldDelay then
-                local randomDelay = math.random(200, 500) / 1000 -- 0.2 to 0.5 seconds
-                wait(randomDelay)
-            end
-            
-            -- Add small random offset to destination to avoid pattern detection
-            local randomOffset = Vector3.new(
-                math.random(-100, 100) / 100,
-                math.random(0, 200) / 100,
-                math.random(-100, 100) / 100
-            )
-            
-            -- Teleport to slightly offset position
-            local targetPosition = position + randomOffset
-            
-            -- Use character's SetPrimaryPartCFrame which is already hooked by SpoofTeleport
-            if LocalPlayer.Character and LocalPlayer.Character.PrimaryPart then
-                LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(targetPosition))
-            end
-            
-            lastFarmTeleport = tick()
-        end
-    end
-    
-    -- Install all anti-detection systems
-    SpoofTeleport()
-    SetupAntiRemoteSpy()
-    SetupAntiPhysicsBypass()
-    SetupAntiFarmDetection()
-    
-    -- Return public API
-    AntiDetection = {
-        SafeNoclip = _G.SafeNoclip,
-        SafeFly = _G.SafeFly,
-        SafeFarmTeleport = _G.SafeFarmTeleport
-    }
-    
-    print("Anti-detection system initialized successfully")
-    return AntiDetection
+-- Load Orion Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+if not OrionLib then
+    warn("Failed to load Orion Library!")
+    return
 end
 
--- Initialize anti-detection immediately
-AntiDetection = SetupAntiDetection()
-
--- Load a module from URL
-local function LoadModule(moduleName)
-    local url = ModuleURLs[moduleName]
-    if not url then
-        warn("No URL found for module: " .. moduleName)
-        return nil
-    end
-    
-    local success, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
-    end)
-    
-    if success then
-        print("✅ Successfully loaded: " .. moduleName)
-        return result
-    else
-        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. result)
-        return nil
-    end
-end
-
--- Device detection
-local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
-local DeviceText = IsMobile and "Mobile" or "PC"
-
-print("SkyX Dead Rails - Starting on " .. DeviceText .. " device")
-
--- Create main UI container
-local SkyXUI = Instance.new("ScreenGui")
-SkyXUI.Name = "SkyXUI"
-
--- Handle different executor security models
-if syn then
-    syn.protect_gui(SkyXUI)
-    SkyXUI.Parent = game.CoreGui
-else
-    SkyXUI.Parent = gethui() or game.CoreGui
-end
-
--- Remove existing UIs with the same name
-for _, Interface in pairs(game.CoreGui:GetChildren()) do
-    if Interface.Name == SkyXUI.Name and Interface ~= SkyXUI then
-        Interface:Destroy()
-    end
-end
-
--- Basic UI library
-local SkyX = {}
-SkyX.Elements = {}
-SkyX.Connections = {}
-
--- Core colors - modern theme with gradients
-local Colors = {
-    Background = Color3.fromRGB(25, 25, 35), -- Darker background
-    Container = Color3.fromRGB(30, 30, 45),  -- Slightly lighter container
-    Button = Color3.fromRGB(90, 120, 240),   -- Modern blue for buttons
-    Text = Color3.fromRGB(255, 255, 255),    -- White text
-    Border = Color3.fromRGB(100, 130, 255),  -- Lighter blue border
-    TabActive = Color3.fromRGB(90, 120, 240),-- Match button color
-    TabInactive = Color3.fromRGB(50, 50, 70),-- Darker for inactive
-    Success = Color3.fromRGB(70, 200, 120),  -- Green for success/enabled
-    Danger = Color3.fromRGB(240, 70, 90),    -- Red for danger/disabled
-    Warning = Color3.fromRGB(240, 180, 60),  -- Yellow for warnings
-    Highlight = Color3.fromRGB(140, 160, 255) -- Light purple highlight
-}
-
--- Basic icon mapping - direct asset IDs, no external loading
-local Icons = {
-    close = "rbxassetid://7743875629",
-    minimize = "rbxassetid://10664064072"
-}
-
--- Helper functions
-local function AddConnection(signal, callback)
-    local connection = signal:Connect(callback)
-    table.insert(SkyX.Connections, connection)
-    return connection
-end
-
-local function MakeDraggable(frame)
-    local dragging, dragInput, dragStart, startPos
-    
-    AddConnection(frame.InputBegan, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    
-    AddConnection(frame.InputChanged, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    
-    AddConnection(UserInputService.InputChanged, function(input)
-        if input == dragInput and dragging then
-            local Delta = input.Position - dragStart
-            -- Smooth dragging
-            frame.Position = UDim2.new(
-                startPos.X.Scale, 
-                startPos.X.Offset + Delta.X, 
-                startPos.Y.Scale, 
-                startPos.Y.Offset + Delta.Y
-            )
-        end
-    end)
-end
-
--- Create main window with modern styling
-local MainWindow = Instance.new("Frame")
-MainWindow.Name = "MainWindow"
-MainWindow.Size = UDim2.new(0, 500, 0, 350)
-MainWindow.Position = UDim2.new(0.5, -250, 0.5, -175)
-MainWindow.BackgroundColor3 = Colors.Background
-MainWindow.BorderSizePixel = 0
-MainWindow.Active = true
-MainWindow.Parent = SkyXUI
-
--- Add corner
-local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10) -- Slightly more rounded corners
-MainCorner.Parent = MainWindow
-
--- Add shadow effect
-local MainShadow = Instance.new("ImageLabel")
-MainShadow.Name = "Shadow"
-MainShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-MainShadow.Size = UDim2.new(1, 30, 1, 30)
-MainShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-MainShadow.BackgroundTransparency = 1
-MainShadow.Image = "rbxassetid://6015897843" -- Shadow image
-MainShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-MainShadow.ImageTransparency = 0.6
-MainShadow.ZIndex = 0 -- Behind the main window
-MainShadow.Parent = MainWindow
-
--- Add background gradient
-local MainGradient = Instance.new("UIGradient")
-MainGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Colors.Background),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(
-        Colors.Background.R * 0.8,
-        Colors.Background.G * 0.8,
-        Colors.Background.B * 0.8
-    ))
+-- Create main window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX Hub - Dead Rails", 
+    HidePremium = true, 
+    SaveConfig = false, 
+    ConfigFolder = "SkyXDeadRails",
+    IntroEnabled = true,
+    IntroText = "SkyX Hub - Dead Rails",
+    IntroIcon = "rbxassetid://10723415903",
+    Icon = "rbxassetid://10723415903"
 })
-MainGradient.Rotation = 45
-MainGradient.Parent = MainWindow
-
--- Create window title bar with gradient
-local TitleBar = Instance.new("Frame")
-TitleBar.Name = "TitleBar"
-TitleBar.Size = UDim2.new(1, 0, 0, 40)
-TitleBar.BackgroundColor3 = Colors.Button
-TitleBar.BorderSizePixel = 0
-TitleBar.Parent = MainWindow
-
--- Add gradient to title bar
-local TitleGradient = Instance.new("UIGradient")
-TitleGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Colors.Button),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(
-        Colors.Button.R * 0.8,
-        Colors.Button.G * 0.8,
-        Colors.Button.B * 0.8
-    ))
-})
-TitleGradient.Rotation = 90
-TitleGradient.Parent = TitleBar
-
--- Add corner to title bar
-local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10) -- Match main window corners
-TitleCorner.Parent = TitleBar
-
--- Fix corners
-local CornerFix = Instance.new("Frame")
-CornerFix.Name = "CornerFix"
-CornerFix.Size = UDim2.new(1, 0, 0, 15) -- Slightly larger
-CornerFix.Position = UDim2.new(0, 0, 1, -15)
-CornerFix.BackgroundColor3 = Colors.Button
-CornerFix.BorderSizePixel = 0
-CornerFix.Parent = TitleBar
-
--- Add gradient to corner fix
-local CornerFixGradient = Instance.new("UIGradient")
-CornerFixGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Colors.Button),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(
-        Colors.Button.R * 0.8,
-        Colors.Button.G * 0.8,
-        Colors.Button.B * 0.8
-    ))
-})
-CornerFixGradient.Rotation = 90
-CornerFixGradient.Parent = CornerFix
-
--- Add title text
-local TitleText = Instance.new("TextLabel")
-TitleText.Name = "Title"
-TitleText.Size = UDim2.new(1, -50, 1, 0)
-TitleText.Position = UDim2.new(0, 15, 0, 0)
-TitleText.BackgroundTransparency = 1
-TitleText.Font = Enum.Font.GothamBold
-TitleText.TextSize = 16
-TitleText.TextColor3 = Colors.Text
-TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Text = "SkyX Dead Rails Modular"
-TitleText.Parent = TitleBar
-
--- Add close button
-local CloseButton = Instance.new("ImageButton")
-CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 20, 0, 20)
-CloseButton.Position = UDim2.new(1, -30, 0, 10)
-CloseButton.BackgroundTransparency = 1
-CloseButton.Image = Icons.close
-CloseButton.Parent = TitleBar
-
--- Add event for close button with proper functionality
-AddConnection(CloseButton.MouseButton1Click, function()
-    -- Clean up connections and resources before destroying
-    for _, connection in pairs(SkyX.Connections) do
-        if connection then
-            connection:Disconnect()
-        end
-    end
-    
-    -- Stop all modules
-    if Modules.ESP then Modules.ESP.Stop() end
-    if Modules.GunMods then Modules.GunMods.Stop() end
-    if Modules.Aimbot then Modules.Aimbot.Stop() end
-    if Modules.Teleport then Modules.Teleport.Stop() end
-    if Modules.AntiBan then Modules.AntiBan.Stop() end
-    
-    -- Destroy GUI
-    SkyXUI:Destroy()
-    
-    print("SkyX Dead Rails Modular closed properly")
-end)
-
--- Create content area
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Name = "ContentFrame"
-ContentFrame.Size = UDim2.new(1, 0, 1, -50)
-ContentFrame.Position = UDim2.new(0, 0, 0, 40)
-ContentFrame.BackgroundColor3 = Colors.Container
-ContentFrame.BorderSizePixel = 0
-ContentFrame.Parent = MainWindow
-
--- Fix content corners
-local ContentCorner = Instance.new("UICorner")
-ContentCorner.CornerRadius = UDim.new(0, 8)
-ContentCorner.Parent = ContentFrame
-
--- Add tab container with proper size to prevent sticking out
-local TabContainer = Instance.new("Frame")
-TabContainer.Name = "TabContainer"
-TabContainer.Size = UDim2.new(1, -20, 0, 40)
-TabContainer.Position = UDim2.new(0, 10, 0, 10)
-TabContainer.BackgroundTransparency = 1
-TabContainer.BorderSizePixel = 0
-TabContainer.ClipsDescendants = true -- Prevent tabs from sticking out
-TabContainer.Parent = ContentFrame
-
--- Add tab layout
-local TabLayout = Instance.new("UIListLayout")
-TabLayout.FillDirection = Enum.FillDirection.Horizontal
-TabLayout.Padding = UDim.new(0, 5)
-TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-TabLayout.Parent = TabContainer
-
--- Add tab content container
-local TabContent = Instance.new("Frame")
-TabContent.Name = "TabContent"
-TabContent.Size = UDim2.new(1, -20, 1, -60)
-TabContent.Position = UDim2.new(0, 10, 0, 50)
-TabContent.BackgroundTransparency = 1
-TabContent.BorderSizePixel = 0
-TabContent.Parent = ContentFrame
-
--- Make window draggable - fixed implementation
-local dragging = false
-local dragInput
-local dragStart
-local startPos
-
-AddConnection(TitleBar.InputBegan, function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = MainWindow.Position
-        
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-AddConnection(TitleBar.InputChanged, function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-AddConnection(UserInputService.InputChanged, function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        MainWindow.Position = UDim2.new(
-            startPos.X.Scale, 
-            startPos.X.Offset + delta.X, 
-            startPos.Y.Scale, 
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
-
--- Track tabs
-local Tabs = {}
-local SelectedTab = nil
-
--- Get Dead Rails values
-local function GetDeadRailsValues()
-    local DR = {}
-    DR.Enemies = {}
-    DR.Weapons = {}
-    DR.Players = {}
-    
-    -- Get all players
-    for _, Player in pairs(game.Players:GetPlayers()) do
-        if Player ~= game.Players.LocalPlayer then
-            table.insert(DR.Players, Player)
-            
-            -- Check if player is enemy (different team)
-            if Player.Team ~= LocalPlayer.Team then
-                table.insert(DR.Enemies, Player)
-            end
-        end
-    end
-    
-    -- Find weapons in workspace
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj:FindFirstChild("Pickup") then
-            table.insert(DR.Weapons, obj)
-        end
-    end
-    
-    return DR
-end
-
--- Function to create a tab
-local function CreateTab(name, order)
-    -- Create tab button with adjusted width for 6 tabs
-    local TabButton = Instance.new("TextButton")
-    TabButton.Name = name .. "Tab"
-    TabButton.Size = UDim2.new(0, 80, 1, 0) -- Reduced from 100 to 80 to fit all tabs
-    TabButton.BackgroundColor3 = Colors.TabInactive
-    TabButton.BorderSizePixel = 0
-    TabButton.Font = Enum.Font.GothamBold
-    TabButton.TextSize = 14
-    TabButton.TextColor3 = Colors.Text
-    TabButton.Text = name
-    TabButton.LayoutOrder = order
-    TabButton.Parent = TabContainer
-    
-    -- Add corner to tab button
-    local TabButtonCorner = Instance.new("UICorner")
-    TabButtonCorner.CornerRadius = UDim.new(0, 6)
-    TabButtonCorner.Parent = TabButton
-    
-    -- Create tab page
-    local TabPage = Instance.new("ScrollingFrame")
-    TabPage.Name = name .. "Page"
-    TabPage.Size = UDim2.new(1, 0, 1, 0)
-    TabPage.BackgroundTransparency = 1
-    TabPage.BorderSizePixel = 0
-    TabPage.ScrollBarThickness = 4
-    TabPage.ScrollBarImageColor3 = Colors.Button
-    TabPage.Visible = false
-    TabPage.Parent = TabContent
-    
-    -- Add padding to tab page
-    local TabPagePadding = Instance.new("UIPadding")
-    TabPagePadding.PaddingLeft = UDim.new(0, 5)
-    TabPagePadding.PaddingRight = UDim.new(0, 5)
-    TabPagePadding.PaddingTop = UDim.new(0, 5)
-    TabPagePadding.PaddingBottom = UDim.new(0, 5)
-    TabPagePadding.Parent = TabPage
-    
-    -- Add layout to tab page
-    local TabPageLayout = Instance.new("UIListLayout")
-    TabPageLayout.Padding = UDim.new(0, 10)
-    TabPageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    TabPageLayout.Parent = TabPage
-    
-    -- Auto-size content
-    AddConnection(TabPageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-        TabPage.CanvasSize = UDim2.new(0, 0, 0, TabPageLayout.AbsoluteContentSize.Y + 10)
-    end)
-    
-    -- Create tab object
-    local Tab = {
-        Button = TabButton,
-        Page = TabPage,
-        Layout = TabPageLayout,
-        Name = name,
-        Sections = {}
-    }
-    
-    -- Add tab click event
-    AddConnection(TabButton.MouseButton1Click, function()
-        -- Deselect current tab
-        if SelectedTab then
-            SelectedTab.Button.BackgroundColor3 = Colors.TabInactive
-            SelectedTab.Page.Visible = false
-        end
-        
-        -- Select new tab
-        SelectedTab = Tab
-        Tab.Button.BackgroundColor3 = Colors.TabActive
-        Tab.Page.Visible = true
-    end)
-    
-    -- Add to tabs list
-    table.insert(Tabs, Tab)
-    
-    -- If this is the first tab, select it
-    if #Tabs == 1 then
-        SelectedTab = Tab
-        Tab.Button.BackgroundColor3 = Colors.TabActive
-        Tab.Page.Visible = true
-    end
-    
-    -- Section creator
-    function Tab:CreateSection(name)
-        -- Create section container
-        local Section = Instance.new("Frame")
-        Section.Name = name .. "Section"
-        Section.BackgroundColor3 = Colors.Background
-        Section.BorderSizePixel = 0
-        Section.Size = UDim2.new(1, 0, 0, 30) -- Initial size, will be updated
-        Section.AutomaticSize = Enum.AutomaticSize.Y
-        Section.Parent = TabPage
-        
-        -- Add corner to section
-        local SectionCorner = Instance.new("UICorner")
-        SectionCorner.CornerRadius = UDim.new(0, 6)
-        SectionCorner.Parent = Section
-        
-        -- Add section title
-        local SectionTitle = Instance.new("TextLabel")
-        SectionTitle.Name = "Title"
-        SectionTitle.Text = name
-        SectionTitle.TextColor3 = Colors.Text
-        SectionTitle.TextSize = 14
-        SectionTitle.Font = Enum.Font.GothamBold
-        SectionTitle.BackgroundTransparency = 1
-        SectionTitle.Size = UDim2.new(1, -10, 0, 25)
-        SectionTitle.Position = UDim2.new(0, 10, 0, 0)
-        SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
-        SectionTitle.Parent = Section
-        
-        -- Add elements container
-        local ElementsContainer = Instance.new("Frame")
-        ElementsContainer.Name = "Elements"
-        ElementsContainer.BackgroundTransparency = 1
-        ElementsContainer.Size = UDim2.new(1, -20, 0, 0)
-        ElementsContainer.Position = UDim2.new(0, 10, 0, 25)
-        ElementsContainer.AutomaticSize = Enum.AutomaticSize.Y
-        ElementsContainer.Parent = Section
-        
-        -- Add padding to bottom of elements container
-        local BottomPadding = Instance.new("Frame")
-        BottomPadding.Name = "BottomPadding"
-        BottomPadding.BackgroundTransparency = 1
-        BottomPadding.Size = UDim2.new(1, 0, 0, 5)
-        BottomPadding.Position = UDim2.new(0, 0, 1, 0)
-        BottomPadding.Parent = ElementsContainer
-        
-        -- Add layout to elements container
-        local ElementsLayout = Instance.new("UIListLayout")
-        ElementsLayout.Padding = UDim.new(0, 8)
-        ElementsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        ElementsLayout.Parent = ElementsContainer
-        
-        -- Auto-size elements container
-        AddConnection(ElementsLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-            ElementsContainer.Size = UDim2.new(1, -20, 0, ElementsLayout.AbsoluteContentSize.Y)
-        end)
-        
-        -- Store section
-        local SectionObject = {
-            Container = Section,
-            Elements = ElementsContainer,
-            Layout = ElementsLayout
-        }
-        
-        Tab.Sections[name] = SectionObject
-        
-        -- Button creator
-        function SectionObject:AddButton(options)
-            options = options or {}
-            options.Name = options.Name or "Button"
-            options.Callback = options.Callback or function() end
-            
-            -- Create button
-            local Button = Instance.new("TextButton")
-            Button.Name = options.Name .. "Button"
-            Button.BackgroundColor3 = Colors.Button
-            Button.BorderSizePixel = 0
-            Button.Size = UDim2.new(1, 0, 0, 32)
-            Button.Text = ""
-            Button.AutoButtonColor = false
-            Button.Parent = ElementsContainer
-            
-            -- Add corner to button
-            local ButtonCorner = Instance.new("UICorner")
-            ButtonCorner.CornerRadius = UDim.new(0, 4)
-            ButtonCorner.Parent = Button
-            
-            -- Add gradient to button
-            local ButtonGradient = Instance.new("UIGradient")
-            ButtonGradient.Color = ColorSequence.new({
-                ColorSequenceKeypoint.new(0, Colors.Button),
-                ColorSequenceKeypoint.new(1, Color3.fromRGB(
-                    Colors.Button.R * 0.7,
-                    Colors.Button.G * 0.7,
-                    Colors.Button.B * 0.7
-                ))
-            })
-            ButtonGradient.Rotation = 90
-            ButtonGradient.Parent = Button
-            
-            -- Add text to button
-            local ButtonText = Instance.new("TextLabel")
-            ButtonText.Name = "Text"
-            ButtonText.BackgroundTransparency = 1
-            ButtonText.Size = UDim2.new(1, -10, 1, 0)
-            ButtonText.Position = UDim2.new(0, 5, 0, 0)
-            ButtonText.Font = Enum.Font.Gotham
-            ButtonText.TextSize = 14
-            ButtonText.TextColor3 = Colors.Text
-            ButtonText.TextXAlignment = Enum.TextXAlignment.Center
-            ButtonText.Text = options.Name
-            ButtonText.Parent = Button
-            
-            -- Add button effects
-            AddConnection(Button.MouseEnter, function()
-                TweenService:Create(Button, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(
-                        Colors.Button.R * 1.1,
-                        Colors.Button.G * 1.1,
-                        Colors.Button.B * 1.1
-                    )
-                }):Play()
-            end)
-            
-            AddConnection(Button.MouseLeave, function()
-                TweenService:Create(Button, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Colors.Button
-                }):Play()
-            end)
-            
-            AddConnection(Button.MouseButton1Down, function()
-                TweenService:Create(Button, TweenInfo.new(0.1), {
-                    Size = UDim2.new(0.98, 0, 0, 30),
-                    Position = UDim2.new(0.01, 0, 0, 1)
-                }):Play()
-            end)
-            
-            AddConnection(Button.MouseButton1Up, function()
-                TweenService:Create(Button, TweenInfo.new(0.1), {
-                    Size = UDim2.new(1, 0, 0, 32),
-                    Position = UDim2.new(0, 0, 0, 0)
-                }):Play()
-            end)
-            
-            -- Add click callback
-            AddConnection(Button.MouseButton1Click, function()
-                options.Callback()
-            end)
-            
-            -- Button object
-            local ButtonObject = {
-                Instance = Button,
-                Text = ButtonText,
-                Options = options
-            }
-            
-            -- Set text function
-            function ButtonObject:SetText(text)
-                ButtonText.Text = text
-            end
-            
-            return ButtonObject
-        end
-        
-        -- Toggle creator
-        function SectionObject:AddToggle(options)
-            options = options or {}
-            options.Name = options.Name or "Toggle"
-            options.Default = options.Default or false
-            options.Callback = options.Callback or function() end
-            
-            -- Create toggle container
-            local Toggle = Instance.new("Frame")
-            Toggle.Name = options.Name .. "Toggle"
-            Toggle.BackgroundColor3 = Colors.Background
-            Toggle.BorderSizePixel = 0
-            Toggle.Size = UDim2.new(1, 0, 0, 32)
-            Toggle.Parent = ElementsContainer
-            
-            -- Add corner to toggle
-            local ToggleCorner = Instance.new("UICorner")
-            ToggleCorner.CornerRadius = UDim.new(0, 4)
-            ToggleCorner.Parent = Toggle
-            
-            -- Add toggle text
-            local ToggleText = Instance.new("TextLabel")
-            ToggleText.Name = "Text"
-            ToggleText.BackgroundTransparency = 1
-            ToggleText.Size = UDim2.new(1, -60, 1, 0)
-            ToggleText.Position = UDim2.new(0, 8, 0, 0)
-            ToggleText.Font = Enum.Font.Gotham
-            ToggleText.TextSize = 14
-            ToggleText.TextColor3 = Colors.Text
-            ToggleText.TextXAlignment = Enum.TextXAlignment.Left
-            ToggleText.Text = options.Name
-            ToggleText.Parent = Toggle
-            
-            -- Create toggle indicator
-            local Indicator = Instance.new("Frame")
-            Indicator.Name = "Indicator"
-            Indicator.BackgroundColor3 = options.Default and Colors.Success or Colors.Danger
-            Indicator.BorderSizePixel = 0
-            Indicator.Size = UDim2.new(0, 40, 0, 22)
-            Indicator.Position = UDim2.new(1, -48, 0.5, -11)
-            Indicator.Parent = Toggle
-            
-            -- Add corner to indicator
-            local IndicatorCorner = Instance.new("UICorner")
-            IndicatorCorner.CornerRadius = UDim.new(1, 0)
-            IndicatorCorner.Parent = Indicator
-            
-            -- Add circle
-            local Circle = Instance.new("Frame")
-            Circle.Name = "Circle"
-            Circle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-            Circle.BorderSizePixel = 0
-            Circle.Size = UDim2.new(0, 18, 0, 18)
-            
-            -- Set initial position based on default value
-            if options.Default then
-                Circle.Position = UDim2.new(1, -20, 0.5, -9)
-            else
-                Circle.Position = UDim2.new(0, 2, 0.5, -9)
-            end
-            
-            Circle.Parent = Indicator
-            
-            -- Add corner to circle
-            local CircleCorner = Instance.new("UICorner")
-            CircleCorner.CornerRadius = UDim.new(1, 0)
-            CircleCorner.Parent = Circle
-            
-            -- Create hitbox
-            local Hitbox = Instance.new("TextButton")
-            Hitbox.Name = "Hitbox"
-            Hitbox.BackgroundTransparency = 1
-            Hitbox.Size = UDim2.new(1, 0, 1, 0)
-            Hitbox.Position = UDim2.new(0, 0, 0, 0)
-            Hitbox.Text = ""
-            Hitbox.ZIndex = 10
-            Hitbox.Parent = Toggle
-            
-            -- Add toggle functionality
-            local Enabled = options.Default
-            
-            local function UpdateToggle()
-                Enabled = not Enabled
-                
-                -- Update UI
-                TweenService:Create(Circle, TweenInfo.new(0.2), {
-                    Position = Enabled 
-                        and UDim2.new(1, -20, 0.5, -9)
-                        or UDim2.new(0, 2, 0.5, -9)
-                }):Play()
-                
-                TweenService:Create(Indicator, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Enabled 
-                        and Colors.Success
-                        or Colors.Danger
-                }):Play()
-                
-                -- Call callback
-                options.Callback(Enabled)
-            end
-            
-            -- Connect hitbox
-            AddConnection(Hitbox.MouseButton1Click, UpdateToggle)
-            
-            -- Add hover effect
-            AddConnection(Toggle.MouseEnter, function()
-                TweenService:Create(Toggle, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(
-                        Colors.Background.R * 1.2,
-                        Colors.Background.G * 1.2,
-                        Colors.Background.B * 1.2
-                    )
-                }):Play()
-            end)
-            
-            AddConnection(Toggle.MouseLeave, function()
-                TweenService:Create(Toggle, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Colors.Background
-                }):Play()
-            end)
-            
-            -- Toggle object
-            local ToggleObject = {
-                Instance = Toggle,
-                Indicator = Indicator,
-                Circle = Circle,
-                Enabled = Enabled,
-                Options = options,
-                SetState = function(self, state)
-                    if state ~= Enabled then
-                        UpdateToggle()
-                    end
-                end,
-                GetState = function(self)
-                    return Enabled
-                end
-            }
-            
-            return ToggleObject
-        end
-        
-        -- Slider creator
-        function SectionObject:AddSlider(options)
-            options = options or {}
-            options.Name = options.Name or "Slider"
-            options.Min = options.Min or 0
-            options.Max = options.Max or 100
-            options.Default = options.Default or 0
-            options.Increment = options.Increment or 1
-            options.Callback = options.Callback or function() end
-            
-            -- Validate default
-            options.Default = math.clamp(options.Default, options.Min, options.Max)
-            
-            -- Create slider container
-            local Slider = Instance.new("Frame")
-            Slider.Name = options.Name .. "Slider"
-            Slider.BackgroundColor3 = Colors.Background
-            Slider.BorderSizePixel = 0
-            Slider.Size = UDim2.new(1, 0, 0, 50)
-            Slider.Parent = ElementsContainer
-            
-            -- Add corner
-            local SliderCorner = Instance.new("UICorner")
-            SliderCorner.CornerRadius = UDim.new(0, 4)
-            SliderCorner.Parent = Slider
-            
-            -- Add slider text
-            local SliderText = Instance.new("TextLabel")
-            SliderText.Name = "Text"
-            SliderText.BackgroundTransparency = 1
-            SliderText.Size = UDim2.new(1, -16, 0, 20)
-            SliderText.Position = UDim2.new(0, 8, 0, 6)
-            SliderText.Font = Enum.Font.Gotham
-            SliderText.TextSize = 14
-            SliderText.TextColor3 = Colors.Text
-            SliderText.TextXAlignment = Enum.TextXAlignment.Left
-            SliderText.Text = options.Name
-            SliderText.Parent = Slider
-            
-            -- Add value text
-            local ValueText = Instance.new("TextLabel")
-            ValueText.Name = "Value"
-            ValueText.BackgroundTransparency = 1
-            ValueText.Size = UDim2.new(0, 50, 0, 20)
-            ValueText.Position = UDim2.new(1, -58, 0, 6)
-            ValueText.Font = Enum.Font.Gotham
-            ValueText.TextSize = 14
-            ValueText.TextColor3 = Colors.Text
-            ValueText.TextXAlignment = Enum.TextXAlignment.Right
-            ValueText.Text = tostring(options.Default)
-            ValueText.Parent = Slider
-            
-            -- Create slider bar background
-            local SliderBar = Instance.new("Frame")
-            SliderBar.Name = "SliderBar"
-            SliderBar.BackgroundColor3 = Color3.fromRGB(40, 40, 60)
-            SliderBar.BorderSizePixel = 0
-            SliderBar.Size = UDim2.new(1, -16, 0, 10)
-            SliderBar.Position = UDim2.new(0, 8, 0, 32)
-            SliderBar.Parent = Slider
-            
-            -- Add corner to slider bar
-            local SliderBarCorner = Instance.new("UICorner")
-            SliderBarCorner.CornerRadius = UDim.new(0, 4)
-            SliderBarCorner.Parent = SliderBar
-            
-            -- Create fill bar
-            local FillBar = Instance.new("Frame")
-            FillBar.Name = "FillBar"
-            FillBar.BackgroundColor3 = Colors.Button
-            FillBar.BorderSizePixel = 0
-            FillBar.Size = UDim2.new(0, 0, 1, 0)
-            FillBar.Parent = SliderBar
-            
-            -- Add corner to fill bar
-            local FillBarCorner = Instance.new("UICorner")
-            FillBarCorner.CornerRadius = UDim.new(0, 4)
-            FillBarCorner.Parent = FillBar
-            
-            -- Add knob
-            local Knob = Instance.new("Frame")
-            Knob.Name = "Knob"
-            Knob.BackgroundColor3 = Colors.Text
-            Knob.BorderSizePixel = 0
-            Knob.Size = UDim2.new(0, 16, 0, 16)
-            Knob.Position = UDim2.new(1, -8, 0.5, -8)
-            Knob.ZIndex = 5
-            Knob.Parent = FillBar
-            
-            -- Add corner to knob
-            local KnobCorner = Instance.new("UICorner")
-            KnobCorner.CornerRadius = UDim.new(1, 0)
-            KnobCorner.Parent = Knob
-            
-            -- Add hitbox
-            local Hitbox = Instance.new("TextButton")
-            Hitbox.Name = "Hitbox"
-            Hitbox.BackgroundTransparency = 1
-            Hitbox.Size = UDim2.new(1, 0, 1, 0)
-            Hitbox.Position = UDim2.new(0, 0, 0, 0)
-            Hitbox.Text = ""
-            Hitbox.ZIndex = 10
-            Hitbox.Parent = SliderBar
-            
-            -- Slider functionality
-            local MinValue = options.Min
-            local MaxValue = options.Max
-            local CurrentValue = options.Default
-            
-            -- Update slider function
-            local function UpdateSlider(value)
-                -- Round to increment
-                local rounded = math.floor(value / options.Increment + 0.5) * options.Increment
-                -- Clamp value
-                local clamped = math.clamp(rounded, MinValue, MaxValue)
-                
-                CurrentValue = clamped
-                
-                -- Calculate fill percentage
-                local percent = (CurrentValue - MinValue) / (MaxValue - MinValue)
-                
-                -- Update UI
-                FillBar.Size = UDim2.new(percent, 0, 1, 0)
-                ValueText.Text = tostring(CurrentValue)
-                
-                -- Call callback
-                options.Callback(CurrentValue)
-            end
-            
-            -- Set initial value
-            UpdateSlider(options.Default)
-            
-            -- Handle slider hitbox
-            local dragging = false
-            
-            AddConnection(Hitbox.MouseButton1Down, function()
-                dragging = true
-            end)
-            
-            AddConnection(UserInputService.InputEnded, function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    dragging = false
-                end
-            end)
-            
-            AddConnection(UserInputService.InputChanged, function(input)
-                if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                    -- Get mouse position relative to slider
-                    local mousePos = input.Position.X
-                    local sliderPos = SliderBar.AbsolutePosition.X
-                    local sliderSize = SliderBar.AbsoluteSize.X
-                    
-                    -- Calculate percentage
-                    local percent = math.clamp((mousePos - sliderPos) / sliderSize, 0, 1)
-                    
-                    -- Calculate value
-                    local value = MinValue + (MaxValue - MinValue) * percent
-                    
-                    -- Update slider
-                    UpdateSlider(value)
-                end
-            end)
-            
-            -- Add hover effect
-            AddConnection(Slider.MouseEnter, function()
-                TweenService:Create(Slider, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(
-                        Colors.Background.R * 1.2,
-                        Colors.Background.G * 1.2,
-                        Colors.Background.B * 1.2
-                    )
-                }):Play()
-            end)
-            
-            AddConnection(Slider.MouseLeave, function()
-                TweenService:Create(Slider, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Colors.Background
-                }):Play()
-            end)
-            
-            -- Slider object
-            local SliderObject = {
-                Instance = Slider,
-                Value = CurrentValue,
-                Options = options,
-                SetValue = function(self, value)
-                    UpdateSlider(value)
-                end,
-                GetValue = function(self)
-                    return CurrentValue
-                end
-            }
-            
-            return SliderObject
-        end
-        
-        -- Dropdown creator
-        function SectionObject:AddDropdown(options)
-            options = options or {}
-            options.Name = options.Name or "Dropdown"
-            options.Options = options.Options or {}
-            options.Default = options.Default or nil
-            options.Callback = options.Callback or function() end
-            
-            -- Create dropdown container
-            local Dropdown = Instance.new("Frame")
-            Dropdown.Name = options.Name .. "Dropdown"
-            Dropdown.BackgroundColor3 = Colors.Background
-            Dropdown.BorderSizePixel = 0
-            Dropdown.Size = UDim2.new(1, 0, 0, 38)
-            Dropdown.ClipsDescendants = true
-            Dropdown.Parent = ElementsContainer
-            
-            -- Add corner
-            local DropdownCorner = Instance.new("UICorner")
-            DropdownCorner.CornerRadius = UDim.new(0, 4)
-            DropdownCorner.Parent = Dropdown
-            
-            -- Create dropdown header
-            local Header = Instance.new("Frame")
-            Header.Name = "Header"
-            Header.BackgroundColor3 = Colors.Background
-            Header.BorderSizePixel = 0
-            Header.Size = UDim2.new(1, 0, 0, 38)
-            Header.ZIndex = 2
-            Header.Parent = Dropdown
-            
-            -- Add corner to header
-            local HeaderCorner = Instance.new("UICorner")
-            HeaderCorner.CornerRadius = UDim.new(0, 4)
-            HeaderCorner.Parent = Header
-            
-            -- Add dropdown text
-            local DropdownText = Instance.new("TextLabel")
-            DropdownText.Name = "Text"
-            DropdownText.BackgroundTransparency = 1
-            DropdownText.Size = UDim2.new(1, -30, 1, 0)
-            DropdownText.Position = UDim2.new(0, 10, 0, 0)
-            DropdownText.Font = Enum.Font.Gotham
-            DropdownText.TextSize = 14
-            DropdownText.TextColor3 = Colors.Text
-            DropdownText.TextXAlignment = Enum.TextXAlignment.Left
-            DropdownText.Text = options.Name
-            DropdownText.ZIndex = 2
-            DropdownText.Parent = Header
-            
-            -- Add selected option text
-            local SelectedText = Instance.new("TextLabel")
-            SelectedText.Name = "Selected"
-            SelectedText.BackgroundTransparency = 1
-            SelectedText.Size = UDim2.new(0, 200, 1, 0)
-            SelectedText.Position = UDim2.new(1, -200, 0, 0)
-            SelectedText.Font = Enum.Font.Gotham
-            SelectedText.TextSize = 14
-            SelectedText.TextColor3 = Colors.SubText
-            SelectedText.TextXAlignment = Enum.TextXAlignment.Right
-            SelectedText.Text = options.Default or ""
-            SelectedText.ZIndex = 2
-            SelectedText.Parent = Header
-            
-            -- Add arrow icon
-            local Arrow = Instance.new("ImageLabel")
-            Arrow.Name = "Arrow"
-            Arrow.BackgroundTransparency = 1
-            Arrow.Size = UDim2.new(0, 20, 0, 20)
-            Arrow.Position = UDim2.new(1, -30, 0.5, -10)
-            Arrow.Image = "rbxassetid://6031094670"
-            Arrow.ImageColor3 = Colors.Text
-            Arrow.ZIndex = 2
-            Arrow.Parent = Header
-            
-            -- Create content container
-            local Content = Instance.new("Frame")
-            Content.Name = "Content"
-            Content.BackgroundTransparency = 1
-            Content.Size = UDim2.new(1, 0, 0, 0) -- Start collapsed
-            Content.Position = UDim2.new(0, 0, 0, 38)
-            Content.ZIndex = 1
-            Content.Parent = Dropdown
-            
-            -- Create option container
-            local OptionContainer = Instance.new("Frame")
-            OptionContainer.Name = "OptionContainer"
-            OptionContainer.BackgroundTransparency = 1
-            OptionContainer.Size = UDim2.new(1, -10, 1, -10)
-            OptionContainer.Position = UDim2.new(0, 5, 0, 5)
-            OptionContainer.ZIndex = 1
-            OptionContainer.Parent = Content
-            
-            -- Add layout to option container
-            local OptionLayout = Instance.new("UIListLayout")
-            OptionLayout.Padding = UDim.new(0, 5)
-            OptionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            OptionLayout.Parent = OptionContainer
-            
-            -- Add hitbox
-            local Hitbox = Instance.new("TextButton")
-            Hitbox.Name = "Hitbox"
-            Hitbox.BackgroundTransparency = 1
-            Hitbox.Size = UDim2.new(1, 0, 1, 0)
-            Hitbox.Position = UDim2.new(0, 0, 0, 0)
-            Hitbox.Text = ""
-            Hitbox.ZIndex = 10
-            Hitbox.Parent = Header
-            
-            -- Dropdown functionality
-            local DropdownOpen = false
-            local SelectedOption = options.Default
-            
-            -- Toggle dropdown function
-            local function ToggleDropdown()
-                DropdownOpen = not DropdownOpen
-                
-                -- Calculate content size
-                local contentSize = OptionLayout.AbsoluteContentSize.Y + 10
-                local targetSize = DropdownOpen and UDim2.new(1, 0, 0, contentSize) or UDim2.new(1, 0, 0, 0)
-                local dropdownSize = DropdownOpen and UDim2.new(1, 0, 0, 38 + contentSize) or UDim2.new(1, 0, 0, 38)
-                
-                -- Animate content
-                TweenService:Create(Content, TweenInfo.new(0.2), {
-                    Size = targetSize
-                }):Play()
-                
-                -- Animate dropdown
-                TweenService:Create(Dropdown, TweenInfo.new(0.2), {
-                    Size = dropdownSize
-                }):Play()
-                
-                -- Animate arrow
-                TweenService:Create(Arrow, TweenInfo.new(0.2), {
-                    Rotation = DropdownOpen and 180 or 0
-                }):Play()
-            end
-            
-            -- Connect hitbox
-            AddConnection(Hitbox.MouseButton1Click, ToggleDropdown)
-            
-            -- Create option buttons
-            local function CreateOptions()
-                -- Clear existing options
-                for _, child in pairs(OptionContainer:GetChildren()) do
-                    if child:IsA("TextButton") then
-                        child:Destroy()
-                    end
-                end
-                
-                -- Create new option buttons
-                for i, option in ipairs(options.Options) do
-                    local OptionButton = Instance.new("TextButton")
-                    OptionButton.Name = option .. "Option"
-                    OptionButton.BackgroundColor3 = Colors.Button
-                    OptionButton.BackgroundTransparency = 0.7
-                    OptionButton.BorderSizePixel = 0
-                    OptionButton.Size = UDim2.new(1, 0, 0, 30)
-                    OptionButton.Font = Enum.Font.Gotham
-                    OptionButton.TextSize = 14
-                    OptionButton.TextColor3 = Colors.Text
-                    OptionButton.Text = option
-                    OptionButton.ZIndex = 1
-                    OptionButton.Parent = OptionContainer
-                    
-                    -- Add corner
-                    local OptionCorner = Instance.new("UICorner")
-                    OptionCorner.CornerRadius = UDim.new(0, 4)
-                    OptionCorner.Parent = OptionButton
-                    
-                    -- Add hover effect
-                    AddConnection(OptionButton.MouseEnter, function()
-                        TweenService:Create(OptionButton, TweenInfo.new(0.1), {
-                            BackgroundTransparency = 0.5
-                        }):Play()
-                    end)
-                    
-                    AddConnection(OptionButton.MouseLeave, function()
-                        TweenService:Create(OptionButton, TweenInfo.new(0.1), {
-                            BackgroundTransparency = 0.7
-                        }):Play()
-                    end)
-                    
-                    -- Add click event
-                    AddConnection(OptionButton.MouseButton1Click, function()
-                        SelectedOption = option
-                        SelectedText.Text = option
-                        options.Callback(option)
-                        ToggleDropdown()
-                    end)
-                end
-            end
-            
-            -- Create initial options
-            CreateOptions()
-            
-            -- Add hover effect
-            AddConnection(Header.MouseEnter, function()
-                TweenService:Create(Header, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(
-                        Colors.Background.R * 1.2,
-                        Colors.Background.G * 1.2,
-                        Colors.Background.B * 1.2
-                    )
-                }):Play()
-            end)
-            
-            AddConnection(Header.MouseLeave, function()
-                TweenService:Create(Header, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Colors.Background
-                }):Play()
-            end)
-            
-            -- Dropdown object
-            local DropdownObject = {
-                Instance = Dropdown,
-                Header = Header,
-                Selected = SelectedOption,
-                Options = options,
-                SetValue = function(self, value)
-                    if table.find(options.Options, value) then
-                        SelectedOption = value
-                        SelectedText.Text = value
-                        options.Callback(value)
-                    end
-                end,
-                GetValue = function(self)
-                    return SelectedOption
-                end,
-                UpdateOptions = function(self, newOptions)
-                    options.Options = newOptions
-                    CreateOptions()
-                end
-            }
-            
-            return DropdownObject
-        end
-        
-        return SectionObject
-    end
-    
-    return Tab
-end
-
--- Create all tabs
-local MainTab = CreateTab("Main", 1)
-local AimbotTab = CreateTab("Aimbot", 2)
-local VisualsTab = CreateTab("Visuals", 3)
-local GunModsTab = CreateTab("Gun Mods", 4)
-local PlayerTab = CreateTab("Player", 5)
-local MiscTab = CreateTab("Misc", 6)
-
--- Create sections and elements for each tab
 
 -- Main Tab
-local MainSection = MainTab:CreateSection("Dead Rails")
-local StatusSection = MainTab:CreateSection("Status")
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
-local CurrentMapText = StatusSection:AddButton({ Name = "Map: Unknown" })
-local PlayerCountText = StatusSection:AddButton({ Name = "Players: 0" })
-local TeamText = StatusSection:AddButton({ Name = "Team: Unknown" })
+-- Create sections
+local MainSection = MainTab:AddSection({
+    Name = "Dead Rails Controls"
+})
 
--- Aimbot Tab
-local AimbotSection = AimbotTab:CreateSection("Aimbot Settings")
+-- Game information
+local GameInfoSection = MainTab:AddSection({
+    Name = "Game Info"
+})
 
-local AimbotToggle = AimbotSection:AddToggle({
-    Name = "Enable Aimbot",
+-- Show game information
+local function UpdateGameInfo()
+    -- Clear previous labels
+    for i, v in pairs(GameInfoSection:GetChildren()) do
+        if v:IsA("TextLabel") then
+            v:Destroy()
+        end
+    end
+    
+    -- Map name
+    local mapName = "Unknown"
+    local mapModule = ReplicatedStorage:FindFirstChild("MapModule")
+    if mapModule and mapModule:FindFirstChild("CurrentMap") then
+        mapName = mapModule.CurrentMap.Value
+    end
+    
+    -- Add map info
+    GameInfoSection:AddLabel("Map: " .. mapName)
+    
+    -- Player count
+    GameInfoSection:AddLabel("Players: " .. #Players:GetPlayers())
+    
+    -- Team info
+    GameInfoSection:AddLabel("Team: " .. (LocalPlayer.Team and LocalPlayer.Team.Name or "None"))
+end
+
+-- Common functions for Dead Rails
+
+-- Universal ESP system
+local function CreateESP()
+    -- ESP container
+    local ESPContainer = Instance.new("Folder")
+    ESPContainer.Name = "ESPContainer"
+    ESPContainer.Parent = game.CoreGui
+    
+    -- ESP settings
+    local ESPSettings = {
+        Enabled = false,
+        ShowName = true,
+        ShowDistance = true,
+        ShowHealth = true,
+        TeamCheck = true,
+        ItemESP = false
+    }
+    
+    -- Create ESP for player
+    local function CreatePlayerESP(player)
+        if player == LocalPlayer then return end
+        
+        -- Create billboard
+        local Billboard = Instance.new("BillboardGui")
+        Billboard.Name = player.Name .. "ESP"
+        Billboard.AlwaysOnTop = true
+        Billboard.Size = UDim2.new(0, 200, 0, 50)
+        Billboard.StudsOffset = Vector3.new(0, 3, 0)
+        Billboard.Adornee = player.Character:WaitForChild("HumanoidRootPart")
+        Billboard.Parent = ESPContainer
+        
+        -- Add name label
+        local NameLabel = Instance.new("TextLabel")
+        NameLabel.Name = "NameLabel"
+        NameLabel.BackgroundTransparency = 1
+        NameLabel.Size = UDim2.new(1, 0, 0, 20)
+        NameLabel.Font = Enum.Font.GothamBold
+        NameLabel.TextSize = 14
+        NameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+        NameLabel.TextStrokeTransparency = 0.5
+        NameLabel.Text = player.Name
+        NameLabel.Parent = Billboard
+        
+        -- Add distance label
+        local DistanceLabel = Instance.new("TextLabel")
+        DistanceLabel.Name = "DistanceLabel"
+        DistanceLabel.BackgroundTransparency = 1
+        DistanceLabel.Size = UDim2.new(1, 0, 0, 20)
+        DistanceLabel.Position = UDim2.new(0, 0, 0, 20)
+        DistanceLabel.Font = Enum.Font.Gotham
+        DistanceLabel.TextSize = 12
+        DistanceLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        DistanceLabel.TextStrokeTransparency = 0.5
+        DistanceLabel.Text = "Distance: N/A"
+        DistanceLabel.Parent = Billboard
+        
+        -- Update distance
+        local connection = RunService.RenderStepped:Connect(function()
+            if not ESPSettings.Enabled then
+                Billboard.Enabled = false
+                return
+            end
+            
+            if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and
+               LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                
+                -- Team check
+                if ESPSettings.TeamCheck and player.Team == LocalPlayer.Team then
+                    Billboard.Enabled = false
+                    return
+                end
+                
+                Billboard.Enabled = true
+                local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                
+                -- Update name visibility
+                NameLabel.Visible = ESPSettings.ShowName
+                
+                -- Update distance
+                DistanceLabel.Visible = ESPSettings.ShowDistance
+                if ESPSettings.ShowDistance then
+                    DistanceLabel.Text = "Distance: " .. math.floor(distance) .. " studs"
+                end
+                
+                -- Update color based on team
+                local color = player.TeamColor.Color
+                NameLabel.TextColor3 = color
+            else
+                Billboard.Enabled = false
+            end
+        end)
+        
+        -- Clean up when player leaves
+        player.CharacterRemoving:Connect(function()
+            Billboard:Destroy()
+            connection:Disconnect()
+        end)
+    end
+    
+    -- Create ESP for items
+    local function CreateItemESP(item, itemType)
+        -- Only create for new items
+        if item:FindFirstChild("ESPAdded") then return end
+        local marker = Instance.new("StringValue")
+        marker.Name = "ESPAdded" 
+        marker.Parent = item
+        
+        -- Create billboard
+        local Billboard = Instance.new("BillboardGui")
+        Billboard.Name = item.Name .. "ESP"
+        Billboard.AlwaysOnTop = true
+        Billboard.Size = UDim2.new(0, 200, 0, 50)
+        Billboard.StudsOffset = Vector3.new(0, 2, 0)
+        
+        -- Determine adornee
+        if item:IsA("Model") and item.PrimaryPart then
+            Billboard.Adornee = item.PrimaryPart
+        else
+            Billboard.Adornee = item
+        end
+        
+        Billboard.Parent = ESPContainer
+        
+        -- Add name label
+        local NameLabel = Instance.new("TextLabel")
+        NameLabel.Name = "NameLabel"
+        NameLabel.BackgroundTransparency = 1
+        NameLabel.Size = UDim2.new(1, 0, 0, 20)
+        NameLabel.Font = Enum.Font.GothamBold
+        NameLabel.TextSize = 14
+        NameLabel.TextColor3 = Color3.fromRGB(255, 255, 0) -- Yellow for items
+        NameLabel.TextStrokeTransparency = 0.5
+        NameLabel.Text = itemType .. ": " .. item.Name
+        NameLabel.Parent = Billboard
+        
+        -- Add distance label
+        local DistanceLabel = Instance.new("TextLabel")
+        DistanceLabel.Name = "DistanceLabel"
+        DistanceLabel.BackgroundTransparency = 1
+        DistanceLabel.Size = UDim2.new(1, 0, 0, 20)
+        DistanceLabel.Position = UDim2.new(0, 0, 0, 20)
+        DistanceLabel.Font = Enum.Font.Gotham
+        DistanceLabel.TextSize = 12
+        DistanceLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+        DistanceLabel.TextStrokeTransparency = 0.5
+        DistanceLabel.Text = "Distance: N/A"
+        DistanceLabel.Parent = Billboard
+        
+        -- Update connection
+        local connection = RunService.RenderStepped:Connect(function()
+            if not ESPSettings.Enabled or not ESPSettings.ItemESP then
+                Billboard.Enabled = false
+                return
+            end
+            
+            if item and item:IsDescendantOf(game) and LocalPlayer.Character and
+               LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                
+                Billboard.Enabled = true
+                
+                local itemPos
+                if item:IsA("Model") and item.PrimaryPart then
+                    itemPos = item.PrimaryPart.Position
+                else
+                    itemPos = item.Position
+                end
+                
+                local distance = (itemPos - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                DistanceLabel.Text = "Distance: " .. math.floor(distance) .. " studs"
+            else
+                Billboard:Destroy()
+                connection:Disconnect()
+            end
+        end)
+        
+        -- Clean up when item is removed
+        item.AncestryChanged:Connect(function(_, parent)
+            if not parent then
+                Billboard:Destroy()
+                connection:Disconnect()
+            end
+        end)
+    end
+    
+    -- Scan for items
+    local function ScanForItems()
+        if not ESPSettings.ItemESP then return end
+        
+        for _, object in pairs(Workspace:GetDescendants()) do
+            if object:IsA("BasePart") then
+                -- Check if it's a collectable item
+                if object.Name:lower():find("bone") or
+                   object.Name:lower():find("money") or
+                   object.Name:lower():find("cash") or
+                   object.Name:lower():find("coin") or
+                   object.Name:lower():find("gem") or
+                   object.Name:lower():find("pickup") or
+                   object.Name:lower():find("collect") then
+                    
+                    CreateItemESP(object, "Item")
+                end
+                
+                -- Check if it's a weapon
+                if object.Name:lower():find("gun") or
+                   object.Name:lower():find("weapon") or
+                   object.Name:lower():find("knife") or
+                   object.Name:lower():find("blade") or
+                   object.Name:lower():find("sword") then
+                    
+                    CreateItemESP(object, "Weapon")
+                end
+            end
+            
+            -- Don't overwhelm the game
+            if _ % 200 == 0 then
+                wait()
+            end
+        end
+    end
+    
+    -- Hook up events
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            CreatePlayerESP(player)
+        end
+    end
+    
+    Players.PlayerAdded:Connect(function(player)
+        player.CharacterAdded:Connect(function()
+            if ESPSettings.Enabled then
+                CreatePlayerESP(player)
+            end
+        end)
+    end)
+    
+    -- Start item scanner
+    spawn(function()
+        while wait(5) do -- Scan every 5 seconds
+            if ESPSettings.Enabled and ESPSettings.ItemESP then
+                ScanForItems()
+            end
+        end
+    end)
+    
+    -- Return controller
+    return {
+        SetEnabled = function(value)
+            ESPSettings.Enabled = value
+        end,
+        SetShowName = function(value)
+            ESPSettings.ShowName = value
+        end,
+        SetShowDistance = function(value)
+            ESPSettings.ShowDistance = value
+        end,
+        SetShowHealth = function(value)
+            ESPSettings.ShowHealth = value
+        end,
+        SetTeamCheck = function(value)
+            ESPSettings.TeamCheck = value
+        end,
+        SetItemESP = function(value)
+            ESPSettings.ItemESP = value
+            if value then
+                ScanForItems()
+            end
+        end,
+        Stop = function()
+            ESPContainer:Destroy()
+        end
+    }
+end
+
+-- Gun mods
+local function CreateGunMods()
+    -- Gun mod settings
+    local GunModSettings = {
+        NoRecoil = false,
+        NoSpread = false,
+        RapidFire = false,
+        InstantReload = false,
+        InfiniteAmmo = false,
+        AutoFire = false
+    }
+    
+    -- Function to find weapon modules
+    local function FindWeaponModules()
+        local modules = {}
+        
+        -- Look for weapon modules in workspace
+        for _, item in pairs(Workspace:GetDescendants()) do
+            if item:IsA("Tool") or (item:IsA("Model") and item:FindFirstChild("Handle")) then
+                for _, script in pairs(item:GetDescendants()) do
+                    if script:IsA("ModuleScript") then
+                        local success, module = pcall(function() return require(script) end)
+                        if success and type(module) == "table" then
+                            table.insert(modules, {script = script, module = module})
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- Look for weapon modules in ReplicatedStorage
+        for _, item in pairs(ReplicatedStorage:GetDescendants()) do
+            if item:IsA("ModuleScript") and 
+               (item.Name:lower():find("gun") or item.Name:lower():find("weapon") or 
+                item.Name:lower():find("rifle") or item.Name:lower():find("firearm")) then
+                
+                local success, module = pcall(function() return require(item) end)
+                if success and type(module) == "table" then
+                    table.insert(modules, {script = item, module = module})
+                end
+            end
+        end
+        
+        return modules
+    end
+    
+    -- Apply mods to weapon modules
+    local function ApplyWeaponMods()
+        local modules = FindWeaponModules()
+        
+        for _, moduleData in pairs(modules) do
+            local module = moduleData.module
+            
+            -- Look for weapon properties
+            for key, value in pairs(module) do
+                -- No recoil
+                if GunModSettings.NoRecoil and 
+                   (key:lower():find("recoil") or key:lower():find("spread") or key:lower():find("kick")) and
+                   type(value) == "number" and value > 0 then
+                    module[key] = 0
+                end
+                
+                -- No spread
+                if GunModSettings.NoSpread and
+                   (key:lower():find("spread") or key:lower():find("accuracy") or key:lower():find("deviation")) and
+                   type(value) == "number" and value > 0 then
+                    module[key] = 0
+                end
+                
+                -- Rapid fire
+                if GunModSettings.RapidFire and
+                   (key:lower():find("firerate") or key:lower():find("cooldown") or 
+                    key:lower():find("delay") or key:lower():find("fire_rate")) and
+                   type(value) == "number" and value > 0 then
+                    module[key] = 0.05 -- Very fast fire rate
+                end
+                
+                -- Instant reload
+                if GunModSettings.InstantReload and
+                   (key:lower():find("reload") or key:lower():find("reload_time")) and
+                   type(value) == "number" and value > 0 then
+                    module[key] = 0.05 -- Almost instant
+                end
+                
+                -- Infinite ammo
+                if GunModSettings.InfiniteAmmo and
+                   (key:lower():find("ammo") or key:lower():find("mag") or 
+                    key:lower():find("clip") or key:lower():find("magazine")) and
+                   type(value) == "number" then
+                    module[key] = math.huge -- Set to maximum
+                end
+                
+                -- Auto fire
+                if GunModSettings.AutoFire and
+                   (key:lower():find("automatic") or key:lower():find("auto") or 
+                    key:lower():find("mode") or key:lower():find("fire_mode")) and
+                   type(value) == "boolean" then
+                    module[key] = true -- Enable auto fire
+                end
+            end
+        end
+    end
+    
+    -- Return controller
+    return {
+        SetNoRecoil = function(value)
+            GunModSettings.NoRecoil = value
+            ApplyWeaponMods()
+        end,
+        SetNoSpread = function(value)
+            GunModSettings.NoSpread = value
+            ApplyWeaponMods()
+        end,
+        SetRapidFire = function(value)
+            GunModSettings.RapidFire = value
+            ApplyWeaponMods()
+        end,
+        SetInstantReload = function(value)
+            GunModSettings.InstantReload = value
+            ApplyWeaponMods()
+        end,
+        SetInfiniteAmmo = function(value)
+            GunModSettings.InfiniteAmmo = value
+            ApplyWeaponMods()
+        end,
+        SetAutoFire = function(value)
+            GunModSettings.AutoFire = value
+            ApplyWeaponMods()
+        end,
+        UnlockAllGuns = function()
+            -- Try to find and unlock all weapons
+            local unlocked = false
+            
+            -- Look for unlock functions in ReplicatedStorage
+            for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                if (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) and
+                   (remote.Name:lower():find("unlock") or remote.Name:lower():find("purchase")) then
+                    
+                    pcall(function()
+                        remote:FireServer("Unlock", "All")
+                        remote:FireServer("Purchase", "All")
+                    end)
+                    unlocked = true
+                end
+            end
+            
+            return unlocked
+        end,
+        MaxAmmoCurrentWeapon = function()
+            -- Find and max ammo for current weapon
+            local character = LocalPlayer.Character
+            if not character then return false end
+            
+            local tool = character:FindFirstChildOfClass("Tool")
+            if not tool then return false end
+            
+            -- Look for ammo values
+            for _, obj in pairs(tool:GetDescendants()) do
+                if obj:IsA("NumberValue") and
+                   (obj.Name:lower():find("ammo") or obj.Name:lower():find("mag") or obj.Name:lower():find("clip")) then
+                    obj.Value = 999
+                    return true
+                end
+            end
+            
+            return false
+        end,
+        Stop = function()
+            -- Reset gun mods
+            GunModSettings.NoRecoil = false
+            GunModSettings.NoSpread = false
+            GunModSettings.RapidFire = false
+            GunModSettings.InstantReload = false
+            GunModSettings.InfiniteAmmo = false
+            GunModSettings.AutoFire = false
+        end
+    }
+end
+
+-- Initialize modules
+local ESP = CreateESP()
+local GunMods = CreateGunMods()
+
+-- Add main buttons
+MainSection:AddButton({
+    Name = "Auto Unlock All Guns",
+    Callback = function()
+        local success = GunMods.UnlockAllGuns()
+        if success then
+            Notify("SkyX Hub", "All guns unlocked!", 3)
+        else
+            Notify("SkyX Hub", "Failed to unlock guns", 3)
+        end
+    end
+})
+
+MainSection:AddButton({
+    Name = "Max Ammo (Current Weapon)",
+    Callback = function()
+        local success = GunMods.MaxAmmoCurrentWeapon()
+        if success then
+            Notify("SkyX Hub", "Ammo maximized!", 3)
+        else
+            Notify("SkyX Hub", "No weapon equipped", 3)
+        end
+    end
+})
+
+-- Auto Farm section
+local AutoFarmSection = MainTab:AddSection({
+    Name = "Auto Farm"
+})
+
+-- Auto-end toggle
+AutoFarmSection:AddToggle({
+    Name = "Auto Round Completion",
     Default = false,
     Callback = function(Value)
-        if Modules.Aimbot then
-            Modules.Aimbot.SetEnabled(Value)
+        _G.AutoEndEnabled = Value
+        
+        if Value then
+            -- Auto end implementation
+            _G.AutoEndConnection = RunService.Heartbeat:Connect(function()
+                -- Look for end round triggers/locations
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if (obj.Name:lower():find("end") or obj.Name:lower():find("finish") or obj.Name:lower():find("complete")) and
+                       (obj:IsA("Part") or obj:IsA("BasePart")) then
+                        
+                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            -- Teleport to end position
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = obj.CFrame
+                        end
+                    end
+                end
+                
+                -- Try to find and trigger round end remotes
+                for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                    if (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) and 
+                       (remote.Name:lower():find("end") or remote.Name:lower():find("finish") or 
+                        remote.Name:lower():find("complete") or remote.Name:lower():find("round")) then
+                        
+                        pcall(function()
+                            remote:FireServer("End", "Complete")
+                        end)
+                    end
+                end
+            end)
+        else
+            if _G.AutoEndConnection then
+                _G.AutoEndConnection:Disconnect()
+                _G.AutoEndConnection = nil
+            end
         end
     end
 })
 
-local TeamCheckToggle = AimbotSection:AddToggle({
-    Name = "Team Check",
-    Default = true,
+-- Auto bone toggle
+AutoFarmSection:AddToggle({
+    Name = "Auto Bone Farm",
+    Default = false,
     Callback = function(Value)
-        if Modules.Aimbot then
-            Modules.Aimbot.SetTeamCheck(Value)
+        _G.AutoBoneEnabled = Value
+        
+        if Value then
+            -- Auto bone implementation
+            _G.AutoBoneConnection = RunService.Heartbeat:Connect(function()
+                -- Look for bone items
+                for _, obj in pairs(Workspace:GetDescendants()) do
+                    if (obj.Name:lower():find("bone") or obj.Name:lower():find("collect") or obj.Name:lower():find("pickup")) and
+                       (obj:IsA("Part") or obj:IsA("BasePart") or obj:IsA("Model")) then
+                        
+                        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            -- Teleport to bone
+                            local targetPos
+                            if obj:IsA("Model") and obj:FindFirstChild("PrimaryPart") then
+                                targetPos = obj.PrimaryPart.Position
+                            else
+                                targetPos = obj.Position
+                            end
+                            
+                            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(targetPos)
+                            
+                            -- Wait a bit before next teleport
+                            wait(0.1)
+                        end
+                    end
+                end
+                
+                -- Try to trigger collection remotes
+                for _, remote in pairs(ReplicatedStorage:GetDescendants()) do
+                    if (remote:IsA("RemoteEvent") or remote:IsA("RemoteFunction")) and 
+                       (remote.Name:lower():find("collect") or remote.Name:lower():find("pickup") or 
+                        remote.Name:lower():find("bone") or remote.Name:lower():find("get")) then
+                        
+                        pcall(function()
+                            remote:FireServer("Collect", "All")
+                        end)
+                    end
+                end
+            end)
+        else
+            if _G.AutoBoneConnection then
+                _G.AutoBoneConnection:Disconnect()
+                _G.AutoBoneConnection = nil
+            end
         end
     end
 })
 
-local VisibilityCheckToggle = AimbotSection:AddToggle({
-    Name = "Visibility Check",
-    Default = true,
-    Callback = function(Value)
-        if Modules.Aimbot then
-            Modules.Aimbot.SetVisibilityCheck(Value)
-        end
-    end
-})
-
-local AimbotPartDropdown = AimbotSection:AddDropdown({
-    Name = "Target Part",
-    Options = {"Head", "Torso"},
-    Default = "Head",
-    Callback = function(Value)
-        if Modules.Aimbot then
-            Modules.Aimbot.SetAimPart(Value)
-        end
-    end
-})
-
-local AimbotSmoothingSlider = AimbotSection:AddSlider({
-    Name = "Smoothing",
-    Min = 1,
-    Max = 10,
-    Default = 2,
-    Increment = 0.1,
-    Callback = function(Value)
-        if Modules.Aimbot then
-            Modules.Aimbot.SetSmoothing(Value)
-        end
-    end
-})
-
-local AimbotDistanceSlider = AimbotSection:AddSlider({
-    Name = "Max Distance",
+-- Advanced farm settings
+AutoFarmSection:AddSlider({
+    Name = "Farm Delay (ms)",
     Min = 100,
-    Max = 5000,
-    Default = 1000,
+    Max = 2000,
+    Default = 500,
+    Color = Color3.fromRGB(90, 120, 240),
     Increment = 100,
+    ValueName = "ms",
     Callback = function(Value)
-        if Modules.Aimbot then
-            Modules.Aimbot.SetMaxDistance(Value)
-        end
+        _G.FarmDelay = Value / 1000 -- Convert to seconds
     end
 })
 
--- Visuals Tab
-local ESPSection = VisualsTab:CreateSection("ESP")
+-- Auto farm distance
+AutoFarmSection:AddSlider({
+    Name = "Farm Distance",
+    Min = 5,
+    Max = 100,
+    Default = 20,
+    Color = Color3.fromRGB(90, 120, 240),
+    Increment = 5,
+    ValueName = "studs",
+    Callback = function(Value)
+        _G.FarmDistance = Value
+    end
+})
 
-local ESPToggle = ESPSection:AddToggle({
+-- Create ESP Tab
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- ESP Section
+local ESPSection = ESPTab:AddSection({
+    Name = "Player ESP"
+})
+
+-- ESP Toggle
+ESPSection:AddToggle({
     Name = "Enable ESP",
     Default = false,
     Callback = function(Value)
-        if Modules.ESP then
-            Modules.ESP.SetEnabled(Value)
-        end
+        ESP.SetEnabled(Value)
     end
 })
 
-local ShowNamesToggle = ESPSection:AddToggle({
+-- ESP Settings
+ESPSection:AddToggle({
     Name = "Show Names",
     Default = true,
     Callback = function(Value)
-        if Modules.ESP then
-            Modules.ESP.SetShowNames(Value)
-        end
+        ESP.SetShowName(Value)
     end
 })
 
-local ShowDistanceToggle = ESPSection:AddToggle({
+ESPSection:AddToggle({
     Name = "Show Distance",
     Default = true,
     Callback = function(Value)
-        if Modules.ESP then
-            Modules.ESP.SetShowDistance(Value)
-        end
+        ESP.SetShowDistance(Value)
     end
 })
 
-local ShowHealthToggle = ESPSection:AddToggle({
-    Name = "Show Health",
+ESPSection:AddToggle({
+    Name = "Team Check",
     Default = true,
     Callback = function(Value)
-        if Modules.ESP then
-            Modules.ESP.SetShowHealth(Value)
-        end
+        ESP.SetTeamCheck(Value)
     end
 })
 
-local ShowWeaponToggle = ESPSection:AddToggle({
-    Name = "Show Weapon",
-    Default = true,
+ESPSection:AddToggle({
+    Name = "Item ESP",
+    Default = false,
     Callback = function(Value)
-        if Modules.ESP then
-            Modules.ESP.SetShowWeapon(Value)
-        end
+        ESP.SetItemESP(Value)
     end
 })
 
-local ShowBoxToggle = ESPSection:AddToggle({
-    Name = "Show Box",
-    Default = true,
-    Callback = function(Value)
-        if Modules.ESP then
-            Modules.ESP.SetShowBox(Value)
-        end
-    end
+-- World Section
+local WorldSection = ESPTab:AddSection({
+    Name = "World"
 })
 
-local ESPTeamColorToggle = ESPSection:AddToggle({
-    Name = "Use Team Colors",
-    Default = true,
-    Callback = function(Value)
-        if Modules.ESP then
-            Modules.ESP.SetTeamColor(Value)
-        end
-    end
-})
-
-local WorldSection = VisualsTab:CreateSection("World")
-
-local FullBrightToggle = WorldSection:AddToggle({
+-- Full bright
+WorldSection:AddToggle({
     Name = "Full Bright",
     Default = false,
     Callback = function(Value)
-        -- Store original lighting settings
         if Value then
+            -- Store original lighting settings
             _G.OriginalAmbient = Lighting.Ambient
             _G.OriginalBrightness = Lighting.Brightness
             _G.OriginalClockTime = Lighting.ClockTime
@@ -1850,12 +810,13 @@ local FullBrightToggle = WorldSection:AddToggle({
     end
 })
 
-local NoFogToggle = WorldSection:AddToggle({
+-- No fog
+WorldSection:AddToggle({
     Name = "No Fog",
     Default = false,
     Callback = function(Value)
         if Value then
-            -- Store original fog settings
+            -- Save original fog settings
             _G.OriginalFogStart = Lighting.FogStart
             _G.OriginalFogEnd = Lighting.FogEnd
             
@@ -1871,139 +832,118 @@ local NoFogToggle = WorldSection:AddToggle({
 })
 
 -- Gun Mods Tab
-local GunModsSection = GunModsTab:CreateSection("Gun Modifications")
+local GunModsTab = Window:MakeTab({
+    Name = "Gun Mods",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
-local NoRecoilToggle = GunModsSection:AddToggle({
+-- Gun Mods Section
+local GunModsSection = GunModsTab:AddSection({
+    Name = "Weapon Modifications"
+})
+
+-- Gun mod toggles
+GunModsSection:AddToggle({
     Name = "No Recoil",
     Default = false,
     Callback = function(Value)
-        if Modules.GunMods then
-            Modules.GunMods.SetNoRecoil(Value)
-        end
+        GunMods.SetNoRecoil(Value)
     end
 })
 
-local NoSpreadToggle = GunModsSection:AddToggle({
+GunModsSection:AddToggle({
     Name = "No Spread",
     Default = false,
     Callback = function(Value)
-        if Modules.GunMods then
-            Modules.GunMods.SetNoSpread(Value)
-        end
+        GunMods.SetNoSpread(Value)
     end
 })
 
-local RapidFireToggle = GunModsSection:AddToggle({
+GunModsSection:AddToggle({
     Name = "Rapid Fire",
     Default = false,
     Callback = function(Value)
-        if Modules.GunMods then
-            Modules.GunMods.SetRapidFire(Value)
-        end
+        GunMods.SetRapidFire(Value)
     end
 })
 
-local InstantReloadToggle = GunModsSection:AddToggle({
+GunModsSection:AddToggle({
     Name = "Instant Reload",
     Default = false,
     Callback = function(Value)
-        if Modules.GunMods then
-            Modules.GunMods.SetInstantReload(Value)
-        end
+        GunMods.SetInstantReload(Value)
     end
 })
 
-local InfiniteAmmoToggle = GunModsSection:AddToggle({
+GunModsSection:AddToggle({
     Name = "Infinite Ammo",
     Default = false,
     Callback = function(Value)
-        if Modules.GunMods then
-            Modules.GunMods.SetInfiniteAmmo(Value)
-        end
+        GunMods.SetInfiniteAmmo(Value)
     end
 })
 
-local AutoFireToggle = GunModsSection:AddToggle({
+GunModsSection:AddToggle({
     Name = "Auto Fire",
     Default = false,
     Callback = function(Value)
-        if Modules.GunMods then
-            Modules.GunMods.SetAutoFire(Value)
-        end
-    end
-})
-
-local DeadRailsGunsSection = GunModsTab:CreateSection("Dead Rails Specific")
-
-local UnlockAllGunsButton = DeadRailsGunsSection:AddButton({
-    Name = "Auto Unlock All Guns",
-    Callback = function()
-        -- Game-specific code for Dead Rails
-        local gunSystem = LocalPlayer.PlayerGui:FindFirstChild("GunSystem")
-        if gunSystem then
-            local gunModule = require(gunSystem.GunSystem)
-            if gunModule and gunModule.UnlockAll then
-                gunModule.UnlockAll()
-                print("All guns unlocked!")
-            else
-                warn("Couldn't find gun module unlock function")
-            end
-        else
-            warn("GunSystem not found")
-        end
-    end
-})
-
-local MaxAmmoButton = DeadRailsGunsSection:AddButton({
-    Name = "Unlimited Ammo (One-Time)",
-    Callback = function()
-        -- Find current weapon
-        local character = LocalPlayer.Character
-        if character then
-            local tool = character:FindFirstChildOfClass("Tool")
-            if tool and tool:FindFirstChild("Ammo") then
-                -- Set ammo values to maximum
-                tool.Ammo.Value = 999
-                tool.MaxAmmo.Value = 999
-                tool.StoredAmmo.Value = 9999
-                print("Ammo maximized for current weapon!")
-            else
-                warn("No weapon equipped or ammo values not found")
-            end
-        end
+        GunMods.SetAutoFire(Value)
     end
 })
 
 -- Player Tab
-local MovementSection = PlayerTab:CreateSection("Movement")
+local PlayerTab = Window:MakeTab({
+    Name = "Player",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
 
-local WalkSpeedSlider = MovementSection:AddSlider({
+-- Movement Section
+local MovementSection = PlayerTab:AddSection({
+    Name = "Movement"
+})
+
+-- Walk speed
+MovementSection:AddSlider({
     Name = "Walk Speed",
     Min = 16,
-    Max = 100,
+    Max = 250,
     Default = 16,
-    Increment = 1,
+    Color = Color3.fromRGB(90, 120, 240),
+    Increment = 5,
+    ValueName = "speed",
     Callback = function(Value)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.WalkSpeed = Value
         end
+        
+        -- Keep applying speed on respawn
+        _G.SelectedWalkSpeed = Value
     end
 })
 
-local JumpPowerSlider = MovementSection:AddSlider({
+-- Jump power
+MovementSection:AddSlider({
     Name = "Jump Power",
     Min = 50,
-    Max = 200,
+    Max = 300,
     Default = 50,
-    Increment = 1,
+    Color = Color3.fromRGB(90, 120, 240),
+    Increment = 10,
+    ValueName = "power",
     Callback = function(Value)
         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
             LocalPlayer.Character.Humanoid.JumpPower = Value
         end
+        
+        -- Keep applying jump power on respawn
+        _G.SelectedJumpPower = Value
     end
 })
 
-local InfiniteJumpToggle = MovementSection:AddToggle({
+-- Infinite jump
+MovementSection:AddToggle({
     Name = "Infinite Jump",
     Default = false,
     Callback = function(Value)
@@ -2018,676 +958,305 @@ UserInputService.JumpRequest:Connect(function()
     end
 end)
 
-local MobilitySection = PlayerTab:CreateSection("Mobility")
-
-local NoclipToggle = MobilitySection:AddToggle({
-    Name = "Noclip",
-    Default = false,
-    Callback = function(Value)
-        _G.Noclip = Value
-    end
+-- Fly section
+local FlySection = PlayerTab:AddSection({
+    Name = "Flying"
 })
 
--- Advanced Fly Feature
-local FlySection = MobilitySection:CreateSection("Advanced Flying")
-
-local FlyToggle = FlySection:AddToggle({
-    Name = "Enable Flying",
+-- Fly toggle
+FlySection:AddToggle({
+    Name = "Enable Fly",
     Default = false,
     Callback = function(Value)
-        _G.Flying = Value
+        _G.FlyEnabled = Value
         
         if Value then
-            -- Create fly GUI for mobile users
-            if IsMobile then
-                local FlyControlsGui = Instance.new("ScreenGui")
-                FlyControlsGui.Name = "FlyControls"
-                FlyControlsGui.ResetOnSpawn = false
-                FlyControlsGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-                
-                -- Handle protection
-                if syn then
-                    syn.protect_gui(FlyControlsGui)
-                    FlyControlsGui.Parent = game.CoreGui
-                else
-                    FlyControlsGui.Parent = game.CoreGui
+            -- Implement basic flying
+            local character = LocalPlayer.Character
+            if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+            
+            -- Create fly parts
+            local bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.Name = "SkyXFlyVelocity"
+            bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.Parent = character.HumanoidRootPart
+            
+            local bodyGyro = Instance.new("BodyGyro")
+            bodyGyro.Name = "SkyXFlyGyro"
+            bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            bodyGyro.P = 9000
+            bodyGyro.D = 100
+            bodyGyro.CFrame = character.HumanoidRootPart.CFrame
+            bodyGyro.Parent = character.HumanoidRootPart
+            
+            -- Fly loop
+            _G.FlyLoop = RunService.RenderStepped:Connect(function()
+                if not _G.FlyEnabled or not character or not character:FindFirstChild("HumanoidRootPart") or
+                   not character.HumanoidRootPart:FindFirstChild("SkyXFlyVelocity") then
+                    if _G.FlyLoop then
+                        _G.FlyLoop:Disconnect()
+                        _G.FlyLoop = nil
+                    end
+                    return
                 end
                 
-                -- Up button
-                local UpButton = Instance.new("TextButton")
-                UpButton.Name = "UpButton"
-                UpButton.Size = UDim2.new(0, 50, 0, 50)
-                UpButton.Position = UDim2.new(0.9, -25, 0.4, -25)
-                UpButton.BackgroundColor3 = Colors.Button
-                UpButton.BackgroundTransparency = 0.5
-                UpButton.BorderSizePixel = 0
-                UpButton.Text = "↑"
-                UpButton.TextColor3 = Colors.Text
-                UpButton.TextSize = 24
-                UpButton.Font = Enum.Font.GothamBold
-                UpButton.Parent = FlyControlsGui
-                
-                local UpCorner = Instance.new("UICorner")
-                UpCorner.CornerRadius = UDim.new(1, 0)
-                UpCorner.Parent = UpButton
-                
-                -- Down button
-                local DownButton = Instance.new("TextButton")
-                DownButton.Name = "DownButton"
-                DownButton.Size = UDim2.new(0, 50, 0, 50)
-                DownButton.Position = UDim2.new(0.9, -25, 0.5, 25)
-                DownButton.BackgroundColor3 = Colors.Button
-                DownButton.BackgroundTransparency = 0.5
-                DownButton.BorderSizePixel = 0
-                DownButton.Text = "↓"
-                DownButton.TextColor3 = Colors.Text
-                DownButton.TextSize = 24
-                DownButton.Font = Enum.Font.GothamBold
-                DownButton.Parent = FlyControlsGui
-                
-                local DownCorner = Instance.new("UICorner")
-                DownCorner.CornerRadius = UDim.new(1, 0)
-                DownCorner.Parent = DownButton
-                
-                -- Left button
-                local LeftButton = Instance.new("TextButton")
-                LeftButton.Name = "LeftButton"
-                LeftButton.Size = UDim2.new(0, 50, 0, 50)
-                LeftButton.Position = UDim2.new(0.1, -25, 0.7, -25)
-                LeftButton.BackgroundColor3 = Colors.Button
-                LeftButton.BackgroundTransparency = 0.5
-                LeftButton.BorderSizePixel = 0
-                LeftButton.Text = "←"
-                LeftButton.TextColor3 = Colors.Text
-                LeftButton.TextSize = 24
-                LeftButton.Font = Enum.Font.GothamBold
-                LeftButton.Parent = FlyControlsGui
-                
-                local LeftCorner = Instance.new("UICorner")
-                LeftCorner.CornerRadius = UDim.new(1, 0)
-                LeftCorner.Parent = LeftButton
-                
-                -- Right button
-                local RightButton = Instance.new("TextButton")
-                RightButton.Name = "RightButton"
-                RightButton.Size = UDim2.new(0, 50, 0, 50)
-                RightButton.Position = UDim2.new(0.2, 25, 0.7, -25)
-                RightButton.BackgroundColor3 = Colors.Button
-                RightButton.BackgroundTransparency = 0.5
-                RightButton.BorderSizePixel = 0
-                RightButton.Text = "→"
-                RightButton.TextColor3 = Colors.Text
-                RightButton.TextSize = 24
-                RightButton.Font = Enum.Font.GothamBold
-                RightButton.Parent = FlyControlsGui
-                
-                local RightCorner = Instance.new("UICorner")
-                RightCorner.CornerRadius = UDim.new(1, 0)
-                RightCorner.Parent = RightButton
-                
-                -- Forward button
-                local ForwardButton = Instance.new("TextButton")
-                ForwardButton.Name = "ForwardButton"
-                ForwardButton.Size = UDim2.new(0, 50, 0, 50)
-                ForwardButton.Position = UDim2.new(0.15, 0, 0.6, -25)
-                ForwardButton.BackgroundColor3 = Colors.Button
-                ForwardButton.BackgroundTransparency = 0.5
-                ForwardButton.BorderSizePixel = 0
-                ForwardButton.Text = "W"
-                ForwardButton.TextColor3 = Colors.Text
-                ForwardButton.TextSize = 24
-                ForwardButton.Font = Enum.Font.GothamBold
-                ForwardButton.Parent = FlyControlsGui
-                
-                local ForwardCorner = Instance.new("UICorner")
-                ForwardCorner.CornerRadius = UDim.new(1, 0)
-                ForwardCorner.Parent = ForwardButton
-                
-                -- Backward button
-                local BackwardButton = Instance.new("TextButton")
-                BackwardButton.Name = "BackwardButton"
-                BackwardButton.Size = UDim2.new(0, 50, 0, 50)
-                BackwardButton.Position = UDim2.new(0.15, 0, 0.8, -25)
-                BackwardButton.BackgroundColor3 = Colors.Button
-                BackwardButton.BackgroundTransparency = 0.5
-                BackwardButton.BorderSizePixel = 0
-                BackwardButton.Text = "S"
-                BackwardButton.TextColor3 = Colors.Text
-                BackwardButton.TextSize = 24
-                BackwardButton.Font = Enum.Font.GothamBold
-                BackwardButton.Parent = FlyControlsGui
-                
-                local BackwardCorner = Instance.new("UICorner")
-                BackwardCorner.CornerRadius = UDim.new(1, 0)
-                BackwardCorner.Parent = BackwardButton
-                
-                -- Mobile Controls
-                _G.MobileControls = {
-                    Up = false,
-                    Down = false,
-                    Left = false,
-                    Right = false,
-                    Forward = false,
-                    Backward = false
+                -- Get fly controls
+                local flySpeed = _G.FlySpeed or 100
+                local controls = {
+                    Forward = UserInputService:IsKeyDown(Enum.KeyCode.W) or UserInputService:IsKeyDown(Enum.KeyCode.Up),
+                    Backward = UserInputService:IsKeyDown(Enum.KeyCode.S) or UserInputService:IsKeyDown(Enum.KeyCode.Down),
+                    Left = UserInputService:IsKeyDown(Enum.KeyCode.A) or UserInputService:IsKeyDown(Enum.KeyCode.Left),
+                    Right = UserInputService:IsKeyDown(Enum.KeyCode.D) or UserInputService:IsKeyDown(Enum.KeyCode.Right),
+                    Up = UserInputService:IsKeyDown(Enum.KeyCode.Space) or UserInputService:IsKeyDown(Enum.KeyCode.E),
+                    Down = UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) or UserInputService:IsKeyDown(Enum.KeyCode.Q)
                 }
                 
-                -- Set up button events
-                AddConnection(UpButton.InputBegan, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Up = true
-                    end
-                end)
+                -- Calculate fly direction
+                local camera = game.Workspace.CurrentCamera
+                local flyDirection = Vector3.new(0, 0, 0)
                 
-                AddConnection(UpButton.InputEnded, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Up = false
-                    end
-                end)
-                
-                AddConnection(DownButton.InputBegan, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Down = true
-                    end
-                end)
-                
-                AddConnection(DownButton.InputEnded, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Down = false
-                    end
-                end)
-                
-                AddConnection(LeftButton.InputBegan, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Left = true
-                    end
-                end)
-                
-                AddConnection(LeftButton.InputEnded, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Left = false
-                    end
-                end)
-                
-                AddConnection(RightButton.InputBegan, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Right = true
-                    end
-                end)
-                
-                AddConnection(RightButton.InputEnded, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Right = false
-                    end
-                end)
-                
-                AddConnection(ForwardButton.InputBegan, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Forward = true
-                    end
-                end)
-                
-                AddConnection(ForwardButton.InputEnded, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Forward = false
-                    end
-                end)
-                
-                AddConnection(BackwardButton.InputBegan, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Backward = true
-                    end
-                end)
-                
-                AddConnection(BackwardButton.InputEnded, function(input)
-                    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        _G.MobileControls.Backward = false
-                    end
-                end)
-                
-                -- Store for cleanup
-                _G.FlyControlsGui = FlyControlsGui
-            end
-            
-            -- Use anti-detection flying
-            local character = LocalPlayer.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                -- Use undetectable fly system
-                AntiDetection.SafeFly(true, character.HumanoidRootPart)
-                
-                -- Apply noclip while flying if enabled
-                if _G.FlyNoclip then
-                    AntiDetection.SafeNoclip(true)
+                if controls.Forward then
+                    flyDirection = flyDirection + camera.CFrame.LookVector
                 end
+                if controls.Backward then
+                    flyDirection = flyDirection - camera.CFrame.LookVector
+                end
+                if controls.Left then
+                    flyDirection = flyDirection - camera.CFrame.RightVector
+                end
+                if controls.Right then
+                    flyDirection = flyDirection + camera.CFrame.RightVector
+                end
+                if controls.Up then
+                    flyDirection = flyDirection + Vector3.new(0, 1, 0)
+                end
+                if controls.Down then
+                    flyDirection = flyDirection - Vector3.new(0, 1, 0)
+                end
+                
+                -- Normalize direction
+                if flyDirection.Magnitude > 0 then
+                    flyDirection = flyDirection.Unit * flySpeed
+                end
+                
+                -- Apply velocity
+                character.HumanoidRootPart.SkyXFlyVelocity.Velocity = flyDirection
+                
+                -- Update gyro
+                if flyDirection.Magnitude > 0 and not controls.Up and not controls.Down then
+                    character.HumanoidRootPart.SkyXFlyGyro.CFrame = CFrame.lookAt(
+                        character.HumanoidRootPart.Position,
+                        character.HumanoidRootPart.Position + Vector3.new(flyDirection.X, 0, flyDirection.Z)
+                    )
+                else
+                    character.HumanoidRootPart.SkyXFlyGyro.CFrame = camera.CFrame
+                end
+            end)
+            
+            -- Add mobile controls if on mobile
+            if IsMobile then
+                -- TODO: Add mobile fly controls GUI
+                Notify("SkyX Hub", "Mobile flying enabled - use joystick for movement", 5)
             end
         else
-            -- Disable fly using anti-detection system
+            -- Clean up flying
             local character = LocalPlayer.Character
             if character and character:FindFirstChild("HumanoidRootPart") then
-                AntiDetection.SafeFly(false, character.HumanoidRootPart)
+                local bodyVelocity = character.HumanoidRootPart:FindFirstChild("SkyXFlyVelocity")
+                local bodyGyro = character.HumanoidRootPart:FindFirstChild("SkyXFlyGyro")
                 
-                -- Restore collision if needed
-                if _G.FlyNoclip then
-                    AntiDetection.SafeNoclip(false)
-                end
+                if bodyVelocity then bodyVelocity:Destroy() end
+                if bodyGyro then bodyGyro:Destroy() end
             end
             
-            -- Remove mobile controls
-            if IsMobile and _G.FlyControlsGui then
-                _G.FlyControlsGui:Destroy()
-                _G.FlyControlsGui = nil
+            if _G.FlyLoop then
+                _G.FlyLoop:Disconnect()
+                _G.FlyLoop = nil
             end
         end
     end
 })
 
--- Fly configuration toggles
-local FlyNoclipToggle = FlySection:AddToggle({
-    Name = "Auto Noclip While Flying",
-    Default = true,
-    Callback = function(Value)
-        _G.FlyNoclip = Value
-    end
-})
-
-local UseGyroToggle = FlySection:AddToggle({
-    Name = "Stabilize Flight",
-    Default = true,
-    Callback = function(Value)
-        _G.UseGyro = Value
-        
-        if _G.Flying then
-            -- If already flying, update gyro state
-            local character = LocalPlayer.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-                if Value then
-                    if not character.HumanoidRootPart:FindFirstChild("FlyGyro") then
-                        local bodyGyro = Instance.new("BodyGyro")
-                        bodyGyro.Name = "FlyGyro"
-                        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                        bodyGyro.P = 10000
-                        bodyGyro.D = 100
-                        bodyGyro.CFrame = character.HumanoidRootPart.CFrame
-                        bodyGyro.Parent = character.HumanoidRootPart
-                        
-                        spawn(function()
-                            while _G.Flying and character and character:FindFirstChild("HumanoidRootPart") and character.HumanoidRootPart:FindFirstChild("FlyGyro") do
-                                character.HumanoidRootPart.FlyGyro.CFrame = Camera.CFrame
-                                wait()
-                            end
-                        end)
-                    end
-                else
-                    local flyGyro = character.HumanoidRootPart:FindFirstChild("FlyGyro")
-                    if flyGyro then
-                        flyGyro:Destroy()
-                    end
-                end
-            end
-        end
-    end
-})
-
-local FlySpeedSlider = FlySection:AddSlider({
+-- Fly speed
+FlySection:AddSlider({
     Name = "Fly Speed",
-    Min = 1,
+    Min = 10,
     Max = 500,
-    Default = 50,
-    Increment = 5,
+    Default = 100,
+    Color = Color3.fromRGB(90, 120, 240),
+    Increment = 10,
+    ValueName = "speed",
     Callback = function(Value)
         _G.FlySpeed = Value
     end
 })
 
-local FlySpeedSlider = MobilitySection:AddSlider({
-    Name = "Fly Speed",
-    Min = 1,
-    Max = 200,
-    Default = 50,
-    Increment = 1,
-    Callback = function(Value)
-        _G.FlySpeed = Value
-    end
-})
-
--- Misc Tab
-local AutoFarmSection = MiscTab:CreateSection("Auto Farm")
-
--- Auto End feature
-local AutoEndToggle = AutoFarmSection:AddToggle({
-    Name = "Auto End (Round End)",
+-- No clip toggle
+FlySection:AddToggle({
+    Name = "No Clip",
     Default = false,
     Callback = function(Value)
-        _G.AutoEnd = Value
+        _G.NoClipEnabled = Value
         
         if Value then
-            -- Start auto end loop
-            spawn(function()
-                while _G.AutoEnd and wait(0.5) do
-                    -- Look for end zones/triggers in the map
-                    local endParts = {}
-                    
-                    -- Search for common end trigger names
-                    for _, obj in pairs(workspace:GetDescendants()) do
-                        if obj:IsA("BasePart") and (
-                           obj.Name:lower():find("end") or 
-                           obj.Name:lower():find("finish") or 
-                           obj.Name:lower():find("goal") or
-                           obj.Name:lower():find("exit") or
-                           obj.Name:lower():find("trigger")
-                        ) then
-                            table.insert(endParts, obj)
-                        end
-                    end
-                    
-                    -- Also check for parts with specific properties that might be end zones
-                    for _, obj in pairs(workspace:GetDescendants()) do
-                        if obj:IsA("BasePart") and obj.Transparency > 0.8 and obj.CanCollide == false then
-                            if not table.find(endParts, obj) then
-                                table.insert(endParts, obj)
-                            end
-                        end
-                    end
-                    
-                    -- If we found any potential end parts, teleport to the nearest one
-                    if #endParts > 0 and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        local closestPart = nil
-                        local closestDistance = math.huge
-                        
-                        for _, part in pairs(endParts) do
-                            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - part.Position).Magnitude
-                            if distance < closestDistance then
-                                closestDistance = distance
-                                closestPart = part
-                            end
-                        end
-                        
-                        if closestPart then
-                            -- Teleport to end part
-                            LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(closestPart.Position + Vector3.new(0, 5, 0)))
-                            print("Auto End: Teleported to potential end zone")
-                            wait(1) -- Wait a bit before trying again
+            -- Create noclip loop
+            _G.NoClipLoop = RunService.Stepped:Connect(function()
+                if LocalPlayer.Character then
+                    for _, child in pairs(LocalPlayer.Character:GetDescendants()) do
+                        if child:IsA("BasePart") and child.CanCollide then
+                            child.CanCollide = false
                         end
                     end
                 end
             end)
-        end
-    end
-})
-
--- Auto Bone Farm feature
-local AutoBoneFarmToggle = AutoFarmSection:AddToggle({
-    Name = "Auto Bone Farm",
-    Default = false,
-    Callback = function(Value)
-        _G.AutoBoneFarm = Value
-        
-        if Value then
-            -- Start auto bone farm loop
-            spawn(function()
-                while _G.AutoBoneFarm and wait(0.2) do
-                    -- Look for bones/collectibles in the map
-                    local bones = {}
-                    
-                    -- Search for bones or similar collectibles
-                    for _, obj in pairs(workspace:GetDescendants()) do
-                        if obj:IsA("BasePart") or obj:IsA("Model") then
-                            -- Check common names for collectibles
-                            if obj.Name:lower():find("bone") or 
-                               obj.Name:lower():find("collect") or 
-                               obj.Name:lower():find("pickup") or
-                               obj.Name:lower():find("coin") or
-                               obj.Name:lower():find("gem") then
-                                table.insert(bones, obj)
-                            end
-                        end
-                    end
-                    
-                    -- If we found any bones/collectibles, teleport to the nearest one
-                    if #bones > 0 and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        local closestBone = nil
-                        local closestDistance = math.huge
-                        
-                        for _, bone in pairs(bones) do
-                            -- Get the position (handle both BaseParts and Models)
-                            local position = bone:IsA("BasePart") and bone.Position or 
-                                             (bone:IsA("Model") and bone:FindFirstChildOfClass("BasePart") and 
-                                             bone:FindFirstChildOfClass("BasePart").Position)
-                            
-                            if position then
-                                local distance = (LocalPlayer.Character.HumanoidRootPart.Position - position).Magnitude
-                                if distance < closestDistance then
-                                    closestDistance = distance
-                                    closestBone = bone
-                                end
-                            end
-                        end
-                        
-                        if closestBone then
-                            -- Get position
-                            local position = closestBone:IsA("BasePart") and closestBone.Position or 
-                                            (closestBone:IsA("Model") and closestBone:FindFirstChildOfClass("BasePart") and 
-                                            closestBone:FindFirstChildOfClass("BasePart").Position)
-                            
-                            if position then
-                                -- Teleport to bone/collectible
-                                LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(position + Vector3.new(0, 3, 0)))
-                                print("Auto Bone Farm: Collected item")
-                                wait(0.5) -- Small delay between teleports
-                            end
-                        end
+        else
+            -- Remove noclip
+            if _G.NoClipLoop then
+                _G.NoClipLoop:Disconnect()
+                _G.NoClipLoop = nil
+            end
+            
+            -- Reset collision
+            if LocalPlayer.Character then
+                for _, child in pairs(LocalPlayer.Character:GetDescendants()) do
+                    if child:IsA("BasePart") then
+                        child.CanCollide = true
                     end
                 end
-            end)
+            end
         end
     end
 })
 
--- Advanced Auto Farm section
-local AdvancedFarmSection = MiscTab:CreateSection("Advanced Farming")
-
--- Auto farm distance slider
-local FarmDistanceSlider = AdvancedFarmSection:AddSlider({
-    Name = "Auto Farm Distance",
-    Min = 5,
-    Max = 100,
-    Default = 20,
-    Increment = 5,
-    Callback = function(Value)
-        _G.FarmDistance = Value
-    end
+-- Teleport Section
+local TeleportSection = PlayerTab:AddSection({
+    Name = "Teleport"
 })
 
--- Auto farm delay slider
-local FarmDelaySlider = AdvancedFarmSection:AddSlider({
-    Name = "Farm Delay (ms)",
-    Min = 100,
-    Max = 2000,
-    Default = 500,
-    Increment = 100,
-    Callback = function(Value)
-        _G.FarmDelay = Value / 1000 -- Convert to seconds
-    end
-})
-
--- Dead Rails Special Section
-local DeadRailsSpecialSection = MiscTab:CreateSection("Dead Rails Special")
-
-local TPRandomGunButton = DeadRailsSpecialSection:AddButton({
+-- Teleport to random weapon
+TeleportSection:AddButton({
     Name = "TP to Random Gun",
     Callback = function()
-        -- Find all weapons in the map
-        local weapons = {}
-        for _, item in pairs(workspace:GetDescendants()) do
-            if item:IsA("Model") and item:FindFirstChild("Pickup") then
-                table.insert(weapons, item)
+        -- Find guns in workspace
+        local guns = {}
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj:IsA("BasePart") and 
+               (obj.Name:lower():find("gun") or obj.Name:lower():find("weapon") or 
+                obj.Name:lower():find("rifle") or obj.Name:lower():find("pistol")) then
+                table.insert(guns, obj)
             end
         end
         
-        -- Teleport to random weapon if any found
-        if #weapons > 0 then
-            local randomWeapon = weapons[math.random(1, #weapons)]
-            if randomWeapon and randomWeapon:FindFirstChild("Pickup") then
-                LocalPlayer.Character:SetPrimaryPartCFrame(randomWeapon.Pickup.CFrame + Vector3.new(0, 3, 0))
-                print("Teleported to random weapon!")
+        if #guns > 0 then
+            -- Choose random gun
+            local randomGun = guns[math.random(1, #guns)]
+            
+            -- Teleport to it
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(randomGun.Position)
+                Notify("SkyX Hub", "Teleported to gun", 3)
             end
         else
-            warn("No weapons found in the map")
+            Notify("SkyX Hub", "No guns found", 3)
         end
     end
 })
 
-local TPNearestEnemyButton = DeadRailsSpecialSection:AddButton({
+-- Teleport to nearest player
+TeleportSection:AddButton({
     Name = "TP to Nearest Enemy",
     Callback = function()
-        local closestPlayer = nil
-        local closestDistance = math.huge
+        local nearestPlayer = nil
+        local nearestDistance = math.huge
         
         for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Team ~= LocalPlayer.Team then
-                local character = player.Character
-                if character and character:FindFirstChild("HumanoidRootPart") then
-                    local distance = (LocalPlayer.Character.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Magnitude
-                    if distance < closestDistance then
-                        closestDistance = distance
-                        closestPlayer = player
-                    end
+            if player ~= LocalPlayer and player.Character and
+               player.Character:FindFirstChild("HumanoidRootPart") and
+               LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                
+                local distance = (player.Character.HumanoidRootPart.Position - 
+                                  LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                
+                if distance < nearestDistance then
+                    nearestPlayer = player
+                    nearestDistance = distance
                 end
             end
         end
         
-        if closestPlayer and closestPlayer.Character and closestPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character:SetPrimaryPartCFrame(closestPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0))
-            print("Teleported to nearest enemy!")
+        if nearestPlayer then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = 
+                CFrame.new(nearestPlayer.Character.HumanoidRootPart.Position)
+            Notify("SkyX Hub", "Teleported to " .. nearestPlayer.Name, 3)
         else
-            warn("No enemies found")
+            Notify("SkyX Hub", "No enemies found", 3)
         end
     end
 })
 
-local TeleportSection = MiscTab:CreateSection("Player Teleport")
+-- Update game info initially
+UpdateGameInfo()
 
--- Create player dropdown
-local PlayerDropdown = TeleportSection:AddDropdown({
-    Name = "Select Player",
-    Options = {"None"},
-    Default = "None"
-})
-
-local TPToPlayerButton = TeleportSection:AddButton({
-    Name = "Teleport to Player",
-    Callback = function()
-        local selectedPlayer = PlayerDropdown:GetValue()
-        if selectedPlayer and selectedPlayer ~= "None" then
-            local player = Players:FindFirstChild(selectedPlayer)
-            if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                LocalPlayer.Character:SetPrimaryPartCFrame(player.Character.HumanoidRootPart.CFrame + Vector3.new(0, 5, 0))
-                print("Teleported to " .. player.Name)
-            end
-        end
-    end
-})
-
--- Update player dropdown options
-local function UpdatePlayersList()
-    local playerNames = {"None"}
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(playerNames, player.Name)
-        end
-    end
-    
-    PlayerDropdown:UpdateOptions(playerNames)
-end
-
--- Update player count
-local function UpdatePlayerCount()
-    PlayerCountText:SetText("Players: " .. #Players:GetPlayers())
-    TeamText:SetText("Team: " .. (LocalPlayer.Team and LocalPlayer.Team.Name or "None"))
-end
-
--- Update map info
-local function UpdateMapInfo()
-    -- Try to find map name
-    local mapName = "Unknown"
-    
-    -- Common locations for map info in Dead Rails
-    local mapModule = ReplicatedStorage:FindFirstChild("MapModule")
-    if mapModule and mapModule:FindFirstChild("CurrentMap") then
-        mapName = mapModule.CurrentMap.Value
-    end
-    
-    -- Update map label
-    CurrentMapText:SetText("Map: " .. mapName)
-end
-
--- Initial setup
-UpdatePlayersList()
-UpdatePlayerCount()
-UpdateMapInfo()
-
--- Handle player joining/leaving
-Players.PlayerAdded:Connect(function()
-    UpdatePlayersList()
-    UpdatePlayerCount()
-end)
-
-Players.PlayerRemoving:Connect(function()
-    UpdatePlayersList()
-    UpdatePlayerCount()
-end)
-
--- Load modules
-Modules.ESP = LoadModule("ESP")
-Modules.GunMods = LoadModule("GunMods")
-Modules.Aimbot = LoadModule("Aimbot")
-Modules.Teleport = LoadModule("Teleport")
-Modules.AntiBan = LoadModule("AntiBan")
-
--- Handle noclip - use anti-detection system
-RunService.Stepped:Connect(function()
-    if _G.Noclip and LocalPlayer.Character then
-        -- Use the undetectable noclip system
-        AntiDetection.SafeNoclip(true)
-    elseif not _G.Noclip and LocalPlayer.Character then
-        -- Turn off undetectable noclip
-        AntiDetection.SafeNoclip(false)
-    end
-end)
-
--- Handle Character respawn
+-- Handle character respawning
 LocalPlayer.CharacterAdded:Connect(function(character)
     -- Wait for humanoid
     local humanoid = character:WaitForChild("Humanoid")
     
-    -- Apply current settings
-    humanoid.WalkSpeed = WalkSpeedSlider:GetValue()
-    humanoid.JumpPower = JumpPowerSlider:GetValue()
-    
-    -- Re-apply noclip and fly if enabled
-    if _G.Flying then
-        FlyToggle:SetState(false)
-        wait(1)
-        FlyToggle:SetState(true)
+    -- Reapply speed and jump power
+    if _G.SelectedWalkSpeed then
+        humanoid.WalkSpeed = _G.SelectedWalkSpeed
     end
-end)
-
--- UI cleanup on script end
-game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
-    if State == Enum.TeleportState.Started then
-        for _, connection in pairs(SkyX.Connections) do
-            if connection then
-                connection:Disconnect()
+    if _G.SelectedJumpPower then
+        humanoid.JumpPower = _G.SelectedJumpPower
+    end
+    
+    -- Re-enable fly if it was enabled
+    if _G.FlyEnabled then
+        _G.FlyEnabled = false
+        wait(0.5)
+        
+        -- Find fly toggle in the UI
+        for _, tab in pairs(Window.Tabs) do
+            if tab.Name == "Player" then
+                for _, section in pairs(tab.Sections) do
+                    if section.Name == "Flying" then
+                        for _, element in pairs(section.Elements) do
+                            if element.Name == "Enable Fly" and element.Type == "Toggle" then
+                                element:Set(true)
+                                break
+                            end
+                        end
+                    end
+                end
             end
         end
-        SkyXUI:Destroy()
+    end
+    
+    -- Re-enable noclip if it was enabled
+    if _G.NoClipEnabled then
+        -- Create noclip loop again
+        _G.NoClipLoop = RunService.Stepped:Connect(function()
+            if character then
+                for _, child in pairs(character:GetDescendants()) do
+                    if child:IsA("BasePart") and child.CanCollide then
+                        child.CanCollide = false
+                    end
+                end
+            end
+        end)
     end
 end)
 
-print("SkyX Dead Rails Modular loaded successfully | Press Right Control to toggle UI")
+-- Initialize script
+OrionLib:Init()
 
--- Toggle UI with Right Control key
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
-        MainWindow.Visible = not MainWindow.Visible
-    end
-end)
+-- Set default variables
+_G.FarmDelay = 0.5
+_G.FarmDistance = 20
+_G.FlySpeed = 100
+
+-- Send success notification
+Notify("SkyX Hub", "Dead Rails script loaded!", 5)
+
+print("SkyX Dead Rails Orion loaded successfully!")
