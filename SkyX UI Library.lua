@@ -1,6 +1,6 @@
 --[[
     🌊 SkyX Hub - Modern UI Library 🌊
-    ULTRA MODERN VERSION 5.0
+    ULTRA MODERN VERSION 5.u
     
     Based on the latest Roblox UI design trends with:
     - Clean, ultra-dark design
@@ -14,7 +14,9 @@
 -- Library initialization
 local SkyXModern = {}
 SkyXModern.Windows = {}
-SkyXModern.Theme = {
+
+-- Default theme - will be used if user doesn't provide custom theme
+SkyXModern.DefaultTheme = {
     BackgroundColor = Color3.fromRGB(18, 18, 24),
     SidebarColor = Color3.fromRGB(24, 24, 34),
     ContainerColor = Color3.fromRGB(30, 30, 40),
@@ -37,6 +39,9 @@ SkyXModern.Theme = {
     SuccessColor = Color3.fromRGB(85, 255, 127),
     WarningColor = Color3.fromRGB(255, 185, 85)
 }
+
+-- Current theme - will be set when CreateWindow is called
+SkyXModern.Theme = SkyXModern.DefaultTheme
 
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -164,9 +169,20 @@ function SkyXModern:CreateWindow(options)
     options.LoadingTitle = options.LoadingTitle or "SkyX Hub"
     options.LoadingSubtitle = options.LoadingSubtitle or "by SkyX Team"
     options.ConfigurationSaving = options.ConfigurationSaving or { Enabled = false }
-    options.Theme = options.Theme or self.Theme
     options.KeySystem = options.KeySystem or false
     options.KeySettings = options.KeySettings or { Title = "Key System", Subtitle = "Key Required", Note = "Get the key from our Discord server" }
+    
+    -- Set the current theme to either the user's theme or the default theme
+    if options.Theme then
+        -- Make a copy of the user's theme
+        SkyXModern.Theme = {}
+        for key, value in pairs(options.Theme) do
+            SkyXModern.Theme[key] = value
+        end
+    else
+        -- Use default theme
+        SkyXModern.Theme = SkyXModern.DefaultTheme
+    end
     
     -- Increment window count
     WindowCount = WindowCount + 1
@@ -318,25 +334,34 @@ function SkyXModern:CreateWindow(options)
     end)
     
     -- Window toggle function (Keybind: RightControl)
-    local windowVisible = true
-    local windowPosition = UDim2.new(0.5, -300, 0.5, -187.5)
+    _G.windowVisible = true
+    _G.windowPosition = UDim2.new(0.5, -300, 0.5, -187.5)
     
     local function ToggleWindow()
-        windowVisible = not windowVisible
-        MainFrame.Visible = windowVisible
+        _G.windowVisible = not _G.windowVisible
+        MainFrame.Visible = _G.windowVisible
         
-        if windowVisible then
-            MainFrame.Position = windowPosition
+        if _G.windowVisible then
+            MainFrame.Position = _G.windowPosition
         else
-            windowPosition = MainFrame.Position
+            _G.windowPosition = MainFrame.Position
         end
     end
     
-    AddConnection(UserInputService.InputBegan, function(input, gameProcessed)
-        if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
-            ToggleWindow()
-        end
-    end)
+    -- Use global toggle for the window
+    _G.ToggleSkyXUI = ToggleWindow
+    
+    -- Setup keybind for toggle
+    local function setupKeybind()
+        UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+                ToggleWindow()
+            end
+        end)
+    end
+    
+    -- Run the keybind setup
+    setupKeybind()
     
     -- Mobile Toggle Button
     if IsMobile then
@@ -624,7 +649,7 @@ function SkyXModern:CreateWindow(options)
                 local Button = Instance.new("TextButton")
                 Button.Name = "Button"
                 Button.Size = UDim2.new(1, 0, 1, 0)
-                Button.BackgroundColor3 = options.Theme.ButtonColor
+                Button.BackgroundColor3 = SkyXModern.Theme.ButtonColor
                 Button.BorderSizePixel = 0
                 Button.Text = ""
                 Button.AutoButtonColor = false
@@ -648,11 +673,11 @@ function SkyXModern:CreateWindow(options)
                 
                 -- Add hover/click effects
                 AddConnection(Button.MouseEnter, function()
-                    CreateTween(Button, 0.2, {BackgroundColor3 = options.Theme.ButtonHoverColor}):Play()
+                    CreateTween(Button, 0.2, {BackgroundColor3 = SkyXModern.Theme.ButtonHoverColor}):Play()
                 end)
                 
                 AddConnection(Button.MouseLeave, function()
-                    CreateTween(Button, 0.2, {BackgroundColor3 = options.Theme.ButtonColor}):Play()
+                    CreateTween(Button, 0.2, {BackgroundColor3 = SkyXModern.Theme.ButtonColor}):Play()
                 end)
                 
                 AddConnection(Button.MouseButton1Down, function()
