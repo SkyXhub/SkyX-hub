@@ -1,6 +1,6 @@
 --[[
     SkyX Blox Fruits Script
-    Mobile-friendly with MM2-style fallback modules
+    Mobile-friendly with MM2-stylmjm mm m m m m mm e fallback modules
     Works on: KRNL, Swift, Fluxus, Delta and other mobile executors
 ]]
 
@@ -23,6 +23,63 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
+-- GitHub Module URLs
+local ModuleURLs = {
+    AutoFarm = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/AutoFarm%20(3).lua",
+    ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/ESP%20(1).lua",
+    DevilFruit = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/DevilFruit%20(1).lua",
+    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Teleport%20(1).lua",
+    AntiBan = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/AntiBan%20(1).lua",
+    Stats = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Stats%20(1).lua",
+    Items = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Items.lua",
+    Combat = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Combat.lua"
+}
+
+-- Placeholder for modules that will be loaded after UI creation
+local Modules = {}
+
+-- Load a module from URL
+local function LoadModule(moduleName)
+    local url = ModuleURLs[moduleName]
+    if not url then
+        warn("No URL found for module: " .. moduleName)
+        return nil
+    end
+    
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    
+    if success then
+        print("✅ Successfully loaded: " .. moduleName)
+        return result
+    else
+        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. tostring(result))
+        -- Create fallback placeholder module
+        local placeholderModule = {}
+        placeholderModule.Settings = {}
+        placeholderModule.Start = function() end
+        placeholderModule.Stop = function() end
+        return placeholderModule
+    end
+end
+
+-- Create connections table for cleanup
+local Connections = {}
+
+-- Function to add connection and track it for cleanup
+local function AddConnection(signal, callback)
+    if not signal then
+        warn("SkyX: Attempted to connect to nil signal")
+        return
+    end
+    
+    local connection = signal:Connect(callback)
+    table.insert(Connections, connection)
+    return connection
+end
+
+print("SkyX Blox Fruits - Starting on " .. DeviceText .. " device")
 
 -- UI Colors
 local Colors = {
@@ -342,7 +399,7 @@ local function CreateSection(tab, name)
         Button.Size = UDim2.new(1, 0, 0, 30)
         Button.BackgroundColor3 = Colors.Button
         Button.BorderSizePixel = 0
-        Button.Font = Enum.Font.GothamBold
+        Button.Font = Enum.Font.Gotham
         Button.TextSize = 14
         Button.TextColor3 = Colors.Text
         Button.Text = text
@@ -354,19 +411,24 @@ local function CreateSection(tab, name)
         ButtonCorner.CornerRadius = UDim.new(0, 5)
         ButtonCorner.Parent = Button
         
+        -- Add hover effect
+        AddConnection(Button.MouseEnter, function()
+            Button.BackgroundColor3 = Colors.Highlight
+        end)
+        
+        AddConnection(Button.MouseLeave, function()
+            Button.BackgroundColor3 = Colors.Button
+        end)
+        
         -- Add click functionality
         if callback then
-            AddConnection(Button.MouseButton1Click, function()
-                callback()
-            end)
+            AddConnection(Button.MouseButton1Click, callback)
         end
         
         -- Create button object
         local ButtonObj = {
             Button = Button,
-            
-            -- Set text
-            SetText = function(self, newText)
+            SetText = function(_, newText)
                 Button.Text = newText
             end
         }
@@ -377,20 +439,18 @@ local function CreateSection(tab, name)
     
     -- Method to add a toggle
     function SectionObj:AddToggle(text, default, callback)
-        default = default or false
-        
         -- Create toggle container
         local ToggleContainer = Instance.new("Frame")
-        ToggleContainer.Name = text .. "Toggle"
+        ToggleContainer.Name = text .. "ToggleContainer"
         ToggleContainer.Size = UDim2.new(1, 0, 0, 30)
         ToggleContainer.BackgroundTransparency = 1
         ToggleContainer.LayoutOrder = #self.Elements
         ToggleContainer.Parent = self.Container
         
-        -- Create toggle label
+        -- Create label
         local Label = Instance.new("TextLabel")
         Label.Name = "Label"
-        Label.Size = UDim2.new(1, -56, 1, 0)
+        Label.Size = UDim2.new(1, -50, 1, 0)
         Label.BackgroundTransparency = 1
         Label.Font = Enum.Font.Gotham
         Label.TextSize = 14
@@ -399,81 +459,85 @@ local function CreateSection(tab, name)
         Label.Text = text
         Label.Parent = ToggleContainer
         
-        -- Create toggle indicator background
-        local ToggleBack = Instance.new("Frame")
-        ToggleBack.Name = "Background"
-        ToggleBack.Size = UDim2.new(0, 46, 0, 20)
-        ToggleBack.Position = UDim2.new(1, -50, 0.5, -10)
-        ToggleBack.BackgroundColor3 = default and Colors.Success or Colors.Danger
-        ToggleBack.BorderSizePixel = 0
-        ToggleBack.Parent = ToggleContainer
+        -- Create toggle button
+        local ToggleFrame = Instance.new("Frame")
+        ToggleFrame.Name = "ToggleFrame"
+        ToggleFrame.Size = UDim2.new(0, 40, 0, 20)
+        ToggleFrame.Position = UDim2.new(1, -40, 0.5, -10)
+        ToggleFrame.BackgroundColor3 = default and Colors.Success or Colors.Danger
+        ToggleFrame.BorderSizePixel = 0
+        ToggleFrame.Parent = ToggleContainer
         
-        -- Add corner to background
+        -- Add corner
         local ToggleCorner = Instance.new("UICorner")
         ToggleCorner.CornerRadius = UDim.new(0, 10)
-        ToggleCorner.Parent = ToggleBack
+        ToggleCorner.Parent = ToggleFrame
         
         -- Create toggle indicator
         local Indicator = Instance.new("Frame")
         Indicator.Name = "Indicator"
         Indicator.Size = UDim2.new(0, 16, 0, 16)
-        Indicator.Position = UDim2.new(default and 0.65 or 0.1, 0, 0.5, -8)
+        Indicator.Position = default and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
         Indicator.BackgroundColor3 = Colors.Text
         Indicator.BorderSizePixel = 0
-        Indicator.Parent = ToggleBack
+        Indicator.Parent = ToggleFrame
         
         -- Add corner to indicator
         local IndicatorCorner = Instance.new("UICorner")
         IndicatorCorner.CornerRadius = UDim.new(0, 8)
         IndicatorCorner.Parent = Indicator
         
-        -- Create click area
-        local ClickArea = Instance.new("TextButton")
-        ClickArea.Name = "ClickArea"
-        ClickArea.Size = UDim2.new(1, 0, 1, 0)
-        ClickArea.BackgroundTransparency = 1
-        ClickArea.Text = ""
-        ClickArea.Parent = ToggleContainer
+        -- Create the clickable button that covers the whole thing
+        local ClickButton = Instance.new("TextButton")
+        ClickButton.Name = "ClickButton"
+        ClickButton.Size = UDim2.new(1, 0, 1, 0)
+        ClickButton.BackgroundTransparency = 1
+        ClickButton.Text = ""
+        ClickButton.Parent = ToggleContainer
+        
+        -- Track state
+        local enabled = default or false
+        
+        -- Add click functionality
+        AddConnection(ClickButton.MouseButton1Click, function()
+            enabled = not enabled
+            
+            -- Update visuals
+            ToggleFrame.BackgroundColor3 = enabled and Colors.Success or Colors.Danger
+            
+            -- Create animation
+            local newPosition = enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
+            TweenService:Create(Indicator, TweenInfo.new(0.2), {Position = newPosition}):Play()
+            
+            -- Callback
+            if callback then
+                callback(enabled)
+            end
+        end)
         
         -- Create toggle object
         local ToggleObj = {
-            Value = default,
             Container = ToggleContainer,
-            Label = Label,
+            Frame = ToggleFrame,
+            Button = ClickButton,
+            Enabled = enabled,
             
-            -- Toggle function
-            Toggle = function(self, state)
-                if state ~= nil then
-                    self.Value = state
-                else
-                    self.Value = not self.Value
-                end
+            -- Set the toggle state
+            SetValue = function(_, value)
+                enabled = value
+                ToggleFrame.BackgroundColor3 = enabled and Colors.Success or Colors.Danger
+                Indicator.Position = enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
                 
-                -- Update visual
-                TweenService:Create(ToggleBack, TweenInfo.new(0.2), {
-                    BackgroundColor3 = self.Value and Colors.Success or Colors.Danger
-                }):Play()
-                
-                TweenService:Create(Indicator, TweenInfo.new(0.2), {
-                    Position = UDim2.new(self.Value and 0.65 or 0.1, 0, 0.5, -8)
-                }):Play()
-                
-                -- Call callback
                 if callback then
-                    callback(self.Value)
+                    callback(enabled)
                 end
             end,
             
-            -- Set text function
-            SetText = function(self, newText)
-                Label.Text = newText
+            -- Get the current state
+            GetValue = function()
+                return enabled
             end
         }
-        
-        -- Add click functionality
-        AddConnection(ClickArea.MouseButton1Click, function()
-            ToggleObj:Toggle()
-        end)
         
         table.insert(self.Elements, ToggleObj)
         return ToggleObj
@@ -481,58 +545,51 @@ local function CreateSection(tab, name)
     
     -- Method to add a slider
     function SectionObj:AddSlider(text, min, max, default, callback)
-        min = min or 0
-        max = max or 100
-        default = default or min
-        
-        -- Clamp default value
-        default = math.clamp(default, min, max)
-        
-        -- Create slider frame
+        -- Create slider container
         local SliderContainer = Instance.new("Frame")
-        SliderContainer.Name = text .. "Slider"
-        SliderContainer.Size = UDim2.new(1, 0, 0, 45)
+        SliderContainer.Name = text .. "SliderContainer"
+        SliderContainer.Size = UDim2.new(1, 0, 0, 50)
         SliderContainer.BackgroundTransparency = 1
         SliderContainer.LayoutOrder = #self.Elements
         SliderContainer.Parent = self.Container
         
-        -- Create slider title
-        local Title = Instance.new("TextLabel")
-        Title.Name = "Title"
-        Title.Size = UDim2.new(1, 0, 0, 20)
-        Title.BackgroundTransparency = 1
-        Title.Font = Enum.Font.Gotham
-        Title.TextSize = 14
-        Title.TextColor3 = Colors.Text
-        Title.TextXAlignment = Enum.TextXAlignment.Left
-        Title.Text = text
-        Title.Parent = SliderContainer
+        -- Create label
+        local Label = Instance.new("TextLabel")
+        Label.Name = "Label"
+        Label.Size = UDim2.new(1, -50, 0, 20)
+        Label.BackgroundTransparency = 1
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 14
+        Label.TextColor3 = Colors.Text
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Text = text
+        Label.Parent = SliderContainer
         
-        -- Create slider value display
-        local ValueDisplay = Instance.new("TextLabel")
-        ValueDisplay.Name = "Value"
-        ValueDisplay.Size = UDim2.new(0, 50, 0, 20)
-        ValueDisplay.Position = UDim2.new(1, -50, 0, 0)
-        ValueDisplay.BackgroundTransparency = 1
-        ValueDisplay.Font = Enum.Font.GothamBold
-        ValueDisplay.TextSize = 14
-        ValueDisplay.TextColor3 = Colors.Text
-        ValueDisplay.Text = tostring(default)
-        ValueDisplay.Parent = SliderContainer
+        -- Create value label
+        local ValueLabel = Instance.new("TextLabel")
+        ValueLabel.Name = "Value"
+        ValueLabel.Size = UDim2.new(0, 40, 0, 20)
+        ValueLabel.Position = UDim2.new(1, -40, 0, 0)
+        ValueLabel.BackgroundTransparency = 1
+        ValueLabel.Font = Enum.Font.GothamBold
+        ValueLabel.TextSize = 14
+        ValueLabel.TextColor3 = Colors.Text
+        ValueLabel.Text = tostring(default)
+        ValueLabel.Parent = SliderContainer
         
         -- Create slider background
-        local SliderBack = Instance.new("Frame")
-        SliderBack.Name = "Background"
-        SliderBack.Size = UDim2.new(1, 0, 0, 10)
-        SliderBack.Position = UDim2.new(0, 0, 0, 30)
-        SliderBack.BackgroundColor3 = Colors.Container
-        SliderBack.BorderSizePixel = 0
-        SliderBack.Parent = SliderContainer
+        local SliderBackground = Instance.new("Frame")
+        SliderBackground.Name = "Background"
+        SliderBackground.Size = UDim2.new(1, 0, 0, 10)
+        SliderBackground.Position = UDim2.new(0, 0, 0, 30)
+        SliderBackground.BackgroundColor3 = Colors.Container
+        SliderBackground.BorderSizePixel = 0
+        SliderBackground.Parent = SliderContainer
         
-        -- Add corner to background
-        local SliderCorner = Instance.new("UICorner")
-        SliderCorner.CornerRadius = UDim.new(0, 5)
-        SliderCorner.Parent = SliderBack
+        -- Add corner
+        local BackgroundCorner = Instance.new("UICorner")
+        BackgroundCorner.CornerRadius = UDim.new(0, 5)
+        BackgroundCorner.Parent = SliderBackground
         
         -- Create slider fill
         local SliderFill = Instance.new("Frame")
@@ -540,98 +597,87 @@ local function CreateSection(tab, name)
         SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
         SliderFill.BackgroundColor3 = Colors.Button
         SliderFill.BorderSizePixel = 0
-        SliderFill.Parent = SliderBack
+        SliderFill.Parent = SliderBackground
         
         -- Add corner to fill
         local FillCorner = Instance.new("UICorner")
         FillCorner.CornerRadius = UDim.new(0, 5)
         FillCorner.Parent = SliderFill
         
-        -- Create slider knob
-        local Knob = Instance.new("Frame")
-        Knob.Name = "Knob"
-        Knob.Size = UDim2.new(0, 16, 0, 16)
-        Knob.Position = UDim2.new((default - min) / (max - min), -8, 0.5, -8)
-        Knob.BackgroundColor3 = Colors.Text
-        Knob.BorderSizePixel = 0
-        Knob.ZIndex = 2
-        Knob.Parent = SliderBack
-        
-        -- Add corner to knob
-        local KnobCorner = Instance.new("UICorner")
-        KnobCorner.CornerRadius = UDim.new(0, 8) -- Circular knob
-        KnobCorner.Parent = Knob
-        
-        -- Create click area
+        -- Create slider button for better interaction
         local SliderButton = Instance.new("TextButton")
         SliderButton.Name = "SliderButton"
         SliderButton.Size = UDim2.new(1, 0, 1, 0)
         SliderButton.BackgroundTransparency = 1
         SliderButton.Text = ""
-        SliderButton.Parent = SliderBack
+        SliderButton.Parent = SliderBackground
         
-        -- Create slider object
-        local SliderObj = {
-            Value = default,
-            Min = min,
-            Max = max,
+        -- Track value
+        local value = default or min
+        
+        -- Function to update slider
+        local function updateSlider(newValue)
+            -- Clamp value
+            newValue = math.clamp(newValue, min, max)
+            value = newValue
             
-            -- Set value function
-            SetValue = function(self, value)
-                -- Clamp value
-                value = math.clamp(value, self.Min, self.Max)
-                self.Value = value
-                
-                -- Update visuals
-                local percent = (value - self.Min) / (self.Max - self.Min)
-                SliderFill.Size = UDim2.new(percent, 0, 1, 0)
-                Knob.Position = UDim2.new(percent, -8, 0.5, -8)
-                ValueDisplay.Text = tostring(math.floor(value))
-                
-                -- Call callback
-                if callback then
-                    callback(value)
-                end
-            end,
+            -- Update visuals
+            SliderFill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
+            ValueLabel.Text = tostring(math.floor(value * 10) / 10) -- Round to 1 decimal
             
-            -- Set text function
-            SetText = function(self, newText)
-                Title.Text = newText
+            -- Callback
+            if callback then
+                callback(value)
             end
-        }
+        end
         
-        -- Initialize slider interaction
-        local sliding = false
+        -- Add drag functionality
+        local isDragging = false
         
-        AddConnection(SliderButton.InputBegan, function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                sliding = true
-                
-                -- Calculate slider position from input
-                local percent = math.clamp((input.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
-                local value = min + (max - min) * percent
-                
-                SliderObj:SetValue(value)
+        AddConnection(SliderButton.MouseButton1Down, function()
+            isDragging = true
+        end)
+        
+        AddConnection(UserInputService.InputEnded, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                isDragging = false
             end
         end)
         
         AddConnection(UserInputService.InputChanged, function(input)
-            if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                -- Calculate slider position from input
-                local inset = game:GetService("GuiService"):GetGuiInset()
-                local pos = input.Position.X - inset.X
-                local percent = math.clamp((pos - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
-                local value = min + (max - min) * percent
+            if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                -- Calculate the position
+                local absPos = SliderBackground.AbsolutePosition
+                local absSize = SliderBackground.AbsoluteSize
+                local relativePos = input.Position.X - absPos.X
                 
-                SliderObj:SetValue(value)
+                -- Calculate value
+                local percent = math.clamp(relativePos / absSize.X, 0, 1)
+                local newValue = min + (max - min) * percent
+                
+                -- Update slider
+                updateSlider(newValue)
             end
         end)
         
-        AddConnection(UserInputService.InputEnded, function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                sliding = false
+        -- Create slider object
+        local SliderObj = {
+            Container = SliderContainer,
+            Background = SliderBackground,
+            Fill = SliderFill,
+            Button = SliderButton,
+            Value = value,
+            
+            -- Set value
+            SetValue = function(_, newValue)
+                updateSlider(newValue)
+            end,
+            
+            -- Get value
+            GetValue = function()
+                return value
             end
-        end)
+        }
         
         table.insert(self.Elements, SliderObj)
         return SliderObj
@@ -641,7 +687,7 @@ local function CreateSection(tab, name)
     function SectionObj:AddLabel(text)
         local Label = Instance.new("TextLabel")
         Label.Name = "Label"
-        Label.Size = UDim2.new(1, 0, 0, 20)
+        Label.Size = UDim2.new(1, 0, 0, 25)
         Label.BackgroundTransparency = 1
         Label.Font = Enum.Font.Gotham
         Label.TextSize = 14
@@ -655,8 +701,8 @@ local function CreateSection(tab, name)
         local LabelObj = {
             Label = Label,
             
-            -- Set text function
-            SetText = function(self, newText)
+            -- Set text
+            SetText = function(_, newText)
                 Label.Text = newText
             end
         }
@@ -665,997 +711,380 @@ local function CreateSection(tab, name)
         return LabelObj
     end
     
-    -- Add to tab sections
+    -- Add to tab's sections
     table.insert(tab.Sections, SectionObj)
+    
     return SectionObj
 end
 
--- Function to close the UI
-local function CloseUI()
-    -- Clean up connections
-    for _, connection in pairs(Connections) do
-        connection:Disconnect()
-    end
-    
-    -- Destroy UI
-    SkyXUI:Destroy()
-    
-    print("SkyX Blox Fruits closed properly")
-end
-
--- Add close button functionality
-AddConnection(CloseButton.MouseButton1Click, CloseUI)
-
--- Create keybind to toggle UI
-local ToggleUI = function()
-    SkyXUI.Enabled = not SkyXUI.Enabled
-end
-
--- Add keybind (RightControl)
-AddConnection(UserInputService.InputBegan, function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
-        ToggleUI()
-    end
-end)
-
--- Create mobile toggle button for mobile devices
-if IsMobile then
-    local MobileToggleGui = Instance.new("ScreenGui")
-    MobileToggleGui.Name = "SkyXMobileToggle"
-    MobileToggleGui.ResetOnSpawn = false
-    MobileToggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    
-    -- Handle executor security models
-    if syn then
-        syn.protect_gui(MobileToggleGui)
-        MobileToggleGui.Parent = game.CoreGui
-    else
-        MobileToggleGui.Parent = gethui and gethui() or game.CoreGui
-    end
-    
-    -- Create toggle button
-    local MobileToggle = Instance.new("ImageButton")
-    MobileToggle.Name = "ToggleButton"
-    MobileToggle.Size = UDim2.new(0, 50, 0, 50)
-    MobileToggle.Position = UDim2.new(0, 20, 0.5, -25)
-    MobileToggle.BackgroundColor3 = Colors.Button
-    MobileToggle.BorderSizePixel = 0
-    MobileToggle.Image = "rbxassetid://7059346373" -- Menu icon
-    MobileToggle.ImageColor3 = Colors.Text
-    MobileToggle.ZIndex = 10
-    MobileToggle.Parent = MobileToggleGui
-    
-    -- Add corner
-    local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(1, 0) -- Circle
-    ToggleCorner.Parent = MobileToggle
-    
-    -- Add shadow
-    local ToggleShadow = Instance.new("ImageLabel")
-    ToggleShadow.Name = "Shadow"
-    ToggleShadow.AnchorPoint = Vector2.new(0.5, 0.5)
-    ToggleShadow.Size = UDim2.new(1, 10, 1, 10)
-    ToggleShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    ToggleShadow.BackgroundTransparency = 1
-    ToggleShadow.Image = "rbxassetid://6015897843" -- Shadow image
-    ToggleShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    ToggleShadow.ImageTransparency = 0.6
-    ToggleShadow.ZIndex = 9
-    ToggleShadow.Parent = MobileToggle
-    
-    -- Add click functionality
-    AddConnection(MobileToggle.MouseButton1Click, ToggleUI)
-    
-    -- Make mobile toggle draggable
-    local draggingToggle = false
-    local dragInputToggle
-    local dragStartToggle
-    local startPosToggle
-    
-    AddConnection(MobileToggle.InputBegan, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            draggingToggle = true
-            dragStartToggle = input.Position
-            startPosToggle = MobileToggle.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    draggingToggle = false
-                end
-            end)
-        end
-    end)
-    
-    AddConnection(MobileToggle.InputChanged, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInputToggle = input
-        end
-    end)
-    
-    AddConnection(UserInputService.InputChanged, function(input)
-        if input == dragInputToggle and draggingToggle then
-            local delta = input.Position - dragStartToggle
-            MobileToggle.Position = UDim2.new(startPosToggle.X.Scale, startPosToggle.X.Offset + delta.X, startPosToggle.Y.Scale, startPosToggle.Y.Offset + delta.Y)
-        end
-    end)
-end
-
--- Create modules table
-local Modules = {}
-
--- MODULES SECTION - Following the MM2 pattern of creating fallbacks for modules
-
--- Function to create a fallback module
-local function CreateFallbackModule(name)
-    print("Creating fallback module for: " .. name)
-    return {
-        Settings = {},
-        Start = function() print("Starting fallback " .. name .. " module") end,
-        Stop = function() print("Stopping fallback " .. name .. " module") end,
-        GetStatus = function() return {Enabled = false, Message = "Module not available"} end
-    }
-end
-
--- Auto Farm Module
-local function LoadAutoFarmModule()
-    local success, result = pcall(function()
-        local module = {
-            Settings = {
-                Enabled = false,
-                TargetMobs = {"Bandit", "Monkey", "Gorilla"},
-                AutoCollectDrops = true,
-                AutoEquipWeapon = true,
-                SelectedWeapon = "Combat"
-            },
-            
-            Start = function(self)
-                if self.Settings.Enabled then
-                    print("Auto Farm started with target: " .. table.concat(self.Settings.TargetMobs, ", "))
-                    
-                    -- Actual implementation would go here in a real script
-                    -- This is just a placeholder for the demo
-                end
-            end,
-            
-            Stop = function(self)
-                print("Auto Farm stopped")
-            end,
-            
-            GetStatus = function(self)
-                return {
-                    Enabled = self.Settings.Enabled,
-                    CurrentTarget = self.Settings.TargetMobs[1],
-                    TotalKills = 0,
-                    TimeElapsed = 0
-                }
-            end,
-            
-            GetMobList = function()
-                -- Return a list of available mobs in the current area
-                return {"Bandit", "Monkey", "Gorilla", "Pirate", "Clown Pirate", "Marine"}
-            end
-        }
-        
-        return module
-    end)
-    
-    if success then
-        return result
-    else
-        warn("Failed to load Auto Farm module: " .. tostring(result))
-        return CreateFallbackModule("Auto Farm")
-    end
-end
-
--- Teleport Module
-local function LoadTeleportModule()
-    local success, result = pcall(function()
-        local module = {
-            Settings = {
-                SafeMode = true,
-                AntiDetection = {
-                    Enabled = true,
-                    Delay = 1
-                }
-            },
-            
-            TeleportToLocation = function(self, locationName)
-                print("Teleporting to: " .. locationName)
-                
-                -- Actual implementation would go here in a real script
-                -- This is just a placeholder for the demo
-                
-                return true, "Teleported successfully"
-            end,
-            
-            GetLocationsList = function()
-                -- Return a list of available locations in the game
-                return {
-                    {Name = "Starter Island", Icon = "🏝️"},
-                    {Name = "Middle Town", Icon = "🏙️"},
-                    {Name = "Jungle", Icon = "🌴"},
-                    {Name = "Pirate Village", Icon = "⚓"},
-                    {Name = "Desert", Icon = "🏜️"},
-                    {Name = "Frozen Village", Icon = "❄️"},
-                    {Name = "Marine Ford", Icon = "🚢"},
-                    {Name = "Colosseum", Icon = "🏛️"},
-                    {Name = "Prison", Icon = "🔒"},
-                    {Name = "Magma Village", Icon = "🌋"}
-                }
-            end
-        }
-        
-        return module
-    end)
-    
-    if success then
-        return result
-    else
-        warn("Failed to load Teleport module: " .. tostring(result))
-        return CreateFallbackModule("Teleport")
-    end
-end
-
--- ESP Module
-local function LoadESPModule()
-    local success, result = pcall(function()
-        local module = {
-            Settings = {
-                Enabled = false,
-                ShowPlayers = true,
-                ShowNPCs = true,
-                ShowChests = true,
-                ShowDistance = true,
-                ShowHealth = true,
-                ShowBounty = false,
-                RainbowESP = false,
-                RainbowSpeed = 5,
-                PlayerColor = Color3.fromRGB(255, 0, 0),
-                NPCColor = Color3.fromRGB(0, 255, 0),
-                ChestColor = Color3.fromRGB(255, 255, 0)
-            },
-            
-            Start = function(self)
-                if self.Settings.Enabled then
-                    print("ESP started with settings: ShowPlayers=" .. tostring(self.Settings.ShowPlayers) .. 
-                          ", ShowNPCs=" .. tostring(self.Settings.ShowNPCs) .. 
-                          ", ShowChests=" .. tostring(self.Settings.ShowChests))
-                end
-            end,
-            
-            Stop = function(self)
-                print("ESP stopped")
-            end
-        }
-        
-        return module
-    end)
-    
-    if success then
-        return result
-    else
-        warn("Failed to load ESP module: " .. tostring(result))
-        return CreateFallbackModule("ESP")
-    end
-end
-
--- Devil Fruit Module
-local function LoadDevilFruitModule()
-    local success, result = pcall(function()
-        local module = {
-            Settings = {
-                AutoBuy = false,
-                AutoBuyRarity = "Rare",
-                NotifyOnSpawn = true,
-                AutoPickup = true,
-                StoreFruits = false
-            },
-            
-            Start = function(self)
-                print("Devil Fruit module started")
-            end,
-            
-            Stop = function(self)
-                print("Devil Fruit module stopped")
-            end,
-            
-            GetAvailableFruits = function()
-                -- Return a list of available Devil Fruits in the game
-                return {
-                    {Name = "Bomb Fruit", Rarity = "Common", Price = 100000},
-                    {Name = "Spike Fruit", Rarity = "Common", Price = 180000},
-                    {Name = "Chop Fruit", Rarity = "Common", Price = 220000},
-                    {Name = "Spring Fruit", Rarity = "Common", Price = 250000},
-                    {Name = "Smoke Fruit", Rarity = "Uncommon", Price = 500000},
-                    {Name = "Flame Fruit", Rarity = "Rare", Price = 800000},
-                    {Name = "Ice Fruit", Rarity = "Rare", Price = 1000000},
-                    {Name = "Sand Fruit", Rarity = "Rare", Price = 1200000},
-                    {Name = "Dark Fruit", Rarity = "Very Rare", Price = 1500000},
-                    {Name = "Light Fruit", Rarity = "Very Rare", Price = 1800000},
-                    {Name = "Quake Fruit", Rarity = "Legendary", Price = 2400000}
-                }
-            end
-        }
-        
-        return module
-    end)
-    
-    if success then
-        return result
-    else
-        warn("Failed to load Devil Fruit module: " .. tostring(result))
-        return CreateFallbackModule("Devil Fruit")
-    end
-end
-
--- Combat Module
-local function LoadCombatModule()
-    local success, result = pcall(function()
-        local module = {
-            Settings = {
-                AutoAttack = false,
-                AutoBlock = false,
-                AutoDodge = false,
-                AutoSkills = true,
-                SkillOrdering = {"Z", "X", "C", "V", "F"},
-                AttackPlayers = false,
-                TargetSelection = "Closest",
-                KillAura = false,
-                KillAuraRange = 15
-            },
-            
-            Start = function(self)
-                print("Combat module started with AutoSkills=" .. tostring(self.Settings.AutoSkills))
-            end,
-            
-            Stop = function(self)
-                print("Combat module stopped")
-            end,
-            
-            GetWeaponsList = function()
-                -- Return a list of player's weapons
-                return {"Combat", "Katana", "Flintlock", "Musket", "Bisento"}
-            end
-        }
-        
-        return module
-    end)
-    
-    if success then
-        return result
-    else
-        warn("Failed to load Combat module: " .. tostring(result))
-        return CreateFallbackModule("Combat")
-    end
-end
-
--- Anti-Ban Module
-local function LoadAntiBanModule()
-    local success, result = pcall(function()
-        local module = {
-            Settings = {
-                Enabled = true,
-                Flags = {
-                    ExploitDetectionRemoval = true,
-                    ReduceAutoPunishRisk = true,
-                    DisableHighRiskFeatures = false,
-                    RandomizeActions = true
-                }
-            },
-            
-            Start = function(self)
-                print("Anti-Ban system started")
-            end,
-            
-            Stop = function(self)
-                print("Anti-Ban system stopped")
-            end,
-            
-            GetStatus = function()
-                return {
-                    DetectionsEvaded = 0,
-                    AntiCheatVersion = "Unknown",
-                    SafetyLevel = "Moderate"
-                }
-            end
-        }
-        
-        return module
-    end)
-    
-    if success then
-        return result
-    else
-        warn("Failed to load Anti-Ban module: " .. tostring(result))
-        return CreateFallbackModule("AntiBan")
-    end
-end
-
--- Stats Module
-local function LoadStatsModule()
-    local success, result = pcall(function()
-        local module = {
-            Settings = {
-                AutoStatPoints = false,
-                StatPriority = "Melee", -- Melee, Defense, Sword, Gun, Fruit
-                MinimumStatsGoal = {
-                    Melee = 1000,
-                    Defense = 1000,
-                    Sword = 1000,
-                    Gun = 1000,
-                    DevilFruit = 1000
-                }
-            },
-            
-            Start = function(self)
-                print("Stats module started with priority: " .. self.Settings.StatPriority)
-            end,
-            
-            Stop = function(self)
-                print("Stats module stopped")
-            end,
-            
-            GetPlayerStats = function()
-                -- Get current player stats
-                return {
-                    Level = 50,
-                    Beli = 150000,
-                    Fragments = 500,
-                    Stats = {
-                        Melee = 100,
-                        Defense = 100,
-                        Sword = 50,
-                        Gun = 25,
-                        DevilFruit = 0
-                    },
-                    UnassignedPoints = 10
-                }
-            end
-        }
-        
-        return module
-    end)
-    
-    if success then
-        return result
-    else
-        warn("Failed to load Stats module: " .. tostring(result))
-        return CreateFallbackModule("Stats")
-    end
-end
-
--- Load all modules function
+-- Load all modules function (Like MM2)
 local function LoadAllModules()
-    Modules.AutoFarm = LoadAutoFarmModule()
-    Modules.Teleport = LoadTeleportModule()
-    Modules.ESP = LoadESPModule()
-    Modules.DevilFruit = LoadDevilFruitModule()
-    Modules.Combat = LoadCombatModule()
-    Modules.AntiBan = LoadAntiBanModule()
-    Modules.Stats = LoadStatsModule()
+    -- Create modules table like MM2
+    Modules = {
+        AutoFarm = nil,
+        ESP = nil,
+        DevilFruit = nil,
+        Teleport = nil,
+        AntiBan = nil,
+        Stats = nil,
+        Items = nil,
+        Combat = nil
+    }
     
-    -- Return true if at least some modules loaded successfully
+    print("Loading modules in MM2 style...")
+    
+    -- First load anti-ban
+    Modules.AntiBan = LoadModule("AntiBan")
+    if Modules.AntiBan then
+        print("Starting AntiBan module...")
+        pcall(function()
+            Modules.AntiBan.Start()
+        end)
+    end
+
+    -- Load core modules one by one - if any fail, UI will still work
+    Modules.AutoFarm = LoadModule("AutoFarm")
+    wait(0.1) -- Small delay between module loads
+    
+    Modules.ESP = LoadModule("ESP")
+    wait(0.1)
+    
+    Modules.DevilFruit = LoadModule("DevilFruit")
+    wait(0.1)
+    
+    Modules.Teleport = LoadModule("Teleport")
+    wait(0.1)
+    
+    Modules.Combat = LoadModule("Combat")
+    wait(0.1)
+    
+    Modules.Stats = LoadModule("Stats")
+    wait(0.1)
+    
+    Modules.Items = LoadModule("Items")
+    wait(0.1)
+
+    -- Set up module connections (for modules that need to interact)
+    if Modules.AutoFarm and Modules.ESP then
+        pcall(function()
+            Modules.AutoFarm.SetESPModule(Modules.ESP)
+        end)
+    end
+
+    if Modules.AutoFarm and Modules.Teleport then
+        pcall(function()
+            Modules.AutoFarm.SetTeleportModule(Modules.Teleport)
+        end)
+    end
+
+    -- Start other modules - wrapped in pcall to prevent errors
+    if Modules.ESP then pcall(function() Modules.ESP.Start() end) end
+    if Modules.DevilFruit then pcall(function() Modules.DevilFruit.Start() end) end
+    if Modules.Teleport then pcall(function() Modules.Teleport.Start() end) end
+    if Modules.Combat then pcall(function() Modules.Combat.Start() end) end
+    if Modules.Stats then pcall(function() Modules.Stats.Start() end) end
+    if Modules.Items then pcall(function() Modules.Items.Start() end) end
+    
     return true
 end
 
--- CREATE TABS FIRST - just like MM2 does
+-- Create tabs
 local MainTab = CreateTab("Main")
-local AutoFarmTab = CreateTab("Auto Farm")
-local TeleportTab = CreateTab("Teleport")
-local ESPTab = CreateTab("ESP")
-local DevilFruitTab = CreateTab("Devil Fruit")
+local FarmTab = CreateTab("Farm")
+local TPTab = CreateTab("Teleport")
+local FruitTab = CreateTab("Devil Fruit")
 local CombatTab = CreateTab("Combat")
-local MiscTab = CreateTab("Misc")
+local ESPTab = CreateTab("ESP")
+local ItemsTab = CreateTab("Items")
+local StatsTab = CreateTab("Stats")
+local SettingsTab = CreateTab("Settings")
 
--- Create main tab content
-local InfoSection = CreateSection(MainTab, "Information")
-InfoSection:AddLabel("Device: " .. DeviceText)
-InfoSection:AddLabel("Game: Blox Fruits")
-local StatusLabel = InfoSection:AddLabel("Loading modules...")
+-- Create main sections
+local StatusSection = CreateSection(MainTab, "Script Status")
+local PlayerSection = CreateSection(MainTab, "Player Info")
 
--- Load modules
-local success = LoadAllModules()
+-- Create status elements
+local StatusLabel = StatusSection:AddLabel("Loading modules...")
+local DiscordButton = StatusSection:AddButton("Join Discord Server", function()
+    setclipboard("https://discord.gg/skyx")
+    print("Discord link copied to clipboard!")
+end)
 
--- Create UI controls for modules
-if success then
-    StatusLabel:SetText("Modules loaded successfully!")
-    
-    -- Auto Farm Tab Content
-    if Modules.AutoFarm then
-        local FarmSection = CreateSection(AutoFarmTab, "Auto Farm Features")
+-- Player info
+local PlayerName = PlayerSection:AddLabel("Username: " .. LocalPlayer.Name)
+local PlayerLevel = PlayerSection:AddLabel("Level: Loading...")
+
+-- Update player info periodically
+spawn(function()
+    while wait(5) do
+        local level = "Unknown"
+        local beli = "Unknown"
+        local fragments = "Unknown"
         
-        FarmSection:AddToggle("Auto Farm Enabled", false, function(value)
-            Modules.AutoFarm.Settings.Enabled = value
-            if value then
+        pcall(function()
+            if LocalPlayer:FindFirstChild("Data") then
+                if LocalPlayer.Data:FindFirstChild("Level") then
+                    level = LocalPlayer.Data.Level.Value
+                end
+                
+                if LocalPlayer.Data:FindFirstChild("Beli") then
+                    beli = LocalPlayer.Data.Beli.Value
+                end
+                
+                if LocalPlayer.Data:FindFirstChild("Fragments") then
+                    fragments = LocalPlayer.Data.Fragments.Value
+                end
+            end
+        end)
+        
+        PlayerLevel:SetText("Level: " .. tostring(level))
+        PlayerSection:AddLabel("Beli: " .. tostring(beli))
+        PlayerSection:AddLabel("Fragments: " .. tostring(fragments))
+    end
+end)
+
+-- Farm tab setup
+local FarmSection = CreateSection(FarmTab, "Auto Farm")
+
+-- Always create the UI elements regardless of module loading status
+local EnableFarmToggle = FarmSection:AddToggle("Enable Auto Farm", false, function(Value)
+    if Modules.AutoFarm then
+        pcall(function()
+            Modules.AutoFarm.Settings.Enabled = Value
+            if Value then
                 Modules.AutoFarm:Start()
             else
                 Modules.AutoFarm:Stop()
             end
         end)
-        
-        FarmSection:AddToggle("Auto Collect Drops", true, function(value)
-            Modules.AutoFarm.Settings.AutoCollectDrops = value
-        end)
-        
-        FarmSection:AddToggle("Auto Equip Weapon", true, function(value)
-            Modules.AutoFarm.Settings.AutoEquipWeapon = value
-        end)
-        
-        local TargetSection = CreateSection(AutoFarmTab, "Target Settings")
-        
-        -- In a real script, this would be populated with the actual list of mobs
-        local mobList = {"Bandit", "Monkey", "Gorilla", "Pirate", "Clown Pirate", "Marine"}
-        
-        for _, mob in ipairs(mobList) do
-            TargetSection:AddButton("Farm " .. mob, function()
-                Modules.AutoFarm.Settings.TargetMobs = {mob}
-                Modules.AutoFarm.Settings.Enabled = true
-                Modules.AutoFarm:Start()
-                StatusLabel:SetText("Now farming: " .. mob)
-            end)
-        end
-    else
-        local FarmSection = CreateSection(AutoFarmTab, "Auto Farm Features")
-        FarmSection:AddLabel("Auto Farm Module failed to load")
-    end
-    
-    -- Teleport Tab Content
-    if Modules.Teleport then
-        local TeleportSection = CreateSection(TeleportTab, "Teleport Features")
-        
-        TeleportSection:AddToggle("Safe Mode", true, function(value)
-            Modules.Teleport.Settings.SafeMode = value
-        end)
-        
-        TeleportSection:AddToggle("Anti-Detection", true, function(value)
-            Modules.Teleport.Settings.AntiDetection.Enabled = value
-        end)
-        
-        -- Get list of locations
-        local locations = Modules.Teleport.GetLocationsList()
-        for _, location in ipairs(locations) do
-            TeleportSection:AddButton(location.Icon .. " " .. location.Name, function()
-                local success, message = Modules.Teleport:TeleportToLocation(location.Name)
-                if success then
-                    StatusLabel:SetText("Teleported to " .. location.Name)
-                else
-                    StatusLabel:SetText("Failed to teleport: " .. message)
-                end
-            end)
-        end
-    else
-        local TeleportSection = CreateSection(TeleportTab, "Teleport Features")
-        TeleportSection:AddLabel("Teleport Module failed to load")
-    end
-    
-    -- ESP Tab Content
-    if Modules.ESP then
-        local ESPSection = CreateSection(ESPTab, "ESP Features")
-        
-        ESPSection:AddToggle("ESP Enabled", false, function(value)
-            Modules.ESP.Settings.Enabled = value
-            if value then
-                Modules.ESP:Start()
-            else
-                Modules.ESP:Stop()
-            end
-        end)
-        
-        ESPSection:AddToggle("Show Players", true, function(value)
-            Modules.ESP.Settings.ShowPlayers = value
-        end)
-        
-        ESPSection:AddToggle("Show NPCs", true, function(value)
-            Modules.ESP.Settings.ShowNPCs = value
-        end)
-        
-        ESPSection:AddToggle("Show Chests", true, function(value)
-            Modules.ESP.Settings.ShowChests = value
-        end)
-        
-        ESPSection:AddToggle("Show Distance", true, function(value)
-            Modules.ESP.Settings.ShowDistance = value
-        end)
-        
-        ESPSection:AddToggle("Show Health", true, function(value)
-            Modules.ESP.Settings.ShowHealth = value
-        end)
-        
-        ESPSection:AddToggle("Rainbow ESP", false, function(value)
-            Modules.ESP.Settings.RainbowESP = value
-        end)
-        
-        ESPSection:AddSlider("Rainbow Speed", 1, 10, 5, function(value)
-            Modules.ESP.Settings.RainbowSpeed = value
-        end)
-    else
-        local ESPSection = CreateSection(ESPTab, "ESP Features")
-        ESPSection:AddLabel("ESP Module failed to load")
-    end
-    
-    -- Devil Fruit Tab Content
-    if Modules.DevilFruit then
-        local FruitSection = CreateSection(DevilFruitTab, "Devil Fruit Features")
-        
-        FruitSection:AddToggle("Auto Buy Fruits", false, function(value)
-            Modules.DevilFruit.Settings.AutoBuy = value
-        end)
-        
-        FruitSection:AddToggle("Notify On Fruit Spawn", true, function(value)
-            Modules.DevilFruit.Settings.NotifyOnSpawn = value
-        end)
-        
-        FruitSection:AddToggle("Auto Pickup Fruits", true, function(value)
-            Modules.DevilFruit.Settings.AutoPickup = value
-        end)
-        
-        FruitSection:AddToggle("Store Fruits", false, function(value)
-            Modules.DevilFruit.Settings.StoreFruits = value
-        end)
-        
-        local FruitListSection = CreateSection(DevilFruitTab, "Available Fruits")
-        
-        -- Get list of fruits
-        local fruits = Modules.DevilFruit.GetAvailableFruits()
-        for _, fruit in ipairs(fruits) do
-            FruitListSection:AddButton(fruit.Name .. " (" .. fruit.Rarity .. ")", function()
-                StatusLabel:SetText("Attempting to buy " .. fruit.Name)
-                -- In a real script, this would actually attempt to buy the fruit
-                -- This is just a placeholder for the demo
-            end)
-        end
-    else
-        local FruitSection = CreateSection(DevilFruitTab, "Devil Fruit Features")
-        FruitSection:AddLabel("Devil Fruit Module failed to load")
-    end
-    
-    -- Combat Tab Content
-    if Modules.Combat then
-        local CombatSection = CreateSection(CombatTab, "Combat Features")
-        
-        CombatSection:AddToggle("Auto Attack", false, function(value)
-            Modules.Combat.Settings.AutoAttack = value
-        end)
-        
-        CombatSection:AddToggle("Auto Block", false, function(value)
-            Modules.Combat.Settings.AutoBlock = value
-        end)
-        
-        CombatSection:AddToggle("Auto Skills", true, function(value)
-            Modules.Combat.Settings.AutoSkills = value
-        end)
-        
-        CombatSection:AddToggle("Attack Players", false, function(value)
-            Modules.Combat.Settings.AttackPlayers = value
-        end)
-        
-        CombatSection:AddToggle("Kill Aura", false, function(value)
-            Modules.Combat.Settings.KillAura = value
-        end)
-        
-        CombatSection:AddSlider("Kill Aura Range", 5, 30, 15, function(value)
-            Modules.Combat.Settings.KillAuraRange = value
-        end)
-        
-        local WeaponSection = CreateSection(CombatTab, "Weapon Selection")
-        
-        -- Get list of weapons
-        local weapons = Modules.Combat.GetWeaponsList()
-        for _, weapon in ipairs(weapons) do
-            WeaponSection:AddButton("Equip " .. weapon, function()
-                StatusLabel:SetText("Equipped " .. weapon)
-                -- In a real script, this would actually equip the weapon
-                -- This is just a placeholder for the demo
-            end)
-        end
-    else
-        local CombatSection = CreateSection(CombatTab, "Combat Features")
-        CombatSection:AddLabel("Combat Module failed to load")
-    end
-    
-    -- Misc Tab Content
-    -- Anti-Ban Section
-    if Modules.AntiBan then
-        local AntiBanSection = CreateSection(MiscTab, "Anti-Ban System")
-        
-        AntiBanSection:AddToggle("Anti-Ban System", true, function(value)
-            Modules.AntiBan.Settings.Enabled = value
-            if value then
-                Modules.AntiBan:Start()
-            else
-                Modules.AntiBan:Stop()
-            end
-        end)
-        
-        AntiBanSection:AddToggle("Remove Exploit Detection", true, function(value)
-            Modules.AntiBan.Settings.Flags.ExploitDetectionRemoval = value
-        end)
-        
-        AntiBanSection:AddToggle("Reduce Auto-Punish Risk", true, function(value)
-            Modules.AntiBan.Settings.Flags.ReduceAutoPunishRisk = value
-        end)
-        
-        AntiBanSection:AddToggle("Randomize Actions", true, function(value)
-            Modules.AntiBan.Settings.Flags.RandomizeActions = value
-        end)
-        
-        AntiBanSection:AddToggle("Disable High-Risk Features", false, function(value)
-            Modules.AntiBan.Settings.Flags.DisableHighRiskFeatures = value
-        end)
-        
-        local AntiBanStats = AntiBanSection:AddLabel("Detections Evaded: 0")
-        
-        -- Update anti-ban stats periodically
-        spawn(function()
-            while wait(2) do
-                if Modules.AntiBan then
-                    local status = Modules.AntiBan.GetStatus()
-                    AntiBanStats:SetText("Detections Evaded: " .. status.DetectionsEvaded)
-                end
-            end
-        end)
-    else
-        local AntiBanSection = CreateSection(MiscTab, "Anti-Ban System")
-        AntiBanSection:AddLabel("Anti-Ban Module failed to load")
-    end
-    
-    -- Stats Section
-    if Modules.Stats then
-        local StatsSection = CreateSection(MiscTab, "Auto Stats")
-        
-        StatsSection:AddToggle("Auto Assign Stat Points", false, function(value)
-            Modules.Stats.Settings.AutoStatPoints = value
-        end)
-        
-        local priorities = {"Melee", "Defense", "Sword", "Gun", "DevilFruit"}
-        for _, priority in ipairs(priorities) do
-            StatsSection:AddButton("Priority: " .. priority, function()
-                Modules.Stats.Settings.StatPriority = priority
-                StatusLabel:SetText("Stat priority set to: " .. priority)
-            end)
-        end
-        
-        local PlayerStatsSection = CreateSection(MiscTab, "Player Stats")
-        
-        -- Get player stats
-        local stats = Modules.Stats.GetPlayerStats()
-        
-        PlayerStatsSection:AddLabel("Level: " .. stats.Level)
-        PlayerStatsSection:AddLabel("Beli: " .. stats.Beli)
-        PlayerStatsSection:AddLabel("Fragments: " .. stats.Fragments)
-        PlayerStatsSection:AddLabel("Unassigned Points: " .. stats.UnassignedPoints)
-        
-        -- Update stats periodically
-        spawn(function()
-            while wait(5) do
-                if Modules.Stats then
-                    local updatedStats = Modules.Stats.GetPlayerStats()
-                    PlayerStatsSection:AddLabel("Level: " .. updatedStats.Level)
-                    PlayerStatsSection:AddLabel("Beli: " .. updatedStats.Beli)
-                    PlayerStatsSection:AddLabel("Fragments: " .. updatedStats.Fragments)
-                    PlayerStatsSection:AddLabel("Unassigned Points: " .. updatedStats.UnassignedPoints)
-                end
-            end
-        end)
-    else
-        local StatsSection = CreateSection(MiscTab, "Auto Stats")
-        StatsSection:AddLabel("Stats Module failed to load")
-    end
-else
-    StatusLabel:SetText("Failed to load modules")
-end
-
--- Create mobile indicator indicators
--- These are small indicators that blink to show if modules are active
-if IsMobile then
-    -- Create indicators container
-    local IndicatorsContainer = Instance.new("Frame")
-    IndicatorsContainer.Name = "ModuleIndicators"
-    IndicatorsContainer.Size = UDim2.new(0, 200, 0, 40)
-    IndicatorsContainer.Position = UDim2.new(0.5, -100, 0, 10)
-    IndicatorsContainer.BackgroundTransparency = 1
-    IndicatorsContainer.Parent = SkyXUI
-    
-    -- Create indicator layout
-    local IndicatorLayout = Instance.new("UIListLayout")
-    IndicatorLayout.FillDirection = Enum.FillDirection.Horizontal
-    IndicatorLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    IndicatorLayout.Padding = UDim.new(0, 10)
-    IndicatorLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    IndicatorLayout.Parent = IndicatorsContainer
-    
-    -- Function to create indicator
-    local function CreateIndicator(name, color)
-        local Indicator = Instance.new("Frame")
-        Indicator.Name = name .. "Indicator"
-        Indicator.Size = UDim2.new(0, 20, 0, 20)
-        Indicator.BackgroundColor3 = color
-        Indicator.BackgroundTransparency = 0.5
-        Indicator.BorderSizePixel = 0
-        Indicator.Parent = IndicatorsContainer
-        
-        -- Add corner
-        local IndicatorCorner = Instance.new("UICorner")
-        IndicatorCorner.CornerRadius = UDim.new(1, 0) -- Circle
-        IndicatorCorner.Parent = Indicator
-        
-        return Indicator
-    end
-    
-    -- Create indicators for modules
-    local ESPIndicator = CreateIndicator("ESP", Colors.Danger)
-    local AutoFarmIndicator = CreateIndicator("AutoFarm", Colors.Danger)
-    local DevilFruitIndicator = CreateIndicator("DevilFruit", Colors.Danger)
-    local CombatIndicator = CreateIndicator("Combat", Colors.Danger)
-    local AntiBanIndicator = CreateIndicator("AntiBan", Colors.Success) -- Anti-ban starts enabled
-    
-    -- Blink indicators function
-    spawn(function()
-        while wait(1) do
-            -- Update indicator colors based on module status
-            if Modules.ESP and Modules.ESP.Settings.Enabled then
-                TweenService:Create(ESPIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
-            else
-                TweenService:Create(ESPIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
-            end
-            
-            if Modules.AutoFarm and Modules.AutoFarm.Settings.Enabled then
-                TweenService:Create(AutoFarmIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
-            else
-                TweenService:Create(AutoFarmIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
-            end
-            
-            if Modules.DevilFruit and Modules.DevilFruit.Settings.AutoBuy then
-                TweenService:Create(DevilFruitIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
-            else
-                TweenService:Create(DevilFruitIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
-            end
-            
-            if Modules.Combat and Modules.Combat.Settings.AutoAttack then
-                TweenService:Create(CombatIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
-            else
-                TweenService:Create(CombatIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
-            end
-            
-            if Modules.AntiBan and Modules.AntiBan.Settings.Enabled then
-                TweenService:Create(AntiBanIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
-            else
-                TweenService:Create(AntiBanIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
-            end
-        end
-    end)
-end
-
--- Add keybind for toggling UI (closing and reopening)
-local ToggleKeyCode = Enum.KeyCode.RightControl -- Use Right Control as the toggle key
-
--- Global variables to track UI state
-_G.SkyXUIVisible = true
-_G.SkyXUIData = {
-    MainPosition = UDim2.new(0.5, -250, 0.5, -175), -- Store position for reopening
-    LastTab = nil -- Store last active tab
-}
-
--- Function to toggle UI visibility
-local function ToggleUI()
-    if _G.SkyXUIVisible then
-        -- Save current UI state
-        _G.SkyXUIData.MainPosition = MainWindow.Position
-        _G.SkyXUIData.LastTab = SelectedTab and SelectedTab.Name or "Main"
-        
-        -- Hide UI
-        SkyXUI.Enabled = false
-        _G.SkyXUIVisible = false
-        print("SkyX BloxFruits UI hidden - Press Right Control to show")
-    else
-        -- Show UI
-        SkyXUI.Enabled = true
-        _G.SkyXUIVisible = true
-        
-        -- Restore previous position
-        MainWindow.Position = _G.SkyXUIData.MainPosition
-        
-        -- Restore previous tab
-        if _G.SkyXUIData.LastTab then
-            for _, tab in pairs(Tabs) do
-                if tab.Name == _G.SkyXUIData.LastTab then
-                    -- Simulate click on this tab
-                    tab.Button.BackgroundColor3 = Colors.TabActive
-                    tab.Page.Visible = true
-                    SelectedTab = tab
-                else
-                    tab.Button.BackgroundColor3 = Colors.TabInactive
-                    tab.Page.Visible = false
-                end
-            end
-        end
-        
-        print("SkyX BloxFruits UI shown")
-    end
-end
-
--- Add keybind for toggling UI
-AddConnection(UserInputService.InputBegan, function(input, gameProcessed)
-    if not gameProcessed and input.KeyCode == ToggleKeyCode then
-        ToggleUI()
     end
 end)
 
--- Notify that script has loaded
-local loadedText = "SkyX BloxFruits loaded successfully! Use RightControl to toggle UI"
-print(loadedText)
-
--- Create notification for the user
-local function CreateNotification(text, duration)
-    duration = duration or 5
-    
-    -- Create notification container
-    local NotificationGui = Instance.new("ScreenGui")
-    NotificationGui.Name = "SkyXNotification"
-    NotificationGui.ResetOnSpawn = false
-    NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    
-    -- Handle executor security models
-    if syn then
-        syn.protect_gui(NotificationGui)
-        NotificationGui.Parent = game.CoreGui
-    else
-        NotificationGui.Parent = gethui and gethui() or game.CoreGui
-    end
-    
-    -- Create notification frame
-    local NotificationFrame = Instance.new("Frame")
-    NotificationFrame.Name = "Notification"
-    NotificationFrame.Size = UDim2.new(0, 300, 0, 60)
-    NotificationFrame.Position = UDim2.new(0.5, -150, 0.85, 0)
-    NotificationFrame.BackgroundColor3 = Colors.Container
-    NotificationFrame.BorderSizePixel = 0
-    NotificationFrame.Parent = NotificationGui
-    
-    -- Add corner
-    local NotificationCorner = Instance.new("UICorner")
-    NotificationCorner.CornerRadius = UDim.new(0, 8)
-    NotificationCorner.Parent = NotificationFrame
-    
-    -- Add notification text
-    local NotificationText = Instance.new("TextLabel")
-    NotificationText.Name = "Text"
-    NotificationText.Size = UDim2.new(1, -20, 1, 0)
-    NotificationText.Position = UDim2.new(0, 10, 0, 0)
-    NotificationText.BackgroundTransparency = 1
-    NotificationText.Font = Enum.Font.Gotham
-    NotificationText.TextSize = 14
-    NotificationText.TextColor3 = Colors.Text
-    NotificationText.TextWrapped = true
-    NotificationText.Text = text
-    NotificationText.Parent = NotificationFrame
-    
-    -- Add animation
-    NotificationFrame.Position = UDim2.new(0.5, -150, 1.1, 0) -- Start off-screen
-    
-    -- Slide in
-    TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-        Position = UDim2.new(0.5, -150, 0.85, 0)
-    }):Play()
-    
-    -- Wait, then slide out
-    spawn(function()
-        wait(duration)
-        
-        -- Slide out
-        local slideOutTween = TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            Position = UDim2.new(0.5, -150, 1.1, 0)
-        })
-        
-        slideOutTween:Play()
-        
-        slideOutTween.Completed:Connect(function()
-            NotificationGui:Destroy()
+local FarmDistanceSlider = FarmSection:AddSlider("Farm Distance", 5, 20, 10, function(Value)
+    if Modules.AutoFarm then
+        pcall(function()
+            Modules.AutoFarm.Settings.FarmDistance = Value
         end)
+    end
+end)
+
+local FastAttackToggle = FarmSection:AddToggle("Fast Attack", true, function(Value)
+    if Modules.AutoFarm then
+        pcall(function()
+            Modules.AutoFarm.Settings.FastAttack = Value
+        end)
+    end
+end)
+
+local AutoQuestToggle = FarmSection:AddToggle("Auto Quest", true, function(Value)
+    if Modules.AutoFarm then
+        pcall(function()
+            Modules.AutoFarm.Settings.AutoQuest = Value
+        end)
+    end
+end)
+
+-- The status label will be added after modules are loaded
+
+-- ESP tab setup
+local ESPSection = CreateSection(ESPTab, "ESP Settings")
+
+local EnableESPToggle = ESPSection:AddToggle("Enable ESP", false, function(Value)
+    if Modules.ESP then
+        Modules.ESP.Settings.Enabled = Value
+        if Value then
+            Modules.ESP:Start()
+        else
+            Modules.ESP:Stop()
+        end
+    end
+end)
+
+local ShowPlayersToggle = ESPSection:AddToggle("Show Players", true, function(Value)
+    if Modules.ESP then
+        Modules.ESP.Settings.ShowPlayers = Value
+    end
+end)
+
+local ShowNPCsToggle = ESPSection:AddToggle("Show NPCs", true, function(Value)
+    if Modules.ESP then
+        Modules.ESP.Settings.ShowNPCs = Value
+    end
+end)
+
+local ShowChestsToggle = ESPSection:AddToggle("Show Chests", true, function(Value)
+    if Modules.ESP then
+        Modules.ESP.Settings.ShowChests = Value
+    end
+end)
+
+-- The status label will be added after modules are loaded
+
+-- Devil Fruit tab setup
+local FruitSection = CreateSection(FruitTab, "Devil Fruit Settings")
+
+local AutoBuyFruitToggle = FruitSection:AddToggle("Auto Buy Fruits", false, function(Value)
+    if Modules.DevilFruit then
+        Modules.DevilFruit.Settings.AutoBuy = Value
+    end
+end)
+
+local NotifyFruitToggle = FruitSection:AddToggle("Notify On Fruit Spawn", true, function(Value)
+    if Modules.DevilFruit then
+        Modules.DevilFruit.Settings.NotifyOnSpawn = Value
+    end
+end)
+
+local AutoPickupFruitToggle = FruitSection:AddToggle("Auto Pickup Fruits", true, function(Value)
+    if Modules.DevilFruit then
+        Modules.DevilFruit.Settings.AutoPickup = Value
+        if Value then
+            Modules.DevilFruit:Start()
+        else
+            Modules.DevilFruit:Stop()
+        end
+    end
+end)
+
+-- The status label will be added after modules are loaded
+
+-- Teleport tab setup
+local TPSection = CreateSection(TPTab, "Teleport Locations")
+
+-- Common teleport locations even if module fails to load
+local CommonLocations = {
+    "First Island", 
+    "Middle Island", 
+    "Pirate Village", 
+    "Jungle",
+    "Prison",
+    "Magma Town",
+    "Colosseum"
+}
+
+-- Add common locations first (they'll always be shown)
+for _, locationName in ipairs(CommonLocations) do
+    TPSection:AddButton(locationName, function()
+        -- When user clicks, try to use teleport module if it's loaded
+        if Modules.Teleport then
+            pcall(function()
+                Modules.Teleport:TeleportToLocation(locationName)
+            end)
+        else
+            StatusLabel:SetText("Teleport module not loaded!")
+        end
     end)
 end
 
--- Show loaded notification
-CreateNotification(loadedText, 5)
+-- Add dynamic locations after modules are loaded - moved to end section to match MM2 style
 
-return CloseUI -- Return close function for external scripts to use
+-- Settings tab setup
+local ScriptSection = CreateSection(SettingsTab, "Script Settings")
+
+local CleanupButton = ScriptSection:AddButton("Destroy UI", function()
+    -- Stop all modules
+    for _, module in pairs(Modules) do
+        if module and module.Stop then
+            pcall(function()
+                module:Stop()
+            end)
+        end
+    end
+    
+    -- Disconnect all connections
+    for _, connection in pairs(Connections) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    
+    -- Destroy UI
+    SkyXUI:Destroy()
+    
+    print("SkyX Blox Fruits UI destroyed and cleaned up")
+end)
+
+-- Add close button functionality
+AddConnection(CloseButton.MouseButton1Click, function()
+    CleanupButton.Button.MouseButton1Click:Fire()
+end)
+
+-- Now that ALL the UI is created, load modules
+StatusLabel:SetText("Loading modules...")
+wait(0.5)
+
+-- This is the MM2 approach - load modules last after all UI elements are created
+print("Loading modules after UI creation...")
+local success = LoadAllModules()
+
+-- Update status based on success
+if success then
+    StatusLabel:SetText("All modules loaded successfully!")
+else
+    StatusLabel:SetText("Some modules failed to load!")
+end
+
+-- Now check each module and create appropriate UI elements
+-- We'll update sections that were conditionally created based on modules
+-- This is the key pattern from MM2 - check modules AFTER attempting to load them
+
+-- ESP Tab updates
+if Modules.ESP then
+    print("ESP module loaded - adding controls")
+else
+    print("ESP module failed - adding fallback label")
+    ESPSection:AddLabel("⚠️ ESP module failed to load")
+end
+
+-- Farm Tab updates
+if Modules.AutoFarm then
+    print("AutoFarm module loaded - adding controls")
+else
+    print("AutoFarm module failed - adding fallback label")
+    FarmSection:AddLabel("⚠️ AutoFarm module failed to load")
+end
+
+-- DevilFruit Tab updates
+if Modules.DevilFruit then
+    print("DevilFruit module loaded - adding controls")
+else
+    print("DevilFruit module failed - adding fallback label")
+    FruitSection:AddLabel("⚠️ DevilFruit module failed to load")
+end
+
+-- Teleport Tab updates
+if Modules.Teleport then
+    print("Teleport module loaded - adding dynamic locations")
+    -- Add dynamic locations if module loaded
+    spawn(function()
+        wait(1)
+        pcall(function()
+            local locations = Modules.Teleport:GetLocationsList()
+            if locations and #locations > 0 then
+                for _, location in ipairs(locations) do
+                    -- Only add locations that aren't in CommonLocations
+                    local isCommon = false
+                    for _, commonLoc in ipairs(CommonLocations) do
+                        if commonLoc == location.Name then
+                            isCommon = true
+                            break
+                        end
+                    end
+                    
+                    if not isCommon then
+                        TPSection:AddButton(location.Name, function()
+                            pcall(function()
+                                Modules.Teleport:TeleportToLocation(location.Name)
+                            end)
+                        end)
+                    end
+                end
+            end
+        end)
+    end)
+else
+    print("Teleport module failed - adding fallback label")
+    TPSection:AddLabel("⚠️ Teleport module failed to load")
+end
+
+print("SkyX Blox Fruits Mobile UI has been loaded successfully!")
