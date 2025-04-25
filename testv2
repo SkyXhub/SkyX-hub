@@ -1,6 +1,6 @@
 --[[
-🌊 SkyX Dead Rails Advanddddddddddced Script 🌊
-Direct modular version with embedded modules for better reliability
+🌊 SkyX Dead Rails Advanced Script 🌊
+Modular version with direct UI from SkyX_MM2_Direct_Modular
 Enhanced for mobile compatibility with advanced features
 
 Features:
@@ -14,18 +14,82 @@ Features:
 - Military-Grade Anti-Detection System
 ]]
 
--- Core services
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
+-- This script loads modules directly (no GitHub required) and has improved UI initialization
 
--- Module Definitions (embedded for reliability)
-local ModuleDefinitions = {
+-- Check if we're in a testing environment and provide stubs if needed
+local isTestEnvironment = false
+local game, UserInputService, TweenService, Players, LocalPlayer, RunService, ReplicatedStorage, Workspace, Lighting
+
+-- Try to access game service, if it fails, we're in a test environment
+pcall(function()
+    if not game then
+        isTestEnvironment = true
+        print("Test environment detected - initializing stubs")
+        
+        -- Create basic stubs
+        game = {
+            PlaceId = 6729832410, -- Dead Rails PlaceId
+            GetService = function(self, name)
+                return _G[name] or {}
+            end,
+            CoreGui = {
+                GetChildren = function() return {} end
+            }
+        }
+        
+        UserInputService = {
+            TouchEnabled = false,
+            MouseEnabled = true,
+            InputBegan = { Connect = function() return { Disconnect = function() end } end }
+        }
+        
+        TweenService = {
+            Create = function() return { Play = function() end } end
+        }
+        
+        Players = {
+            LocalPlayer = {
+                GetMouse = function() return { X = 0, Y = 0 } end,
+                Character = nil
+            }
+        }
+        
+        LocalPlayer = Players.LocalPlayer
+        
+        RunService = {
+            RenderStepped = { Connect = function() return { Disconnect = function() end } end }
+        }
+        
+        ReplicatedStorage = {}
+        Workspace = {}
+        Lighting = {}
+    end
+end)
+
+-- If not in test environment, get the real services
+if not isTestEnvironment then
+    UserInputService = game:GetService("UserInputService")
+    TweenService = game:GetService("TweenService")
+    Players = game:GetService("Players")
+    LocalPlayer = Players.LocalPlayer
+    RunService = game:GetService("RunService")
+    ReplicatedStorage = game:GetService("ReplicatedStorage")
+    Workspace = game:GetService("Workspace")
+    Lighting = game:GetService("Lighting")
+end
+
+-- GitHub Module URLs
+local ModuleURLs = {
+     ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_esp.lua",
+    GunMods = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_gunmods.lua",
+    Aimbot = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_aimbot.lua",
+    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_teleport%20(1).lua",
+    AntiDetect = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_antidetect.lua",
+    AutoFarm = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_autofarm.lua"
+}
+
+-- Module Code (embedded for reliability)
+local ModuleCode = {
     ESP = [[
         -- Dead Rails ESP Module
         local ESP = {}
@@ -1321,16 +1385,6 @@ local ModuleDefinitions = {
     ]]
 }
 
--- Module URLs (for fallback)
-local ModuleURLs = {
-    ESP = "ESP",
-    GunMods = "GunMods",
-    Aimbot = "Aimbot",
-    Teleport = "Teleport",
-    AntiDetect = "AntiDetect",
-    AutoFarm = "AutoFarm"
-}
-
 -- Loaded modules
 local Modules = {
     ESP = nil,
@@ -1341,22 +1395,31 @@ local Modules = {
     AutoFarm = nil
 }
 
--- Load a module from embedded code
+-- Load a module from URL or embedded code
 local function LoadModule(moduleName)
-    if not ModuleDefinitions[moduleName] then
-        warn("No module definition found for: " .. moduleName)
+    local url = ModuleURLs[moduleName]
+    if not url then
+        warn("No URL found for module: " .. moduleName)
         return nil
     end
     
+    -- First try loading from URL
     local success, result = pcall(function()
-        return loadstring(ModuleDefinitions[moduleName])()
+        return loadstring(game:HttpGet(url))()
     end)
+    
+    -- If URL loading fails, use embedded code
+    if not success and ModuleCode[moduleName] then
+        success, result = pcall(function()
+            return loadstring(ModuleCode[moduleName])()
+        end)
+    end
     
     if success then
         print("✅ Successfully loaded: " .. moduleName)
         return result
     else
-        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. tostring(result))
+        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. result)
         return nil
     end
 end
@@ -2522,14 +2585,110 @@ InfoSection:AddLabel("Game: Dead Rails")
 local StatusLabel = InfoSection:AddLabel("Loading modules...")
 
 -- Load modules
+-- Create fallback modules if needed to ensure UI works
+local function CreateFallbackModule(moduleName)
+    print("Creating fallback module for: " .. moduleName)
+    
+    local FallbackModule = {
+        Settings = {},
+        Start = function() print("Started fallback " .. moduleName .. " module") end,
+        Stop = function() print("Stopped fallback " .. moduleName .. " module") end
+    }
+    
+    -- Add module-specific settings based on name
+    if moduleName == "ESP" then
+        FallbackModule.Settings = {
+            Enabled = false,
+            ShowDistance = true,
+            ShowHealth = true,
+            ShowTeam = true,
+            ShowWeapon = true,
+            RainbowESP = false,
+            TextSize = 14,
+            Colors = {
+                Enemy = Color3.fromRGB(255, 0, 0),
+                Team = Color3.fromRGB(0, 255, 0)
+            }
+        }
+    elseif moduleName == "GunMods" then
+        FallbackModule.Settings = {
+            NoRecoil = false,
+            NoSpread = false,
+            RapidFire = false,
+            InfiniteAmmo = false,
+            FireRate = 400,
+            BulletDamage = 100
+        }
+    elseif moduleName == "Aimbot" then
+        FallbackModule.Settings = {
+            Enabled = false,
+            ShowFOV = true,
+            FOVSize = 120,
+            FOVColor = Color3.fromRGB(255, 255, 255),
+            Smoothness = 0.2,
+            TargetPart = "Head",
+            TriggerBot = {
+                Enabled = false,
+                Delay = 0.2
+            }
+        }
+        FallbackModule.GetTargetInfo = function() return {TargetName = nil} end
+    elseif moduleName == "Teleport" then
+        FallbackModule.Settings = {
+            SafeMode = true,
+            AntiDetection = {
+                Enabled = true,
+                DelayBetweenTeleports = 0.5
+            }
+        }
+        FallbackModule.GetLocationsList = function()
+            return {
+                {Name = "Lobby", Icon = "🏠", Position = Vector3.new(0, 0, 0)},
+                {Name = "Battlefield", Icon = "⚔️", Position = Vector3.new(0, 0, 0)}
+            }
+        end
+        FallbackModule.TeleportToLocation = function(name) return true, "Teleported to " .. name end
+    elseif moduleName == "AntiDetect" then
+        FallbackModule.Settings = {
+            Enabled = true,
+            MonitorRemotes = true,
+            BlockBanRemotes = true
+        }
+    elseif moduleName == "AutoFarm" then
+        FallbackModule.Settings = {
+            Enabled = false,
+            Method = "Bone Farm",
+            AntiAFK = true,
+            AutoRejoin = false,
+            SafeMode = true,
+            Speed = 5
+        }
+        FallbackModule.GetStats = function()
+            return {
+                BonesFarmed = 0,
+                RoundsCompleted = 0,
+                TimeRunning = "00:00:00"
+            }
+        end
+    end
+    
+    return FallbackModule
+end
+
+-- Make sure all modules are loaded, with fallbacks if needed
 local success = LoadAllModules()
 
+-- Ensure all modules exist with fallbacks for UI creation
+for moduleName, _ in pairs(ModuleURLs) do
+    if not Modules[moduleName] then
+        Modules[moduleName] = CreateFallbackModule(moduleName)
+    end
+end
+
 -- Create UI controls for modules
-if success then
-    StatusLabel:SetText("Modules loaded successfully!")
-    
-    -- ESP Tab Content
-    if Modules.ESP then
+StatusLabel:SetText(success and "Modules loaded successfully!" or "Some modules using fallback")
+
+-- ESP Tab Content
         local ESPSection = ESPTab:AddSection("ESP Features")
         
         ESPSection:AddToggle("ESP Enabled", false, function(value)
