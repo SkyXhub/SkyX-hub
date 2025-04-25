@@ -1,121 +1,22 @@
 --[[
-    🌊 SkyX UI Library 🌊
-    Enhanced version with custom icon repository
+    🌊 SkyX Basic UI Library 🌊
+    Minimal version with simplified UI elements to ensure visibility
     
-    This version fixes the icons loading issue by using SkyX's own icon repository
-    
-    Mobile Features:
-    - Larger touch targets
-    - Swipe gestures for navigation
-    - Double-tap to center
-    
-    Upload SkyX_icons.json to your GitHub repo and update the ICONS_URL below
+    This is a trimmed-down version that focuses only on making
+    UI elements (especially tabs and buttons) visible.
 ]]
 
+-- Core services
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local LocalPlayer = game:GetService("Players").LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
--- IMPORTANT: Update this URL to where you uploaded the SkyX_icons.json file
--- For example: "https://raw.githubusercontent.com/SkyXhub/SkyX-hub/main/SkyX_icons.json"
-local ICONS_URL = "https://raw.githubusercontent.com/SkyXhub/SkyX-hub/main/SkyX_icons.json"
-
--- Detect if running on mobile device
-local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
-local DeviceScreenSize = workspace.CurrentCamera.ViewportSize
-
-local SkyXOrion = {
-    Elements = {},
-    ThemeObjects = {},
-    Connections = {},
-    Flags = {},
-    Themes = {
-        Default = {
-            Main = Color3.fromRGB(25, 25, 25),
-            Second = Color3.fromRGB(32, 32, 32),
-            Stroke = Color3.fromRGB(60, 60, 60),
-            Divider = Color3.fromRGB(60, 60, 60),
-            Text = Color3.fromRGB(240, 240, 240),
-            TextDark = Color3.fromRGB(150, 150, 150)
-        },
-        Ocean = {
-            Main = Color3.fromRGB(22, 35, 55),
-            Second = Color3.fromRGB(28, 44, 68),
-            Stroke = Color3.fromRGB(42, 95, 145),
-            Divider = Color3.fromRGB(42, 95, 145),
-            Text = Color3.fromRGB(240, 240, 240),
-            TextDark = Color3.fromRGB(140, 170, 200)
-        },
-        Midnight = {
-            Main = Color3.fromRGB(20, 20, 35),
-            Second = Color3.fromRGB(26, 26, 46),
-            Stroke = Color3.fromRGB(48, 48, 88),
-            Divider = Color3.fromRGB(48, 48, 88),
-            Text = Color3.fromRGB(240, 240, 240),
-            TextDark = Color3.fromRGB(150, 150, 180)
-        }
-    },
-    SelectedTheme = IsMobile and "Ocean" or "Default",
-    Folder = nil,
-    SaveCfg = false,
-    -- Mobile optimizations
-    MobileMode = IsMobile,
-    TouchBuffer = 15, -- Extra padding for touch controls
-    TabSizeMultiplier = IsMobile and 1.2 or 1,
-    ElementSizeMultiplier = IsMobile and 1.15 or 1,
-    FontSizeMultiplier = IsMobile and 1.1 or 1,
-    MinimumButtonSize = IsMobile and 36 or 24,
-    IsMinimized = false,
-    CurrentTabIndex = 1
-}
-
--- Default fallback icons in case the remote ones fail to load
-local DefaultIcons = {
-    home = "rbxassetid://7733960981",
-    settings = "rbxassetid://7734053495",
-    search = "rbxassetid://7734039731",
-    menu = "rbxassetid://7734050496",
-    close = "rbxassetid://7743875629",
-    minimize = "rbxassetid://10664064072",
-    maximize = "rbxassetid://10664076384",
-    arrow = "rbxassetid://7734038107",
-    sword = "rbxassetid://7734051691",
-    ["map-pin"] = "rbxassetid://7734021401",
-    tree = "rbxassetid://7734060830"
-}
-
--- Icons storage
-local Icons = {}
-
--- Try to load icons from GitHub repo
-local Success, Response = pcall(function()
-    local jsonData = game:HttpGet(ICONS_URL)
-    return HttpService:JSONDecode(jsonData).icons
-end)
-
-if Success then
-    Icons = Response
-    print("SkyX UI - Successfully loaded icons from repository")
-else
-    Icons = DefaultIcons
-    warn("SkyX UI - Failed to load icons from repository. Using fallbacks. Error: " .. tostring(Response))
-end
-
-local function GetIcon(IconName)
-    if Icons[IconName] ~= nil then
-        return Icons[IconName]
-    elseif string.match(IconName, "rbxassetid://") then
-        return IconName
-    else
-        return "rbxassetid://7734053495" -- Default settings icon
-    end
-end   
-
+-- Create main UI container
 local SkyXUI = Instance.new("ScreenGui")
-SkyXUI.Name = "SkyXOrion"
+SkyXUI.Name = "SkyXBasicUI"
+
+-- Handle different executor security models
 if syn then
     syn.protect_gui(SkyXUI)
     SkyXUI.Parent = game.CoreGui
@@ -123,1431 +24,593 @@ else
     SkyXUI.Parent = gethui() or game.CoreGui
 end
 
-if gethui then
-    for _, Interface in ipairs(gethui():GetChildren()) do
-        if Interface.Name == SkyXUI.Name and Interface ~= SkyXUI then
-            Interface:Destroy()
-        end
-    end
-else
-    for _, Interface in ipairs(game.CoreGui:GetChildren()) do
-        if Interface.Name == SkyXUI.Name and Interface ~= SkyXUI then
-            Interface:Destroy()
-        end
+-- Remove existing UIs with the same name
+for _, Interface in pairs(game.CoreGui:GetChildren()) do
+    if Interface.Name == SkyXUI.Name and Interface ~= SkyXUI then
+        Interface:Destroy()
     end
 end
 
-function SkyXOrion:IsRunning()
-    if gethui then
-        return SkyXUI.Parent == gethui()
-    else
-        return SkyXUI.Parent == game:GetService("CoreGui")
-    end
+-- Basic UI library
+local SkyXBasic = {}
+SkyXBasic.Elements = {}
+SkyXBasic.Connections = {}
+
+-- Core colors - simplified theme
+local Colors = {
+    Background = Color3.fromRGB(22, 35, 55),
+    Container = Color3.fromRGB(28, 44, 68),
+    Button = Color3.fromRGB(42, 95, 145),
+    Text = Color3.fromRGB(255, 255, 255),
+    Border = Color3.fromRGB(60, 110, 165),
+    TabActive = Color3.fromRGB(42, 95, 145),
+    TabInactive = Color3.fromRGB(32, 65, 105)
+}
+
+-- Basic icon mapping - direct asset IDs, no external loading
+local Icons = {
+    close = "rbxassetid://7743875629",
+    minimize = "rbxassetid://10664064072"
+}
+
+-- Helper functions
+local function AddConnection(signal, callback)
+    local connection = signal:Connect(callback)
+    table.insert(SkyXBasic.Connections, connection)
+    return connection
 end
 
-local function AddConnection(Signal, Function)
-    if (not SkyXOrion:IsRunning()) then
-        return
-    end
-    local SignalConnect = Signal:Connect(Function)
-    table.insert(SkyXOrion.Connections, SignalConnect)
-    return SignalConnect
-end
-
-task.spawn(function()
-    while (SkyXOrion:IsRunning()) do
-        wait()
-    end
-
-    for _, Connection in next, SkyXOrion.Connections do
-        Connection:Disconnect()
-    end
-end)
-
--- Enhanced dragging with mobile support
-local function AddDraggingFunctionality(DragPoint, Main)
-    pcall(function()
-        local Dragging, DragInput, MousePos, FramePos = false
-        local TouchStart, TouchInput
-        
-        -- For PC dragging
-        AddConnection(DragPoint.InputBegan, function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch then
-                Dragging = true
-                MousePos = Input.Position
-                FramePos = Main.Position
-                
-                Input.Changed:Connect(function()
-                    if Input.UserInputState == Enum.UserInputState.End then
-                        Dragging = false
-                    end
-                end)
-            end
-        end)
-        
-        AddConnection(DragPoint.InputChanged, function(Input)
-            if Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch then
-                DragInput = Input
-            end
-        end)
-        
-        AddConnection(UserInputService.InputChanged, function(Input)
-            if Input == DragInput and Dragging then
-                local Delta = Input.Position - MousePos
-                -- Smooth dragging with tweening
-                TweenService:Create(Main, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    Position = UDim2.new(FramePos.X.Scale, FramePos.X.Offset + Delta.X, FramePos.Y.Scale, FramePos.Y.Offset + Delta.Y)
-                }):Play()
-            end
-        end)
-        
-        -- Mobile-specific double-tap to bring to center
-        if SkyXOrion.MobileMode then
-            local LastTap = 0
-            local DoubleTapThreshold = 0.5 -- seconds
+local function MakeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    
+    AddConnection(frame.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
             
-            AddConnection(DragPoint.InputEnded, function(Input)
-                if Input.UserInputType == Enum.UserInputType.Touch then
-                    local CurrentTime = tick()
-                    if CurrentTime - LastTap < DoubleTapThreshold then
-                        -- Double tap detected - center the UI
-                        TweenService:Create(Main, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-                            Position = UDim2.new(0.5, 0, 0.5, 0),
-                            AnchorPoint = Vector2.new(0.5, 0.5)
-                        }):Play()
-                    end
-                    LastTap = CurrentTime
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
                 end
             end)
         end
     end)
-end   
-
-local function Create(Name, Properties, Children)
-    local Object = Instance.new(Name)
-    for i, v in next, Properties or {} do
-        Object[i] = v
-    end
-    for i, v in next, Children or {} do
-        v.Parent = Object
-    end
-    return Object
-end
-
-local function CreateElement(ElementName, ElementFunction)
-    SkyXOrion.Elements[ElementName] = function(...)
-        return ElementFunction(...)
-    end
-end
-
-local function MakeElement(ElementName, ...)
-    local NewElement = SkyXOrion.Elements[ElementName](...)
-    return NewElement
-end
-
-local function SetProps(Element, Props)
-    table.foreach(Props, function(Property, Value)
-        Element[Property] = Value
+    
+    AddConnection(frame.InputChanged, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
     end)
-    return Element
-end
-
-local function SetChildren(Element, Children)
-    table.foreach(Children, function(_, Child)
-        Child.Parent = Element
-    end)
-    return Element
-end
-
-local function Round(Number, Factor)
-    local Result = math.floor(Number/Factor + (math.sign(Number) * 0.5)) * Factor
-    if Result < 0 then Result = Result + Factor end
-    return Result
-end
-
-local function ReturnProperty(Object)
-    if Object:IsA("Frame") or Object:IsA("TextButton") then
-        return "BackgroundColor3"
-    end 
-    if Object:IsA("ScrollingFrame") then
-        return "ScrollBarImageColor3"
-    end 
-    if Object:IsA("UIStroke") then
-        return "Color"
-    end 
-    if Object:IsA("TextLabel") or Object:IsA("TextBox") then
-        return "TextColor3"
-    end   
-    if Object:IsA("ImageLabel") or Object:IsA("ImageButton") then
-        return "ImageColor3"
-    end   
-end
-
-local function AddThemeObject(Object, Type)
-    if not SkyXOrion.ThemeObjects[Type] then
-        SkyXOrion.ThemeObjects[Type] = {}
-    end    
-    table.insert(SkyXOrion.ThemeObjects[Type], Object)
-    Object[ReturnProperty(Object)] = SkyXOrion.Themes[SkyXOrion.SelectedTheme][Type]
-    return Object
-end    
-
-local function SetTheme()
-    for Name, Type in pairs(SkyXOrion.ThemeObjects) do
-        for _, Object in pairs(Type) do
-            Object[ReturnProperty(Object)] = SkyXOrion.Themes[SkyXOrion.SelectedTheme][Name]
-        end    
-    end    
-end
-
-local function PackColor(Color)
-    return {R = Color.R * 255, G = Color.G * 255, B = Color.B * 255}
-end    
-
-local function UnpackColor(Color)
-    return Color3.fromRGB(Color.R, Color.G, Color.B)
-end
-
-local function LoadCfg(Config)
-    local Data = HttpService:JSONDecode(Config)
-    table.foreach(Data, function(a,b)
-        if SkyXOrion.Flags[a] then
-            spawn(function() 
-                if SkyXOrion.Flags[a].Type == "Colorpicker" then
-                    SkyXOrion.Flags[a]:Set(UnpackColor(b))
-                else
-                    SkyXOrion.Flags[a]:Set(b)
-                end    
-            end)
-        else
-            warn("SkyX Orion UI - Could not find ", a ,b)
+    
+    AddConnection(UserInputService.InputChanged, function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
     end)
 end
 
-local function SaveCfg(Name)
-    local Data = {}
-    for i,v in pairs(SkyXOrion.Flags) do
-        if v.Save then
-            if v.Type == "Colorpicker" then
-                Data[i] = PackColor(v.Value)
-            else
-                Data[i] = v.Value
-            end
-        end    
+function SkyXBasic:Destroy()
+    -- Clean up connections
+    for _, connection in pairs(SkyXBasic.Connections) do
+        connection:Disconnect()
     end
-    writefile(SkyXOrion.Folder .. "/" .. Name .. ".txt", tostring(HttpService:JSONEncode(Data)))
+    SkyXBasic.Connections = {}
+    
+    -- Delete UI
+    SkyXUI:Destroy()
 end
 
-local WhitelistedMouse = {Enum.UserInputType.MouseButton1, Enum.UserInputType.MouseButton2,Enum.UserInputType.MouseButton3}
-local BlacklistedKeys = {Enum.KeyCode.Unknown,Enum.KeyCode.W,Enum.KeyCode.A,Enum.KeyCode.S,Enum.KeyCode.D,Enum.KeyCode.Up,Enum.KeyCode.Left,Enum.KeyCode.Down,Enum.KeyCode.Right,Enum.KeyCode.Slash,Enum.KeyCode.Tab,Enum.KeyCode.Backspace,Enum.KeyCode.Escape}
-
-local function CheckKey(Table, Key)
-    for _, v in next, Table do
-        if v == Key then
-            return true
-        end
-    end
-end
-
--- Enhanced UI elements for mobile
-CreateElement("Corner", function(Scale, Offset)
-    local Corner = Create("UICorner", {
-        CornerRadius = UDim.new(Scale or 0, Offset or (SkyXOrion.MobileMode and 12 or 10))
-    })
-    return Corner
-end)
-
-CreateElement("Stroke", function(Color, Thickness)
-    local Stroke = Create("UIStroke", {
-        Color = Color or Color3.fromRGB(255, 255, 255),
-        Thickness = Thickness or (SkyXOrion.MobileMode and 1.5 or 1)
-    })
-    return Stroke
-end)
-
-CreateElement("List", function(Scale, Offset)
-    local List = Create("UIListLayout", {
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Padding = UDim.new(Scale or 0, Offset or (SkyXOrion.MobileMode and 6 or 4))
-    })
-    return List
-end)
-
-CreateElement("Padding", function(Bottom, Left, Right, Top)
-    -- Increase padding for mobile
-    local mobilePadding = SkyXOrion.MobileMode and SkyXOrion.TouchBuffer or 0
-    local Padding = Create("UIPadding", {
-        PaddingBottom = UDim.new(0, (Bottom or 4) + mobilePadding),
-        PaddingLeft = UDim.new(0, (Left or 4) + mobilePadding),
-        PaddingRight = UDim.new(0, (Right or 4) + mobilePadding),
-        PaddingTop = UDim2.new(0, (Top or 4) + mobilePadding)
-    })
-    return Padding
-end)
-
-CreateElement("TFrame", function()
-    local TFrame = Create("Frame", {
-        BackgroundTransparency = 1
-    })
-    return TFrame
-end)
-
-CreateElement("Frame", function(Color)
-    local Frame = Create("Frame", {
-        BackgroundColor3 = Color or Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0
-    })
-    return Frame
-end)
-
-CreateElement("RoundFrame", function(Color, Scale, Offset)
-    local Frame = Create("Frame", {
-        BackgroundColor3 = Color or Color3.fromRGB(255, 255, 255),
-        BorderSizePixel = 0
-    }, {
-        Create("UICorner", {
-            CornerRadius = UDim.new(Scale or 0, Offset or (SkyXOrion.MobileMode and 12 or 10))
-        })
-    })
-    return Frame
-end)
-
-CreateElement("Button", function()
-    local Button = Create("TextButton", {
-        Text = "",
-        AutoButtonColor = false,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0
-    })
-    return Button
-end)
-
-CreateElement("ScrollFrame", function(Color, Width)
-    local ScrollFrame = Create("ScrollingFrame", {
-        BackgroundTransparency = 1,
-        MidImage = "rbxassetid://7445543667",
-        BottomImage = "rbxassetid://7445543667",
-        TopImage = "rbxassetid://7445543667",
-        ScrollBarImageColor3 = Color,
-        BorderSizePixel = 0,
-        ScrollBarThickness = Width or (SkyXOrion.MobileMode and 8 or 4),
-        CanvasSize = UDim2.new(0, 0, 0, 0)
-    })
-    return ScrollFrame
-end)
-
-CreateElement("Image", function(ImageID)
-    local ImageNew = Create("ImageLabel", {
-        Image = GetIcon(ImageID),
-        BackgroundTransparency = 1
-    })
-    return ImageNew
-end)
-
-CreateElement("ImageButton", function(ImageID)
-    local Image = Create("ImageButton", {
-        Image = GetIcon(ImageID),
-        BackgroundTransparency = 1
-    })
-    return Image
-end)
-
-CreateElement("Label", function(Text, TextSize, Transparency)
-    local adjustedTextSize = TextSize or 15
-    if SkyXOrion.MobileMode then
-        adjustedTextSize = adjustedTextSize * SkyXOrion.FontSizeMultiplier
-    end
+-- Main UI creation function
+function SkyXBasic:CreateWindow(title)
+    title = title or "SkyX Basic UI"
     
-    local Label = Create("TextLabel", {
-        Text = Text or "",
-        TextColor3 = Color3.fromRGB(240, 240, 240),
-        TextTransparency = Transparency or 0,
-        TextSize = adjustedTextSize,
-        Font = Enum.Font.Gotham,
-        RichText = true,
-        BackgroundTransparency = 1,
-        TextXAlignment = Enum.TextXAlignment.Left
-    })
-    return Label
-end)
-
--- Enhanced Notification UI for mobile - increased size and better touch visibility
-local NotificationHolder = SetProps(SetChildren(MakeElement("TFrame"), {
-    SetProps(MakeElement("List"), {
-        HorizontalAlignment = Enum.HorizontalAlignment.Center,
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        VerticalAlignment = Enum.VerticalAlignment.Bottom,
-        Padding = UDim.new(0, 5)
-    })
-}), {
-    Position = UDim2.new(1, -25, 1, -25),
-    Size = UDim2.new(0, SkyXOrion.MobileMode and 320 or 300, 1, -25),
-    AnchorPoint = Vector2.new(1, 1),
-    Parent = SkyXUI
-})
-
-function SkyXOrion:MakeNotification(NotificationConfig)
-    spawn(function()
-        NotificationConfig.Name = NotificationConfig.Name or "Notification"
-        NotificationConfig.Content = NotificationConfig.Content or "Test"
-        NotificationConfig.Image = NotificationConfig.Image or "rbxassetid://4384403532"
-        NotificationConfig.Time = NotificationConfig.Time or 15
-
-        local NotificationParent = SetProps(MakeElement("TFrame"), {
-            Size = UDim2.new(1, 0, 0, 0),
-            AutomaticSize = Enum.AutomaticSize.Y,
-            Parent = NotificationHolder
-        })
-
-        local NotificationFrame = SetChildren(SetProps(
-            MakeElement("RoundFrame", SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main, 0, 10), 
-        {
-            Parent = NotificationParent, 
-            Size = UDim2.new(1, 0, 0, 0),
-            Position = UDim2.new(1, -55, 0, 0),
-            BackgroundTransparency = 0,
-            AutomaticSize = Enum.AutomaticSize.Y
-        }), {
-            MakeElement("Stroke", SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke, SkyXOrion.MobileMode and 1.5 or 1.2),
-            MakeElement("Padding", 12, 12, 12, 12),
-            SetProps(MakeElement("Image", NotificationConfig.Image), {
-                Size = UDim2.new(0, SkyXOrion.MobileMode and 24 or 20, 0, SkyXOrion.MobileMode and 24 or 20),
-                ImageColor3 = Color3.fromRGB(240, 240, 240),
-                Name = "Icon"
-            }),
-            SetProps(MakeElement("Label", NotificationConfig.Name, SkyXOrion.MobileMode and 16 or 15), {
-                Size = UDim2.new(1, -(SkyXOrion.MobileMode and 35 or 30), 0, SkyXOrion.MobileMode and 24 or 20),
-                Position = UDim2.new(0, SkyXOrion.MobileMode and 35 or 30, 0, 0),
-                Font = Enum.Font.GothamBold,
-                Name = "Title"
-            }),
-            SetProps(MakeElement("Label", NotificationConfig.Content, SkyXOrion.MobileMode and 15 or 14), {
-                Size = UDim2.new(1, 0, 0, 0),
-                Position = UDim2.new(0, 0, 0, SkyXOrion.MobileMode and 30 or 25),
-                Font = Enum.Font.GothamSemibold,
-                Name = "Content",
-                AutomaticSize = Enum.AutomaticSize.Y,
-                TextColor3 = Color3.fromRGB(200, 200, 200),
-                TextWrapped = true
-            })
-        })
-
-        TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Position = UDim2.new(0, 0, 0, 0)}):Play()
-
-        wait(NotificationConfig.Time - 0.88)
-        TweenService:Create(NotificationFrame.Icon, TweenInfo.new(0.4, Enum.EasingStyle.Quint), {ImageTransparency = 1}):Play()
-        TweenService:Create(NotificationFrame, TweenInfo.new(0.8, Enum.EasingStyle.Quint), {BackgroundTransparency = 0.6}):Play()
-        wait(0.3)
-        TweenService:Create(NotificationFrame.UIStroke, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {Transparency = 0.9}):Play()
-        TweenService:Create(NotificationFrame.Title, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {TextTransparency = 0.4}):Play()
-        TweenService:Create(NotificationFrame.Content, TweenInfo.new(0.6, Enum.EasingStyle.Quint), {TextTransparency = 0.5}):Play()
-        wait(0.05)
-
-        NotificationFrame:TweenPosition(UDim2.new(1, 20, 0, 0),'In','Quint',0.8,true)
-        wait(1.35)
-        NotificationFrame:Destroy()
-    end)
-end    
-
-function SkyXOrion:Init()
-    if SkyXOrion.SaveCfg then    
-        pcall(function()
-            if isfile(SkyXOrion.Folder .. "/" .. game.GameId .. ".txt") then
-                LoadCfg(readfile(SkyXOrion.Folder .. "/" .. game.GameId .. ".txt"))
-                SkyXOrion:MakeNotification({
-                    Name = "Configuration",
-                    Content = "Auto-loaded configuration for this game",
-                    Time = 5
-                })
-            end
-        end)
-    end
-end
-
--- Add SetTheme function to allow externally changing themes
-function SkyXOrion:SetTheme()
-    SetTheme()
-end
-
--- Enhanced window creation for mobile
-function SkyXOrion:MakeWindow(WindowConfig)
-    WindowConfig = WindowConfig or {}
-    WindowConfig.Name = WindowConfig.Name or "SkyX Orion"
-    WindowConfig.ConfigFolder = WindowConfig.ConfigFolder or WindowConfig.Name
-    WindowConfig.SaveConfig = WindowConfig.SaveConfig or false
-    WindowConfig.HidePremium = WindowConfig.HidePremium or false
-    WindowConfig.SizeX = IsMobile and 0.7 or 0.65
-    WindowConfig.SizeY = IsMobile and 0.7 or 0.65
+    -- Create main window
+    local MainWindow = Instance.new("Frame")
+    MainWindow.Name = "MainWindow"
+    MainWindow.Size = UDim2.new(0, 500, 0, 350)
+    MainWindow.Position = UDim2.new(0.5, -250, 0.5, -175)
+    MainWindow.BackgroundColor3 = Colors.Background
+    MainWindow.BorderSizePixel = 0
+    MainWindow.Active = true
+    MainWindow.Parent = SkyXUI
     
-    if WindowConfig.IntroEnabled == nil then
-        WindowConfig.IntroEnabled = true
-    end
+    -- Add corner
+    local MainCorner = Instance.new("UICorner")
+    MainCorner.CornerRadius = UDim.new(0, 8)
+    MainCorner.Parent = MainWindow
     
-    WindowConfig.IntroText = WindowConfig.IntroText or "SkyX Orion UI"
-    WindowConfig.CloseCallback = WindowConfig.CloseCallback or function() end
-    WindowConfig.AutoShow = WindowConfig.AutoShow or false
-    WindowConfig.CenterWindow = IsMobile
+    -- Create window title bar
+    local TitleBar = Instance.new("Frame")
+    TitleBar.Name = "TitleBar"
+    TitleBar.Size = UDim2.new(1, 0, 0, 40)
+    TitleBar.BackgroundColor3 = Colors.Button
+    TitleBar.BorderSizePixel = 0
+    TitleBar.Parent = MainWindow
     
-    -- Adjust for mobile screen size
-    if IsMobile then
-        if DeviceScreenSize.X < 700 or DeviceScreenSize.Y < 400 then
-            -- Small screen adjustments
-            WindowConfig.SizeX = 0.8
-            WindowConfig.SizeY = 0.75
-        end
-    end
+    -- Add corner to title bar
+    local TitleCorner = Instance.new("UICorner")
+    TitleCorner.CornerRadius = UDim.new(0, 8)
+    TitleCorner.Parent = TitleBar
     
-    SkyXOrion.Folder = WindowConfig.ConfigFolder
-    SkyXOrion.SaveCfg = WindowConfig.SaveConfig
-
-    if SkyXOrion.SaveCfg then
-        pcall(function()
-            if not isfolder(SkyXOrion.Folder) then
-                makefolder(SkyXOrion.Folder)
-            end
-        end)
-    end
+    -- Fix corners
+    local CornerFix = Instance.new("Frame")
+    CornerFix.Name = "CornerFix"
+    CornerFix.Size = UDim2.new(1, 0, 0, 10)
+    CornerFix.Position = UDim2.new(0, 0, 1, -10)
+    CornerFix.BackgroundColor3 = Colors.Button
+    CornerFix.BorderSizePixel = 0
+    CornerFix.Parent = TitleBar
     
-    local TabsList = {}
+    -- Add title text
+    local TitleText = Instance.new("TextLabel")
+    TitleText.Name = "Title"
+    TitleText.Size = UDim2.new(1, -50, 1, 0)
+    TitleText.Position = UDim2.new(0, 15, 0, 0)
+    TitleText.BackgroundTransparency = 1
+    TitleText.Font = Enum.Font.GothamBold
+    TitleText.TextSize = 16
+    TitleText.TextColor3 = Colors.Text
+    TitleText.TextXAlignment = Enum.TextXAlignment.Left
+    TitleText.Text = title
+    TitleText.Parent = TitleBar
     
-    local MainWindow = Create("Frame", {
-        Name = "MainWindow",
-        Parent = SkyXUI,
-        BackgroundTransparency = 1,
-        Position = WindowConfig.CenterWindow and UDim2.new(0.5, 0, 0.5, 0) or UDim2.new(0.5, 0, 0.5, -30),
-        AnchorPoint = WindowConfig.CenterWindow and Vector2.new(0.5, 0.5) or Vector2.new(0.5, 0.5),
-        Size = UDim2.new(0, 0, 0, 0),
-        Visible = false,
-    })
-
-    local Topbar = Create("Frame", {
-        Parent = MainWindow,
-        BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main,
-        Size = UDim2.new(0, 560, 0, IsMobile and 50 or 45),
-        BorderSizePixel = 0,
-        Visible = true,
-    }, {
-        Create("UICorner", {
-            CornerRadius = UDim.new(0, 9)
-        }),
-        Create("Frame", {
-            Name = "CornerRepair",
-            BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main,
-            BorderSizePixel = 0,
-            Position = UDim2.new(0, 0, 1, -9),
-            Size = UDim2.new(1, 0, 0, 9)
-        }),
-        Create("TextLabel", {
-            Name = "WindowTitle",
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, IsMobile and 21 or 17, 0, 0),
-            Size = UDim2.new(0, 200, 1, 0),
-            Font = Enum.Font.GothamBold,
-            Text = WindowConfig.Name,
-            TextColor3 = Color3.fromRGB(255, 255, 255),
-            TextSize = IsMobile and 18 or 16,
-            TextXAlignment = Enum.TextXAlignment.Left
-        })
-    })
+    -- Add close button
+    local CloseButton = Instance.new("ImageButton")
+    CloseButton.Name = "CloseButton"
+    CloseButton.Size = UDim2.new(0, 20, 0, 20)
+    CloseButton.Position = UDim2.new(1, -30, 0, 10)
+    CloseButton.BackgroundTransparency = 1
+    CloseButton.Image = Icons.close
+    CloseButton.Parent = TitleBar
     
-    AddDraggingFunctionality(Topbar, MainWindow)
-    AddThemeObject(Topbar, "Main")
-    AddThemeObject(Topbar.CornerRepair, "Main")
-    
-    -- Mobile-friendly minimize/close buttons
-    local ButtonSize = IsMobile and 20 or 17
-    
-    local MinimizeButton = Create("ImageButton", {
-        Name = "MinimizeBtn",
-        Parent = Topbar,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(1, -(ButtonSize*2 + 18), 0.5, 0),
-        Size = UDim2.new(0, ButtonSize, 0, ButtonSize),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Image = GetIcon("minimize"),
-        Visible = true
-    })
-    
-    local CloseButton = Create("ImageButton", {
-        Name = "CloseBtn",
-        Parent = Topbar, 
-        BackgroundTransparency = 1,
-        Position = UDim2.new(1, -14, 0.5, 0),
-        Size = UDim2.new(0, ButtonSize, 0, ButtonSize),
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        Image = GetIcon("close"),
-        Visible = true
-    })
-    
-    -- Improved mobile-friendly window
-    local WindowMainFrame = Create("Frame", {
-        Name = "MainFrame",
-        Parent = MainWindow,
-        BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Second,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 0, 0, Topbar.AbsoluteSize.Y - 9),
-        Size = UDim2.new(0, 560, 0, 400),
-        ClipsDescendants = true
-    }, {
-        Create("UICorner", {
-            CornerRadius = UDim.new(0, 9)
-        }),
-        Create("Frame", {
-            Name = "CornerRepair",
-            BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Second,
-            BorderSizePixel = 0,
-            Position = UDim2.new(0, 0, 0, 0),
-            Size = UDim2.new(1, 0, 0, 9)
-        })
-    })
-    
-    AddThemeObject(WindowMainFrame, "Second")
-    AddThemeObject(WindowMainFrame.CornerRepair, "Second")
-    
-    local TabHolder = Create("ScrollingFrame", {
-        Name = "TabHolder",
-        Parent = WindowMainFrame,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, IsMobile and 14 or 8, 0, IsMobile and 14 or 9),
-        Size = UDim2.new(0, IsMobile and 535 or 545, 0, IsMobile and 36 or 30),
-        ClipsDescendants = true,
-        ScrollBarThickness = 0,
-        ScrollingDirection = Enum.ScrollingDirection.X,
-        CanvasSize = UDim2.new(0, 0, 0, 0)
-    }, {
-        Create("UIListLayout", {
-            FillDirection = Enum.FillDirection.Horizontal,
-            HorizontalAlignment = Enum.HorizontalAlignment.Left,
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            VerticalAlignment = Enum.VerticalAlignment.Center,
-            Padding = UDim.new(0, IsMobile and 10 or 6)
-        })
-    })
-    
-    local DividerFrame = Create("Frame", {
-        Name = "DividerFrame",
-        Parent = WindowMainFrame,
-        BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Divider,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 8, 0, IsMobile and 58 or 47),
-        Size = UDim2.new(1, -16, 0, 1.8)
-    })
-    
-    AddThemeObject(DividerFrame, "Divider")
-    
-    local ContainerHolder = Create("Frame", {
-        Name = "ContainerHolder",
-        Parent = WindowMainFrame,
-        BackgroundTransparency = 1,
-        Position = UDim2.new(0, 0, 0, IsMobile and 66 or 55),
-        Size = UDim2.new(1, 0, 1, -(IsMobile and 74 or 63))
-    })
-    
-    -- Enhanced mobile swipe functionality for tabs
-    if IsMobile then
-        local SwipeStartX, SwipeStartTime = 0, 0
-        local SwipeThreshold = 50
-        local SwipeTimeThreshold = 0.5
-        
-        AddConnection(WindowMainFrame.InputBegan, function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                SwipeStartX = input.Position.X
-                SwipeStartTime = tick()
-            end
-        end)
-        
-        AddConnection(WindowMainFrame.InputEnded, function(input)
-            if input.UserInputType == Enum.UserInputType.Touch then
-                local swipeDistance = input.Position.X - SwipeStartX
-                local swipeTime = tick() - SwipeStartTime
-                
-                if math.abs(swipeDistance) > SwipeThreshold and swipeTime < SwipeTimeThreshold then
-                    -- Determine direction
-                    if swipeDistance > 0 then
-                        -- Swipe right (previous tab)
-                        if SkyXOrion.CurrentTabIndex > 1 then
-                            TabsList[SkyXOrion.CurrentTabIndex - 1].TabButton.Activated:Fire()
-                        end
-                    else
-                        -- Swipe left (next tab)
-                        if SkyXOrion.CurrentTabIndex < #TabsList then
-                            TabsList[SkyXOrion.CurrentTabIndex + 1].TabButton.Activated:Fire()
-                        end
-                    end
-                end
-            end
-        end)
-    end
-    
-    -- Minimize/Close functionality
+    -- Add event for close button
     AddConnection(CloseButton.MouseButton1Click, function()
-        MainWindow.Visible = false
-        WindowConfig.CloseCallback()
+        MainWindow:Destroy()
     end)
     
-    AddConnection(MinimizeButton.MouseButton1Click, function()
-        if SkyXOrion.IsMinimized then
-            -- Restore window
-            TweenService:Create(WindowMainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Size = UDim2.new(0, 560, 0, 400)}):Play()
-            MinimizeButton.Image = GetIcon("minimize")
-        else
-            -- Minimize window
-            TweenService:Create(WindowMainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {Size = UDim2.new(0, 560, 0, 0)}):Play()
-            MinimizeButton.Image = GetIcon("maximize")
-        end
-        SkyXOrion.IsMinimized = not SkyXOrion.IsMinimized
-    end)
+    -- Create content area
+    local ContentFrame = Instance.new("Frame")
+    ContentFrame.Name = "ContentFrame"
+    ContentFrame.Size = UDim2.new(1, 0, 1, -50)
+    ContentFrame.Position = UDim2.new(0, 0, 0, 40)
+    ContentFrame.BackgroundColor3 = Colors.Container
+    ContentFrame.BorderSizePixel = 0
+    ContentFrame.Parent = MainWindow
     
-    -- Improved intro animation optimized for mobile
-    local function PlayIntro()
-        MainWindow.Visible = true
-        MainWindow.Size = UDim2.new(0, WindowConfig.SizeX * DeviceScreenSize.X, 0, WindowConfig.SizeY * DeviceScreenSize.Y)
-        MainWindow.BackgroundTransparency = 1
-        MainWindow.Position = UDim2.new(WindowConfig.CenterWindow and 0.5 or 0.5, 0, WindowConfig.CenterWindow and 0.5 or 0.5, 0)
-        WindowMainFrame.Position = UDim2.new(0, 0, 0, Topbar.AbsoluteSize.Y - 9)
-        WindowMainFrame.Size = UDim2.new(1, 0, 1, -(Topbar.AbsoluteSize.Y - 9))
-        WindowMainFrame.Visible = false
-        Topbar.Visible = false
-        
-        -- Show intro screen with logo and text
-        local IntroGui = Create("Frame", {
-            Name = "IntroGui",
-            Parent = SkyXUI,
-            Size = UDim2.new(1, 0, 1, 0),
-            BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main,
-            BackgroundTransparency = 1,
-            ClipsDescendants = true
-        }, {
-            Create("UICorner", {
-                CornerRadius = UDim.new(0, 10)
-            })
-        })
-        
-        local LogoImage = Create("ImageLabel", {
-            Name = "Logo",
-            Parent = IntroGui,
-            Position = UDim2.new(0.5, 0, 0.5, -40),
-            Size = UDim2.new(0, 80, 0, 80),
-            BackgroundTransparency = 1,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Image = WindowConfig.Icon or "rbxassetid://10618644218",
-            ImageTransparency = 1
-        })
-        
-        local IntroText = Create("TextLabel", {
-            Name = "IntroText",
-            Parent = IntroGui,
-            Position = UDim2.new(0.5, 0, 0.5, 30),
-            Size = UDim2.new(0, 200, 0, 30),
-            BackgroundTransparency = 1,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            Text = WindowConfig.IntroText,
-            Font = Enum.Font.GothamBold,
-            TextColor3 = Color3.fromRGB(240, 240, 240),
-            TextSize = 18,
-            TextTransparency = 1
-        })
-        
-        -- Animate intro elements
-        TweenService:Create(IntroGui, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            BackgroundTransparency = 0,
-            Size = UDim2.new(0, WindowConfig.SizeX * DeviceScreenSize.X, 0, WindowConfig.SizeY * DeviceScreenSize.Y)
-        }):Play()
-        
-        wait(0.5)
-        
-        TweenService:Create(LogoImage, TweenInfo.new(0.7, Enum.EasingStyle.Quint), {
-            ImageTransparency = 0
-        }):Play()
-        
-        wait(0.3)
-        
-        TweenService:Create(IntroText, TweenInfo.new(0.7, Enum.EasingStyle.Quint), {
-            TextTransparency = 0
-        }):Play()
-        
-        wait(0.9)
-        
-        -- Fade out intro
-        TweenService:Create(LogoImage, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            ImageTransparency = 1
-        }):Play()
-        
-        TweenService:Create(IntroText, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            TextTransparency = 1
-        }):Play()
-        
-        wait(0.5)
-        
-        -- Show main UI
-        IntroGui:Destroy()
-        Topbar.Visible = true
-        WindowMainFrame.Visible = true
-        
-        TweenService:Create(Topbar, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
-            Position = UDim2.new(0, 0, 0, 0)
-        }):Play()
-    end
+    -- Fix content corners
+    local ContentCorner = Instance.new("UICorner")
+    ContentCorner.CornerRadius = UDim.new(0, 8)
+    ContentCorner.Parent = ContentFrame
     
-    if WindowConfig.IntroEnabled then
-        PlayIntro()
-    else
-        MainWindow.Visible = true
-        MainWindow.Size = UDim2.new(0, WindowConfig.SizeX * DeviceScreenSize.X, 0, WindowConfig.SizeY * DeviceScreenSize.Y)
-    end
+    -- Add tab container
+    local TabContainer = Instance.new("Frame")
+    TabContainer.Name = "TabContainer"
+    TabContainer.Size = UDim2.new(1, -20, 0, 40)
+    TabContainer.Position = UDim2.new(0, 10, 0, 10)
+    TabContainer.BackgroundTransparency = 1
+    TabContainer.BorderSizePixel = 0
+    TabContainer.Parent = ContentFrame
     
-    -- Tab creation with mobile optimization
-    local function MakeTab(TabConfig)
-        TabConfig = TabConfig or {}
-        TabConfig.Name = TabConfig.Name or "Tab"
-        TabConfig.Icon = TabConfig.Icon or ""
-        TabConfig.PremiumOnly = TabConfig.PremiumOnly or false
+    -- Add tab layout
+    local TabLayout = Instance.new("UIListLayout")
+    TabLayout.FillDirection = Enum.FillDirection.Horizontal
+    TabLayout.Padding = UDim.new(0, 5)
+    TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    TabLayout.Parent = TabContainer
+    
+    -- Add tab content container
+    local TabContent = Instance.new("Frame")
+    TabContent.Name = "TabContent"
+    TabContent.Size = UDim2.new(1, -20, 1, -60)
+    TabContent.Position = UDim2.new(0, 10, 0, 50)
+    TabContent.BackgroundTransparency = 1
+    TabContent.BorderSizePixel = 0
+    TabContent.Parent = ContentFrame
+    
+    -- Make window draggable
+    MakeDraggable(TitleBar)
+    
+    -- Track tabs
+    local Tabs = {}
+    local SelectedTab = nil
+    
+    -- Tab creation function
+    local function CreateTab(name)
+        -- Create tab button
+        local TabButton = Instance.new("TextButton")
+        TabButton.Name = name .. "Tab"
+        TabButton.Size = UDim2.new(0, 100, 1, 0)
+        TabButton.BackgroundColor3 = Colors.TabInactive
+        TabButton.BorderSizePixel = 0
+        TabButton.Font = Enum.Font.GothamBold
+        TabButton.TextSize = 14
+        TabButton.TextColor3 = Colors.Text
+        TabButton.Text = name
+        TabButton.Parent = TabContainer
         
-        -- Adjust TabButton size for mobile
-        local TabButtonWidth = IsMobile and math.max(120, TabConfig.Name:len() * 10) or math.max(80, TabConfig.Name:len() * 8)
+        -- Add corner to tab button
+        local TabCorner = Instance.new("UICorner")
+        TabCorner.CornerRadius = UDim.new(0, 6)
+        TabCorner.Parent = TabButton
         
-        local TabButton = Create("TextButton", {
-            Name = "TabButton",
-            Parent = TabHolder,
-            BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main,
-            BackgroundTransparency = 0.7,
-            Size = UDim2.new(0, TabButtonWidth, 0, IsMobile and 32 or 25),
-            Font = Enum.Font.GothamSemibold,
-            Text = "",
-            TextColor3 = Color3.fromRGB(240, 240, 240),
-            TextSize = IsMobile and 15 or 13,
-            TextTransparency = 0,
-            AutoButtonColor = false
-        }, {
-            Create("UICorner", {
-                CornerRadius = UDim.new(0, 8)
-            })
-        })
+        -- Create tab page
+        local TabPage = Instance.new("ScrollingFrame")
+        TabPage.Name = name .. "Page"
+        TabPage.Size = UDim2.new(1, 0, 1, 0)
+        TabPage.BackgroundTransparency = 1
+        TabPage.BorderSizePixel = 0
+        TabPage.ScrollBarThickness = 4
+        TabPage.ScrollBarImageColor3 = Colors.Button
+        TabPage.Visible = false
+        TabPage.Parent = TabContent
         
-        AddThemeObject(TabButton, "Main")
+        -- Add padding to tab page
+        local PagePadding = Instance.new("UIPadding")
+        PagePadding.PaddingLeft = UDim.new(0, 5)
+        PagePadding.PaddingRight = UDim.new(0, 5)
+        PagePadding.PaddingTop = UDim.new(0, 5)
+        PagePadding.PaddingBottom = UDim.new(0, 5)
+        PagePadding.Parent = TabPage
         
-        local TabButtonText = Create("TextLabel", {
-            Name = "TabButtonText",
-            Parent = TabButton,
-            AnchorPoint = Vector2.new(0.5, 0.5),
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0.5, 0, 0.5, 0),
-            Size = UDim2.new(0, TabButtonWidth - 25, 1, 0),
-            Font = Enum.Font.GothamSemibold,
-            Text = TabConfig.Name,
-            TextColor3 = Color3.fromRGB(240, 240, 240),
-            TextSize = IsMobile and 15 or 13
-        })
+        -- Add layout to tab page
+        local PageLayout = Instance.new("UIListLayout")
+        PageLayout.Padding = UDim.new(0, 10)
+        PageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        PageLayout.Parent = TabPage
         
-        -- Add tab image if provided
-        if TabConfig.Icon ~= "" then
-            local TabImage = Create("ImageLabel", {
-                Name = "TabImage",
-                Parent = TabButton,
-                AnchorPoint = Vector2.new(0, 0.5),
-                BackgroundTransparency = 1,
-                Position = UDim2.new(0, 10, 0.5, 0),
-                Size = UDim2.new(0, IsMobile and 20 or 16, 0, IsMobile and 20 or 16),
-                Image = GetIcon(TabConfig.Icon),
-                ImageColor3 = Color3.fromRGB(240, 240, 240)
-            })
-            
-            -- Adjust text position
-            TabButtonText.Position = UDim2.new(0.5, IsMobile and 8 or 5, 0.5, 0)
-        end
-        
-        local Container = Create("ScrollingFrame", {
-            Name = "Container",
-            Parent = ContainerHolder,
-            Active = true,
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Position = UDim2.new(0, 8, 0, 8),
-            Size = UDim2.new(1, -16, 1, -16),
-            ScrollBarThickness = IsMobile and 8 or 4,
-            ScrollBarImageColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke,
-            Visible = false,
-            CanvasSize = UDim2.new(0, 0, 0, 0)
-        }, {
-            Create("UIListLayout", {
-                HorizontalAlignment = Enum.HorizontalAlignment.Center,
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                Padding = UDim.new(0, IsMobile and 10 or 6)
-            })
-        })
-        
-        -- Mobile-friendly scroll bar
-        if IsMobile then
-            Container.ScrollBarThickness = 8
-            AddThemeObject(Container, "Stroke")
-        end
-        
-        AddConnection(Container.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-            Container.CanvasSize = UDim2.new(0, 0, 0, Container.UIListLayout.AbsoluteContentSize.Y + 20)
+        -- Auto-size content
+        AddConnection(PageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+            TabPage.CanvasSize = UDim2.new(0, 0, 0, PageLayout.AbsoluteContentSize.Y + 10)
         end)
         
-        -- Add to tabs list
-        local TabIndex = #TabsList + 1
-        table.insert(TabsList, {
-            Name = TabConfig.Name,
-            Container = Container,
-            TabButton = TabButton,
-            Index = TabIndex
-        })
+        -- Tab info
+        local Tab = {
+            Name = name,
+            Button = TabButton,
+            Page = TabPage
+        }
         
-        -- Handle tab selection
+        -- Add tab selection logic
         AddConnection(TabButton.MouseButton1Click, function()
-            for _, Tab in ipairs(TabsList) do
-                if Tab.Name ~= TabConfig.Name then
-                    Tab.Container.Visible = false
-                    TweenService:Create(Tab.TabButton, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-                        BackgroundTransparency = 0.7
-                    }):Play()
-                end
+            -- Deselect current tab
+            if SelectedTab then
+                SelectedTab.Page.Visible = false
+                SelectedTab.Button.BackgroundColor3 = Colors.TabInactive
             end
             
-            if IsMobile then
-                -- Vibration feedback on mobile for tab change
-                pcall(function()
-                    if IsMobile and UserInputService.HapticService then
-                        UserInputService.HapticService:PlayHaptic(Enum.HapticsType.Bump)
-                    end
-                end)
-                
-                -- Update current tab index for swipe functionality
-                SkyXOrion.CurrentTabIndex = TabIndex
-            end
-            
-            Container.Visible = true
-            TweenService:Create(TabButton, TweenInfo.new(0.3, Enum.EasingStyle.Quad), {
-                BackgroundTransparency = 0
-            }):Play()
+            -- Select this tab
+            Tab.Page.Visible = true
+            Tab.Button.BackgroundColor3 = Colors.TabActive
+            SelectedTab = Tab
         end)
         
-        -- Select first tab as default
-        if #TabsList == 1 then
-            Container.Visible = true
-            TabButton.BackgroundTransparency = 0
-            SkyXOrion.CurrentTabIndex = 1
+        -- Add to tabs
+        table.insert(Tabs, Tab)
+        
+        -- Auto-select first tab
+        if #Tabs == 1 then
+            Tab.Page.Visible = true
+            Tab.Button.BackgroundColor3 = Colors.TabActive
+            SelectedTab = Tab
         end
         
-        -- Adjust tab holder canvas size
-        TabHolder.CanvasSize = UDim2.new(0, TabHolder.UIListLayout.AbsoluteContentSize.X + 20, 0, 0)
+        -- Tab content creation functions
+        local TabFunctions = {}
         
-        -- Section Creation function with mobile optimizations
-        local Elements = {}
-        
-        function Elements:AddSection(SectionConfig)
-            SectionConfig = SectionConfig or {}
-            SectionConfig.Name = SectionConfig.Name or "Section"
+        -- Create section
+        function TabFunctions:CreateSection(sectionName)
+            -- Create section container
+            local Section = Instance.new("Frame")
+            Section.Name = sectionName .. "Section"
+            Section.Size = UDim2.new(1, 0, 0, 30) -- Will be auto-sized
+            Section.BackgroundColor3 = Colors.Background
+            Section.BorderSizePixel = 0
+            Section.AutomaticSize = Enum.AutomaticSize.Y
+            Section.Parent = TabPage
             
-            local SectionSize = IsMobile and 36 or 32
+            -- Add corner
+            local SectionCorner = Instance.new("UICorner")
+            SectionCorner.CornerRadius = UDim.new(0, 6)
+            SectionCorner.Parent = Section
             
-            local Section = Create("Frame", {
-                Name = "Section",
-                Parent = Container,
-                BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Second,
-                BorderSizePixel = 0,
-                Size = UDim2.new(0.98, 0, 0, SectionSize)
-            }, {
-                Create("UICorner", {
-                    CornerRadius = UDim.new(0, 8)
-                }),
-                Create("UIStroke", {
-                    ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                    Color = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke,
-                    LineJoinMode = Enum.LineJoinMode.Round,
-                    Thickness = 1.6
-                }),
-                Create("TextLabel", {
-                    Name = "SectionTitle",
-                    BackgroundTransparency = 1,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 12, 0, 0),
-                    Size = UDim2.new(0, 300, 0, SectionSize),
-                    Font = Enum.Font.GothamBold,
-                    Text = SectionConfig.Name,
-                    TextColor3 = Color3.fromRGB(240, 240, 240),
-                    TextSize = IsMobile and 16 or 14,
-                    TextXAlignment = Enum.TextXAlignment.Left
-                })
-            })
+            -- Add stroke
+            local SectionStroke = Instance.new("UIStroke")
+            SectionStroke.Color = Colors.Border
+            SectionStroke.Thickness = 1.5
+            SectionStroke.Parent = Section
             
-            AddThemeObject(Section.UIStroke, "Stroke")
+            -- Add title
+            local SectionTitle = Instance.new("TextLabel")
+            SectionTitle.Name = "Title"
+            SectionTitle.Size = UDim2.new(1, 0, 0, 30)
+            SectionTitle.BackgroundTransparency = 1
+            SectionTitle.Font = Enum.Font.GothamBold
+            SectionTitle.TextSize = 14
+            SectionTitle.TextColor3 = Colors.Text
+            SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+            SectionTitle.Text = "    " .. sectionName
+            SectionTitle.Parent = Section
             
-            local SectionContainer = Create("Frame", {
-                Name = "SectionContainer",
-                Parent = Section,
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                Position = UDim2.new(0, 0, 0, SectionSize),
-                Size = UDim2.new(1, 0, 0, 0)
-            }, {
-                Create("UIListLayout", {
-                    HorizontalAlignment = Enum.HorizontalAlignment.Center,
-                    SortOrder = Enum.SortOrder.LayoutOrder,
-                    Padding = UDim.new(0, IsMobile and 10 or 6)
-                })
-            })
+            -- Create section content
+            local SectionContent = Instance.new("Frame")
+            SectionContent.Name = "Content"
+            SectionContent.Size = UDim2.new(1, -10, 0, 0)
+            SectionContent.Position = UDim2.new(0, 5, 0, 30)
+            SectionContent.BackgroundTransparency = 1
+            SectionContent.BorderSizePixel = 0
+            SectionContent.AutomaticSize = Enum.AutomaticSize.Y
+            SectionContent.Parent = Section
             
-            -- Update section size based on contents
-            AddConnection(SectionContainer.UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-                SectionContainer.Size = UDim2.new(1, 0, 0, SectionContainer.UIListLayout.AbsoluteContentSize.Y + 8)
-                Section.Size = UDim2.new(0.98, 0, 0, SectionSize + SectionContainer.UIListLayout.AbsoluteContentSize.Y + 8)
+            -- Add layout to section content
+            local ContentLayout = Instance.new("UIListLayout")
+            ContentLayout.Padding = UDim.new(0, 8)
+            ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+            ContentLayout.Parent = SectionContent
+            
+            -- Auto-size section
+            AddConnection(ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+                SectionContent.Size = UDim2.new(1, -10, 0, ContentLayout.AbsoluteContentSize.Y)
+                Section.Size = UDim2.new(1, 0, 0, SectionContent.Size.Y.Offset + 40)
             end)
             
-            -- Section Elements
-            local SectionElements = {}
+            -- Section functions
+            local SectionFunctions = {}
             
-            function SectionElements:AddLabel(LabelConfig)
-                LabelConfig = LabelConfig or {}
-                LabelConfig.Name = LabelConfig.Name or "Label"
+            -- Add button
+            function SectionFunctions:AddButton(buttonText, callback)
+                callback = callback or function() end
                 
-                local LabelHeight = IsMobile and 30 or 25
+                -- Create button
+                local Button = Instance.new("TextButton")
+                Button.Name = buttonText .. "Button"
+                Button.Size = UDim2.new(1, 0, 0, 34)
+                Button.BackgroundColor3 = Colors.Button
+                Button.BorderSizePixel = 0
+                Button.Font = Enum.Font.GothamSemibold
+                Button.TextSize = 14
+                Button.TextColor3 = Colors.Text
+                Button.Text = buttonText
+                Button.AutoButtonColor = false
+                Button.Parent = SectionContent
                 
-                local Label = Create("Frame", {
-                    Name = "Label",
-                    Parent = SectionContainer,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(0.96, 0, 0, LabelHeight)
-                }, {
-                    Create("TextLabel", {
-                        Name = "LabelText",
-                        AnchorPoint = Vector2.new(0, 0),
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0, 0),
-                        Size = UDim2.new(1, 0, 1, 0),
-                        Font = Enum.Font.GothamSemibold,
-                        TextColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].TextDark,
-                        TextSize = IsMobile and 16 or 14,
-                        TextXAlignment = Enum.TextXAlignment.Left,
-                        Text = LabelConfig.Name
-                    })
-                })
+                -- Add corner
+                local ButtonCorner = Instance.new("UICorner")
+                ButtonCorner.CornerRadius = UDim.new(0, 6)
+                ButtonCorner.Parent = Button
                 
-                AddThemeObject(Label.LabelText, "TextDark")
-                
-                -- Update label text function
-                function Label:Set(NewText)
-                    Label.LabelText.Text = NewText
-                end
-                
-                return Label
-            end
-            
-            -- Mobile-friendly Button with larger touch area
-            function SectionElements:AddButton(ButtonConfig)
-                ButtonConfig = ButtonConfig or {}
-                ButtonConfig.Name = ButtonConfig.Name or "Button"
-                ButtonConfig.Callback = ButtonConfig.Callback or function() end
-                
-                local ButtonHeight = IsMobile and 36 or 30
-                
-                local Button = Create("Frame", {
-                    Name = "Button",
-                    Parent = SectionContainer,
-                    BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main,
-                    Size = UDim2.new(0.96, 0, 0, ButtonHeight)
-                }, {
-                    Create("UICorner", {
-                        CornerRadius = UDim.new(0, 6)
-                    }),
-                    Create("UIStroke", {
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        Color = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke,
-                        LineJoinMode = Enum.LineJoinMode.Round,
-                        Thickness = 1.5
-                    }),
-                    Create("TextButton", {
-                        Name = "ButtonText",
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0, 0),
-                        Size = UDim2.new(1, 0, 1, 0),
-                        Font = Enum.Font.GothamSemibold,
-                        Text = ButtonConfig.Name,
-                        TextColor3 = Color3.fromRGB(240, 240, 240),
-                        TextSize = IsMobile and 16 or 14
-                    })
-                })
-                
-                AddThemeObject(Button, "Main")
-                AddThemeObject(Button.UIStroke, "Stroke")
-                
-                -- Add haptic feedback for mobile
-                AddConnection(Button.ButtonText.MouseButton1Click, function()
-                    -- Visual feedback
-                    TweenService:Create(Button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                        BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke
+                -- Add hover effect
+                AddConnection(Button.MouseEnter, function()
+                    TweenService:Create(Button, TweenInfo.new(0.2), {
+                        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
                     }):Play()
-                    
-                    wait(0.15)
-                    
-                    TweenService:Create(Button, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                        BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main
+                end)
+                
+                AddConnection(Button.MouseLeave, function()
+                    TweenService:Create(Button, TweenInfo.new(0.2), {
+                        BackgroundColor3 = Colors.Button
                     }):Play()
-                    
-                    -- Haptic feedback on mobile
-                    if IsMobile then
-                        pcall(function()
-                            if UserInputService.HapticService then 
-                                UserInputService.HapticService:PlayHaptic(Enum.HapticsType.Bump)
-                            end
-                        end)
-                    end
-                    
-                    ButtonConfig.Callback()
+                end)
+                
+                -- Add click effect
+                AddConnection(Button.MouseButton1Down, function()
+                    TweenService:Create(Button, TweenInfo.new(0.1), {
+                        BackgroundColor3 = Color3.fromRGB(62, 135, 205)
+                    }):Play()
+                end)
+                
+                AddConnection(Button.MouseButton1Up, function()
+                    TweenService:Create(Button, TweenInfo.new(0.1), {
+                        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
+                    }):Play()
+                end)
+                
+                -- Add callback
+                AddConnection(Button.MouseButton1Click, function()
+                    callback()
                 end)
                 
                 return Button
             end
             
-            -- Mobile-friendly Toggle with larger hitbox area
-            function SectionElements:AddToggle(ToggleConfig)
-                ToggleConfig = ToggleConfig or {}
-                ToggleConfig.Name = ToggleConfig.Name or "Toggle"
-                ToggleConfig.Default = ToggleConfig.Default or false
-                ToggleConfig.Callback = ToggleConfig.Callback or function() end
-                ToggleConfig.Flag = ToggleConfig.Flag or nil
-                ToggleConfig.Save = ToggleConfig.Save or false
+            -- Add toggle
+            function SectionFunctions:AddToggle(toggleText, default, callback)
+                default = default or false
+                callback = callback or function() end
                 
-                local ToggleHeight = IsMobile and 36 or 30
+                -- Create toggle container
+                local Toggle = Instance.new("Frame")
+                Toggle.Name = toggleText .. "Toggle"
+                Toggle.Size = UDim2.new(1, 0, 0, 34)
+                Toggle.BackgroundTransparency = 1
+                Toggle.BorderSizePixel = 0
+                Toggle.Parent = SectionContent
                 
-                local Toggle = Create("Frame", {
-                    Name = "Toggle",
-                    Parent = SectionContainer,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(0.96, 0, 0, ToggleHeight)
-                }, {
-                    Create("TextLabel", {
-                        Name = "ToggleText",
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, IsMobile and 56 or 50, 0, 0),
-                        Size = UDim2.new(1, -(IsMobile and 56 or 50), 1, 0),
-                        Font = Enum.Font.GothamSemibold,
-                        Text = ToggleConfig.Name,
-                        TextColor3 = Color3.fromRGB(240, 240, 240),
-                        TextSize = IsMobile and 16 or 14,
-                        TextXAlignment = Enum.TextXAlignment.Left
-                    })
-                })
+                -- Create toggle text
+                local ToggleText = Instance.new("TextLabel")
+                ToggleText.Name = "Text"
+                ToggleText.Size = UDim2.new(1, -55, 1, 0)
+                ToggleText.Position = UDim2.new(0, 55, 0, 0)
+                ToggleText.BackgroundTransparency = 1
+                ToggleText.Font = Enum.Font.GothamSemibold
+                ToggleText.TextSize = 14
+                ToggleText.TextColor3 = Colors.Text
+                ToggleText.TextXAlignment = Enum.TextXAlignment.Left
+                ToggleText.Text = toggleText
+                ToggleText.Parent = Toggle
                 
-                local ToggleButton = Create("Frame", {
-                    Name = "ToggleButton",
-                    Parent = Toggle,
-                    BackgroundColor3 = ToggleConfig.Default and SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke or SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main,
-                    Position = UDim2.new(0, 0, 0.5, 0),
-                    AnchorPoint = Vector2.new(0, 0.5),
-                    Size = UDim2.new(0, IsMobile and 48 or 40, 0, IsMobile and 24 or 20)
-                }, {
-                    Create("UICorner", {
-                        CornerRadius = UDim.new(0, 10)
-                    }),
-                    Create("UIStroke", {
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        Color = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke,
-                        LineJoinMode = Enum.LineJoinMode.Round,
-                        Thickness = 1.5
-                    })
-                })
+                -- Create toggle indicator background
+                local ToggleBG = Instance.new("Frame")
+                ToggleBG.Name = "Background"
+                ToggleBG.Size = UDim2.new(0, 44, 0, 24)
+                ToggleBG.Position = UDim2.new(0, 0, 0.5, -12)
+                ToggleBG.BackgroundColor3 = default and Colors.Button or Colors.Background
+                ToggleBG.BorderSizePixel = 0
+                ToggleBG.Parent = Toggle
                 
-                local ToggleCircle = Create("Frame", {
-                    Name = "ToggleCircle",
-                    Parent = ToggleButton,
-                    BackgroundColor3 = Color3.fromRGB(240, 240, 240),
-                    Position = ToggleConfig.Default 
-                        and UDim2.new(0, ToggleButton.AbsoluteSize.X - (IsMobile and 22 or 18), 0.5, 0) 
-                        or UDim2.new(0, IsMobile and 6 or 4, 0.5, 0),
-                    AnchorPoint = Vector2.new(0, 0.5),
-                    Size = UDim2.new(0, IsMobile and 16 or 14, 0, IsMobile and 16 or 14)
-                }, {
-                    Create("UICorner", {
-                        CornerRadius = UDim.new(1, 0)
-                    })
-                })
+                -- Add corner to indicator
+                local ToggleCorner = Instance.new("UICorner")
+                ToggleCorner.CornerRadius = UDim.new(1, 0)
+                ToggleCorner.Parent = ToggleBG
                 
-                AddThemeObject(ToggleButton, "Main")
-                AddThemeObject(ToggleButton.UIStroke, "Stroke")
+                -- Create toggle indicator
+                local Indicator = Instance.new("Frame")
+                Indicator.Name = "Indicator"
+                Indicator.Size = UDim2.new(0, 18, 0, 18)
+                Indicator.Position = UDim2.new(0, default and 23 or 3, 0.5, -9)
+                Indicator.BackgroundColor3 = Colors.Text
+                Indicator.BorderSizePixel = 0
+                Indicator.Parent = ToggleBG
                 
-                local ToggleButtonArea = Create("TextButton", {
-                    Name = "ToggleButtonArea",
-                    Parent = Toggle,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 1, 0),
-                    ZIndex = 5,
-                    Text = ""
-                })
+                -- Add corner to indicator
+                local IndicatorCorner = Instance.new("UICorner")
+                IndicatorCorner.CornerRadius = UDim.new(1, 0)
+                IndicatorCorner.Parent = Indicator
                 
-                local Toggled = ToggleConfig.Default
+                -- Add hitbox
+                local Hitbox = Instance.new("TextButton")
+                Hitbox.Name = "Hitbox"
+                Hitbox.Size = UDim2.new(1, 0, 1, 0)
+                Hitbox.BackgroundTransparency = 1
+                Hitbox.Text = ""
+                Hitbox.Parent = Toggle
                 
-                local function SetToggle(Value)
-                    Toggled = Value
-                    TweenService:Create(ToggleCircle, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-                        Position = Toggled 
-                            and UDim2.new(0, ToggleButton.AbsoluteSize.X - (IsMobile and 22 or 18), 0.5, 0) 
-                            or UDim2.new(0, IsMobile and 6 or 4, 0.5, 0)
+                -- Toggle state
+                local Toggled = default
+                
+                -- Update toggle
+                local function UpdateToggle(value)
+                    Toggled = value
+                    
+                    -- Animate background
+                    TweenService:Create(ToggleBG, TweenInfo.new(0.2), {
+                        BackgroundColor3 = Toggled and Colors.Button or Colors.Background
                     }):Play()
                     
-                    TweenService:Create(ToggleButton, TweenInfo.new(0.2, Enum.EasingStyle.Quad), {
-                        BackgroundColor3 = Toggled 
-                            and SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke 
-                            or SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main
+                    -- Animate indicator
+                    TweenService:Create(Indicator, TweenInfo.new(0.2), {
+                        Position = UDim2.new(0, Toggled and 23 or 3, 0.5, -9)
                     }):Play()
                     
-                    return ToggleConfig.Callback(Toggled)
+                    -- Call callback
+                    callback(Toggled)
                 end
                 
-                -- Initialize toggle with default value
-                if ToggleConfig.Flag then
-                    SkyXOrion.Flags[ToggleConfig.Flag] = {
-                        Value = Toggled,
-                        Type = "Toggle",
-                        Name = ToggleConfig.Name,
-                        Save = ToggleConfig.Save,
-                        Set = SetToggle
-                    }
-                end
-                
-                -- Handle toggle click
-                AddConnection(ToggleButtonArea.MouseButton1Click, function()
-                    Toggled = not Toggled
-                    
-                    -- Haptic feedback on mobile
-                    if IsMobile then
-                        pcall(function()
-                            if UserInputService.HapticService then 
-                                UserInputService.HapticService:PlayHaptic(Enum.HapticsType.Bump)
-                            end
-                        end)
-                    end
-                    
-                    SetToggle(Toggled)
-                    
-                    if ToggleConfig.Flag then
-                        SkyXOrion.Flags[ToggleConfig.Flag].Value = Toggled
-                    end
+                -- Add toggle functionality
+                AddConnection(Hitbox.MouseButton1Click, function()
+                    UpdateToggle(not Toggled)
                 end)
                 
-                function Toggle:Set(Value)
-                    SetToggle(Value)
-                    if ToggleConfig.Flag then
-                        SkyXOrion.Flags[ToggleConfig.Flag].Value = Value
-                    end
+                -- Toggle API
+                local ToggleAPI = {}
+                
+                function ToggleAPI:Set(value)
+                    UpdateToggle(value)
                 end
                 
-                return Toggle
+                function ToggleAPI:Get()
+                    return Toggled
+                end
+                
+                return ToggleAPI
             end
             
-            -- Mobile-friendly Slider
-            function SectionElements:AddSlider(SliderConfig)
-                SliderConfig = SliderConfig or {}
-                SliderConfig.Name = SliderConfig.Name or "Slider"
-                SliderConfig.Min = SliderConfig.Min or 0
-                SliderConfig.Max = SliderConfig.Max or 100
-                SliderConfig.Increment = SliderConfig.Increment or 1
-                SliderConfig.Default = SliderConfig.Default or 50
-                SliderConfig.Callback = SliderConfig.Callback or function() end
-                SliderConfig.ValueName = SliderConfig.ValueName or ""
-                SliderConfig.Color = SliderConfig.Color or Color3.fromRGB(86, 86, 86)
-                SliderConfig.Flag = SliderConfig.Flag or nil
-                SliderConfig.Save = SliderConfig.Save or false
+            -- Add label
+            function SectionFunctions:AddLabel(labelText)
+                -- Create label
+                local Label = Instance.new("TextLabel")
+                Label.Name = "Label"
+                Label.Size = UDim2.new(1, 0, 0, 20)
+                Label.BackgroundTransparency = 1
+                Label.Font = Enum.Font.Gotham
+                Label.TextSize = 14
+                Label.TextColor3 = Colors.Text
+                Label.TextXAlignment = Enum.TextXAlignment.Left
+                Label.Text = "   " .. labelText
+                Label.Parent = SectionContent
                 
-                -- Make sure default is within min/max
-                SliderConfig.Default = math.clamp(SliderConfig.Default, SliderConfig.Min, SliderConfig.Max)
+                -- Label API
+                local LabelAPI = {}
                 
-                -- Create slider container
-                local Slider = Create("Frame", {
-                    Name = "Slider",
-                    Parent = SectionContainer,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(0.96, 0, 0, IsMobile and 55 or 45)
-                })
-                
-                -- Create slider title
-                local SliderTitle = Create("TextLabel", {
-                    Name = "SliderTitle",
-                    Parent = Slider,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, IsMobile and 30 or 25),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = SliderConfig.Name .. ": " .. SliderConfig.Default .. " " .. SliderConfig.ValueName,
-                    TextColor3 = Color3.fromRGB(240, 240, 240),
-                    TextSize = IsMobile and 16 or 14,
-                    TextXAlignment = Enum.TextXAlignment.Left
-                })
-                
-                -- Create slider track
-                local SliderOuter = Create("Frame", {
-                    Name = "SliderOuter",
-                    Parent = Slider,
-                    BackgroundColor3 = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Main,
-                    Position = UDim2.new(0, 0, 0, IsMobile and 30 or 25),
-                    Size = UDim2.new(1, 0, 0, IsMobile and 16 or 14)
-                }, {
-                    Create("UICorner", {
-                        CornerRadius = UDim.new(0, 7)
-                    }),
-                    Create("UIStroke", {
-                        ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
-                        Color = SkyXOrion.Themes[SkyXOrion.SelectedTheme].Stroke,
-                        LineJoinMode = Enum.LineJoinMode.Round,
-                        Thickness = 1.5
-                    })
-                })
-                
-                AddThemeObject(SliderOuter, "Main")
-                AddThemeObject(SliderOuter.UIStroke, "Stroke")
-                
-                -- Create slider fill
-                local SliderInner = Create("Frame", {
-                    Name = "SliderInner",
-                    Parent = SliderOuter,
-                    BackgroundColor3 = SliderConfig.Color,
-                    Position = UDim2.new(0, 2, 0, 2),
-                    Size = UDim2.new(0, Round(((SliderConfig.Default - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min)) * (SliderOuter.AbsoluteSize.X - 4), 1), 0, IsMobile and 12 or 10)
-                }, {
-                    Create("UICorner", {
-                        CornerRadius = UDim.new(0, 7)
-                    })
-                })
-                
-                -- Create clickable button area
-                local SliderButton = Create("TextButton", {
-                    Name = "SliderButton",
-                    Parent = SliderOuter,
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 1, 0),
-                    Text = ""
-                })
-                
-                local SliderValue = SliderConfig.Default
-                local SliderDragging = false
-                
-                -- Function to update slider position and value
-                local function UpdateSlider(MousePos)
-                    -- Calculate relative position
-                    local RelativePos = (MousePos.X - SliderOuter.AbsolutePosition.X) / SliderOuter.AbsoluteSize.X
-                    RelativePos = math.clamp(RelativePos, 0, 1)
-                    
-                    -- Calculate value
-                    local Value = SliderConfig.Min + ((SliderConfig.Max - SliderConfig.Min) * RelativePos)
-                    -- Round to increment
-                    Value = math.floor(Value / SliderConfig.Increment + 0.5) * SliderConfig.Increment
-                    -- Clamp final value
-                    Value = math.clamp(Value, SliderConfig.Min, SliderConfig.Max)
-                    
-                    SliderValue = Value
-                    
-                    -- Update UI
-                    SliderTitle.Text = SliderConfig.Name .. ": " .. SliderValue .. " " .. SliderConfig.ValueName
-                    SliderInner.Size = UDim2.new(0, math.clamp(Round(((SliderValue - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min)) * (SliderOuter.AbsoluteSize.X - 4), 1), 0, SliderOuter.AbsoluteSize.X - 4), 0, IsMobile and 12 or 10)
-                    
-                    -- Update flag
-                    if SliderConfig.Flag then
-                        SkyXOrion.Flags[SliderConfig.Flag].Value = SliderValue
-                    end
-                    
-                    -- Call callback
-                    SliderConfig.Callback(SliderValue)
+                function LabelAPI:Set(text)
+                    Label.Text = "   " .. text
                 end
                 
-                -- Mouse down
-                AddConnection(SliderButton.MouseButton1Down, function()
-                    SliderDragging = true
-                    UpdateSlider(UserInputService:GetMouseLocation())
-                end)
-                
-                -- Mouse move while dragging
-                AddConnection(UserInputService.InputChanged, function(Input)
-                    if SliderDragging and (Input.UserInputType == Enum.UserInputType.MouseMovement or Input.UserInputType == Enum.UserInputType.Touch) then
-                        UpdateSlider(Input.Position)
-                    end
-                end)
-                
-                -- Mouse up
-                AddConnection(UserInputService.InputEnded, function(Input)
-                    if (Input.UserInputType == Enum.UserInputType.MouseButton1 or Input.UserInputType == Enum.UserInputType.Touch) then
-                        SliderDragging = false
-                    end
-                end)
-                
-                -- Mobile touch support (direct tap on slider)
-                if IsMobile then
-                    AddConnection(SliderOuter.InputBegan, function(Input)
-                        if Input.UserInputType == Enum.UserInputType.Touch then
-                            SliderDragging = true
-                            UpdateSlider(Input.Position)
-                        end
-                    end)
-                    
-                    AddConnection(SliderOuter.InputChanged, function(Input)
-                        if Input.UserInputType == Enum.UserInputType.Touch then
-                            UpdateSlider(Input.Position)
-                        end
-                    end)
-                    
-                    AddConnection(SliderOuter.InputEnded, function(Input)
-                        if Input.UserInputType == Enum.UserInputType.Touch then
-                            SliderDragging = false
-                        end
-                    end)
-                end
-                
-                -- Set up API
-                local SliderAPI = {}
-                
-                function SliderAPI:Set(Value)
-                    -- Clamp value to slider range
-                    Value = math.clamp(Value, SliderConfig.Min, SliderConfig.Max)
-                    SliderValue = Value
-                    
-                    -- Update UI
-                    SliderTitle.Text = SliderConfig.Name .. ": " .. SliderValue .. " " .. SliderConfig.ValueName
-                    SliderInner.Size = UDim2.new(0, math.clamp(Round(((SliderValue - SliderConfig.Min) / (SliderConfig.Max - SliderConfig.Min)) * (SliderOuter.AbsoluteSize.X - 4), 1), 0, SliderOuter.AbsoluteSize.X - 4), 0, IsMobile and 12 or 10)
-                    
-                    -- Update flag
-                    if SliderConfig.Flag then
-                        SkyXOrion.Flags[SliderConfig.Flag].Value = SliderValue
-                    end
-                    
-                    -- Call callback
-                    SliderConfig.Callback(SliderValue)
-                end
-                
-                -- Initialize flag
-                if SliderConfig.Flag then
-                    SkyXOrion.Flags[SliderConfig.Flag] = {
-                        Value = SliderValue,
-                        Type = "Slider",
-                        Name = SliderConfig.Name,
-                        Save = SliderConfig.Save,
-                        Set = SliderAPI.Set
-                    }
-                end
-                
-                return SliderAPI
+                return LabelAPI
             end
             
-            -- More elements can be added here (dropdowns, colorpickers, etc.)
-            -- with mobile optimizations like larger touch areas, haptic feedback, etc.
-            
-            return SectionElements
+            return SectionFunctions
         end
         
-        return Elements
+        return TabFunctions
     end
     
-    function SkyXOrion:Destroy()
-        SkyXUI:Destroy()
+    -- UI API
+    local WindowAPI = {}
+    WindowAPI.CreateTab = CreateTab
+    
+    -- Main notification function
+    function WindowAPI:Notify(title, text, duration)
+        duration = duration or 3
+        
+        -- Create notification
+        local Notification = Instance.new("Frame")
+        Notification.Name = "Notification"
+        Notification.Size = UDim2.new(0, 250, 0, 80)
+        Notification.Position = UDim2.new(1, 0, 1, -90)
+        Notification.BackgroundColor3 = Colors.Background
+        Notification.BorderSizePixel = 0
+        Notification.Parent = SkyXUI
+        
+        -- Add corner
+        local NotifCorner = Instance.new("UICorner")
+        NotifCorner.CornerRadius = UDim.new(0, 6)
+        NotifCorner.Parent = Notification
+        
+        -- Add title
+        local NotifTitle = Instance.new("TextLabel")
+        NotifTitle.Name = "Title"
+        NotifTitle.Size = UDim2.new(1, -20, 0, 25)
+        NotifTitle.Position = UDim2.new(0, 10, 0, 5)
+        NotifTitle.BackgroundTransparency = 1
+        NotifTitle.Font = Enum.Font.GothamBold
+        NotifTitle.TextSize = 14
+        NotifTitle.TextColor3 = Colors.Text
+        NotifTitle.TextXAlignment = Enum.TextXAlignment.Left
+        NotifTitle.Text = title
+        NotifTitle.Parent = Notification
+        
+        -- Add content
+        local NotifText = Instance.new("TextLabel")
+        NotifText.Name = "Text"
+        NotifText.Size = UDim2.new(1, -20, 0, 40)
+        NotifText.Position = UDim2.new(0, 10, 0, 30)
+        NotifText.BackgroundTransparency = 1
+        NotifText.Font = Enum.Font.Gotham
+        NotifText.TextSize = 14
+        NotifText.TextColor3 = Colors.Text
+        NotifText.TextXAlignment = Enum.TextXAlignment.Left
+        NotifText.TextWrapped = true
+        NotifText.Text = text
+        NotifText.Parent = Notification
+        
+        -- Animate in
+        Notification:TweenPosition(UDim2.new(1, -270, 1, -90), Enum.EasingDirection.Out, Enum.EasingStyle.Quint, 0.5, true)
+        
+        -- Wait then animate out
+        task.delay(duration, function()
+            if Notification and Notification.Parent then
+                Notification:TweenPosition(UDim2.new(1, 0, 1, -90), Enum.EasingDirection.In, Enum.EasingStyle.Quint, 0.5, true, function()
+                    if Notification and Notification.Parent then
+                        Notification:Destroy()
+                    end
+                end)
+            end
+        end)
     end
     
-    if WindowConfig.AutoShow then
-        MainWindow.Visible = true
-    end
-    
-    SkyXOrion:Init()
-    return MakeTab
+    return WindowAPI
 end
 
-return SkyXOrion
+return SkyXBasic
