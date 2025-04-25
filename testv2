@@ -1,6 +1,6 @@
 --[[
     SkyX Blox Fruits Script
-    Mobile-friendly with MM2-style fallback modules
+    Mobile-friendly with MM2sssssssssssssssss-style fallback modules
     Works on: KRNL, Swift, Fluxus, Delta and other mobile executors
 ]]
 
@@ -126,6 +126,7 @@ MainWindow.BackgroundColor3 = Colors.Background
 MainWindow.BorderSizePixel = 0
 MainWindow.Active = true
 MainWindow.Draggable = false -- We'll implement custom dragging
+MainWindow.ClipsDescendants = true -- Fix tabs popping out of UI
 MainWindow.Parent = SkyXUI
 
 -- Add corner
@@ -743,7 +744,20 @@ local function LoadAllModules()
     end
 
     -- Load core modules one by one - if any fail, UI will still work
+    -- Load AutoFarm and ensure it has Settings
     Modules.AutoFarm = LoadModule("AutoFarm")
+    if Modules.AutoFarm then
+        -- Make sure the module has Settings initialized
+        if not Modules.AutoFarm.Settings then
+            Modules.AutoFarm.Settings = {
+                Enabled = false,
+                FarmDistance = 50,
+                FastAttack = true,
+                AutoCollect = true,
+                SelectedMob = "Bandit"
+            }
+        end
+    end
     wait(0.1) -- Small delay between module loads
     
     Modules.ESP = LoadModule("ESP")
@@ -761,7 +775,32 @@ local function LoadAllModules()
     Modules.Stats = LoadModule("Stats")
     wait(0.1)
     
+    -- Load Items and ensure it has Settings
     Modules.Items = LoadModule("Items")
+    if Modules.Items then
+        -- Make sure the module has Settings initialized
+        if not Modules.Items.Settings then
+            Modules.Items.Settings = {
+                AutoPickup = false,
+                CollectDistance = 15
+            }
+        end
+        
+        -- Make sure it has Start and Stop methods
+        if not Modules.Items.Start then
+            Modules.Items.Start = function() 
+                print("Items Start called") 
+                Modules.Items.Settings.AutoPickup = true
+            end
+        end
+        
+        if not Modules.Items.Stop then
+            Modules.Items.Stop = function() 
+                print("Items Stop called") 
+                Modules.Items.Settings.AutoPickup = false
+            end
+        end
+    end
     wait(0.1)
 
     -- Set up module connections (for modules that need to interact)
@@ -860,7 +899,7 @@ local EnableFarmToggle = FarmSection:AddToggle("Enable Auto Farm", false, functi
     end
 end)
 
-local FarmDistanceSlider = FarmSection:AddSlider("Farm Distance", 5, 20, 10, function(Value)
+local FarmDistanceSlider = FarmSection:AddSlider("Farm Distance", 10, 500, 50, function(Value)
     if Modules.AutoFarm then
         pcall(function()
             Modules.AutoFarm.Settings.FarmDistance = Value
@@ -1085,6 +1124,36 @@ if Modules.Teleport then
 else
     print("Teleport module failed - adding fallback label")
     TPSection:AddLabel("⚠️ Teleport module failed to load")
+end
+
+-- Items Tab updates
+local ItemsSection = CreateSection(ItemsTab, "Item Settings")
+
+-- Always create UI controls regardless of module status
+local AutoCollectToggle = ItemsSection:AddToggle("Auto Collect Items", false, function(Value)
+    if Modules.Items then
+        pcall(function()
+            Modules.Items.Settings.AutoPickup = Value
+            if Value then
+                Modules.Items:Start()
+            else
+                Modules.Items:Stop()
+            end
+        end)
+    end
+end)
+
+local CollectDistanceSlider = ItemsSection:AddSlider("Collection Distance", 10, 500, 50, function(Value)
+    if Modules.Items then
+        pcall(function()
+            Modules.Items.Settings.CollectDistance = Value
+        end)
+    end
+end)
+
+-- Add fallback label if module failed to load
+if not Modules.Items then
+    ItemsSection:AddLabel("⚠️ Items module failed to load")
 end
 
 -- Add toggle functionality for closing/opening UI
