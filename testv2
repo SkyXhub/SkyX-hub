@@ -1,6 +1,6 @@
---[[
+--[[nh
 🌊 SkyX Dead Rails Advanced Script 🌊
-Modular version with direct UI from SkyXssss_MM2_Direct_Modular
+Modular version with direct UI from SkyX_MM2_Direct_Modular
 Enhanced for mobile compatibility with advanced features
 
 Features:
@@ -16,15 +16,49 @@ Features:
 
 -- This script loads modules directly (no GitHub required) and has improved UI initialization
 
--- Core services
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
+-- Check for valid Roblox environment
+local success, services = pcall(function()
+    local Players = game:GetService("Players") 
+    local Workspace = game:GetService("Workspace")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local TweenService = game:GetService("TweenService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local Lighting = game:GetService("Lighting")
+    
+    local LocalPlayer = Players.LocalPlayer
+    local Camera = Workspace.CurrentCamera
+    local Mouse = LocalPlayer:GetMouse()
+    
+    return {
+        Players = Players,
+        Workspace = Workspace,
+        RunService = RunService,
+        UserInputService = UserInputService,
+        TweenService = TweenService,
+        ReplicatedStorage = ReplicatedStorage,
+        Lighting = Lighting,
+        LocalPlayer = LocalPlayer,
+        Camera = Camera,
+        Mouse = Mouse
+    }
+end)
+
+if not success then
+    print("Not running in proper Roblox environment")
+    print("This script should only be executed in a Roblox game environment")
+    return
+end
+
+-- Extract services for easier access
+local Players = services.Players
+local Workspace = services.Workspace
+local RunService = services.RunService
+local UserInputService = services.UserInputService
+local TweenService = services.TweenService
+local ReplicatedStorage = services.ReplicatedStorage
+local Lighting = services.Lighting
+local LocalPlayer = services.LocalPlayer
 
 -- GitHub Module URLs
 local ModuleURLs = {
