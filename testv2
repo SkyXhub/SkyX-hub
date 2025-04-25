@@ -1,20 +1,17 @@
---[[nh
-🌊 SkyX Dead Rails Advanced Script 🌊
-Modular version with direct UI from SkyX_MM2_Direct_Modular
+--[[
+🌊 SkyX Bronx 3 Advanced Script 🌊
+Direct modular version with embedded modules for better reliability
 Enhanced for mobile compatibility with advanced features
 
 Features:
 - Enhanced ESP System with Custom Colors and Distance Display
-- Advanced Auto Bone Farm & Round Completion
+- Combat Enhancements (Aimbot, Silent Aim)
+- Auto-Cash Farm System
 - Military-Grade Anti-Ban System
-- Speed & Jump Boost Sliders 
 - One-Click Teleports with Anti-Detection 
+- Character Enhancements (Speed, Jump)
 - Advanced Performance Optimization
-- Advanced Gun Modifications
-- Military-Grade Anti-Detection System
 ]]
-
--- This script loads modules directly (no GitHub required) and has improved UI initialization
 
 -- Check for valid Roblox environment
 local success, services = pcall(function()
@@ -60,20 +57,10 @@ local ReplicatedStorage = services.ReplicatedStorage
 local Lighting = services.Lighting
 local LocalPlayer = services.LocalPlayer
 
--- GitHub Module URLs
-local ModuleURLs = {
-     ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_esp.lua",
-    GunMods = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_gunmods.lua",
-    Aimbot = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_aimbot.lua",
-    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_teleport%20(1).lua",
-    AntiDetect = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_antidetect.lua",
-    AutoFarm = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_autofarm.lua"
-}
-
--- Module Code (embedded for reliability)
-local ModuleCode = {
+-- Module Definitions (embedded for reliability)
+local ModuleDefinitions = {
     ESP = [[
-        -- Dead Rails ESP Module
+        -- Bronx 3 ESP Module
         local ESP = {}
         
         -- ESP settings
@@ -81,13 +68,13 @@ local ModuleCode = {
             Enabled = false,
             ShowDistance = true,
             ShowHealth = true,
-            ShowTeam = true,
+            ShowCash = true,
             ShowWeapon = true,
             RainbowESP = false,
             TextSize = 14,
             Colors = {
                 Enemy = Color3.fromRGB(255, 0, 0),
-                Team = Color3.fromRGB(0, 255, 0)
+                Friend = Color3.fromRGB(0, 255, 0)
             }
         }
         
@@ -123,6 +110,21 @@ local ModuleCode = {
             end
         end
         
+        -- Check if a player is a friend
+        local function IsFriend(player)
+            -- Could be expanded to check if in same crew/gang
+            return player:IsFriendsWith(LocalPlayer.UserId)
+        end
+        
+        -- Get player's cash (if available)
+        local function GetPlayerCash(player)
+            -- This would need to be adapted to how cash is stored in the game
+            if player and player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash") then
+                return player.leaderstats.Cash.Value
+            end
+            return "???"
+        end
+        
         -- Update ESP visibility and position
         local function UpdateESP()
             for player, esp in pairs(ESPObjects) do
@@ -135,15 +137,15 @@ local ModuleCode = {
                     local vector, onScreen = Camera:WorldToViewportPoint(root.Position)
                     
                     if onScreen and ESP.Settings.Enabled and humanoid.Health > 0 then
-                        -- Team check for color
-                        local isTeammate = (player.Team == LocalPlayer.Team)
+                        -- Friend check for color
+                        local isFriend = IsFriend(player)
                         
                         -- Set color
                         if ESP.Settings.RainbowESP then
                             local hue = tick() % 5 / 5
                             esp.Color = Color3.fromHSV(hue, 1, 1)
                         else
-                            esp.Color = isTeammate and ESP.Settings.Colors.Team or ESP.Settings.Colors.Enemy
+                            esp.Color = isFriend and ESP.Settings.Colors.Friend or ESP.Settings.Colors.Enemy
                         end
                         
                         -- Set position
@@ -163,9 +165,10 @@ local ModuleCode = {
                             text = text .. " (" .. distance .. "m)"
                         end
                         
-                        -- Add team
-                        if ESP.Settings.ShowTeam and player.Team then
-                            text = text .. " | " .. player.Team.Name
+                        -- Add cash
+                        if ESP.Settings.ShowCash then
+                            local cash = GetPlayerCash(player)
+                            text = text .. " | $" .. cash
                         end
                         
                         -- Add weapon if they're holding one
@@ -247,284 +250,21 @@ local ModuleCode = {
         return ESP
     ]],
     
-    GunMods = [[
-        -- Dead Rails Gun Modifications Module
-        local GunMods = {}
+    Combat = [[
+        -- Bronx 3 Combat Module
+        local Combat = {}
         
-        -- Gun mod settings
-        GunMods.Settings = {
-            InfiniteAmmo = false,
-            NoRecoil = false,
-            NoSpread = false,
-            RapidFire = false,
-            FireRateMultiplier = 2,
-            DamageMultiplier = 1,
-            ExtendedMagazine = false,
-            AutoReload = false,
-            InstantReload = false,
-            Wallbang = false
-        }
-        
-        -- Variables
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local RunService = game:GetService("RunService")
-        local GunModsEnabled = false
-        local GunModsConnection = nil
-        local AntiDetectModule = nil
-        local CurrentGun = nil
-        local OriginalGunProperties = {}
-        
-        -- Get all guns
-        local function GetAllGuns()
-            local allGuns = {}
-            
-            -- Check character for equipped gun
-            if LocalPlayer.Character then
-                for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
-                    if tool:IsA("Tool") and tool:FindFirstChild("Configuration") then
-                        table.insert(allGuns, tool)
-                    end
-                end
-            end
-            
-            -- Check backpack for guns
-            for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-                if tool:IsA("Tool") and tool:FindFirstChild("Configuration") then
-                    table.insert(allGuns, tool)
-                end
-            end
-            
-            return allGuns
-        end
-        
-        -- Get current equipped gun
-        local function GetEquippedGun()
-            if LocalPlayer.Character then
-                for _, tool in pairs(LocalPlayer.Character:GetChildren()) do
-                    if tool:IsA("Tool") and tool:FindFirstChild("Configuration") then
-                        return tool
-                    end
-                end
-            end
-            return nil
-        end
-        
-        -- Save original gun properties
-        local function SaveGunProperties(gun)
-            if not OriginalGunProperties[gun.Name] and gun:FindFirstChild("Configuration") then
-                OriginalGunProperties[gun.Name] = {}
-                local config = gun.Configuration
-                
-                -- Store original properties
-                if config:FindFirstChild("Ammo") then
-                    OriginalGunProperties[gun.Name].Ammo = config.Ammo.Value
-                    OriginalGunProperties[gun.Name].MaxAmmo = config.MaxAmmo.Value
-                end
-                
-                if config:FindFirstChild("RecoilControl") then
-                    OriginalGunProperties[gun.Name].RecoilControl = config.RecoilControl.Value
-                end
-                
-                if config:FindFirstChild("Spread") then
-                    OriginalGunProperties[gun.Name].Spread = config.Spread.Value
-                end
-                
-                if config:FindFirstChild("FireRate") then
-                    OriginalGunProperties[gun.Name].FireRate = config.FireRate.Value
-                end
-                
-                if config:FindFirstChild("Damage") then
-                    OriginalGunProperties[gun.Name].Damage = config.Damage.Value
-                end
-                
-                if config:FindFirstChild("ReloadTime") then
-                    OriginalGunProperties[gun.Name].ReloadTime = config.ReloadTime.Value
-                end
-            end
-        end
-        
-        -- Modify gun properties
-        local function ModifyGun(gun)
-            if not gun or not gun:FindFirstChild("Configuration") then return end
-            
-            -- Save original properties first
-            SaveGunProperties(gun)
-            
-            local config = gun.Configuration
-            
-            -- Apply modifications based on settings
-            if GunMods.Settings.InfiniteAmmo and config:FindFirstChild("Ammo") then
-                config.Ammo.Value = 9999
-                config.MaxAmmo.Value = 9999
-            end
-            
-            if GunMods.Settings.NoRecoil and config:FindFirstChild("RecoilControl") then
-                config.RecoilControl.Value = 0
-            end
-            
-            if GunMods.Settings.NoSpread and config:FindFirstChild("Spread") then
-                config.Spread.Value = 0
-            end
-            
-            if GunMods.Settings.RapidFire and config:FindFirstChild("FireRate") then
-                config.FireRate.Value = config.FireRate.Value * GunMods.Settings.FireRateMultiplier
-            end
-            
-            if config:FindFirstChild("Damage") then
-                config.Damage.Value = config.Damage.Value * GunMods.Settings.DamageMultiplier
-            end
-            
-            if GunMods.Settings.InstantReload and config:FindFirstChild("ReloadTime") then
-                config.ReloadTime.Value = 0.01
-            end
-            
-            if GunMods.Settings.ExtendedMagazine and config:FindFirstChild("MaxAmmo") then
-                config.MaxAmmo.Value = config.MaxAmmo.Value * 3
-            end
-            
-            -- Wallbang is handled through a separate hook that needs to be injected
-            if GunMods.Settings.Wallbang then
-                -- This would require hooking into the raycast function
-                -- For safety, we'll just notify that it's activated
-                print("Wallbang activated - requires raycast hook")
-            end
-        end
-        
-        -- Restore gun properties
-        local function RestoreGun(gun)
-            if not gun or not gun:FindFirstChild("Configuration") or not OriginalGunProperties[gun.Name] then return end
-            
-            local config = gun.Configuration
-            local original = OriginalGunProperties[gun.Name]
-            
-            -- Restore original properties
-            if original.Ammo and config:FindFirstChild("Ammo") then
-                config.Ammo.Value = original.Ammo
-                config.MaxAmmo.Value = original.MaxAmmo
-            end
-            
-            if original.RecoilControl and config:FindFirstChild("RecoilControl") then
-                config.RecoilControl.Value = original.RecoilControl
-            end
-            
-            if original.Spread and config:FindFirstChild("Spread") then
-                config.Spread.Value = original.Spread
-            end
-            
-            if original.FireRate and config:FindFirstChild("FireRate") then
-                config.FireRate.Value = original.FireRate
-            end
-            
-            if original.Damage and config:FindFirstChild("Damage") then
-                config.Damage.Value = original.Damage
-            end
-            
-            if original.ReloadTime and config:FindFirstChild("ReloadTime") then
-                config.ReloadTime.Value = original.ReloadTime
-            end
-        end
-        
-        -- Update gun mods
-        local function UpdateGunMods()
-            local currentGun = GetEquippedGun()
-            
-            -- Check if gun changed
-            if currentGun ~= CurrentGun then
-                -- Restore old gun if exists
-                if CurrentGun then
-                    RestoreGun(CurrentGun)
-                end
-                
-                -- Update current gun
-                CurrentGun = currentGun
-                
-                -- Modify new gun if exists
-                if CurrentGun then
-                    ModifyGun(CurrentGun)
-                end
-            end
-            
-            -- Handle auto reload
-            if GunMods.Settings.AutoReload and CurrentGun and CurrentGun:FindFirstChild("Configuration") then
-                local config = CurrentGun.Configuration
-                if config:FindFirstChild("Ammo") and config.Ammo.Value <= 0 then
-                    local reloadEvent = CurrentGun:FindFirstChild("Reload")
-                    if reloadEvent then
-                        reloadEvent:FireServer()
-                    end
-                end
-            end
-        end
-        
-        -- Start gun mods
-        function GunMods.Start()
-            if GunModsConnection then
-                GunModsConnection:Disconnect()
-            end
-            
-            GunModsEnabled = true
-            
-            -- Modify all guns initially
-            for _, gun in pairs(GetAllGuns()) do
-                ModifyGun(gun)
-            end
-            
-            -- Update gun mods continuously
-            GunModsConnection = RunService.Heartbeat:Connect(UpdateGunMods)
-            print("GunMods module started")
-        end
-        
-        -- Stop gun mods
-        function GunMods.Stop()
-            if GunModsConnection then
-                GunModsConnection:Disconnect()
-                GunModsConnection = nil
-            end
-            
-            -- Restore all guns
-            for _, gun in pairs(GetAllGuns()) do
-                RestoreGun(gun)
-            end
-            
-            CurrentGun = nil
-            GunModsEnabled = false
-            print("GunMods module stopped")
-        end
-        
-        -- Get current gun stats
-        function GunMods.GetCurrentGunStats()
-            local currentGun = GetEquippedGun()
-            local stats = {
-                CurrentGun = currentGun and currentGun.Name or nil
-            }
-            return stats
-        end
-        
-        -- Set anti-detect module
-        function GunMods.SetAntiDetectModule(module)
-            AntiDetectModule = module
-        end
-        
-        return GunMods
-    ]],
-    
-    Aimbot = [[
-        -- Dead Rails Aimbot Module
-        local Aimbot = {}
-        
-        -- Aimbot settings
-        Aimbot.Settings = {
-            Enabled = false,
-            SilentAim = false,
-            VisibleCheck = true,
-            TeamCheck = true,
+        -- Combat settings
+        Combat.Settings = {
+            AimbotEnabled = false,
+            SilentAimEnabled = false,
+            AutoBlockEnabled = false,
+            AutoFireEnabled = false,
             ShowFOV = true,
             FOVSize = 120,
+            FOVColor = Color3.fromRGB(255, 255, 255),
             Smoothness = 0.2,
             TargetPart = "Head",
-            FOVColor = Color3.fromRGB(255, 255, 255),
             TriggerBot = {
                 Enabled = false,
                 Delay = 0.2
@@ -538,7 +278,7 @@ local ModuleCode = {
         local LocalPlayer = Players.LocalPlayer
         local Camera = workspace.CurrentCamera
         local Mouse = LocalPlayer:GetMouse()
-        local AimbotEnabled = false
+        local CombatEnabled = false
         local AimbotConnection = nil
         local FOVCircle = nil
         local ESPModule = nil
@@ -549,8 +289,8 @@ local ModuleCode = {
         local function CreateFOVCircle()
             FOVCircle = Drawing.new("Circle")
             FOVCircle.Visible = false
-            FOVCircle.Radius = Aimbot.Settings.FOVSize
-            FOVCircle.Color = Aimbot.Settings.FOVColor
+            FOVCircle.Radius = Combat.Settings.FOVSize
+            FOVCircle.Color = Combat.Settings.FOVColor
             FOVCircle.Thickness = 1
             FOVCircle.Filled = false
             FOVCircle.Transparency = 1
@@ -560,17 +300,15 @@ local ModuleCode = {
         -- Update FOV circle
         local function UpdateFOVCircle()
             if FOVCircle then
-                FOVCircle.Visible = Aimbot.Settings.ShowFOV and Aimbot.Settings.Enabled
-                FOVCircle.Radius = Aimbot.Settings.FOVSize
+                FOVCircle.Visible = Combat.Settings.ShowFOV and (Combat.Settings.AimbotEnabled or Combat.Settings.SilentAimEnabled)
+                FOVCircle.Radius = Combat.Settings.FOVSize
                 FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
-                FOVCircle.Color = Aimbot.Settings.FOVColor
+                FOVCircle.Color = Combat.Settings.FOVColor
             end
         end
         
         -- Check if target is visible
         local function IsVisible(part)
-            if not Aimbot.Settings.VisibleCheck then return true end
-            
             local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000)
             local hit, position = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character})
             
@@ -584,22 +322,17 @@ local ModuleCode = {
         -- Get closest player in FOV
         local function GetClosestPlayerInFOV()
             local closestPlayer = nil
-            local shortestDistance = Aimbot.Settings.FOVSize
+            local shortestDistance = Combat.Settings.FOVSize
             
             for _, player in pairs(Players:GetPlayers()) do
                 if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-                    -- Team check
-                    if Aimbot.Settings.TeamCheck and player.Team == LocalPlayer.Team then
-                        continue
-                    end
-                    
                     -- Get target part
                     local targetPart = nil
-                    if Aimbot.Settings.TargetPart == "Head" and player.Character:FindFirstChild("Head") then
+                    if Combat.Settings.TargetPart == "Head" and player.Character:FindFirstChild("Head") then
                         targetPart = player.Character.Head
-                    elseif Aimbot.Settings.TargetPart == "Torso" and player.Character:FindFirstChild("UpperTorso") then
+                    elseif Combat.Settings.TargetPart == "Torso" and player.Character:FindFirstChild("UpperTorso") then
                         targetPart = player.Character.UpperTorso
-                    elseif Aimbot.Settings.TargetPart == "Random" then
+                    elseif Combat.Settings.TargetPart == "Random" then
                         local parts = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm"}
                         local randomPart = parts[math.random(1, #parts)]
                         targetPart = player.Character:FindFirstChild(randomPart)
@@ -645,11 +378,11 @@ local ModuleCode = {
             
             -- Get target part
             local targetPart = nil
-            if Aimbot.Settings.TargetPart == "Head" and player.Character:FindFirstChild("Head") then
+            if Combat.Settings.TargetPart == "Head" and player.Character:FindFirstChild("Head") then
                 targetPart = player.Character.Head
-            elseif Aimbot.Settings.TargetPart == "Torso" and player.Character:FindFirstChild("UpperTorso") then
+            elseif Combat.Settings.TargetPart == "Torso" and player.Character:FindFirstChild("UpperTorso") then
                 targetPart = player.Character.UpperTorso
-            elseif Aimbot.Settings.TargetPart == "Random" then
+            elseif Combat.Settings.TargetPart == "Random" then
                 local parts = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm"}
                 local randomPart = parts[math.random(1, #parts)]
                 targetPart = player.Character:FindFirstChild(randomPart)
@@ -665,13 +398,13 @@ local ModuleCode = {
             local mousePos = Vector2.new(Mouse.X, Mouse.Y)
             
             -- Apply smoothing
-            local aimPos = mousePos:Lerp(targetPos, Aimbot.Settings.Smoothness)
+            local aimPos = mousePos:Lerp(targetPos, Combat.Settings.Smoothness)
             
             -- Move mouse
             mousemoverel(aimPos.X - mousePos.X, aimPos.Y - mousePos.Y)
             
             -- Trigger bot
-            if Aimbot.Settings.TriggerBot.Enabled and tick() - LastTriggerTime > Aimbot.Settings.TriggerBot.Delay then
+            if Combat.Settings.TriggerBot.Enabled and tick() - LastTriggerTime > Combat.Settings.TriggerBot.Delay then
                 -- Check if mouse is over player
                 local targetVector, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
                 if onScreen and (Vector2.new(targetVector.X, targetVector.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude < 10 then
@@ -683,13 +416,36 @@ local ModuleCode = {
             end
         end
         
-        -- Update aimbot
-        local function UpdateAimbot()
+        -- Implement auto-block functionality
+        local function AutoBlock()
+            if not Combat.Settings.AutoBlockEnabled then
+                return
+            end
+            
+            -- This would need to be adapted to how blocking works in Bronx 3
+            -- For example, checking for nearby enemies and triggering block
+            for _, player in pairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                    local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+                    if distance < 10 then
+                        -- Trigger block action
+                        -- This might involve pressing a key or invoking a remote event
+                        -- Example: keypress(0x46) -- F key for blocking
+                    end
+                end
+            end
+        end
+        
+        -- Update combat features
+        local function UpdateCombat()
             -- Update FOV circle
             UpdateFOVCircle()
             
+            -- Auto block functionality
+            AutoBlock()
+            
             -- Check if aimbot is enabled and mouse is down
-            if Aimbot.Settings.Enabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+            if Combat.Settings.AimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
                 local target = GetClosestPlayerInFOV()
                 if target then
                     AimAt(target)
@@ -701,8 +457,8 @@ local ModuleCode = {
             end
         end
         
-        -- Start aimbot
-        function Aimbot.Start()
+        -- Start combat module
+        function Combat.Start()
             if AimbotConnection then
                 AimbotConnection:Disconnect()
             end
@@ -712,15 +468,15 @@ local ModuleCode = {
                 CreateFOVCircle()
             end
             
-            AimbotEnabled = true
+            CombatEnabled = true
             
-            -- Update aimbot continuously
-            AimbotConnection = RunService.RenderStepped:Connect(UpdateAimbot)
-            print("Aimbot module started")
+            -- Update combat continuously
+            AimbotConnection = RunService.RenderStepped:Connect(UpdateCombat)
+            print("Combat module started")
         end
         
-        -- Stop aimbot
-        function Aimbot.Stop()
+        -- Stop combat module
+        function Combat.Stop()
             if AimbotConnection then
                 AimbotConnection:Disconnect()
                 AimbotConnection = nil
@@ -732,12 +488,12 @@ local ModuleCode = {
             end
             
             CurrentTarget = nil
-            AimbotEnabled = false
-            print("Aimbot module stopped")
+            CombatEnabled = false
+            print("Combat module stopped")
         end
         
         -- Get target info
-        function Aimbot.GetTargetInfo()
+        function Combat.GetTargetInfo()
             local info = {
                 TargetName = CurrentTarget and CurrentTarget.Name or nil
             }
@@ -745,15 +501,15 @@ local ModuleCode = {
         end
         
         -- Set ESP module
-        function Aimbot.SetESPModule(module)
+        function Combat.SetESPModule(module)
             ESPModule = module
         end
         
-        return Aimbot
+        return Combat
     ]],
     
     Teleport = [[
-        -- Dead Rails Teleport Module
+        -- Bronx 3 Teleport Module
         local Teleport = {}
         
         -- Teleport settings
@@ -771,29 +527,34 @@ local ModuleCode = {
         local LocalPlayer = Players.LocalPlayer
         local TeleportLocations = {
             {
-                Name = "Spawn",
-                Icon = "🏠",
-                Position = Vector3.new(0, 50, 0) -- Placeholder
+                Name = "Bank",
+                Icon = "💰",
+                Position = Vector3.new(0, 50, 0) -- Update with actual coordinates
             },
             {
-                Name = "Tower",
-                Icon = "🗼",
-                Position = Vector3.new(100, 70, 100) -- Placeholder
+                Name = "Gun Shop",
+                Icon = "🔫",
+                Position = Vector3.new(100, 70, 100) -- Update with actual coordinates
             },
             {
-                Name = "Office",
+                Name = "Hood HQ",
                 Icon = "🏢",
-                Position = Vector3.new(-100, 50, -100) -- Placeholder
+                Position = Vector3.new(-100, 50, -100) -- Update with actual coordinates
             },
             {
                 Name = "Hospital",
                 Icon = "🏥",
-                Position = Vector3.new(200, 50, 0) -- Placeholder
+                Position = Vector3.new(200, 50, 0) -- Update with actual coordinates
             },
             {
-                Name = "Mall",
-                Icon = "🏬",
-                Position = Vector3.new(0, 50, 200) -- Placeholder
+                Name = "Prison",
+                Icon = "🏛️",
+                Position = Vector3.new(0, 50, 200) -- Update with actual coordinates
+            },
+            {
+                Name = "Apartments",
+                Icon = "🏠",
+                Position = Vector3.new(-200, 50, 0) -- Update with actual coordinates
             }
         }
         local LastTeleportTime = 0
@@ -802,20 +563,7 @@ local ModuleCode = {
         -- Update teleport locations with real positions
         local function UpdateTeleportLocations()
             -- These positions should be updated with real coordinates from the game
-            -- For now, we'll use placeholders
-            
-            -- Attempt to locate common locations in workspace
-            local locations = workspace:FindFirstChild("Locations") or workspace:FindFirstChild("SpawnLocations")
-            if locations then
-                for _, location in pairs(locations:GetChildren()) do
-                    for i, teleportLocation in ipairs(TeleportLocations) do
-                        if location.Name:lower():find(teleportLocation.Name:lower()) then
-                            TeleportLocations[i].Position = location.Position
-                            break
-                        end
-                    end
-                end
-            end
+            -- Potentially scan for key landmarks in the game
         end
         
         -- Get teleport location by name
@@ -934,7 +682,7 @@ local ModuleCode = {
     ]],
     
     AntiDetect = [[
-        -- Dead Rails Anti-Detection Module
+        -- Bronx 3 Anti-Detection Module
         local AntiDetect = {}
         
         -- Anti-detection settings
@@ -1049,17 +797,16 @@ local ModuleCode = {
         return AntiDetect
     ]],
     
-    AutoFarm = [[
-        -- Dead Rails Auto Farm Module
-        local AutoFarm = {}
+    CashFarm = [[
+        -- Bronx 3 Cash Farm Module
+        local CashFarm = {}
         
-        -- Auto farm settings
-        AutoFarm.Settings = {
+        -- Cash Farm settings
+        CashFarm.Settings = {
             Enabled = false,
-            Method = "Bone Farm", -- Bone Farm, Round Completion, Kills, Hybrid
+            Method = "ATM Farm", -- ATM Farm, Store Robbery, Auto-Pickup
             AntiAFK = true,
             AutoRejoin = false,
-            AutoSkipMapVote = true,
             SafeMode = true,
             Speed = 5,
             Delay = 0.5
@@ -1071,48 +818,76 @@ local ModuleCode = {
         local ReplicatedStorage = game:GetService("ReplicatedStorage")
         local TeleportService = game:GetService("TeleportService")
         local LocalPlayer = Players.LocalPlayer
-        local AutoFarmEnabled = false
-        local AutoFarmConnection = nil
+        local CashFarmEnabled = false
+        local CashFarmConnection = nil
         local Stats = {
-            BonesFarmed = 0,
-            RoundsCompleted = 0,
+            CashEarned = 0,
+            RobberiesCompleted = 0,
             TimeRunning = "00:00:00",
             StartTime = 0
         }
-        local BoneLocations = {}
+        local ATMLocations = {}
+        local StoreLocations = {}
+        local CashPickupSpots = {}
         local LastAction = 0
         
-        -- Find bone locations
-        local function FindBoneLocations()
-            BoneLocations = {}
+        -- Find ATM locations
+        local function FindATMLocations()
+            ATMLocations = {}
             
-            -- Look for bones in workspace
-            local bones = workspace:FindFirstChild("Bones") or workspace:FindFirstChild("BoneSpawns")
-            if bones then
-                for _, bone in pairs(bones:GetChildren()) do
-                    if bone.Name:lower():find("bone") then
-                        table.insert(BoneLocations, bone.Position)
-                    end
-                end
-            else
-                -- Scan workspace for bones
-                for _, obj in pairs(workspace:GetDescendants()) do
-                    if obj.Name:lower():find("bone") and obj:IsA("BasePart") then
-                        table.insert(BoneLocations, obj.Position)
-                    end
+            -- Search for ATMs in workspace
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj.Name:lower():find("atm") and obj:IsA("BasePart") then
+                    table.insert(ATMLocations, obj.Position)
                 end
             end
             
-            -- If no bones found, use some common locations
-            if #BoneLocations == 0 then
+            -- If no ATMs found, use some common locations
+            if #ATMLocations == 0 then
                 -- Example locations - these should be updated with real coordinates
-                table.insert(BoneLocations, Vector3.new(100, 50, 100))
-                table.insert(BoneLocations, Vector3.new(-100, 50, -100))
-                table.insert(BoneLocations, Vector3.new(200, 50, 0))
-                table.insert(BoneLocations, Vector3.new(0, 50, 200))
+                table.insert(ATMLocations, Vector3.new(100, 50, 100))
+                table.insert(ATMLocations, Vector3.new(-100, 50, -100))
+                table.insert(ATMLocations, Vector3.new(200, 50, 0))
+                table.insert(ATMLocations, Vector3.new(0, 50, 200))
             end
             
-            return #BoneLocations > 0
+            return #ATMLocations > 0
+        end
+        
+        -- Find store locations
+        local function FindStoreLocations()
+            StoreLocations = {}
+            
+            -- Search for stores in workspace
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if (obj.Name:lower():find("store") or obj.Name:lower():find("shop")) and obj:IsA("BasePart") then
+                    table.insert(StoreLocations, obj.Position)
+                end
+            end
+            
+            -- If no stores found, use some common locations
+            if #StoreLocations == 0 then
+                -- Example locations - these should be updated with real coordinates
+                table.insert(StoreLocations, Vector3.new(150, 50, 150))
+                table.insert(StoreLocations, Vector3.new(-150, 50, -150))
+                table.insert(StoreLocations, Vector3.new(250, 50, 50))
+            end
+            
+            return #StoreLocations > 0
+        end
+        
+        -- Find cash pickup spots
+        local function FindCashPickupSpots()
+            CashPickupSpots = {}
+            
+            -- Search for cash pickups in workspace
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if (obj.Name:lower():find("cash") or obj.Name:lower():find("money")) and obj:IsA("BasePart") then
+                    table.insert(CashPickupSpots, obj.Position)
+                end
+            end
+            
+            return #CashPickupSpots > 0
         end
         
         -- Teleport to position safely
@@ -1130,7 +905,7 @@ local ModuleCode = {
             end
             
             -- Set safe teleport properties
-            if AutoFarm.Settings.SafeMode then
+            if CashFarm.Settings.SafeMode then
                 -- Disable collisions temporarily
                 for _, part in pairs(character:GetDescendants()) do
                     if part:IsA("BasePart") then
@@ -1146,10 +921,10 @@ local ModuleCode = {
             rootPart.CFrame = CFrame.new(position)
             
             -- Add delay based on speed setting
-            wait(1 / AutoFarm.Settings.Speed)
+            wait(1 / CashFarm.Settings.Speed)
             
             -- Restore properties
-            if AutoFarm.Settings.SafeMode then
+            if CashFarm.Settings.SafeMode then
                 -- Re-enable collisions
                 for _, part in pairs(character:GetDescendants()) do
                     if part:IsA("BasePart") then
@@ -1164,86 +939,102 @@ local ModuleCode = {
             return true
         end
         
-        -- Collect bones
-        local function CollectBones()
-            -- Find bone locations if none exist
-            if #BoneLocations == 0 then
-                if not FindBoneLocations() then
+        -- Farm ATMs
+        local function FarmATMs()
+            -- Find ATM locations if none exist
+            if #ATMLocations == 0 then
+                if not FindATMLocations() then
                     return
                 end
             end
             
-            -- Visit each bone location
-            for _, position in ipairs(BoneLocations) do
-                if not AutoFarmEnabled or not AutoFarm.Settings.Enabled then
+            -- Visit each ATM location
+            for _, position in ipairs(ATMLocations) do
+                if not CashFarmEnabled or not CashFarm.Settings.Enabled then
                     break
                 end
                 
-                -- Teleport to bone
+                -- Teleport to ATM
                 local success = TeleportTo(position)
                 if success then
-                    -- Check for bones at this location
-                    local collected = false
-                    for _, obj in pairs(workspace:GetDescendants()) do
-                        if obj.Name:lower():find("bone") and obj:IsA("BasePart") and (obj.Position - position).Magnitude < 30 then
-                            -- Simulate collecting the bone
-                            local distance = (obj.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-                            if distance < 10 then
-                                -- We're close enough to collect
-                                Stats.BonesFarmed = Stats.BonesFarmed + 1
-                                collected = true
-                                wait(0.5) -- Wait for collection animation
-                            end
-                        end
-                    end
+                    -- Interact with ATM
+                    -- This would need to be adapted to how ATMs work in Bronx 3
+                    -- Might involve clicking a specific part or firing a remote
+                    
+                    -- Simulate earning cash
+                    Stats.CashEarned = Stats.CashEarned + 50 -- Update with actual amount
                     
                     -- Add delay between actions
-                    wait(AutoFarm.Settings.Delay)
+                    wait(CashFarm.Settings.Delay)
                 end
             end
         end
         
-        -- Participate in round completion
-        local function CompleteRound()
-            -- Get round state
-            local roundState = workspace:FindFirstChild("RoundState")
-            if not roundState then
-                return
+        -- Rob stores
+        local function RobStores()
+            -- Find store locations if none exist
+            if #StoreLocations == 0 then
+                if not FindStoreLocations() then
+                    return
+                end
             end
             
-            -- Handle different round states
-            if roundState.Value == "Intermission" then
-                -- Wait for round to start
-                wait(5)
-            elseif roundState.Value == "Playing" then
-                -- Try to complete objectives
-                -- This would involve game-specific logic
-                
-                -- For now, just teleport to some key locations
-                local keyLocations = {
-                    Vector3.new(0, 50, 0),
-                    Vector3.new(100, 50, 100),
-                    Vector3.new(-100, 50, -100)
-                }
-                
-                for _, location in ipairs(keyLocations) do
-                    if not AutoFarmEnabled or not AutoFarm.Settings.Enabled then
-                        break
-                    end
-                    
-                    TeleportTo(location)
-                    wait(AutoFarm.Settings.Delay * 2)
+            -- Visit each store location
+            for _, position in ipairs(StoreLocations) do
+                if not CashFarmEnabled or not CashFarm.Settings.Enabled then
+                    break
                 end
                 
-                -- Round should be completed soon
-                wait(5)
-                Stats.RoundsCompleted = Stats.RoundsCompleted + 1
+                -- Teleport to store
+                local success = TeleportTo(position)
+                if success then
+                    -- Rob the store
+                    -- This would need to be adapted to how store robberies work in Bronx 3
+                    -- Might involve breaking glass, grabbing money, etc.
+                    
+                    -- Simulate earning cash and completing robbery
+                    Stats.CashEarned = Stats.CashEarned + 200 -- Update with actual amount
+                    Stats.RobberiesCompleted = Stats.RobberiesCompleted + 1
+                    
+                    -- Add delay between actions
+                    wait(CashFarm.Settings.Delay * 2)
+                end
+            end
+        end
+        
+        -- Pickup cash
+        local function PickupCash()
+            -- Find cash pickup spots if none exist
+            if #CashPickupSpots == 0 then
+                if not FindCashPickupSpots() then
+                    return
+                end
+            end
+            
+            -- Visit each cash pickup spot
+            for _, position in ipairs(CashPickupSpots) do
+                if not CashFarmEnabled or not CashFarm.Settings.Enabled then
+                    break
+                end
+                
+                -- Teleport to cash
+                local success = TeleportTo(position)
+                if success then
+                    -- Pick up the cash
+                    -- This would involve touching the cash or firing a proximity prompt
+                    
+                    -- Simulate earning cash
+                    Stats.CashEarned = Stats.CashEarned + 20 -- Update with actual amount
+                    
+                    -- Add delay between actions
+                    wait(CashFarm.Settings.Delay)
+                end
             end
         end
         
         -- Anti-AFK function
         local function AntiAFK()
-            if not AutoFarm.Settings.AntiAFK then
+            if not CashFarm.Settings.AntiAFK then
                 return
             end
             
@@ -1273,7 +1064,7 @@ local ModuleCode = {
         
         -- Auto rejoin function
         local function CheckForRejoin()
-            if not AutoFarm.Settings.AutoRejoin then
+            if not CashFarm.Settings.AutoRejoin then
                 return
             end
             
@@ -1293,10 +1084,10 @@ local ModuleCode = {
             Stats.TimeRunning = string.format("%02d:%02d:%02d", hours, minutes, seconds)
         end
         
-        -- Main auto farm function
-        local function RunAutoFarm()
+        -- Main cash farm function
+        local function RunCashFarm()
             -- Check if enabled
-            if not AutoFarmEnabled or not AutoFarm.Settings.Enabled then
+            if not CashFarmEnabled or not CashFarm.Settings.Enabled then
                 return
             end
             
@@ -1312,97 +1103,386 @@ local ModuleCode = {
             -- Check for rejoin
             CheckForRejoin()
             
-            -- Perform auto farm based on method
-            if AutoFarm.Settings.Method == "Bone Farm" then
-                CollectBones()
-            elseif AutoFarm.Settings.Method == "Round Completion" then
-                CompleteRound()
-            elseif AutoFarm.Settings.Method == "Hybrid" then
-                -- Alternate between bone farm and round completion
-                if tick() % 60 < 30 then
-                    CollectBones()
-                else
-                    CompleteRound()
-                end
+            -- Perform cash farming based on method
+            if CashFarm.Settings.Method == "ATM Farm" then
+                FarmATMs()
+            elseif CashFarm.Settings.Method == "Store Robbery" then
+                RobStores()
+            elseif CashFarm.Settings.Method == "Auto-Pickup" then
+                PickupCash()
             end
         end
         
-        -- Start auto farm
-        function AutoFarm.Start()
-            if AutoFarmConnection then
-                AutoFarmConnection:Disconnect()
+        -- Start cash farm
+        function CashFarm.Start()
+            if CashFarmConnection then
+                CashFarmConnection:Disconnect()
             end
             
             -- Reset stats
             Stats.StartTime = tick()
             
-            -- Initialize bones
-            FindBoneLocations()
+            -- Initialize locations
+            FindATMLocations()
+            FindStoreLocations()
+            FindCashPickupSpots()
             
-            AutoFarmEnabled = true
+            CashFarmEnabled = true
             
-            -- Run auto farm
-            AutoFarmConnection = RunService.Heartbeat:Connect(RunAutoFarm)
-            print("AutoFarm module started")
+            -- Run cash farm
+            CashFarmConnection = RunService.Heartbeat:Connect(RunCashFarm)
+            print("CashFarm module started")
         end
         
-        -- Stop auto farm
-        function AutoFarm.Stop()
-            if AutoFarmConnection then
-                AutoFarmConnection:Disconnect()
-                AutoFarmConnection = nil
+        -- Stop cash farm
+        function CashFarm.Stop()
+            if CashFarmConnection then
+                CashFarmConnection:Disconnect()
+                CashFarmConnection = nil
             end
             
-            AutoFarmEnabled = false
-            print("AutoFarm module stopped")
+            CashFarmEnabled = false
+            print("CashFarm module stopped")
         end
         
         -- Get stats
-        function AutoFarm.GetStats()
+        function CashFarm.GetStats()
             UpdateTimeRunning()
             return Stats
         end
         
-        return AutoFarm
+        return CashFarm
+    ]],
+    
+    Character = [[
+        -- Bronx 3 Character Enhancement Module
+        local Character = {}
+        
+        -- Character settings
+        Character.Settings = {
+            WalkSpeedEnabled = false,
+            JumpPowerEnabled = false,
+            GodModeEnabled = false,
+            InfiniteStamina = false,
+            NoClip = false,
+            WalkSpeed = 16,
+            JumpPower = 50
+        }
+        
+        -- Variables
+        local Players = game:GetService("Players")
+        local RunService = game:GetService("RunService")
+        local UserInputService = game:GetService("UserInputService")
+        local LocalPlayer = Players.LocalPlayer
+        local CharacterEnhancedEnabled = false
+        local CharacterConnection = nil
+        local NoClipConnection = nil
+        local OriginalWalkSpeed = 16
+        local OriginalJumpPower = 50
+        local IsNoClipping = false
+        
+        -- Helper function to set character's walk speed
+        local function SetWalkSpeed(speed)
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                -- Store original value if first time
+                if OriginalWalkSpeed == 16 then
+                    OriginalWalkSpeed = LocalPlayer.Character.Humanoid.WalkSpeed
+                end
+                
+                LocalPlayer.Character.Humanoid.WalkSpeed = speed
+            end
+        end
+        
+        -- Helper function to set character's jump power
+        local function SetJumpPower(power)
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                -- Store original value if first time
+                if OriginalJumpPower == 50 then
+                    OriginalJumpPower = LocalPlayer.Character.Humanoid.JumpPower
+                end
+                
+                LocalPlayer.Character.Humanoid.JumpPower = power
+            end
+        end
+        
+        -- Enable God Mode
+        local function EnableGodMode()
+            if not LocalPlayer.Character then return end
+            
+            -- Methods to enable god mode can vary between games
+            -- Some common approaches:
+            
+            -- 1. Hook health changes
+            local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
+            if humanoid then
+                local oldHealth = humanoid.Health
+                
+                -- Connect to health change event
+                humanoid:GetPropertyChangedSignal("Health"):Connect(function()
+                    if Character.Settings.GodModeEnabled and humanoid.Health < oldHealth then
+                        humanoid.Health = oldHealth
+                    else
+                        oldHealth = humanoid.Health
+                    end
+                end)
+            end
+            
+            -- 2. Another approach is to constantly heal
+            spawn(function()
+                while Character.Settings.GodModeEnabled and wait(0.1) do
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                        LocalPlayer.Character.Humanoid.Health = LocalPlayer.Character.Humanoid.MaxHealth
+                    else
+                        break
+                    end
+                end
+            end)
+        end
+        
+        -- Enable infinite stamina
+        local function EnableInfiniteStamina()
+            -- This would need to be adapted to how stamina works in Bronx 3
+            -- Might involve setting a stamina value or hooking a stamina change event
+            
+            spawn(function()
+                while Character.Settings.InfiniteStamina and wait(0.1) do
+                    -- Example: if game stores stamina in a value
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Stamina") then
+                        LocalPlayer.Character.Stamina.Value = 100
+                    elseif LocalPlayer:FindFirstChild("Stamina") then
+                        LocalPlayer.Stamina.Value = 100
+                    end
+                end
+            end)
+        end
+        
+        -- No-clip functionality
+        local function UpdateNoClip()
+            if not Character.Settings.NoClip or not LocalPlayer.Character then
+                return
+            end
+            
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+        
+        -- Update character enhancements
+        local function UpdateCharacter()
+            -- Apply walk speed
+            if Character.Settings.WalkSpeedEnabled then
+                SetWalkSpeed(Character.Settings.WalkSpeed)
+            else
+                SetWalkSpeed(OriginalWalkSpeed)
+            end
+            
+            -- Apply jump power
+            if Character.Settings.JumpPowerEnabled then
+                SetJumpPower(Character.Settings.JumpPower)
+            else
+                SetJumpPower(OriginalJumpPower)
+            end
+            
+            -- Handle No-Clip separately as it needs more frequent updates
+            if Character.Settings.NoClip and not IsNoClipping then
+                IsNoClipping = true
+                if NoClipConnection then
+                    NoClipConnection:Disconnect()
+                end
+                NoClipConnection = RunService.Stepped:Connect(UpdateNoClip)
+            elseif not Character.Settings.NoClip and IsNoClipping then
+                IsNoClipping = false
+                if NoClipConnection then
+                    NoClipConnection:Disconnect()
+                    NoClipConnection = nil
+                end
+            end
+        end
+        
+        -- Start character enhancements
+        function Character.Start()
+            if CharacterConnection then
+                CharacterConnection:Disconnect()
+            end
+            
+            CharacterEnhancedEnabled = true
+            
+            -- Apply initial settings
+            if Character.Settings.GodModeEnabled then
+                EnableGodMode()
+            end
+            
+            if Character.Settings.InfiniteStamina then
+                EnableInfiniteStamina()
+            end
+            
+            -- Update character continuously
+            CharacterConnection = RunService.Heartbeat:Connect(UpdateCharacter)
+            print("Character enhancement module started")
+        end
+        
+        -- Stop character enhancements
+        function Character.Stop()
+            CharacterEnhancedEnabled = false
+            
+            if CharacterConnection then
+                CharacterConnection:Disconnect()
+                CharacterConnection = nil
+            end
+            
+            if NoClipConnection then
+                NoClipConnection:Disconnect()
+                NoClipConnection = nil
+            end
+            
+            -- Restore original values
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+                LocalPlayer.Character.Humanoid.WalkSpeed = OriginalWalkSpeed
+                LocalPlayer.Character.Humanoid.JumpPower = OriginalJumpPower
+            end
+            
+            print("Character enhancement module stopped")
+        end
+        
+        return Character
     ]]
+}
+
+-- Module URLs (for fallback)
+local ModuleURLs = {
+    ESP = "ESP",
+    Combat = "Combat",
+    Teleport = "Teleport",
+    AntiDetect = "AntiDetect",
+    CashFarm = "CashFarm",
+    Character = "Character"
 }
 
 -- Loaded modules
 local Modules = {
     ESP = nil,
-    GunMods = nil,
-    Aimbot = nil,
+    Combat = nil,
     Teleport = nil,
     AntiDetect = nil,
-    AutoFarm = nil
+    CashFarm = nil,
+    Character = nil
 }
 
--- Load a module from URL or embedded code
+-- Load a module from embedded code
 local function LoadModule(moduleName)
-    local url = ModuleURLs[moduleName]
-    if not url then
-        warn("No URL found for module: " .. moduleName)
-        return nil
+    -- Always create a fallback module first to ensure UI elements are created 
+    -- regardless of whether the actual module loads successfully
+    -- This is key to making the UI work consistently on mobile
+    local fallback = {}
+    fallback.Settings = {}
+    
+    if moduleName == "ESP" then
+        fallback.Settings = {
+            Enabled = false,
+            ShowDistance = true,
+            ShowHealth = true,
+            ShowCash = true,
+            ShowWeapon = true,
+            RainbowESP = false,
+            TextSize = 14,
+            Colors = {
+                Enemy = Color3.fromRGB(255, 0, 0),
+                Friend = Color3.fromRGB(0, 255, 0)
+            }
+        }
+        fallback.Start = function() print("ESP module started") end
+        fallback.Stop = function() print("ESP module stopped") end
+    elseif moduleName == "Combat" then
+        fallback.Settings = {
+            AimbotEnabled = false,
+            SilentAimEnabled = false,
+            AutoBlockEnabled = false,
+            AutoFireEnabled = false,
+            ShowFOV = true,
+            FOVSize = 120,
+            FOVColor = Color3.fromRGB(255, 255, 255),
+            Smoothness = 0.2,
+            TargetPart = "Head",
+            TriggerBot = {
+                Enabled = false,
+                Delay = 0.2
+            }
+        }
+        fallback.Start = function() print("Combat module started") end
+        fallback.Stop = function() print("Combat module stopped") end
+    elseif moduleName == "Teleport" then
+        fallback.Settings = {
+            InstantTeleport = false
+        }
+        fallback.Teleport = function(location) print("Teleporting to " .. tostring(location)) end
+    elseif moduleName == "AntiDetect" then
+        fallback.Settings = {
+            Enabled = false,
+            AntiKick = false,
+            AntiCheatBypass = false,
+            SpoofIdentity = false
+        }
+        fallback.Start = function() print("AntiDetect module started") end
+        fallback.Stop = function() print("AntiDetect module stopped") end
+    elseif moduleName == "CashFarm" then
+        fallback.Settings = {
+            Enabled = false,
+            CollectCash = false,
+            CollectBounty = false,
+            TeleportDelay = 1
+        }
+        fallback.Start = function() print("CashFarm module started") end
+        fallback.Stop = function() print("CashFarm module stopped") end
+    elseif moduleName == "Character" then
+        fallback.Settings = {
+            WalkSpeed = 16,
+            JumpPower = 50,
+            InfiniteJump = false,
+            NoClip = false,
+            GodMode = false
+        }
+        fallback.SetSpeed = function(speed) print("Setting walk speed to: " .. speed) end
+        fallback.SetJump = function(power) print("Setting jump power to: " .. power) end
+        fallback.ToggleInfiniteJump = function(enabled) print("Infinite jump: " .. tostring(enabled)) end
     end
     
-    -- First try loading from URL
+    -- Try to load the real module
+    if not ModuleDefinitions[moduleName] then
+        warn("No module definition found for: " .. moduleName)
+        return fallback
+    end
+    
     local success, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
+        return loadstring(ModuleDefinitions[moduleName])()
     end)
     
-    -- If URL loading fails, use embedded code
-    if not success and ModuleCode[moduleName] then
-        success, result = pcall(function()
-            return loadstring(ModuleCode[moduleName])()
-        end)
-    end
-    
-    if success then
+    if success and result then
         print("✅ Successfully loaded: " .. moduleName)
+        
+        -- Merge the fallback settings with the loaded module to ensure all expected fields exist
+        if result.Settings then
+            for key, value in pairs(fallback.Settings) do
+                if result.Settings[key] == nil then
+                    result.Settings[key] = value
+                end
+            end
+        else
+            result.Settings = fallback.Settings
+        end
+        
+        -- Merge any missing functions
+        for key, value in pairs(fallback) do
+            if type(value) == "function" and not result[key] then
+                result[key] = value
+            end
+        end
+        
         return result
     else
-        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. result)
-        return nil
+        warn("❌ Failed to load: " .. moduleName .. " | Using fallback")
+        return fallback -- Return fallback instead of nil
     end
 end
 
@@ -1410,7 +1490,7 @@ end
 local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 local DeviceText = IsMobile and "Mobile" or "PC"
 
-print("SkyX Dead Rails - Starting on " .. DeviceText .. " device")
+print("SkyX Bronx 3 - Starting on " .. DeviceText .. " device")
 
 -- Create main UI container
 local SkyXUI = Instance.new("ScreenGui")
@@ -1600,7 +1680,7 @@ TitleText.Font = Enum.Font.GothamBold
 TitleText.TextSize = 16
 TitleText.TextColor3 = Colors.Text
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Text = "🌊 SkyX Dead Rails 🌊"
+TitleText.Text = "🌊 SkyX Bronx 3 🌊"
 TitleText.Parent = TitleBar
 
 -- Add close button
@@ -1623,16 +1703,16 @@ AddConnection(CloseButton.MouseButton1Click, function()
     
     -- Stop all modules
     if Modules.ESP then Modules.ESP.Stop() end
-    if Modules.GunMods then Modules.GunMods.Stop() end
-    if Modules.Aimbot then Modules.Aimbot.Stop() end
+    if Modules.Combat then Modules.Combat.Stop() end
     if Modules.Teleport then Modules.Teleport.Stop() end
     if Modules.AntiDetect then Modules.AntiDetect.Stop() end
-    if Modules.AutoFarm then Modules.AutoFarm.Stop() end
+    if Modules.CashFarm then Modules.CashFarm.Stop() end
+    if Modules.Character then Modules.Character.Stop() end
     
     -- Destroy GUI
     SkyXUI:Destroy()
     
-    print("SkyX Dead Rails script closed properly")
+    print("SkyX Bronx 3 script closed properly")
 end)
 
 -- Create content area
@@ -1716,76 +1796,6 @@ end)
 -- Track tabs
 local Tabs = {}
 local SelectedTab = nil
-
--- Get Dead Rails values
-local function GetDeadRailsValues()
-    local DeadRails = {}
-    DeadRails.Teams = {}
-    DeadRails.Players = {}
-    DeadRails.GameState = {}
-    DeadRails.Weapons = {}
-    
-    -- Current round status
-    local roundState = workspace:FindFirstChild("RoundState")
-    if roundState then
-        DeadRails.GameState.RoundState = roundState.Value
-    end
-    
-    -- Get round time
-    local roundTime = workspace:FindFirstChild("RoundTime")
-    if roundTime then
-        DeadRails.GameState.RoundTime = roundTime.Value
-    end
-    
-    -- Get all players
-    for _, Player in pairs(game.Players:GetPlayers()) do
-        if Player ~= game.Players.LocalPlayer then
-            local PlayerData = {
-                Player = Player,
-                Team = Player.Team and Player.Team.Name or "None",
-                Character = Player.Character,
-                Health = Player.Character and Player.Character:FindFirstChild("Humanoid") and 
-                         Player.Character.Humanoid.Health or 0,
-                MaxHealth = Player.Character and Player.Character:FindFirstChild("Humanoid") and 
-                            Player.Character.Humanoid.MaxHealth or 100
-            }
-            
-            table.insert(DeadRails.Players, PlayerData)
-            
-            -- Add to teams
-            if Player.Team then
-                if not DeadRails.Teams[Player.Team.Name] then
-                    DeadRails.Teams[Player.Team.Name] = {}
-                end
-                table.insert(DeadRails.Teams[Player.Team.Name], Player)
-            end
-        end
-    end
-    
-    -- Get local player's weapons
-    local localPlayer = game.Players.LocalPlayer
-    if localPlayer and localPlayer.Character then
-        DeadRails.Weapons.Equipped = nil
-        
-        -- Find equipped weapon
-        for _, child in pairs(localPlayer.Character:GetChildren()) do
-            if child:IsA("Tool") then
-                DeadRails.Weapons.Equipped = child
-                break
-            end
-        end
-        
-        -- Get weapons in backpack
-        DeadRails.Weapons.Backpack = {}
-        for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                table.insert(DeadRails.Weapons.Backpack, tool)
-            end
-        end
-    end
-    
-    return DeadRails
-end
 
 -- UI element creation functions
 local function CreateButton(parent, text, position, size, color, callback)
@@ -2530,23 +2540,18 @@ local function LoadAllModules()
     
     -- Load all other modules
     Modules.ESP = LoadModule("ESP")
-    Modules.GunMods = LoadModule("GunMods")
-    Modules.Aimbot = LoadModule("Aimbot")
+    Modules.Combat = LoadModule("Combat")
     Modules.Teleport = LoadModule("Teleport")
-    Modules.AutoFarm = LoadModule("AutoFarm")
+    Modules.CashFarm = LoadModule("CashFarm")
+    Modules.Character = LoadModule("Character")
     
     -- Link modules if needed
-    if Modules.ESP and Modules.Aimbot then
-        Modules.Aimbot.SetESPModule(Modules.ESP)
-    end
-    
-    if Modules.AntiDetect and Modules.GunMods then
-        Modules.GunMods.SetAntiDetectModule(Modules.AntiDetect)
+    if Modules.ESP and Modules.Combat then
+        Modules.Combat.SetESPModule(Modules.ESP)
     end
     
     -- Start key modules
     if Modules.ESP then Modules.ESP.Start() end
-    if Modules.GunMods then Modules.GunMods.Start() end
     if Modules.Teleport then Modules.Teleport.Start() end
     
     return true
@@ -2555,19 +2560,19 @@ end
 -- Create tabs
 local MainTab = CreateTab("Main", 1)
 local ESPTab = CreateTab("ESP", 2)
-local GunModsTab = CreateTab("Gun Mods", 3)
-local AimbotTab = CreateTab("Aimbot", 4)
-local TeleportTab = CreateTab("Teleport", 5)
-local AutoFarmTab = CreateTab("Auto Farm", 6)
+local CombatTab = CreateTab("Combat", 3)
+local TeleportTab = CreateTab("Teleport", 4)
+local CashFarmTab = CreateTab("Cash Farm", 5)
+local CharacterTab = CreateTab("Character", 6)
 
 -- Create main tab content
 local InfoSection = MainTab:AddSection("Information")
 InfoSection:AddLabel("Device: " .. DeviceText)
-InfoSection:AddLabel("Game: Dead Rails")
+InfoSection:AddLabel("Game: The Bronx 3")
 local StatusLabel = InfoSection:AddLabel("Loading modules...")
 
 -- Load modules
--- Load modules - ensure all modules exist for UI creation
+-- Ensure all modules exist for UI creation
 local function EnsureModuleExists(moduleName)
     if not Modules[moduleName] then
         -- Create minimal fallback module to avoid errors
@@ -2576,40 +2581,42 @@ local function EnsureModuleExists(moduleName)
             Start = function() print("Started " .. moduleName .. " module") end,
             Stop = function() print("Stopped " .. moduleName .. " module") end,
             GetTargetInfo = function() return {TargetName = nil} end,
-            GetLocationsList = function() return {{Name = "Lobby", Icon = "🏠", Position = Vector3.new(0,0,0)}} end,
+            GetLocationsList = function() return {{Name = "Shop", Icon = "🏪", Position = Vector3.new(0,0,0)}} end,
             TeleportToLocation = function(name) return true, "Teleported to " .. name end,
-            GetStats = function() return {BonesFarmed = 0, RoundsCompleted = 0, TimeRunning = "00:00:00"} end,
-            GetCurrentGunStats = function() return {CurrentGun = nil} end
+            GetCashFarmStats = function() return {CashEarned = 0, TasksCompleted = 0, TimeRunning = "00:00:00"} end
         }
         
         -- Add settings based on module type
         if moduleName == "ESP" then
             Modules[moduleName].Settings = {
-                Enabled = false, ShowDistance = true, ShowHealth = true, ShowTeam = true,
+                Enabled = false, ShowDistance = true, ShowHealth = true, ShowCash = true,
                 ShowWeapon = true, RainbowESP = false, TextSize = 14,
-                Colors = {Enemy = Color3.fromRGB(255, 0, 0), Team = Color3.fromRGB(0, 255, 0)}
+                Colors = {Enemy = Color3.fromRGB(255, 0, 0), Friend = Color3.fromRGB(0, 255, 0)}
             }
-        elseif moduleName == "GunMods" then
+        elseif moduleName == "Combat" then
             Modules[moduleName].Settings = {
-                InfiniteAmmo = false, NoRecoil = false, NoSpread = false, RapidFire = false,
-                FireRateMultiplier = 2, DamageMultiplier = 1
-            }
-        elseif moduleName == "Aimbot" then
-            Modules[moduleName].Settings = {
-                Enabled = false, ShowFOV = true, FOVSize = 120, Smoothness = 0.2,
-                TargetPart = "Head", TeamCheck = true, VisibleCheck = true,
+                AimbotEnabled = false, SilentAimEnabled = false, AutoBlockEnabled = false,
+                AutoFireEnabled = false, ShowFOV = true, FOVSize = 120, 
+                FOVColor = Color3.fromRGB(255, 255, 255), Smoothness = 0.2,
+                TargetPart = "Head", 
                 TriggerBot = {Enabled = false, Delay = 0.2}
             }
+            Modules[moduleName].SetESPModule = function() end
         elseif moduleName == "Teleport" then
             Modules[moduleName].Settings = {
                 SafeMode = true, AntiDetection = {Enabled = true, DelayBetweenTeleports = 0.5}
             }
         elseif moduleName == "AntiDetect" then
             Modules[moduleName].Settings = {Enabled = true, MonitorRemotes = true, BlockBanRemotes = true}
-        elseif moduleName == "AutoFarm" then
+        elseif moduleName == "CashFarm" then
             Modules[moduleName].Settings = {
-                Enabled = false, Method = "Bone Farm", AntiAFK = true, AutoRejoin = false,
-                SafeMode = true, Speed = 5, Delay = 0.5, AutoSkipMapVote = true
+                Enabled = false, Method = "Store Robbery", AntiAFK = true, AutoRejoin = false,
+                SafeMode = true, Speed = 5, Delay = 0.5
+            }
+        elseif moduleName == "Character" then
+            Modules[moduleName].Settings = {
+                SpeedEnabled = false, JumpEnabled = false, NoClipEnabled = false,
+                SpeedMultiplier = 2, JumpMultiplier = 2
             }
         end
     end
@@ -2617,186 +2624,133 @@ local function EnsureModuleExists(moduleName)
     return Modules[moduleName]
 end
 
--- Load all modules with guaranteed existence for UI
+-- Load modules with guaranteed existence for UI
 local success = LoadAllModules()
 
 -- Ensure all modules exist
-for moduleName, _ in pairs(ModuleURLs) do
-    EnsureModuleExists(moduleName)
-end
+EnsureModuleExists("ESP")
+EnsureModuleExists("Combat")
+EnsureModuleExists("Teleport")
+EnsureModuleExists("AntiDetect")
+EnsureModuleExists("CashFarm")
+EnsureModuleExists("Character")
 
 -- Update status
-StatusLabel:SetText("Modules initialized for Dead Rails")
-
--- ESP Tab Content
-local ESPSection = ESPTab:AddSection("ESP Features")
-
-ESPSection:AddToggle("ESP Enabled", false, function(value)
-    Modules.ESP.Settings.Enabled = value
-end)
-
-ESPSection:AddToggle("Show Distance", true, function(value)
-    Modules.ESP.Settings.ShowDistance = value
-end)
-
-ESPSection:AddToggle("Show Health", true, function(value)
-    Modules.ESP.Settings.ShowHealth = value
-end)
-
-ESPSection:AddToggle("Show Team", true, function(value)
-    Modules.ESP.Settings.ShowTeam = value
-end)
-
-ESPSection:AddToggle("Show Weapons", true, function(value)
-    Modules.ESP.Settings.ShowWeapon = value
-end)
-
-ESPSection:AddToggle("Rainbow ESP", false, function(value)
-    Modules.ESP.Settings.RainbowESP = value
-end)
-
-ESPSection:AddColorPicker("Enemy Color", Color3.fromRGB(255, 0, 0), function(color)
-    Modules.ESP.Settings.Colors.Enemy = color
-end)
-
-ESPSection:AddColorPicker("Team Color", Color3.fromRGB(0, 255, 0), function(color)
-    Modules.ESP.Settings.Colors.Team = color
-end)
-
-ESPSection:AddSlider("ESP Text Size", 12, 24, 14, function(value)
-    Modules.ESP.Settings.TextSize = value
-end)
+StatusLabel:SetText("Modules initialized for Bronx 3")
     
-    -- Gun Mods Tab Content
-    local GunModsSection = GunModsTab:AddSection("Gun Modifications")
+    -- ESP Tab Content
+    -- Always create UI elements regardless of module status
+    local ESPSection = ESPTab:AddSection("ESP Features")
     
-    GunModsSection:AddToggle("Infinite Ammo", false, function(value)
-        Modules.GunMods.Settings.InfiniteAmmo = value
+    ESPSection:AddToggle("ESP Enabled", false, function(value)
+        Modules.ESP.Settings.Enabled = value
     end)
     
-    GunModsSection:AddToggle("No Recoil", false, function(value)
-        Modules.GunMods.Settings.NoRecoil = value
+    ESPSection:AddToggle("Show Distance", true, function(value)
+        Modules.ESP.Settings.ShowDistance = value
     end)
     
-    GunModsSection:AddToggle("No Spread", false, function(value)
-        Modules.GunMods.Settings.NoSpread = value
+    ESPSection:AddToggle("Show Health", true, function(value)
+        Modules.ESP.Settings.ShowHealth = value
     end)
     
-    GunModsSection:AddToggle("Rapid Fire", false, function(value)
-        Modules.GunMods.Settings.RapidFire = value
+    ESPSection:AddToggle("Show Cash", true, function(value)
+        Modules.ESP.Settings.ShowCash = value
     end)
     
-    GunModsSection:AddSlider("Fire Rate Multiplier", 1, 10, 2, function(value)
-        Modules.GunMods.Settings.FireRateMultiplier = value
+    ESPSection:AddToggle("Show Weapons", true, function(value)
+        Modules.ESP.Settings.ShowWeapon = value
     end)
     
-    GunModsSection:AddSlider("Damage Multiplier", 1, 5, 1, function(value)
-        Modules.GunMods.Settings.DamageMultiplier = value
+    ESPSection:AddToggle("Rainbow ESP", false, function(value)
+        Modules.ESP.Settings.RainbowESP = value
     end)
     
-    GunModsSection:AddToggle("Extended Magazine", false, function(value)
-        Modules.GunMods.Settings.ExtendedMagazine = value
+    ESPSection:AddColorPicker("Enemy Color", Color3.fromRGB(255, 0, 0), function(color)
+        Modules.ESP.Settings.Colors.Enemy = color
     end)
     
-    GunModsSection:AddToggle("Auto Reload", false, function(value)
-        Modules.GunMods.Settings.AutoReload = value
+    ESPSection:AddColorPicker("Friend Color", Color3.fromRGB(0, 255, 0), function(color)
+        Modules.ESP.Settings.Colors.Friend = color
     end)
     
-    GunModsSection:AddToggle("Instant Reload", false, function(value)
-        Modules.GunMods.Settings.InstantReload = value
+    ESPSection:AddSlider("ESP Text Size", 12, 24, 14, function(value)
+        Modules.ESP.Settings.TextSize = value
     end)
     
-    GunModsSection:AddToggle("Wallbang", false, function(value)
-        Modules.GunMods.Settings.Wallbang = value
-    end)
+    -- Combat Tab Content
+    -- Always create UI elements regardless of module status
+    local CombatSection = CombatTab:AddSection("Combat Features")
     
-    -- Gun stats display
-    local GunStatsSection = GunModsTab:AddSection("Current Gun Stats")
-    local CurrentGunLabel = GunStatsSection:AddLabel("Current Gun: None")
-    
-    -- Update gun stats periodically
-    spawn(function()
-        while wait(1) do
-            local stats = Modules.GunMods.GetCurrentGunStats()
-            if stats and stats.CurrentGun then
-                CurrentGunLabel:SetText("Current Gun: " .. stats.CurrentGun)
-            else
-                CurrentGunLabel:SetText("Current Gun: None")
-            end
-        end
-    end)
-    
-    -- Aimbot Tab Content
-    local AimbotSection = AimbotTab:AddSection("Aimbot Features")
-    
-    AimbotSection:AddToggle("Aimbot Enabled", false, function(value)
-        Modules.Aimbot.Settings.Enabled = value
+    CombatSection:AddToggle("Aimbot Enabled", false, function(value)
+        Modules.Combat.Settings.AimbotEnabled = value
         if value then
-            Modules.Aimbot.Start()
-        else
-            Modules.Aimbot.Stop()
+            Modules.Combat.Start()
         end
     end)
     
-    AimbotSection:AddToggle("Silent Aim", false, function(value)
-        Modules.Aimbot.Settings.SilentAim = value
+    CombatSection:AddToggle("Silent Aim", false, function(value)
+        Modules.Combat.Settings.SilentAimEnabled = value
     end)
     
-    AimbotSection:AddToggle("Visible Check", true, function(value)
-        Modules.Aimbot.Settings.VisibleCheck = value
+    CombatSection:AddToggle("Auto Block", false, function(value)
+        Modules.Combat.Settings.AutoBlockEnabled = value
     end)
     
-    AimbotSection:AddToggle("Team Check", true, function(value)
-        Modules.Aimbot.Settings.TeamCheck = value
+    CombatSection:AddToggle("Auto Fire", false, function(value)
+        Modules.Combat.Settings.AutoFireEnabled = value
     end)
     
-    AimbotSection:AddToggle("Show FOV Circle", true, function(value)
-        Modules.Aimbot.Settings.ShowFOV = value
+    CombatSection:AddToggle("Show FOV Circle", true, function(value)
+        Modules.Combat.Settings.ShowFOV = value
     end)
     
-    AimbotSection:AddSlider("FOV Size", 50, 500, 120, function(value)
-        Modules.Aimbot.Settings.FOVSize = value
+    CombatSection:AddSlider("FOV Size", 50, 500, 120, function(value)
+        Modules.Combat.Settings.FOVSize = value
     end)
     
-    AimbotSection:AddSlider("Smoothness", 0, 100, 20, function(value)
-        Modules.Aimbot.Settings.Smoothness = value / 100
+    CombatSection:AddSlider("Smoothness", 0, 100, 20, function(value)
+        Modules.Combat.Settings.Smoothness = value / 100
     end)
     
-    AimbotSection:AddDropdown("Target Part", {"Head", "Torso", "Random"}, "Head", function(value)
-        Modules.Aimbot.Settings.TargetPart = value
+    CombatSection:AddDropdown("Target Part", {"Head", "Torso", "Random"}, "Head", function(value)
+        Modules.Combat.Settings.TargetPart = value
     end)
     
-    AimbotSection:AddColorPicker("FOV Color", Color3.fromRGB(255, 255, 255), function(color)
-        Modules.Aimbot.Settings.FOVColor = color
+    CombatSection:AddColorPicker("FOV Color", Color3.fromRGB(255, 255, 255), function(color)
+        Modules.Combat.Settings.FOVColor = color
     end)
     
     -- Trigger Bot section
-    local TriggerSection = AimbotTab:AddSection("Trigger Bot")
+    local TriggerSection = CombatTab:AddSection("Trigger Bot")
     
     TriggerSection:AddToggle("Trigger Bot", false, function(value)
-        Modules.Aimbot.Settings.TriggerBot.Enabled = value
+        Modules.Combat.Settings.TriggerBot.Enabled = value
     end)
     
     TriggerSection:AddSlider("Trigger Delay (ms)", 0, 1000, 200, function(value)
-        Modules.Aimbot.Settings.TriggerBot.Delay = value / 1000
+        Modules.Combat.Settings.TriggerBot.Delay = value / 1000
     end)
     
     -- Target info display
-    local TargetInfo = AimbotSection:AddLabel("Target: None")
+    local TargetInfo = CombatSection:AddLabel("Target: None")
     
     -- Update target info periodically
     spawn(function()
         while wait(0.5) do
-            local info = Modules.Aimbot.GetTargetInfo()
-            if info and info.TargetName then
-                TargetInfo:SetText("Target: " .. info.TargetName)
-            else
-                TargetInfo:SetText("Target: None")
+            if Modules.Combat and Modules.Combat.GetTargetInfo then
+                local info = Modules.Combat.GetTargetInfo()
+                if info.TargetName then
+                    TargetInfo:SetText("Target: " .. info.TargetName)
+                else
+                    TargetInfo:SetText("Target: None")
+                end
             end
         end
     end)
     
     -- Teleport Tab Content
+    -- Always create UI elements regardless of module status
     local TeleportSection = TeleportTab:AddSection("Teleport Features")
     
     TeleportSection:AddToggle("Safe Mode", true, function(value)
@@ -2820,79 +2774,115 @@ end)
         end)
     end
     
-    -- Auto Farm Tab Content
-    local AutoFarmSection = AutoFarmTab:AddSection("Auto Farm Features")
+    -- Cash Farm Tab Content
+    -- Always create UI elements regardless of module status
+    local CashFarmSection = CashFarmTab:AddSection("Cash Farm Features")
     
-    AutoFarmSection:AddToggle("Auto Farm Enabled", false, function(value)
-        Modules.AutoFarm.Settings.Enabled = value
+    CashFarmSection:AddToggle("Cash Farm Enabled", false, function(value)
+        Modules.CashFarm.Settings.Enabled = value
         if value then
-            Modules.AutoFarm.Start()
+            Modules.CashFarm.Start()
         else
-            Modules.AutoFarm.Stop()
+            Modules.CashFarm.Stop()
         end
     end)
     
-    AutoFarmSection:AddDropdown("Farm Method", {"Bone Farm", "Round Completion", "Kills", "Hybrid"}, "Bone Farm", function(value)
-        Modules.AutoFarm.Settings.Method = value
+    CashFarmSection:AddDropdown("Farm Method", {"ATM Farm", "Store Robbery", "Auto-Pickup"}, "ATM Farm", function(value)
+        Modules.CashFarm.Settings.Method = value
     end)
     
-    AutoFarmSection:AddToggle("Anti AFK", true, function(value)
-        Modules.AutoFarm.Settings.AntiAFK = value
+    CashFarmSection:AddToggle("Anti AFK", true, function(value)
+        Modules.CashFarm.Settings.AntiAFK = value
     end)
     
-    AutoFarmSection:AddToggle("Auto Rejoin", false, function(value)
-        Modules.AutoFarm.Settings.AutoRejoin = value
+    CashFarmSection:AddToggle("Auto Rejoin", false, function(value)
+        Modules.CashFarm.Settings.AutoRejoin = value
     end)
     
-    AutoFarmSection:AddToggle("Auto Skip Map Vote", true, function(value)
-        Modules.AutoFarm.Settings.AutoSkipMapVote = value
+    CashFarmSection:AddToggle("Safe Mode", true, function(value)
+        Modules.CashFarm.Settings.SafeMode = value
     end)
     
-    AutoFarmSection:AddToggle("Safe Mode", true, function(value)
-        Modules.AutoFarm.Settings.SafeMode = value
+    CashFarmSection:AddSlider("Farm Speed", 1, 10, 5, function(value)
+        Modules.CashFarm.Settings.Speed = value
     end)
     
-    AutoFarmSection:AddSlider("Farm Speed", 1, 10, 5, function(value)
-        Modules.AutoFarm.Settings.Speed = value
-    end)
-    
-    AutoFarmSection:AddSlider("Delay Between Actions (s)", 0.1, 5, 0.5, function(value)
-        Modules.AutoFarm.Settings.Delay = value
+    CashFarmSection:AddSlider("Delay Between Actions (s)", 0.1, 5, 0.5, function(value)
+        Modules.CashFarm.Settings.Delay = value
     end)
     
     -- Farm statistics
-    local StatsSection = AutoFarmTab:AddSection("Farm Statistics")
-    local BonesFarmedLabel = StatsSection:AddLabel("Bones Farmed: 0")
-    local RoundsCompletedLabel = StatsSection:AddLabel("Rounds Completed: 0")
+    local StatsSection = CashFarmTab:AddSection("Farm Statistics")
+    local CashEarnedLabel = StatsSection:AddLabel("Cash Earned: $0")
+    local RobberiesCompletedLabel = StatsSection:AddLabel("Robberies: 0")
     local TimeRunningLabel = StatsSection:AddLabel("Time Running: 00:00:00")
     
     -- Update farm stats periodically
     spawn(function()
         while wait(1) do
-            local stats = Modules.AutoFarm.GetStats()
-            if stats then
-                BonesFarmedLabel:SetText("Bones Farmed: " .. stats.BonesFarmed or 0)
-                RoundsCompletedLabel:SetText("Rounds Completed: " .. stats.RoundsCompleted or 0)
-                TimeRunningLabel:SetText("Time Running: " .. stats.TimeRunning or "00:00:00")
+            if Modules.CashFarm and Modules.CashFarm.GetStats then
+                local stats = Modules.CashFarm.GetStats()
+                CashEarnedLabel:SetText("Cash Earned: $" .. stats.CashEarned)
+                RobberiesCompletedLabel:SetText("Robberies: " .. stats.RobberiesCompleted)
+                TimeRunningLabel:SetText("Time Running: " .. stats.TimeRunning)
             end
         end
     end)
-
--- Main tab content - always created
-local CreditsSection = MainTab:AddSection("Credits")
-CreditsSection:AddLabel("SkyX Dead Rails Script by SkyX Team")
-CreditsSection:AddLabel("UI Design: SkyX Team")
-CreditsSection:AddLabel("Discord: Join via .gg/skyx")
-
--- Settings section
-local SettingsSection = MainTab:AddSection("Settings")
-SettingsSection:AddButton("Rejoin Game", function()
-    game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-end)
-SettingsSection:AddButton("Copy Discord Invite", function()
-    pcall(function() setclipboard(".gg/skyx") end)
-    StatusLabel:SetText("Discord invite copied to clipboard")
-end)
+    
+    -- Character Tab Content
+    -- Always create UI elements regardless of module status
+    local CharacterSection = CharacterTab:AddSection("Character Enhancements")
+    
+    CharacterSection:AddToggle("Custom Walk Speed", false, function(value)
+        Modules.Character.Settings.WalkSpeedEnabled = value
+        Modules.Character.Start()
+    end)
+    
+    CharacterSection:AddSlider("Walk Speed", 16, 100, 32, function(value)
+        Modules.Character.Settings.WalkSpeed = value
+    end)
+    
+    CharacterSection:AddToggle("Custom Jump Power", false, function(value)
+        Modules.Character.Settings.JumpPowerEnabled = value
+        Modules.Character.Start()
+    end)
+    
+    CharacterSection:AddSlider("Jump Power", 50, 200, 100, function(value)
+        Modules.Character.Settings.JumpPower = value
+    end)
+    
+    CharacterSection:AddToggle("God Mode", false, function(value)
+        Modules.Character.Settings.GodModeEnabled = value
+        Modules.Character.Start()
+    end)
+    
+    CharacterSection:AddToggle("Infinite Stamina", false, function(value)
+        Modules.Character.Settings.InfiniteStamina = value
+        Modules.Character.Start()
+    end)
+    
+    CharacterSection:AddToggle("No-Clip", false, function(value)
+        Modules.Character.Settings.NoClip = value
+        Modules.Character.Start()
+    end)
+    
+    -- Credits Section
+    local CreditsSection = MainTab:AddSection("Credits")
+    CreditsSection:AddLabel("SkyX Bronx 3 Script by SkyX Team")
+    CreditsSection:AddLabel("UI Design: SkyX Team")
+    CreditsSection:AddLabel("Discord: Join via .gg/skyx")
+    
+    -- Settings Section
+    local SettingsSection = MainTab:AddSection("Settings")
+    
+    SettingsSection:AddButton("Rejoin Game", function()
+        game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+    end)
+    
+    SettingsSection:AddButton("Copy Discord Invite", function()
+        setclipboard(".gg/skyx")
+        StatusLabel:SetText("Discord invite copied to clipboard")
+    end)
 
 -- Add keybind for toggling UI (closing and reopening)
 local ToggleKeyCode = Enum.KeyCode.RightControl -- Use Right Control as the toggle key
@@ -2914,7 +2904,7 @@ local function ToggleUI()
         -- Hide UI
         SkyXUI.Enabled = false
         _G.SkyXUIVisible = false
-        print("SkyX Dead Rails UI hidden - Press Right Control to show")
+        print("SkyX Bronx 3 UI hidden - Press Right Control to show")
     else
         -- Show UI
         SkyXUI.Enabled = true
@@ -2938,7 +2928,7 @@ local function ToggleUI()
             end
         end
         
-        print("SkyX Dead Rails UI shown")
+        print("SkyX Bronx 3 UI shown")
     end
 end
 
@@ -3108,5 +3098,5 @@ game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
     end
 end)
 
-print("SkyX Dead Rails Modular loaded successfully | Press Right Control to toggle UI")
+print("SkyX Bronx 3 script loaded successfully | Press Right Control to toggle UI")
 return SkyXUI
