@@ -1,16 +1,22 @@
 --[[
-    SkyX MM2 Module Loader
-    Mobile-Optimized Advanced Script with Modular Design
-    
-    This script loads all necessary modules from GitHub and initializes them.
-    It's design to work with all mobile executors and provide a smooth experience.
+🌊 SkyX MM2 Modular Script 🌊
+Enhanced version with modular loading system
+Optimized for mobile compatibility with advanced features
+
+Features:
+- Enhanced ESP System with Custom Colors and Distance Display
+- Advanced Auto Coin/Item Collector with Prioritization
+- Smart Role Prediction System
+- Smart Murder Detection and Auto-Kill
+- Anti-Detection Teleports
+- Military-Grade Anti-Ban System
 ]]
 
--- SkyX MM2 Module Loader
-local SkyXModuleLoader = {}
+-- This script loads individual modules from GitHub for better organization and updates
+print("SkyX MM2 Modular Loader - Initializing...")
 
--- GitHub repository information - Direct URLs
-SkyXModuleLoader.ModuleURLs = {
+-- Module URLs
+local ModuleURLs = {
     ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/esp.lua",
     CoinCollector = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/coin.lua",
     MurderDetection = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/MurderDetection%20.lua",
@@ -18,8 +24,26 @@ SkyXModuleLoader.ModuleURLs = {
     AntiBan = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Anti-Ban.lua"
 }
 
--- Loaded modules
-SkyXModuleLoader.Modules = {
+-- Load Orion UI Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+
+-- Device detection
+local UserInputService = game:GetService("UserInputService")
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+local DeviceText = IsMobile and "Mobile" or "PC"
+
+-- Create window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX Hub - MM2 Modular",
+    HidePremium = true,
+    SaveConfig = false,
+    ConfigFolder = "SkyXHubConfig",
+    IntroEnabled = false,
+    IntroText = "SkyX Hub"
+})
+
+-- Globals for loaded modules
+local Modules = {
     ESP = nil,
     CoinCollector = nil,
     MurderDetection = nil,
@@ -27,301 +51,477 @@ SkyXModuleLoader.Modules = {
     AntiBan = nil
 }
 
--- Services
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+-- Status tracking
+local LoadingStatus = {
+    TotalModules = 5,
+    LoadedModules = 0,
+    Errors = {},
+    Success = {}
+}
 
--- Check if on mobile device
-local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
-local DeviceText = IsMobile and "Mobile" or "PC"
-
--- Print welcome message
-print("SkyX MM2 Module Loader - Initializing for " .. DeviceText)
-
--- Function to load a module directly from URL
-function SkyXModuleLoader.LoadModule(moduleName)
-    -- Get the direct URL for the module
-    local url = SkyXModuleLoader.ModuleURLs[moduleName]
+-- Function to load a module
+local function LoadModule(moduleName)
+    local url = ModuleURLs[moduleName]
     if not url then
-        print("SkyX Error: No URL found for module: " .. moduleName)
+        warn("No URL found for module: " .. moduleName)
+        table.insert(LoadingStatus.Errors, "No URL for " .. moduleName)
         return nil
     end
     
-    -- Fetch module code
-    local success, content = pcall(function()
-        return game:HttpGet(url)
-    end)
-    
-    if not success then
-        print("SkyX Error: Failed to fetch module from URL: " .. url)
-        return nil
-    end
-    
-    -- Load module
-    local success, moduleOrError = pcall(function()
-        return loadstring(content)()
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
     end)
     
     if success then
-        print("SkyX Success: Loaded module: " .. moduleName)
-        return moduleOrError
+        print("✅ Successfully loaded: " .. moduleName)
+        LoadingStatus.LoadedModules = LoadingStatus.LoadedModules + 1
+        table.insert(LoadingStatus.Success, moduleName)
+        return result
     else
-        print("SkyX Error: Failed to initialize module: " .. moduleName)
-        print(moduleOrError)
+        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. result)
+        table.insert(LoadingStatus.Errors, moduleName .. ": " .. result)
         return nil
     end
 end
 
--- Function to load all modules
-function SkyXModuleLoader.LoadAllModules()
-    -- Load Anti-Ban module first
-    SkyXModuleLoader.Modules.AntiBan = SkyXModuleLoader.LoadModule("AntiBan")
+-- Create main tab
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Create status section
+local StatusSection = MainTab:AddSection({
+    Name = "Module Status"
+})
+
+-- Add status labels
+local StatusLabel = MainTab:AddLabel("Loading modules...")
+local DeviceLabel = MainTab:AddLabel("Device: " .. DeviceText)
+
+-- Function to update status
+local function UpdateStatus()
+    local status = "Loaded " .. LoadingStatus.LoadedModules .. "/" .. LoadingStatus.TotalModules .. " modules"
+    if #LoadingStatus.Errors > 0 then
+        status = status .. " | Errors: " .. #LoadingStatus.Errors
+    end
+    StatusLabel:Set(status)
+end
+
+-- Create tabs for each module
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local CoinsTab = Window:MakeTab({
+    Name = "Coins",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local MurderTab = Window:MakeTab({
+    Name = "Murder",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local TeleportTab = Window:MakeTab({
+    Name = "Teleport",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local AntiBanTab = Window:MakeTab({
+    Name = "Anti-Ban",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Function to initialize module UI
+local function InitializeModuleUI()
+    -- ESP Tab
+    if Modules.ESP then
+        ESPTab:AddToggle({
+            Name = "ESP Enabled",
+            Default = false,
+            Save = false,
+            Flag = "ESPEnabled",
+            Callback = function(Value)
+                Modules.ESP.Settings.Enabled = Value
+                if Value then
+                    Modules.ESP.Start()
+                else
+                    Modules.ESP.Stop()
+                end
+            end
+        })
+        
+        ESPTab:AddToggle({
+            Name = "Show Distance",
+            Default = true,
+            Save = false,
+            Flag = "ShowDistance",
+            Callback = function(Value)
+                Modules.ESP.Settings.ShowDistance = Value
+            end
+        })
+        
+        ESPTab:AddToggle({
+            Name = "Show Health",
+            Default = true,
+            Save = false,
+            Flag = "ShowHealth",
+            Callback = function(Value)
+                Modules.ESP.Settings.ShowHealth = Value
+            end
+        })
+        
+        ESPTab:AddToggle({
+            Name = "Show Roles",
+            Default = true,
+            Save = false,
+            Flag = "ShowRoles",
+            Callback = function(Value)
+                Modules.ESP.Settings.ShowRole = Value
+            end
+        })
+        
+        ESPTab:AddToggle({
+            Name = "Rainbow ESP",
+            Default = false,
+            Save = false,
+            Flag = "RainbowESP",
+            Callback = function(Value)
+                Modules.ESP.Settings.RainbowESP = Value
+            end
+        })
+        
+        ESPTab:AddSlider({
+            Name = "Rainbow Speed",
+            Min = 1,
+            Max = 10,
+            Default = 5,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            Save = false,
+            Flag = "RainbowSpeed",
+            Callback = function(Value)
+                Modules.ESP.Settings.RainbowSpeed = Value
+            end
+        })
+    else
+        ESPTab:AddLabel("ESP Module failed to load")
+    end
     
-    -- Start anti-ban protection immediately
-    if SkyXModuleLoader.Modules.AntiBan then
-        SkyXModuleLoader.Modules.AntiBan.Start()
+    -- Coins Tab
+    if Modules.CoinCollector then
+        CoinsTab:AddToggle({
+            Name = "Auto Collect Coins",
+            Default = false,
+            Save = false,
+            Flag = "AutoCollectCoins",
+            Callback = function(Value)
+                Modules.CoinCollector.Settings.AutoCollectEnabled = Value
+            end
+        })
+        
+        CoinsTab:AddToggle({
+            Name = "Coin ESP",
+            Default = false,
+            Save = false,
+            Flag = "CoinESP",
+            Callback = function(Value)
+                Modules.CoinCollector.Settings.ESP.Enabled = Value
+            end
+        })
+        
+        CoinsTab:AddSlider({
+            Name = "Collection Radius",
+            Min = 5,
+            Max = 50,
+            Default = 15,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "studs",
+            Save = false,
+            Flag = "CollectionRadius",
+            Callback = function(Value)
+                Modules.CoinCollector.Settings.CollectionRadius = Value
+            end
+        })
+        
+        CoinsTab:AddToggle({
+            Name = "Prioritize Nearby Coins",
+            Default = true,
+            Save = false,
+            Flag = "PrioritizeNearby",
+            Callback = function(Value)
+                Modules.CoinCollector.Settings.PrioritizeNearby = Value
+            end
+        })
+        
+        local coinStats = CoinsTab:AddLabel("Coins Collected: 0")
+        
+        -- Update coin stats periodically
+        spawn(function()
+            while wait(1) do
+                if Modules.CoinCollector then
+                    local stats = Modules.CoinCollector.GetStats()
+                    coinStats:Set("Coins Collected: " .. stats.CoinsCollected)
+                end
+            end
+        end)
+    else
+        CoinsTab:AddLabel("Coin Collector Module failed to load")
+    end
+    
+    -- Murder Tab
+    if Modules.MurderDetection then
+        MurderTab:AddToggle({
+            Name = "Murder Detection",
+            Default = false,
+            Save = false,
+            Flag = "MurderDetection",
+            Callback = function(Value)
+                Modules.MurderDetection.Settings.Enabled = Value
+                if Value then
+                    Modules.MurderDetection.Start()
+                else
+                    Modules.MurderDetection.Stop()
+                end
+            end
+        })
+        
+        MurderTab:AddToggle({
+            Name = "Auto-Kill Murderer",
+            Default = false,
+            Save = false,
+            Flag = "AutoKill",
+            Callback = function(Value)
+                Modules.MurderDetection.Settings.AutoKill = Value
+            end
+        })
+        
+        MurderTab:AddSlider({
+            Name = "Warning Distance",
+            Min = 10,
+            Max = 50,
+            Default = 25,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "studs",
+            Save = false,
+            Flag = "WarningDistance",
+            Callback = function(Value)
+                Modules.MurderDetection.Settings.WarningDistance = Value
+            end
+        })
+        
+        MurderTab:AddSlider({
+            Name = "Kill Distance",
+            Min = 5,
+            Max = 20,
+            Default = 8,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "studs",
+            Save = false,
+            Flag = "KillDistance",
+            Callback = function(Value)
+                Modules.MurderDetection.Settings.KillDistance = Value
+            end
+        })
+        
+        local murdererInfo = MurderTab:AddLabel("Murderer: Not Found")
+        
+        -- Update murderer info periodically
+        spawn(function()
+            while wait(1) do
+                if Modules.MurderDetection then
+                    local info = Modules.MurderDetection.GetMurdererInfo()
+                    if info.MurdererFound then
+                        murdererInfo:Set("Murderer: " .. info.MurdererName)
+                    else
+                        murdererInfo:Set("Murderer: Not Found")
+                    end
+                end
+            end
+        end)
+    else
+        MurderTab:AddLabel("Murder Detection Module failed to load")
+    end
+    
+    -- Teleport Tab
+    if Modules.Teleport then
+        TeleportTab:AddToggle({
+            Name = "Safe Mode",
+            Default = true,
+            Save = false,
+            Flag = "SafeMode",
+            Callback = function(Value)
+                Modules.Teleport.Settings.SafeMode = Value
+            end
+        })
+        
+        TeleportTab:AddToggle({
+            Name = "Anti-Detection",
+            Default = true,
+            Save = false,
+            Flag = "AntiDetection",
+            Callback = function(Value)
+                Modules.Teleport.Settings.AntiDetection.Enabled = Value
+            end
+        })
+        
+        -- Get list of locations
+        local locations = Modules.Teleport.GetLocationsList()
+        for _, location in ipairs(locations) do
+            TeleportTab:AddButton({
+                Name = location.Icon .. " " .. location.Name,
+                Callback = function()
+                    local success, message = Modules.Teleport.TeleportToLocation(location.Name)
+                    OrionLib:MakeNotification({
+                        Name = success and "Teleport Success" or "Teleport Failed",
+                        Content = message,
+                        Image = "rbxassetid://4483345998",
+                        Time = 3
+                    })
+                end
+            })
+        end
+    else
+        TeleportTab:AddLabel("Teleport Module failed to load")
+    end
+    
+    -- Anti-Ban Tab
+    if Modules.AntiBan then
+        AntiBanTab:AddToggle({
+            Name = "Anti-Ban System",
+            Default = true,
+            Save = false,
+            Flag = "AntiBanSystem",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Enabled = Value
+                if Value then
+                    Modules.AntiBan.Start()
+                else
+                    Modules.AntiBan.Stop()
+                end
+            end
+        })
+        
+        AntiBanTab:AddToggle({
+            Name = "Remove Exploit Detection",
+            Default = true,
+            Save = false,
+            Flag = "ExploitDetectionRemoval",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Flags.ExploitDetectionRemoval = Value
+            end
+        })
+        
+        AntiBanTab:AddToggle({
+            Name = "Reduce Auto-Punish Risk",
+            Default = true,
+            Save = false,
+            Flag = "ReduceAutoPunishRisk",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Flags.ReduceAutoPunishRisk = Value
+            end
+        })
+        
+        AntiBanTab:AddToggle({
+            Name = "Randomize Actions",
+            Default = true,
+            Save = false,
+            Flag = "RandomizeActions",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Flags.RandomizeActions = Value
+            end
+        })
+        
+        AntiBanTab:AddToggle({
+            Name = "Disable High-Risk Features",
+            Default = false,
+            Save = false,
+            Flag = "DisableHighRiskFeatures",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Flags.DisableHighRiskFeatures = Value
+            end
+        })
+        
+        local antiBanStats = AntiBanTab:AddLabel("Detections Evaded: 0")
+        
+        -- Update anti-ban stats periodically
+        spawn(function()
+            while wait(2) do
+                if Modules.AntiBan then
+                    local status = Modules.AntiBan.GetStatus()
+                    antiBanStats:Set("Detections Evaded: " .. status.DetectionsEvaded)
+                end
+            end
+        end)
+    else
+        AntiBanTab:AddLabel("Anti-Ban Module failed to load")
+    end
+end
+
+-- Start loading modules
+local function LoadAllModules()
+    -- Load Anti-Ban module first for immediate protection
+    Modules.AntiBan = LoadModule("AntiBan")
+    if Modules.AntiBan then
+        Modules.AntiBan.Start()
     end
     
     -- Load other modules
-    SkyXModuleLoader.Modules.ESP = SkyXModuleLoader.LoadModule("ESP")
-    SkyXModuleLoader.Modules.CoinCollector = SkyXModuleLoader.LoadModule("CoinCollector")
-    SkyXModuleLoader.Modules.MurderDetection = SkyXModuleLoader.LoadModule("MurderDetection")
-    SkyXModuleLoader.Modules.Teleport = SkyXModuleLoader.LoadModule("Teleport")
+    Modules.ESP = LoadModule("ESP")
+    Modules.CoinCollector = LoadModule("CoinCollector")
+    Modules.MurderDetection = LoadModule("MurderDetection")
+    Modules.Teleport = LoadModule("Teleport")
     
-    -- Set up module dependencies
-    if SkyXModuleLoader.Modules.MurderDetection and SkyXModuleLoader.Modules.ESP then
-        SkyXModuleLoader.Modules.MurderDetection.SetESPModule(SkyXModuleLoader.Modules.ESP)
+    -- Link ESP and Murder Detection modules
+    if Modules.ESP and Modules.MurderDetection then
+        Modules.MurderDetection.SetESPModule(Modules.ESP)
     end
     
-    if SkyXModuleLoader.Modules.Teleport and SkyXModuleLoader.Modules.MurderDetection then
-        SkyXModuleLoader.Modules.Teleport.SetMurderDetectionModule(SkyXModuleLoader.Modules.MurderDetection)
+    -- Link Murder Detection and Teleport modules
+    if Modules.MurderDetection and Modules.Teleport then
+        Modules.Teleport.SetMurderDetectionModule(Modules.MurderDetection)
     end
     
     -- Start modules
-    if SkyXModuleLoader.Modules.ESP then
-        SkyXModuleLoader.Modules.ESP.Settings.Enabled = true
-        SkyXModuleLoader.Modules.ESP.Start()
-    end
+    if Modules.ESP then Modules.ESP.Start() end
+    if Modules.CoinCollector then Modules.CoinCollector.Start() end
+    if Modules.MurderDetection then Modules.MurderDetection.Start() end
+    if Modules.Teleport then Modules.Teleport.Start() end
     
-    if SkyXModuleLoader.Modules.CoinCollector then
-        SkyXModuleLoader.Modules.CoinCollector.Settings.ESP.Enabled = true
-        SkyXModuleLoader.Modules.CoinCollector.Start()
-    end
+    -- Update final status
+    UpdateStatus()
     
-    if SkyXModuleLoader.Modules.MurderDetection then
-        SkyXModuleLoader.Modules.MurderDetection.Settings.Enabled = true
-        SkyXModuleLoader.Modules.MurderDetection.Start()
-    end
+    -- Initialize module UI elements
+    InitializeModuleUI()
     
-    if SkyXModuleLoader.Modules.Teleport then
-        SkyXModuleLoader.Modules.Teleport.Start()
-    end
-    
-    return true
+    -- Show notification with loading results
+    OrionLib:MakeNotification({
+        Name = "SkyX MM2 Modular",
+        Content = "Loaded " .. LoadingStatus.LoadedModules .. "/" .. LoadingStatus.TotalModules .. " modules successfully!",
+        Image = "rbxassetid://4483345998",
+        Time = 5
+    })
 end
 
--- Create SkyX UI to control modules
-function SkyXModuleLoader.CreateUI()
-    -- Core UI elements
-    local SkyXUI = Instance.new("ScreenGui")
-    SkyXUI.Name = "SkyXModularUI"
-    SkyXUI.ResetOnSpawn = false
-    
-    -- Handle different executor security models
-    if syn then
-        syn.protect_gui(SkyXUI)
-        SkyXUI.Parent = game.CoreGui
-    else
-        SkyXUI.Parent = gethui() or game.CoreGui
+-- Start loading modules
+LoadAllModules()
+
+-- UI cleanup on script end
+game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
+    if State == Enum.TeleportState.Started then
+        OrionLib:Destroy()
     end
-    
-    -- Remove any existing UIs with the same name
-    for _, Interface in pairs(game.CoreGui:GetChildren()) do
-        if Interface.Name == SkyXUI.Name and Interface ~= SkyXUI then
-            Interface:Destroy()
-        end
-    end
-    
-    -- Placeholder for your Orion UI code
-    -- In a real implementation, this would be replaced with your actual UI library code
-    local MainFrame = Instance.new("Frame")
-    MainFrame.Name = "MainFrame"
-    MainFrame.Size = UDim2.new(0, 500, 0, 350)
-    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)
-    MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    MainFrame.BorderSizePixel = 0
-    MainFrame.Parent = SkyXUI
-    
-    local UICorner = Instance.new("UICorner")
-    UICorner.CornerRadius = UDim.new(0, 8)
-    UICorner.Parent = MainFrame
-    
-    local TitleBar = Instance.new("Frame")
-    TitleBar.Name = "TitleBar"
-    TitleBar.Size = UDim2.new(1, 0, 0, 40)
-    TitleBar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    TitleBar.BorderSizePixel = 0
-    TitleBar.Parent = MainFrame
-    
-    local TitleBarCorner = Instance.new("UICorner")
-    TitleBarCorner.CornerRadius = UDim.new(0, 8)
-    TitleBarCorner.Parent = TitleBar
-    
-    local CornerFix = Instance.new("Frame")
-    CornerFix.Name = "CornerFix"
-    CornerFix.Size = UDim2.new(1, 0, 0, 10)
-    CornerFix.Position = UDim2.new(0, 0, 1, -10)
-    CornerFix.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-    CornerFix.BorderSizePixel = 0
-    CornerFix.Parent = TitleBar
-    
-    local TitleText = Instance.new("TextLabel")
-    TitleText.Name = "Title"
-    TitleText.Size = UDim2.new(1, -40, 1, 0)
-    TitleText.Position = UDim2.new(0, 15, 0, 0)
-    TitleText.BackgroundTransparency = 1
-    TitleText.Font = Enum.Font.GothamBold
-    TitleText.TextSize = 16
-    TitleText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    TitleText.TextXAlignment = Enum.TextXAlignment.Left
-    TitleText.Text = "SkyX MM2 Modular - " .. DeviceText .. " Edition"
-    TitleText.Parent = TitleBar
-    
-    local CloseButton = Instance.new("TextButton")
-    CloseButton.Name = "CloseButton"
-    CloseButton.Size = UDim2.new(0, 30, 0, 30)
-    CloseButton.Position = UDim2.new(1, -35, 0, 5)
-    CloseButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-    CloseButton.BorderSizePixel = 0
-    CloseButton.Font = Enum.Font.GothamBold
-    CloseButton.TextSize = 16
-    CloseButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    CloseButton.Text = "X"
-    CloseButton.Parent = TitleBar
-    
-    local CloseButtonCorner = Instance.new("UICorner")
-    CloseButtonCorner.CornerRadius = UDim.new(0, 6)
-    CloseButtonCorner.Parent = CloseButton
-    
-    -- Content area
-    local ContentFrame = Instance.new("Frame")
-    ContentFrame.Name = "ContentFrame"
-    ContentFrame.Size = UDim2.new(1, 0, 1, -40)
-    ContentFrame.Position = UDim2.new(0, 0, 0, 40)
-    ContentFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    ContentFrame.BorderSizePixel = 0
-    ContentFrame.Parent = MainFrame
-    
-    local StatusText = Instance.new("TextLabel")
-    StatusText.Name = "StatusText"
-    StatusText.Size = UDim2.new(1, -20, 0, 30)
-    StatusText.Position = UDim2.new(0, 10, 0, 10)
-    StatusText.BackgroundTransparency = 1
-    StatusText.Font = Enum.Font.GothamSemibold
-    StatusText.TextSize = 14
-    StatusText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    StatusText.Text = "Modules loaded successfully! Use your Orion UI to control them."
-    StatusText.Parent = ContentFrame
-    
-    local InfoText = Instance.new("TextLabel")
-    InfoText.Name = "InfoText"
-    InfoText.Size = UDim2.new(1, -20, 0, 250)
-    InfoText.Position = UDim2.new(0, 10, 0, 50)
-    InfoText.BackgroundTransparency = 1
-    InfoText.Font = Enum.Font.Gotham
-    InfoText.TextSize = 14
-    InfoText.TextColor3 = Color3.fromRGB(200, 200, 200)
-    InfoText.TextXAlignment = Enum.TextXAlignment.Left
-    InfoText.TextYAlignment = Enum.TextYAlignment.Top
-    InfoText.TextWrapped = true
-    InfoText.Text = [[
-Loaded Modules:
-✓ Enhanced ESP with Role Prediction
-✓ Advanced Coin Collector
-✓ Murder Detection & Warning System
-✓ Anti-Detection Teleportation
-✓ Military-Grade Anti-Ban Protection
+end)
 
-This is a placeholder UI. In the full version, 
-all modules are controlled through your Orion UI.
-
-Add your existing Orion UI code in the CreateUI function
-for a complete experience.
-    ]]
-    InfoText.Parent = ContentFrame
-    
-    -- Make UI draggable
-    local dragging = false
-    local dragStart, startPos
-    
-    TitleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = MainFrame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    
-    TitleBar.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            MainFrame.Position = UDim2.new(
-                startPos.X.Scale, 
-                startPos.X.Offset + delta.X, 
-                startPos.Y.Scale, 
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-    
-    -- Close button
-    CloseButton.MouseButton1Click:Connect(function()
-        SkyXUI:Destroy()
-    end)
-    
-    -- Return UI elements
-    return {
-        UI = SkyXUI,
-        MainFrame = MainFrame,
-        StatusText = StatusText,
-        InfoText = InfoText
-    }
-end
-
--- Initialize everything
-function SkyXModuleLoader.Initialize()
-    -- Load all modules
-    local success = SkyXModuleLoader.LoadAllModules()
-    
-    if success then
-        -- Create UI
-        SkyXModuleLoader.UI = SkyXModuleLoader.CreateUI()
-        
-        -- Notification for full initialization
-        print("SkyX MM2 Module Loader - All modules loaded successfully!")
-        
-        -- Return the loader for external control
-        return SkyXModuleLoader
-    else
-        print("SkyX Error: Failed to load all modules")
-        return nil
-    end
-end
-
--- Start the loader
-return SkyXModuleLoader.Initialize()
+return Window
