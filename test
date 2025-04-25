@@ -1,57 +1,1535 @@
 --[[
-    🌊 SkyX Hub Demo Script 🌊
-    
-    This script demonstrates a simplified UI that focuses on making buttons and tabs visible.
-    
-    It uses no external dependencies or icon loading to ensure everything appears correctly.
+🌊 SkyX MM2 Script 🌊
+Direct script with built-in UI (no external dependencies)
+This script will show UI elements properly without relying on GitHub assets
 ]]
 
--- Load the basic UI library
-local SkyXBasic = loadstring(game:HttpGet(""https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua"))()
+-- Core services
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
--- Create the main window
-local Window = SkyXBasic:CreateWindow("SkyX Hub - Basic Demo")
+-- Device detection
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+local DeviceText = IsMobile and "Mobile" or "PC"
 
--- Show initial notification
-Window:Notify("Basic UI Loaded", "This is a simplified version designed to ensure buttons and tabs appear correctly", 5)
+print("SkyX MM2 - Starting on " .. DeviceText .. " device")
 
--- First tab - Main
-local MainTab = Window:CreateTab("Main")
+-- Create main UI container
+local SkyXUI = Instance.new("ScreenGui")
+SkyXUI.Name = "SkyXUI"
 
--- Sections
-local InfoSection = MainTab:CreateSection("Information")
-InfoSection:AddLabel("Welcome to SkyX Hub Basic")
-InfoSection:AddLabel("Version: 1.0.0")
-InfoSection:AddLabel("This UI uses direct assets - no GitHub loading")
+-- Handle different executor security models
+if syn then
+    syn.protect_gui(SkyXUI)
+    SkyXUI.Parent = game.CoreGui
+else
+    SkyXUI.Parent = gethui() or game.CoreGui
+end
 
-local FeaturesSection = MainTab:CreateSection("Features")
-FeaturesSection:AddButton("Example Button", function()
-    Window:Notify("Button Clicked", "This button works!", 3)
+-- Remove existing UIs with the same name
+for _, Interface in pairs(game.CoreGui:GetChildren()) do
+    if Interface.Name == SkyXUI.Name and Interface ~= SkyXUI then
+        Interface:Destroy()
+    end
+end
+
+-- Basic UI library
+local SkyX = {}
+SkyX.Elements = {}
+SkyX.Connections = {}
+
+-- Core colors - mobile-friendly theme
+local Colors = {
+    Background = Color3.fromRGB(22, 35, 55),
+    Container = Color3.fromRGB(28, 44, 68),
+    Button = Color3.fromRGB(42, 95, 145),
+    Text = Color3.fromRGB(255, 255, 255),
+    Border = Color3.fromRGB(60, 110, 165),
+    TabActive = Color3.fromRGB(42, 95, 145),
+    TabInactive = Color3.fromRGB(32, 65, 105)
+}
+
+-- Basic icon mapping - direct asset IDs, no external loading
+local Icons = {
+    close = "rbxassetid://7743875629",
+    minimize = "rbxassetid://10664064072"
+}
+
+-- Helper functions
+local function AddConnection(signal, callback)
+    local connection = signal:Connect(callback)
+    table.insert(SkyX.Connections, connection)
+    return connection
+end
+
+local function MakeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
+    
+    AddConnection(frame.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    AddConnection(frame.InputChanged, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    AddConnection(UserInputService.InputChanged, function(input)
+        if input == dragInput and dragging then
+            local Delta = input.Position - dragStart
+            -- Smooth dragging
+            frame.Position = UDim2.new(
+                startPos.X.Scale, 
+                startPos.X.Offset + Delta.X, 
+                startPos.Y.Scale, 
+                startPos.Y.Offset + Delta.Y
+            )
+        end
+    end)
+end
+
+-- Create main window
+local MainWindow = Instance.new("Frame")
+MainWindow.Name = "MainWindow"
+MainWindow.Size = UDim2.new(0, 500, 0, 350)
+MainWindow.Position = UDim2.new(0.5, -250, 0.5, -175)
+MainWindow.BackgroundColor3 = Colors.Background
+MainWindow.BorderSizePixel = 0
+MainWindow.Active = true
+MainWindow.Parent = SkyXUI
+
+-- Add corner
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.Parent = MainWindow
+
+-- Create window title bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Colors.Button
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainWindow
+
+-- Add corner to title bar
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.Parent = TitleBar
+
+-- Fix corners
+local CornerFix = Instance.new("Frame")
+CornerFix.Name = "CornerFix"
+CornerFix.Size = UDim2.new(1, 0, 0, 10)
+CornerFix.Position = UDim2.new(0, 0, 1, -10)
+CornerFix.BackgroundColor3 = Colors.Button
+CornerFix.BorderSizePixel = 0
+CornerFix.Parent = TitleBar
+
+-- Add title text
+local TitleText = Instance.new("TextLabel")
+TitleText.Name = "Title"
+TitleText.Size = UDim2.new(1, -50, 1, 0)
+TitleText.Position = UDim2.new(0, 15, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextSize = 16
+TitleText.TextColor3 = Colors.Text
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Text = "SkyX MM2 Script"
+TitleText.Parent = TitleBar
+
+-- Add close button
+local CloseButton = Instance.new("ImageButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 20, 0, 20)
+CloseButton.Position = UDim2.new(1, -30, 0, 10)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Image = Icons.close
+CloseButton.Parent = TitleBar
+
+-- Add event for close button
+AddConnection(CloseButton.MouseButton1Click, function()
+    SkyXUI:Destroy()
 end)
 
-local TestToggle = FeaturesSection:AddToggle("Example Toggle", false, function(value)
-    Window:Notify("Toggle Changed", "Toggle is now: " .. (value and "ON" or "OFF"), 3)
+-- Create content area
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, 0, 1, -50)
+ContentFrame.Position = UDim2.new(0, 0, 0, 40)
+ContentFrame.BackgroundColor3 = Colors.Container
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Parent = MainWindow
+
+-- Fix content corners
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 8)
+ContentCorner.Parent = ContentFrame
+
+-- Add tab container
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(1, -20, 0, 40)
+TabContainer.Position = UDim2.new(0, 10, 0, 10)
+TabContainer.BackgroundTransparency = 1
+TabContainer.BorderSizePixel = 0
+TabContainer.Parent = ContentFrame
+
+-- Add tab layout
+local TabLayout = Instance.new("UIListLayout")
+TabLayout.FillDirection = Enum.FillDirection.Horizontal
+TabLayout.Padding = UDim.new(0, 5)
+TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabLayout.Parent = TabContainer
+
+-- Add tab content container
+local TabContent = Instance.new("Frame")
+TabContent.Name = "TabContent"
+TabContent.Size = UDim2.new(1, -20, 1, -60)
+TabContent.Position = UDim2.new(0, 10, 0, 50)
+TabContent.BackgroundTransparency = 1
+TabContent.BorderSizePixel = 0
+TabContent.Parent = ContentFrame
+
+-- Make window draggable
+MakeDraggable(TitleBar)
+
+-- Track tabs
+local Tabs = {}
+local SelectedTab = nil
+
+-- Function to get MM2 values
+local function GetMM2Values()
+    local MM2 = {}
+    MM2.Roles = {}
+    MM2.Players = {}
+    
+    -- Get all players
+    for _, Player in pairs(game.Players:GetPlayers()) do
+        if Player ~= game.Players.LocalPlayer then
+            table.insert(MM2.Players, Player)
+        end
+    end
+    
+    -- Attempt to find MM2 roles
+    for _, Player in pairs(game.Players:GetPlayers()) do
+        local Backpack = Player:FindFirstChild("Backpack")
+        if Backpack then
+            -- Check for knife
+            if Backpack:FindFirstChild("Knife") then
+                MM2.Roles.Murderer = Player
+            end
+            -- Check for gun
+            if Backpack:FindFirstChild("Gun") or Backpack:FindFirstChild("Revolver") then
+                MM2.Roles.Sheriff = Player
+            end
+        end
+        
+        -- Also check equipped items
+        local Character = Player.Character
+        if Character then
+            if Character:FindFirstChild("Knife") then
+                MM2.Roles.Murderer = Player
+            end
+            if Character:FindFirstChild("Gun") or Character:FindFirstChild("Revolver") then
+                MM2.Roles.Sheriff = Player
+            end
+        end
+    end
+    
+    return MM2
+end
+
+-- Create tabs with content
+-- Main Tab
+local MainTabButton = Instance.new("TextButton")
+MainTabButton.Name = "MainTab"
+MainTabButton.Size = UDim2.new(0, 100, 1, 0)
+MainTabButton.BackgroundColor3 = Colors.TabActive
+MainTabButton.BorderSizePixel = 0
+MainTabButton.Font = Enum.Font.GothamBold
+MainTabButton.TextSize = 14
+MainTabButton.TextColor3 = Colors.Text
+MainTabButton.Text = "Main"
+MainTabButton.Parent = TabContainer
+
+-- Add corner to tab button
+local MainTabCorner = Instance.new("UICorner")
+MainTabCorner.CornerRadius = UDim.new(0, 6)
+MainTabCorner.Parent = MainTabButton
+
+-- Create main tab page
+local MainTabPage = Instance.new("ScrollingFrame")
+MainTabPage.Name = "MainPage"
+MainTabPage.Size = UDim2.new(1, 0, 1, 0)
+MainTabPage.BackgroundTransparency = 1
+MainTabPage.BorderSizePixel = 0
+MainTabPage.ScrollBarThickness = 4
+MainTabPage.ScrollBarImageColor3 = Colors.Button
+MainTabPage.Visible = true
+MainTabPage.Parent = TabContent
+
+-- Add padding to tab page
+local MainPagePadding = Instance.new("UIPadding")
+MainPagePadding.PaddingLeft = UDim.new(0, 5)
+MainPagePadding.PaddingRight = UDim.new(0, 5)
+MainPagePadding.PaddingTop = UDim.new(0, 5)
+MainPagePadding.PaddingBottom = UDim.new(0, 5)
+MainPagePadding.Parent = MainTabPage
+
+-- Add layout to tab page
+local MainPageLayout = Instance.new("UIListLayout")
+MainPageLayout.Padding = UDim.new(0, 10)
+MainPageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+MainPageLayout.Parent = MainTabPage
+
+-- Auto-size content
+AddConnection(MainPageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    MainTabPage.CanvasSize = UDim2.new(0, 0, 0, MainPageLayout.AbsoluteContentSize.Y + 10)
 end)
 
--- Second tab - Settings
-local SettingsTab = Window:CreateTab("Settings")
+-- Create info section
+local InfoSection = Instance.new("Frame")
+InfoSection.Name = "InfoSection"
+InfoSection.Size = UDim2.new(1, 0, 0, 100)
+InfoSection.BackgroundColor3 = Colors.Background
+InfoSection.BorderSizePixel = 0
+InfoSection.AutomaticSize = Enum.AutomaticSize.Y
+InfoSection.Parent = MainTabPage
 
-local AppearanceSection = SettingsTab:CreateSection("Appearance")
-AppearanceSection:AddButton("Test Visibility", function()
-    Window:Notify("UI Test", "If you can see this notification, the UI is working correctly!", 3)
+-- Add corner
+local InfoSectionCorner = Instance.new("UICorner")
+InfoSectionCorner.CornerRadius = UDim.new(0, 6)
+InfoSectionCorner.Parent = InfoSection
+
+-- Add stroke
+local InfoSectionStroke = Instance.new("UIStroke")
+InfoSectionStroke.Color = Colors.Border
+InfoSectionStroke.Thickness = 1.5
+InfoSectionStroke.Parent = InfoSection
+
+-- Add title
+local InfoSectionTitle = Instance.new("TextLabel")
+InfoSectionTitle.Name = "Title"
+InfoSectionTitle.Size = UDim2.new(1, 0, 0, 30)
+InfoSectionTitle.BackgroundTransparency = 1
+InfoSectionTitle.Font = Enum.Font.GothamBold
+InfoSectionTitle.TextSize = 14
+InfoSectionTitle.TextColor3 = Colors.Text
+InfoSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+InfoSectionTitle.Text = "    Information"
+InfoSectionTitle.Parent = InfoSection
+
+-- Create section content
+local InfoSectionContent = Instance.new("Frame")
+InfoSectionContent.Name = "Content"
+InfoSectionContent.Size = UDim2.new(1, -10, 0, 0)
+InfoSectionContent.Position = UDim2.new(0, 5, 0, 30)
+InfoSectionContent.BackgroundTransparency = 1
+InfoSectionContent.BorderSizePixel = 0
+InfoSectionContent.AutomaticSize = Enum.AutomaticSize.Y
+InfoSectionContent.Parent = InfoSection
+
+-- Add layout
+local InfoContentLayout = Instance.new("UIListLayout")
+InfoContentLayout.Padding = UDim.new(0, 8)
+InfoContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+InfoContentLayout.Parent = InfoSectionContent
+
+-- Device info label
+local DeviceLabel = Instance.new("TextLabel")
+DeviceLabel.Name = "DeviceLabel"
+DeviceLabel.Size = UDim2.new(1, 0, 0, 20)
+DeviceLabel.BackgroundTransparency = 1
+DeviceLabel.Font = Enum.Font.Gotham
+DeviceLabel.TextSize = 14
+DeviceLabel.TextColor3 = Colors.Text
+DeviceLabel.TextXAlignment = Enum.TextXAlignment.Left
+DeviceLabel.Text = "   Device: " .. DeviceText
+DeviceLabel.Parent = InfoSectionContent
+
+-- Game info label
+local GameLabel = Instance.new("TextLabel")
+GameLabel.Name = "GameLabel"
+GameLabel.Size = UDim2.new(1, 0, 0, 20)
+GameLabel.BackgroundTransparency = 1
+GameLabel.Font = Enum.Font.Gotham
+GameLabel.TextSize = 14
+GameLabel.TextColor3 = Colors.Text
+GameLabel.TextXAlignment = Enum.TextXAlignment.Left
+GameLabel.Text = "   Game: Murder Mystery 2"
+GameLabel.Parent = InfoSectionContent
+
+-- Create ESP section
+local ESPSection = Instance.new("Frame")
+ESPSection.Name = "ESPSection"
+ESPSection.Size = UDim2.new(1, 0, 0, 100)
+ESPSection.BackgroundColor3 = Colors.Background
+ESPSection.BorderSizePixel = 0
+ESPSection.AutomaticSize = Enum.AutomaticSize.Y
+ESPSection.Parent = MainTabPage
+
+-- Add corner
+local ESPSectionCorner = Instance.new("UICorner")
+ESPSectionCorner.CornerRadius = UDim.new(0, 6)
+ESPSectionCorner.Parent = ESPSection
+
+-- Add stroke
+local ESPSectionStroke = Instance.new("UIStroke")
+ESPSectionStroke.Color = Colors.Border
+ESPSectionStroke.Thickness = 1.5
+ESPSectionStroke.Parent = ESPSection
+
+-- Add title
+local ESPSectionTitle = Instance.new("TextLabel")
+ESPSectionTitle.Name = "Title"
+ESPSectionTitle.Size = UDim2.new(1, 0, 0, 30)
+ESPSectionTitle.BackgroundTransparency = 1
+ESPSectionTitle.Font = Enum.Font.GothamBold
+ESPSectionTitle.TextSize = 14
+ESPSectionTitle.TextColor3 = Colors.Text
+ESPSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+ESPSectionTitle.Text = "    ESP Features"
+ESPSectionTitle.Parent = ESPSection
+
+-- Create section content
+local ESPSectionContent = Instance.new("Frame")
+ESPSectionContent.Name = "Content"
+ESPSectionContent.Size = UDim2.new(1, -10, 0, 0)
+ESPSectionContent.Position = UDim2.new(0, 5, 0, 30)
+ESPSectionContent.BackgroundTransparency = 1
+ESPSectionContent.BorderSizePixel = 0
+ESPSectionContent.AutomaticSize = Enum.AutomaticSize.Y
+ESPSectionContent.Parent = ESPSection
+
+-- Add layout
+local ESPContentLayout = Instance.new("UIListLayout")
+ESPContentLayout.Padding = UDim.new(0, 8)
+ESPContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ESPContentLayout.Parent = ESPSectionContent
+
+-- Auto-size sections
+AddConnection(InfoContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    InfoSectionContent.Size = UDim2.new(1, -10, 0, InfoContentLayout.AbsoluteContentSize.Y)
+    InfoSection.Size = UDim2.new(1, 0, 0, InfoSectionContent.Size.Y.Offset + 40)
 end)
 
--- Third tab - Credits
-local CreditsTab = Window:CreateTab("Credits")
-
-local CreditsSection = CreditsTab:CreateSection("SkyX Team")
-CreditsSection:AddLabel("Created by: SkyX Team")
-CreditsSection:AddLabel("Thanks for using SkyX Hub!")
-
--- Add exit button
-CreditsSection:AddButton("Exit", function()
-    SkyXBasic:Destroy()
+AddConnection(ESPContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    ESPSectionContent.Size = UDim2.new(1, -10, 0, ESPContentLayout.AbsoluteContentSize.Y)
+    ESPSection.Size = UDim2.new(1, 0, 0, ESPSectionContent.Size.Y.Offset + 40)
 end)
 
--- Return UI to enable script hub functionality
-return Window
+-- ESP Toggle functions
+local ESPEnabled = false
+local PlayerESPHandles = {}
+
+-- Create ESP toggle
+local ESPToggleFrame = Instance.new("Frame")
+ESPToggleFrame.Name = "ESPToggle"
+ESPToggleFrame.Size = UDim2.new(1, 0, 0, 34)
+ESPToggleFrame.BackgroundTransparency = 1
+ESPToggleFrame.BorderSizePixel = 0
+ESPToggleFrame.Parent = ESPSectionContent
+
+-- Create toggle text
+local ESPToggleText = Instance.new("TextLabel")
+ESPToggleText.Name = "Text"
+ESPToggleText.Size = UDim2.new(1, -55, 1, 0)
+ESPToggleText.Position = UDim2.new(0, 55, 0, 0)
+ESPToggleText.BackgroundTransparency = 1
+ESPToggleText.Font = Enum.Font.GothamSemibold
+ESPToggleText.TextSize = 14
+ESPToggleText.TextColor3 = Colors.Text
+ESPToggleText.TextXAlignment = Enum.TextXAlignment.Left
+ESPToggleText.Text = "Enable Player ESP"
+ESPToggleText.Parent = ESPToggleFrame
+
+-- Create toggle indicator background
+local ESPToggleBG = Instance.new("Frame")
+ESPToggleBG.Name = "Background"
+ESPToggleBG.Size = UDim2.new(0, 44, 0, 24)
+ESPToggleBG.Position = UDim2.new(0, 0, 0.5, -12)
+ESPToggleBG.BackgroundColor3 = Colors.Background
+ESPToggleBG.BorderSizePixel = 0
+ESPToggleBG.Parent = ESPToggleFrame
+
+-- Add corner to indicator
+local ESPToggleCorner = Instance.new("UICorner")
+ESPToggleCorner.CornerRadius = UDim.new(1, 0)
+ESPToggleCorner.Parent = ESPToggleBG
+
+-- Create toggle indicator
+local ESPIndicator = Instance.new("Frame")
+ESPIndicator.Name = "Indicator"
+ESPIndicator.Size = UDim2.new(0, 18, 0, 18)
+ESPIndicator.Position = UDim2.new(0, 3, 0.5, -9)
+ESPIndicator.BackgroundColor3 = Colors.Text
+ESPIndicator.BorderSizePixel = 0
+ESPIndicator.Parent = ESPToggleBG
+
+-- Add corner to indicator
+local ESPIndicatorCorner = Instance.new("UICorner")
+ESPIndicatorCorner.CornerRadius = UDim.new(1, 0)
+ESPIndicatorCorner.Parent = ESPIndicator
+
+-- Add hitbox
+local ESPHitbox = Instance.new("TextButton")
+ESPHitbox.Name = "Hitbox"
+ESPHitbox.Size = UDim2.new(1, 0, 1, 0)
+ESPHitbox.BackgroundTransparency = 1
+ESPHitbox.Text = ""
+ESPHitbox.Parent = ESPToggleFrame
+
+-- ESP function
+local function UpdateESP()
+    -- Clean up old ESP
+    for _, handle in pairs(PlayerESPHandles) do
+        if handle and handle.Parent then
+            handle:Destroy()
+        end
+    end
+    PlayerESPHandles = {}
+    
+    if not ESPEnabled then return end
+    
+    -- Get MM2 values to know roles
+    local MM2 = GetMM2Values()
+    
+    -- Add ESP for each player
+    for _, Player in pairs(game.Players:GetPlayers()) do
+        if Player ~= game.Players.LocalPlayer then
+            local Character = Player.Character
+            if Character and Character:FindFirstChild("HumanoidRootPart") then
+                -- Create ESP highlight
+                local Highlight = Instance.new("Highlight")
+                Highlight.Name = "SkyXESP_" .. Player.Name
+                
+                -- Determine role and color
+                local Color = Color3.fromRGB(255, 255, 255) -- Default innocent color
+                
+                -- Murderer is red
+                if MM2.Roles.Murderer and MM2.Roles.Murderer == Player then
+                    Color = Color3.fromRGB(255, 0, 0)
+                -- Sheriff is blue
+                elseif MM2.Roles.Sheriff and MM2.Roles.Sheriff == Player then
+                    Color = Color3.fromRGB(0, 0, 255)
+                end
+                
+                Highlight.FillColor = Color
+                Highlight.OutlineColor = Color
+                Highlight.FillTransparency = 0.5
+                Highlight.OutlineTransparency = 0
+                Highlight.Parent = Character
+                
+                -- Save for cleanup
+                table.insert(PlayerESPHandles, Highlight)
+            end
+        end
+    end
+end
+
+-- ESP Toggle functionality
+AddConnection(ESPHitbox.MouseButton1Click, function()
+    ESPEnabled = not ESPEnabled
+    
+    -- Animate background
+    TweenService:Create(ESPToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = ESPEnabled and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(ESPIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, ESPEnabled and 23 or 3, 0.5, -9)
+    }):Play()
+    
+    -- Update ESP
+    UpdateESP()
+end)
+
+-- Update ESP periodically
+local ESPUpdateConnection = game:GetService("RunService").Heartbeat:Connect(function()
+    if ESPEnabled then
+        UpdateESP()
+    end
+end)
+
+-- Auto create connection to cleanup ESP on script end
+AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
+    if child == SkyXUI then
+        ESPUpdateConnection:Disconnect()
+        
+        -- Clean up ESP
+        for _, handle in pairs(PlayerESPHandles) do
+            if handle and handle.Parent then
+                handle:Destroy()
+            end
+        end
+    end
+end)
+
+-- Create coin ESP toggle
+local CoinToggleFrame = Instance.new("Frame")
+CoinToggleFrame.Name = "CoinToggle"
+CoinToggleFrame.Size = UDim2.new(1, 0, 0, 34)
+CoinToggleFrame.BackgroundTransparency = 1
+CoinToggleFrame.BorderSizePixel = 0
+CoinToggleFrame.Parent = ESPSectionContent
+
+-- Create toggle text
+local CoinToggleText = Instance.new("TextLabel")
+CoinToggleText.Name = "Text"
+CoinToggleText.Size = UDim2.new(1, -55, 1, 0)
+CoinToggleText.Position = UDim2.new(0, 55, 0, 0)
+CoinToggleText.BackgroundTransparency = 1
+CoinToggleText.Font = Enum.Font.GothamSemibold
+CoinToggleText.TextSize = 14
+CoinToggleText.TextColor3 = Colors.Text
+CoinToggleText.TextXAlignment = Enum.TextXAlignment.Left
+CoinToggleText.Text = "Show Coin Locations"
+CoinToggleText.Parent = CoinToggleFrame
+
+-- Create toggle indicator background
+local CoinToggleBG = Instance.new("Frame")
+CoinToggleBG.Name = "Background"
+CoinToggleBG.Size = UDim2.new(0, 44, 0, 24)
+CoinToggleBG.Position = UDim2.new(0, 0, 0.5, -12)
+CoinToggleBG.BackgroundColor3 = Colors.Background
+CoinToggleBG.BorderSizePixel = 0
+CoinToggleBG.Parent = CoinToggleFrame
+
+-- Add corner to indicator
+local CoinToggleCorner = Instance.new("UICorner")
+CoinToggleCorner.CornerRadius = UDim.new(1, 0)
+CoinToggleCorner.Parent = CoinToggleBG
+
+-- Create toggle indicator
+local CoinIndicator = Instance.new("Frame")
+CoinIndicator.Name = "Indicator"
+CoinIndicator.Size = UDim2.new(0, 18, 0, 18)
+CoinIndicator.Position = UDim2.new(0, 3, 0.5, -9)
+CoinIndicator.BackgroundColor3 = Colors.Text
+CoinIndicator.BorderSizePixel = 0
+CoinIndicator.Parent = CoinToggleBG
+
+-- Add corner to indicator
+local CoinIndicatorCorner = Instance.new("UICorner")
+CoinIndicatorCorner.CornerRadius = UDim.new(1, 0)
+CoinIndicatorCorner.Parent = CoinIndicator
+
+-- Add hitbox
+local CoinHitbox = Instance.new("TextButton")
+CoinHitbox.Name = "Hitbox"
+CoinHitbox.Size = UDim2.new(1, 0, 1, 0)
+CoinHitbox.BackgroundTransparency = 1
+CoinHitbox.Text = ""
+CoinHitbox.Parent = CoinToggleFrame
+
+-- Coin ESP variables
+local CoinESPEnabled = false
+local CoinESPHandles = {}
+
+-- Coin ESP function
+local function UpdateCoinESP()
+    -- Clean up old coin ESP
+    for _, handle in pairs(CoinESPHandles) do
+        if handle and handle.Parent then
+            handle:Destroy()
+        end
+    end
+    CoinESPHandles = {}
+    
+    if not CoinESPEnabled then return end
+    
+    -- Look for coins in workspace
+    for _, Object in pairs(workspace:GetDescendants()) do
+        if Object.Name == "Coin" or Object.Name == "CoinContainer" then
+            -- Create ESP highlight
+            local Highlight = Instance.new("Highlight")
+            Highlight.Name = "SkyXCoinESP_" .. Object:GetFullName()
+            
+            -- Gold color for coins
+            Highlight.FillColor = Color3.fromRGB(255, 215, 0)
+            Highlight.OutlineColor = Color3.fromRGB(255, 215, 0)
+            Highlight.FillTransparency = 0.5
+            Highlight.OutlineTransparency = 0
+            Highlight.Parent = Object
+            
+            -- Save for cleanup
+            table.insert(CoinESPHandles, Highlight)
+        end
+    end
+end
+
+-- Coin Toggle functionality
+AddConnection(CoinHitbox.MouseButton1Click, function()
+    CoinESPEnabled = not CoinESPEnabled
+    
+    -- Animate background
+    TweenService:Create(CoinToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = CoinESPEnabled and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(CoinIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, CoinESPEnabled and 23 or 3, 0.5, -9)
+    }):Play()
+    
+    -- Update Coin ESP
+    UpdateCoinESP()
+end)
+
+-- Update Coin ESP periodically
+local CoinESPUpdateConnection = game:GetService("RunService").Heartbeat:Connect(function()
+    if CoinESPEnabled then
+        UpdateCoinESP()
+    end
+end)
+
+-- Auto create connection to cleanup Coin ESP on script end
+AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
+    if child == SkyXUI then
+        CoinESPUpdateConnection:Disconnect()
+        
+        -- Clean up Coin ESP
+        for _, handle in pairs(CoinESPHandles) do
+            if handle and handle.Parent then
+                handle:Destroy()
+            end
+        end
+    end
+end)
+
+-- Create Teleport section
+local TeleportSection = Instance.new("Frame")
+TeleportSection.Name = "TeleportSection"
+TeleportSection.Size = UDim2.new(1, 0, 0, 80)
+TeleportSection.BackgroundColor3 = Colors.Background
+TeleportSection.BorderSizePixel = 0
+TeleportSection.AutomaticSize = Enum.AutomaticSize.Y
+TeleportSection.Parent = MainTabPage
+
+-- Add corner
+local TeleportSectionCorner = Instance.new("UICorner")
+TeleportSectionCorner.CornerRadius = UDim.new(0, 6)
+TeleportSectionCorner.Parent = TeleportSection
+
+-- Add stroke
+local TeleportSectionStroke = Instance.new("UIStroke")
+TeleportSectionStroke.Color = Colors.Border
+TeleportSectionStroke.Thickness = 1.5
+TeleportSectionStroke.Parent = TeleportSection
+
+-- Add title
+local TeleportSectionTitle = Instance.new("TextLabel")
+TeleportSectionTitle.Name = "Title"
+TeleportSectionTitle.Size = UDim2.new(1, 0, 0, 30)
+TeleportSectionTitle.BackgroundTransparency = 1
+TeleportSectionTitle.Font = Enum.Font.GothamBold
+TeleportSectionTitle.TextSize = 14
+TeleportSectionTitle.TextColor3 = Colors.Text
+TeleportSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+TeleportSectionTitle.Text = "    Teleports"
+TeleportSectionTitle.Parent = TeleportSection
+
+-- Create section content
+local TeleportSectionContent = Instance.new("Frame")
+TeleportSectionContent.Name = "Content"
+TeleportSectionContent.Size = UDim2.new(1, -10, 0, 0)
+TeleportSectionContent.Position = UDim2.new(0, 5, 0, 30)
+TeleportSectionContent.BackgroundTransparency = 1
+TeleportSectionContent.BorderSizePixel = 0
+TeleportSectionContent.AutomaticSize = Enum.AutomaticSize.Y
+TeleportSectionContent.Parent = TeleportSection
+
+-- Add layout
+local TeleportContentLayout = Instance.new("UIListLayout")
+TeleportContentLayout.Padding = UDim.new(0, 8)
+TeleportContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TeleportContentLayout.Parent = TeleportSectionContent
+
+-- Auto-size section
+AddConnection(TeleportContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    TeleportSectionContent.Size = UDim2.new(1, -10, 0, TeleportContentLayout.AbsoluteContentSize.Y)
+    TeleportSection.Size = UDim2.new(1, 0, 0, TeleportSectionContent.Size.Y.Offset + 40)
+end)
+
+-- Create lobby teleport button
+local LobbyButton = Instance.new("TextButton")
+LobbyButton.Name = "LobbyButton"
+LobbyButton.Size = UDim2.new(1, 0, 0, 34)
+LobbyButton.BackgroundColor3 = Colors.Button
+LobbyButton.BorderSizePixel = 0
+LobbyButton.Font = Enum.Font.GothamSemibold
+LobbyButton.TextSize = 14
+LobbyButton.TextColor3 = Colors.Text
+LobbyButton.Text = "Teleport to Lobby"
+LobbyButton.AutoButtonColor = false
+LobbyButton.Parent = TeleportSectionContent
+
+-- Add corner
+local LobbyButtonCorner = Instance.new("UICorner")
+LobbyButtonCorner.CornerRadius = UDim.new(0, 6)
+LobbyButtonCorner.Parent = LobbyButton
+
+-- Add hover effect
+AddConnection(LobbyButton.MouseEnter, function()
+    TweenService:Create(LobbyButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
+    }):Play()
+end)
+
+AddConnection(LobbyButton.MouseLeave, function()
+    TweenService:Create(LobbyButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Colors.Button
+    }):Play()
+end)
+
+-- Add click effect
+AddConnection(LobbyButton.MouseButton1Down, function()
+    TweenService:Create(LobbyButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3.fromRGB(62, 135, 205)
+    }):Play()
+end)
+
+AddConnection(LobbyButton.MouseButton1Up, function()
+    TweenService:Create(LobbyButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
+    }):Play()
+end)
+
+-- Lobby teleport function
+AddConnection(LobbyButton.MouseButton1Click, function()
+    -- Find lobby spawn
+    local Spawns = workspace:FindFirstChild("Lobby") or workspace:FindFirstChild("SpawnLocation")
+    if Spawns then
+        local Character = LocalPlayer.Character
+        if Character and Character:FindFirstChild("HumanoidRootPart") then
+            Character.HumanoidRootPart.CFrame = Spawns.CFrame + Vector3.new(0, 5, 0)
+        end
+    end
+end)
+
+-- Create map teleport button
+local MapButton = Instance.new("TextButton")
+MapButton.Name = "MapButton"
+MapButton.Size = UDim2.new(1, 0, 0, 34)
+MapButton.BackgroundColor3 = Colors.Button
+MapButton.BorderSizePixel = 0
+MapButton.Font = Enum.Font.GothamSemibold
+MapButton.TextSize = 14
+MapButton.TextColor3 = Colors.Text
+MapButton.Text = "Teleport to Map"
+MapButton.AutoButtonColor = false
+MapButton.Parent = TeleportSectionContent
+
+-- Add corner
+local MapButtonCorner = Instance.new("UICorner")
+MapButtonCorner.CornerRadius = UDim.new(0, 6)
+MapButtonCorner.Parent = MapButton
+
+-- Add hover effect
+AddConnection(MapButton.MouseEnter, function()
+    TweenService:Create(MapButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
+    }):Play()
+end)
+
+AddConnection(MapButton.MouseLeave, function()
+    TweenService:Create(MapButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Colors.Button
+    }):Play()
+end)
+
+-- Add click effect
+AddConnection(MapButton.MouseButton1Down, function()
+    TweenService:Create(MapButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3.fromRGB(62, 135, 205)
+    }):Play()
+end)
+
+AddConnection(MapButton.MouseButton1Up, function()
+    TweenService:Create(MapButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
+    }):Play()
+end)
+
+-- Map teleport function
+AddConnection(MapButton.MouseButton1Click, function()
+    -- Find map spawns
+    local Map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Level")
+    
+    if Map then
+        local SpawnPoints = {}
+        
+        -- Find spawn points in map
+        for _, Part in pairs(Map:GetDescendants()) do
+            if Part:IsA("SpawnLocation") or Part.Name:lower():find("spawn") then
+                table.insert(SpawnPoints, Part)
+            end
+        end
+        
+        -- If no spawn points found, just use the first part in the map
+        if #SpawnPoints == 0 then
+            for _, Part in pairs(Map:GetDescendants()) do
+                if Part:IsA("BasePart") then
+                    table.insert(SpawnPoints, Part)
+                    break
+                end
+            end
+        end
+        
+        -- Teleport to first spawn point found
+        if #SpawnPoints > 0 then
+            local Character = LocalPlayer.Character
+            if Character and Character:FindFirstChild("HumanoidRootPart") then
+                Character.HumanoidRootPart.CFrame = SpawnPoints[1].CFrame + Vector3.new(0, 5, 0)
+            end
+        end
+    end
+end)
+
+-- Create Character tab
+local CharacterTabButton = Instance.new("TextButton")
+CharacterTabButton.Name = "CharacterTab"
+CharacterTabButton.Size = UDim2.new(0, 100, 1, 0)
+CharacterTabButton.BackgroundColor3 = Colors.TabInactive
+CharacterTabButton.BorderSizePixel = 0
+CharacterTabButton.Font = Enum.Font.GothamBold
+CharacterTabButton.TextSize = 14
+CharacterTabButton.TextColor3 = Colors.Text
+CharacterTabButton.Text = "Character"
+CharacterTabButton.Parent = TabContainer
+
+-- Add corner to tab button
+local CharacterTabCorner = Instance.new("UICorner")
+CharacterTabCorner.CornerRadius = UDim.new(0, 6)
+CharacterTabCorner.Parent = CharacterTabButton
+
+-- Create character tab page
+local CharacterTabPage = Instance.new("ScrollingFrame")
+CharacterTabPage.Name = "CharacterPage"
+CharacterTabPage.Size = UDim2.new(1, 0, 1, 0)
+CharacterTabPage.BackgroundTransparency = 1
+CharacterTabPage.BorderSizePixel = 0
+CharacterTabPage.ScrollBarThickness = 4
+CharacterTabPage.ScrollBarImageColor3 = Colors.Button
+CharacterTabPage.Visible = false
+CharacterTabPage.Parent = TabContent
+
+-- Add padding to tab page
+local CharacterPagePadding = Instance.new("UIPadding")
+CharacterPagePadding.PaddingLeft = UDim.new(0, 5)
+CharacterPagePadding.PaddingRight = UDim.new(0, 5)
+CharacterPagePadding.PaddingTop = UDim.new(0, 5)
+CharacterPagePadding.PaddingBottom = UDim.new(0, 5)
+CharacterPagePadding.Parent = CharacterTabPage
+
+-- Add layout to tab page
+local CharacterPageLayout = Instance.new("UIListLayout")
+CharacterPageLayout.Padding = UDim.new(0, 10)
+CharacterPageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+CharacterPageLayout.Parent = CharacterTabPage
+
+-- Auto-size content
+AddConnection(CharacterPageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    CharacterTabPage.CanvasSize = UDim2.new(0, 0, 0, CharacterPageLayout.AbsoluteContentSize.Y + 10)
+end)
+
+-- Create movement section
+local MovementSection = Instance.new("Frame")
+MovementSection.Name = "MovementSection"
+MovementSection.Size = UDim2.new(1, 0, 0, 100)
+MovementSection.BackgroundColor3 = Colors.Background
+MovementSection.BorderSizePixel = 0
+MovementSection.AutomaticSize = Enum.AutomaticSize.Y
+MovementSection.Parent = CharacterTabPage
+
+-- Add corner
+local MovementSectionCorner = Instance.new("UICorner")
+MovementSectionCorner.CornerRadius = UDim.new(0, 6)
+MovementSectionCorner.Parent = MovementSection
+
+-- Add stroke
+local MovementSectionStroke = Instance.new("UIStroke")
+MovementSectionStroke.Color = Colors.Border
+MovementSectionStroke.Thickness = 1.5
+MovementSectionStroke.Parent = MovementSection
+
+-- Add title
+local MovementSectionTitle = Instance.new("TextLabel")
+MovementSectionTitle.Name = "Title"
+MovementSectionTitle.Size = UDim2.new(1, 0, 0, 30)
+MovementSectionTitle.BackgroundTransparency = 1
+MovementSectionTitle.Font = Enum.Font.GothamBold
+MovementSectionTitle.TextSize = 14
+MovementSectionTitle.TextColor3 = Colors.Text
+MovementSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+MovementSectionTitle.Text = "    Movement"
+MovementSectionTitle.Parent = MovementSection
+
+-- Create section content
+local MovementSectionContent = Instance.new("Frame")
+MovementSectionContent.Name = "Content"
+MovementSectionContent.Size = UDim2.new(1, -10, 0, 0)
+MovementSectionContent.Position = UDim2.new(0, 5, 0, 30)
+MovementSectionContent.BackgroundTransparency = 1
+MovementSectionContent.BorderSizePixel = 0
+MovementSectionContent.AutomaticSize = Enum.AutomaticSize.Y
+MovementSectionContent.Parent = MovementSection
+
+-- Add layout
+local MovementContentLayout = Instance.new("UIListLayout")
+MovementContentLayout.Padding = UDim.new(0, 8)
+MovementContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+MovementContentLayout.Parent = MovementSectionContent
+
+-- Auto-size section
+AddConnection(MovementContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    MovementSectionContent.Size = UDim2.new(1, -10, 0, MovementContentLayout.AbsoluteContentSize.Y)
+    MovementSection.Size = UDim2.new(1, 0, 0, MovementSectionContent.Size.Y.Offset + 40)
+end)
+
+-- Create speed toggle
+local SpeedToggleFrame = Instance.new("Frame")
+SpeedToggleFrame.Name = "SpeedToggle"
+SpeedToggleFrame.Size = UDim2.new(1, 0, 0, 34)
+SpeedToggleFrame.BackgroundTransparency = 1
+SpeedToggleFrame.BorderSizePixel = 0
+SpeedToggleFrame.Parent = MovementSectionContent
+
+-- Create toggle text
+local SpeedToggleText = Instance.new("TextLabel")
+SpeedToggleText.Name = "Text"
+SpeedToggleText.Size = UDim2.new(1, -55, 1, 0)
+SpeedToggleText.Position = UDim2.new(0, 55, 0, 0)
+SpeedToggleText.BackgroundTransparency = 1
+SpeedToggleText.Font = Enum.Font.GothamSemibold
+SpeedToggleText.TextSize = 14
+SpeedToggleText.TextColor3 = Colors.Text
+SpeedToggleText.TextXAlignment = Enum.TextXAlignment.Left
+SpeedToggleText.Text = "Walk Speed Boost"
+SpeedToggleText.Parent = SpeedToggleFrame
+
+-- Create toggle indicator background
+local SpeedToggleBG = Instance.new("Frame")
+SpeedToggleBG.Name = "Background"
+SpeedToggleBG.Size = UDim2.new(0, 44, 0, 24)
+SpeedToggleBG.Position = UDim2.new(0, 0, 0.5, -12)
+SpeedToggleBG.BackgroundColor3 = Colors.Background
+SpeedToggleBG.BorderSizePixel = 0
+SpeedToggleBG.Parent = SpeedToggleFrame
+
+-- Add corner to indicator
+local SpeedToggleCorner = Instance.new("UICorner")
+SpeedToggleCorner.CornerRadius = UDim.new(1, 0)
+SpeedToggleCorner.Parent = SpeedToggleBG
+
+-- Create toggle indicator
+local SpeedIndicator = Instance.new("Frame")
+SpeedIndicator.Name = "Indicator"
+SpeedIndicator.Size = UDim2.new(0, 18, 0, 18)
+SpeedIndicator.Position = UDim2.new(0, 3, 0.5, -9)
+SpeedIndicator.BackgroundColor3 = Colors.Text
+SpeedIndicator.BorderSizePixel = 0
+SpeedIndicator.Parent = SpeedToggleBG
+
+-- Add corner to indicator
+local SpeedIndicatorCorner = Instance.new("UICorner")
+SpeedIndicatorCorner.CornerRadius = UDim.new(1, 0)
+SpeedIndicatorCorner.Parent = SpeedIndicator
+
+-- Add hitbox
+local SpeedHitbox = Instance.new("TextButton")
+SpeedHitbox.Name = "Hitbox"
+SpeedHitbox.Size = UDim2.new(1, 0, 1, 0)
+SpeedHitbox.BackgroundTransparency = 1
+SpeedHitbox.Text = ""
+SpeedHitbox.Parent = SpeedToggleFrame
+
+-- Speed boost variables
+local SpeedEnabled = false
+local OriginalSpeed = 16
+local SpeedBoostValue = 32
+
+-- Speed boost function
+local function UpdateSpeed()
+    local Character = LocalPlayer.Character
+    if Character then
+        local Humanoid = Character:FindFirstChild("Humanoid")
+        if Humanoid then
+            if SpeedEnabled then
+                Humanoid.WalkSpeed = SpeedBoostValue
+            else
+                Humanoid.WalkSpeed = OriginalSpeed
+            end
+        end
+    end
+end
+
+-- Speed Toggle functionality
+AddConnection(SpeedHitbox.MouseButton1Click, function()
+    SpeedEnabled = not SpeedEnabled
+    
+    -- Animate background
+    TweenService:Create(SpeedToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = SpeedEnabled and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(SpeedIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, SpeedEnabled and 23 or 3, 0.5, -9)
+    }):Play()
+    
+    -- Update Speed
+    UpdateSpeed()
+end)
+
+-- Update Speed when character changes
+AddConnection(LocalPlayer.CharacterAdded, function(Character)
+    local Humanoid = Character:WaitForChild("Humanoid", 5)
+    if Humanoid then
+        OriginalSpeed = Humanoid.WalkSpeed
+        if SpeedEnabled then
+            Humanoid.WalkSpeed = SpeedBoostValue
+        end
+    end
+end)
+
+-- Create jump toggle
+local JumpToggleFrame = Instance.new("Frame")
+JumpToggleFrame.Name = "JumpToggle"
+JumpToggleFrame.Size = UDim2.new(1, 0, 0, 34)
+JumpToggleFrame.BackgroundTransparency = 1
+JumpToggleFrame.BorderSizePixel = 0
+JumpToggleFrame.Parent = MovementSectionContent
+
+-- Create toggle text
+local JumpToggleText = Instance.new("TextLabel")
+JumpToggleText.Name = "Text"
+JumpToggleText.Size = UDim2.new(1, -55, 1, 0)
+JumpToggleText.Position = UDim2.new(0, 55, 0, 0)
+JumpToggleText.BackgroundTransparency = 1
+JumpToggleText.Font = Enum.Font.GothamSemibold
+JumpToggleText.TextSize = 14
+JumpToggleText.TextColor3 = Colors.Text
+JumpToggleText.TextXAlignment = Enum.TextXAlignment.Left
+JumpToggleText.Text = "Jump Power Boost"
+JumpToggleText.Parent = JumpToggleFrame
+
+-- Create toggle indicator background
+local JumpToggleBG = Instance.new("Frame")
+JumpToggleBG.Name = "Background"
+JumpToggleBG.Size = UDim2.new(0, 44, 0, 24)
+JumpToggleBG.Position = UDim2.new(0, 0, 0.5, -12)
+JumpToggleBG.BackgroundColor3 = Colors.Background
+JumpToggleBG.BorderSizePixel = 0
+JumpToggleBG.Parent = JumpToggleFrame
+
+-- Add corner to indicator
+local JumpToggleCorner = Instance.new("UICorner")
+JumpToggleCorner.CornerRadius = UDim.new(1, 0)
+JumpToggleCorner.Parent = JumpToggleBG
+
+-- Create toggle indicator
+local JumpIndicator = Instance.new("Frame")
+JumpIndicator.Name = "Indicator"
+JumpIndicator.Size = UDim2.new(0, 18, 0, 18)
+JumpIndicator.Position = UDim2.new(0, 3, 0.5, -9)
+JumpIndicator.BackgroundColor3 = Colors.Text
+JumpIndicator.BorderSizePixel = 0
+JumpIndicator.Parent = JumpToggleBG
+
+-- Add corner to indicator
+local JumpIndicatorCorner = Instance.new("UICorner")
+JumpIndicatorCorner.CornerRadius = UDim.new(1, 0)
+JumpIndicatorCorner.Parent = JumpIndicator
+
+-- Add hitbox
+local JumpHitbox = Instance.new("TextButton")
+JumpHitbox.Name = "Hitbox"
+JumpHitbox.Size = UDim2.new(1, 0, 1, 0)
+JumpHitbox.BackgroundTransparency = 1
+JumpHitbox.Text = ""
+JumpHitbox.Parent = JumpToggleFrame
+
+-- Jump boost variables
+local JumpEnabled = false
+local OriginalJump = 50
+local JumpBoostValue = 80
+
+-- Jump boost function
+local function UpdateJump()
+    local Character = LocalPlayer.Character
+    if Character then
+        local Humanoid = Character:FindFirstChild("Humanoid")
+        if Humanoid then
+            if JumpEnabled then
+                Humanoid.JumpPower = JumpBoostValue
+            else
+                Humanoid.JumpPower = OriginalJump
+            end
+        end
+    end
+end
+
+-- Jump Toggle functionality
+AddConnection(JumpHitbox.MouseButton1Click, function()
+    JumpEnabled = not JumpEnabled
+    
+    -- Animate background
+    TweenService:Create(JumpToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = JumpEnabled and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(JumpIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, JumpEnabled and 23 or 3, 0.5, -9)
+    }):Play()
+    
+    -- Update Jump
+    UpdateJump()
+end)
+
+-- Update Jump when character changes
+AddConnection(LocalPlayer.CharacterAdded, function(Character)
+    local Humanoid = Character:WaitForChild("Humanoid", 5)
+    if Humanoid then
+        OriginalJump = Humanoid.JumpPower
+        if JumpEnabled then
+            Humanoid.JumpPower = JumpBoostValue
+        end
+    end
+end)
+
+-- Create Credits tab
+local CreditsTabButton = Instance.new("TextButton")
+CreditsTabButton.Name = "CreditsTab"
+CreditsTabButton.Size = UDim2.new(0, 100, 1, 0)
+CreditsTabButton.BackgroundColor3 = Colors.TabInactive
+CreditsTabButton.BorderSizePixel = 0
+CreditsTabButton.Font = Enum.Font.GothamBold
+CreditsTabButton.TextSize = 14
+CreditsTabButton.TextColor3 = Colors.Text
+CreditsTabButton.Text = "Credits"
+CreditsTabButton.Parent = TabContainer
+
+-- Add corner to tab button
+local CreditsTabCorner = Instance.new("UICorner")
+CreditsTabCorner.CornerRadius = UDim.new(0, 6)
+CreditsTabCorner.Parent = CreditsTabButton
+
+-- Create credits tab page
+local CreditsTabPage = Instance.new("ScrollingFrame")
+CreditsTabPage.Name = "CreditsPage"
+CreditsTabPage.Size = UDim2.new(1, 0, 1, 0)
+CreditsTabPage.BackgroundTransparency = 1
+CreditsTabPage.BorderSizePixel = 0
+CreditsTabPage.ScrollBarThickness = 4
+CreditsTabPage.ScrollBarImageColor3 = Colors.Button
+CreditsTabPage.Visible = false
+CreditsTabPage.Parent = TabContent
+
+-- Add padding to tab page
+local CreditsPagePadding = Instance.new("UIPadding")
+CreditsPagePadding.PaddingLeft = UDim.new(0, 5)
+CreditsPagePadding.PaddingRight = UDim.new(0, 5)
+CreditsPagePadding.PaddingTop = UDim.new(0, 5)
+CreditsPagePadding.PaddingBottom = UDim.new(0, 5)
+CreditsPagePadding.Parent = CreditsTabPage
+
+-- Add layout to tab page
+local CreditsPageLayout = Instance.new("UIListLayout")
+CreditsPageLayout.Padding = UDim.new(0, 10)
+CreditsPageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+CreditsPageLayout.Parent = CreditsTabPage
+
+-- Auto-size content
+AddConnection(CreditsPageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    CreditsTabPage.CanvasSize = UDim2.new(0, 0, 0, CreditsPageLayout.AbsoluteContentSize.Y + 10)
+end)
+
+-- Create credits section
+local CreditsSection = Instance.new("Frame")
+CreditsSection.Name = "CreditsSection"
+CreditsSection.Size = UDim2.new(1, 0, 0, 150)
+CreditsSection.BackgroundColor3 = Colors.Background
+CreditsSection.BorderSizePixel = 0
+CreditsSection.AutomaticSize = Enum.AutomaticSize.Y
+CreditsSection.Parent = CreditsTabPage
+
+-- Add corner
+local CreditsSectionCorner = Instance.new("UICorner")
+CreditsSectionCorner.CornerRadius = UDim.new(0, 6)
+CreditsSectionCorner.Parent = CreditsSection
+
+-- Add stroke
+local CreditsSectionStroke = Instance.new("UIStroke")
+CreditsSectionStroke.Color = Colors.Border
+CreditsSectionStroke.Thickness = 1.5
+CreditsSectionStroke.Parent = CreditsSection
+
+-- Add title
+local CreditsSectionTitle = Instance.new("TextLabel")
+CreditsSectionTitle.Name = "Title"
+CreditsSectionTitle.Size = UDim2.new(1, 0, 0, 30)
+CreditsSectionTitle.BackgroundTransparency = 1
+CreditsSectionTitle.Font = Enum.Font.GothamBold
+CreditsSectionTitle.TextSize = 14
+CreditsSectionTitle.TextColor3 = Colors.Text
+CreditsSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+CreditsSectionTitle.Text = "    SkyX Hub Credits"
+CreditsSectionTitle.Parent = CreditsSection
+
+-- Create section content
+local CreditsSectionContent = Instance.new("Frame")
+CreditsSectionContent.Name = "Content"
+CreditsSectionContent.Size = UDim2.new(1, -10, 0, 0)
+CreditsSectionContent.Position = UDim2.new(0, 5, 0, 30)
+CreditsSectionContent.BackgroundTransparency = 1
+CreditsSectionContent.BorderSizePixel = 0
+CreditsSectionContent.AutomaticSize = Enum.AutomaticSize.Y
+CreditsSectionContent.Parent = CreditsSection
+
+-- Add layout
+local CreditsContentLayout = Instance.new("UIListLayout")
+CreditsContentLayout.Padding = UDim.new(0, 8)
+CreditsContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+CreditsContentLayout.Parent = CreditsSectionContent
+
+-- Auto-size section
+AddConnection(CreditsContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    CreditsSectionContent.Size = UDim2.new(1, -10, 0, CreditsContentLayout.AbsoluteContentSize.Y)
+    CreditsSection.Size = UDim2.new(1, 0, 0, CreditsSectionContent.Size.Y.Offset + 40)
+end)
+
+-- Add credits labels
+local DeveloperLabel = Instance.new("TextLabel")
+DeveloperLabel.Name = "DeveloperLabel"
+DeveloperLabel.Size = UDim2.new(1, 0, 0, 20)
+DeveloperLabel.BackgroundTransparency = 1
+DeveloperLabel.Font = Enum.Font.GothamSemibold
+DeveloperLabel.TextSize = 14
+DeveloperLabel.TextColor3 = Colors.Text
+DeveloperLabel.TextXAlignment = Enum.TextXAlignment.Left
+DeveloperLabel.Text = "   Developer: SkyX Team"
+DeveloperLabel.Parent = CreditsSectionContent
+
+local ScriptLabel = Instance.new("TextLabel")
+ScriptLabel.Name = "ScriptLabel"
+ScriptLabel.Size = UDim2.new(1, 0, 0, 20)
+ScriptLabel.BackgroundTransparency = 1
+ScriptLabel.Font = Enum.Font.Gotham
+ScriptLabel.TextSize = 14
+ScriptLabel.TextColor3 = Colors.Text
+ScriptLabel.TextXAlignment = Enum.TextXAlignment.Left
+ScriptLabel.Text = "   Script: MM2 Special Edition"
+ScriptLabel.Parent = CreditsSectionContent
+
+local VersionLabel = Instance.new("TextLabel")
+VersionLabel.Name = "VersionLabel"
+VersionLabel.Size = UDim2.new(1, 0, 0, 20)
+VersionLabel.BackgroundTransparency = 1
+VersionLabel.Font = Enum.Font.Gotham
+VersionLabel.TextSize = 14
+VersionLabel.TextColor3 = Colors.Text
+VersionLabel.TextXAlignment = Enum.TextXAlignment.Left
+VersionLabel.Text = "   Version: 1.0.0 - Direct Edition"
+VersionLabel.Parent = CreditsSectionContent
+
+local MobileLabel = Instance.new("TextLabel")
+MobileLabel.Name = "MobileLabel"
+MobileLabel.Size = UDim2.new(1, 0, 0, 20)
+MobileLabel.BackgroundTransparency = 1
+MobileLabel.Font = Enum.Font.Gotham
+MobileLabel.TextSize = 14
+MobileLabel.TextColor3 = Colors.Text
+MobileLabel.TextXAlignment = Enum.TextXAlignment.Left
+MobileLabel.Text = "   Mobile Compatible: Yes"
+MobileLabel.Parent = CreditsSectionContent
+
+local DiscordLabel = Instance.new("TextLabel")
+DiscordLabel.Name = "DiscordLabel"
+DiscordLabel.Size = UDim2.new(1, 0, 0, 20)
+DiscordLabel.BackgroundTransparency = 1
+DiscordLabel.Font = Enum.Font.Gotham
+DiscordLabel.TextSize = 14
+DiscordLabel.TextColor3 = Colors.Text
+DiscordLabel.TextXAlignment = Enum.TextXAlignment.Left
+DiscordLabel.Text = "   Discord: discord.gg/SkyXHub"
+DiscordLabel.Parent = CreditsSectionContent
+
+local FeaturesLabel = Instance.new("TextLabel")
+FeaturesLabel.Name = "FeaturesLabel"
+FeaturesLabel.Size = UDim2.new(1, 0, 0, 20)
+FeaturesLabel.BackgroundTransparency = 1
+FeaturesLabel.Font = Enum.Font.Gotham
+FeaturesLabel.TextSize = 14
+FeaturesLabel.TextColor3 = Colors.Text
+FeaturesLabel.TextXAlignment = Enum.TextXAlignment.Left
+FeaturesLabel.Text = "   Note: This is a direct script with no dependencies"
+FeaturesLabel.Parent = CreditsSectionContent
+
+-- Create exit button
+local ExitButton = Instance.new("TextButton")
+ExitButton.Name = "ExitButton"
+ExitButton.Size = UDim2.new(1, 0, 0, 34)
+ExitButton.BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+ExitButton.BorderSizePixel = 0
+ExitButton.Font = Enum.Font.GothamSemibold
+ExitButton.TextSize = 14
+ExitButton.TextColor3 = Colors.Text
+ExitButton.Text = "Close Script"
+ExitButton.AutoButtonColor = false
+ExitButton.Parent = CreditsSectionContent
+
+-- Add corner
+local ExitButtonCorner = Instance.new("UICorner")
+ExitButtonCorner.CornerRadius = UDim.new(0, 6)
+ExitButtonCorner.Parent = ExitButton
+
+-- Add hover effect
+AddConnection(ExitButton.MouseEnter, function()
+    TweenService:Create(ExitButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+    }):Play()
+end)
+
+AddConnection(ExitButton.MouseLeave, function()
+    TweenService:Create(ExitButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(220, 50, 50)
+    }):Play()
+end)
+
+-- Add click effect
+AddConnection(ExitButton.MouseButton1Down, function()
+    TweenService:Create(ExitButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+    }):Play()
+end)
+
+AddConnection(ExitButton.MouseButton1Up, function()
+    TweenService:Create(ExitButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3.fromRGB(255, 80, 80)
+    }):Play()
+end)
+
+-- Exit functionality
+AddConnection(ExitButton.MouseButton1Click, function()
+    SkyXUI:Destroy()
+end)
+
+-- Add tab switching functionality
+AddConnection(MainTabButton.MouseButton1Click, function()
+    -- Hide all tab pages
+    MainTabPage.Visible = true
+    CharacterTabPage.Visible = false
+    CreditsTabPage.Visible = false
+    
+    -- Update tab button colors
+    MainTabButton.BackgroundColor3 = Colors.TabActive
+    CharacterTabButton.BackgroundColor3 = Colors.TabInactive
+    CreditsTabButton.BackgroundColor3 = Colors.TabInactive
+end)
+
+AddConnection(CharacterTabButton.MouseButton1Click, function()
+    -- Hide all tab pages
+    MainTabPage.Visible = false
+    CharacterTabPage.Visible = true
+    CreditsTabPage.Visible = false
+    
+    -- Update tab button colors
+    MainTabButton.BackgroundColor3 = Colors.TabInactive
+    CharacterTabButton.BackgroundColor3 = Colors.TabActive
+    CreditsTabButton.BackgroundColor3 = Colors.TabInactive
+end)
+
+AddConnection(CreditsTabButton.MouseButton1Click, function()
+    -- Hide all tab pages
+    MainTabPage.Visible = false
+    CharacterTabPage.Visible = false
+    CreditsTabPage.Visible = true
+    
+    -- Update tab button colors
+    MainTabButton.BackgroundColor3 = Colors.TabInactive
+    CharacterTabButton.BackgroundColor3 = Colors.TabInactive
+    CreditsTabButton.BackgroundColor3 = Colors.TabActive
+end)
+
+-- Create notification to show script is loaded
+local Notification = Instance.new("Frame")
+Notification.Name = "Notification"
+Notification.Size = UDim2.new(0, 250, 0, 80)
+Notification.Position = UDim2.new(1, 0, 1, -90)
+Notification.BackgroundColor3 = Colors.Background
+Notification.BorderSizePixel = 0
+Notification.Parent = SkyXUI
+
+-- Add corner
+local NotifCorner = Instance.new("UICorner")
+NotifCorner.CornerRadius = UDim.new(0, 6)
+NotifCorner.Parent = Notification
+
+-- Add title
+local NotifTitle = Instance.new("TextLabel")
+NotifTitle.Name = "Title"
+NotifTitle.Size = UDim2.new(1, -20, 0, 25)
+NotifTitle.Position = UDim2.new(0, 10, 0, 5)
+NotifTitle.BackgroundTransparency = 1
+NotifTitle.Font = Enum.Font.GothamBold
+NotifTitle.TextSize = 14
+NotifTitle.TextColor3 = Colors.Text
+NotifTitle.TextXAlignment = Enum.TextXAlignment.Left
+NotifTitle.Text = "SkyX Hub Loaded"
+NotifTitle.Parent = Notification
+
+-- Add content
+local NotifText = Instance.new("TextLabel")
+NotifText.Name = "Text"
+NotifText.Size = UDim2.new(1, -20, 0, 40)
+NotifText.Position = UDim2.new(0, 10, 0, 30)
+NotifText.BackgroundTransparency = 1
+NotifText.Font = Enum.Font.Gotham
+NotifText.TextSize = 14
+NotifText.TextColor3 = Colors.Text
+NotifText.TextXAlignment = Enum.TextXAlignment.Left
+NotifText.TextWrapped = true
+NotifText.Text = "Successfully loaded MM2 script with direct UI elements. No external dependencies."
+NotifText.Parent = Notification
+
+-- Animate notification in
+TweenService:Create(Notification, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), {
+    Position = UDim2.new(1, -270, 1, -90)
+}):Play()
+
+-- Hide notification after 3 seconds
+delay(5, function()
+    if Notification and Notification.Parent then
+        TweenService:Create(Notification, TweenInfo.new(0.5, Enum.EasingStyle.Quint, Enum.EasingDirection.In), {
+            Position = UDim2.new(1, 0, 1, -90)
+        }):Play()
+        
+        delay(0.5, function()
+            if Notification and Notification.Parent then
+                Notification:Destroy()
+            end
+        end)
+    end
+end)
+
+-- Print status to console
+print("SkyX MM2 Direct Script loaded successfully!")
+print("Running on " .. DeviceText .. " device")
+print("All UI elements are built directly (no external dependencies)")
