@@ -1,16 +1,16 @@
 --[[
-🌊 SkyX Dead Rails Advanced Script 🌊
-Modular version with direct UI from SkyX_MM2_Direct_Modular
+🌊 SkyX MM2 Advanced Script 🌊
+Modular version with direct UI from SkyX_MM2_Direct
 Enhanced for mobile compatibility with advanced features
 
 Features:
 - Enhanced ESP System with Custom Colors and Distance Display
-- Advanced Auto Bone Farm with Optimization
-- Smart Anti-Detection System
+- Advanced Auto Coin/Item Collector with Prioritization
+- Smart Role Prediction System
 - Speed & Jump Boost Sliders 
 - One-Click Teleports with Anti-Detection 
 - Advanced Performance Optimization
-- Advanced Gun Modifications
+- Smart Murder Detection and Auto-Kill
 - Military-Grade Anti-Ban System
 ]]
 
@@ -26,24 +26,22 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 local Lighting = game:GetService("Lighting")
 
--- GitHub Module URLs for Dead Rails (as provided)
+-- GitHub Module URLs
 local ModuleURLs = {
-    ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_esp.lua",
-    GunMods = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_gunmods.lua",
-    Aimbot = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_aimbot.lua",
-    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_teleport%20(1).lua",
-    AntiDetect = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_antidetect.lua",
-    AutoFarm = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_autofarm.lua"
+    ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/esp.lua",
+    CoinCollector = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/coin.lua",
+    MurderDetection = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/MurderDetection%20.lua",
+    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/SkyX_Teleport_Module.lua",
+    AntiBan = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Anti-Ban.lua"
 }
 
 -- Loaded modules
 local Modules = {
     ESP = nil,
-    GunMods = nil,
-    Aimbot = nil,
+    CoinCollector = nil,
+    MurderDetection = nil,
     Teleport = nil,
-    AntiDetect = nil,
-    AutoFarm = nil
+    AntiBan = nil
 }
 
 -- Load a module from URL
@@ -71,39 +69,19 @@ end
 local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 local DeviceText = IsMobile and "Mobile" or "PC"
 
-print("SkyX Dead Rails - Starting on " .. DeviceText .. " device")
-
--- Prevent multiple execution
-if _G.SkyXDeadRailsLoaded then
-    warn("SkyX Dead Rails is already running!")
-    return
-end
-_G.SkyXDeadRailsLoaded = true
-
--- Send notification function
-local function Notify(title, text, duration)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = title or "SkyX Hub",
-        Text = text or "Script is running!",
-        Duration = duration or 5
-    })
-end
-
-Notify("SkyX Hub", "Loading Dead Rails...", 3)
+print("SkyX MM2 - Starting on " .. DeviceText .. " device")
 
 -- Create main UI container
 local SkyXUI = Instance.new("ScreenGui")
 SkyXUI.Name = "SkyXUI"
 
 -- Handle different executor security models
-pcall(function()
-    if syn then
-        syn.protect_gui(SkyXUI)
-        SkyXUI.Parent = game.CoreGui
-    else
-        SkyXUI.Parent = gethui() or game.CoreGui
-    end
-end)
+if syn then
+    syn.protect_gui(SkyXUI)
+    SkyXUI.Parent = game.CoreGui
+else
+    SkyXUI.Parent = gethui() or game.CoreGui
+end
 
 -- Remove existing UIs with the same name
 for _, Interface in pairs(game.CoreGui:GetChildren()) do
@@ -281,7 +259,7 @@ TitleText.Font = Enum.Font.GothamBold
 TitleText.TextSize = 16
 TitleText.TextColor3 = Colors.Text
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Text = "SkyX Dead Rails"
+TitleText.Text = "SkyX MM2 Modular"
 TitleText.Parent = TitleBar
 
 -- Add close button
@@ -304,19 +282,15 @@ AddConnection(CloseButton.MouseButton1Click, function()
     
     -- Stop all modules
     if Modules.ESP then Modules.ESP.Stop() end
-    if Modules.GunMods then Modules.GunMods.Stop() end
-    if Modules.Aimbot then Modules.Aimbot.Stop() end
+    if Modules.CoinCollector then Modules.CoinCollector.Stop() end
+    if Modules.MurderDetection then Modules.MurderDetection.Stop() end
     if Modules.Teleport then Modules.Teleport.Stop() end
-    if Modules.AntiDetect then Modules.AntiDetect.Stop() end
-    if Modules.AutoFarm then Modules.AutoFarm.Stop() end
+    if Modules.AntiBan then Modules.AntiBan.Stop() end
     
     -- Destroy GUI
     SkyXUI:Destroy()
     
-    -- Reset global flag
-    _G.SkyXDeadRailsLoaded = nil
-    
-    print("SkyX Dead Rails closed properly")
+    print("SkyX MM2 Modular closed properly")
 end)
 
 -- Create content area
@@ -401,6 +375,48 @@ end)
 local Tabs = {}
 local SelectedTab = nil
 
+-- Get MM2 values
+local function GetMM2Values()
+    local MM2 = {}
+    MM2.Roles = {}
+    MM2.Players = {}
+    
+    -- Get all players
+    for _, Player in pairs(game.Players:GetPlayers()) do
+        if Player ~= game.Players.LocalPlayer then
+            table.insert(MM2.Players, Player)
+        end
+    end
+    
+    -- Attempt to find MM2 roles
+    for _, Player in pairs(game.Players:GetPlayers()) do
+        local Backpack = Player:FindFirstChild("Backpack")
+        if Backpack then
+            -- Check for knife
+            if Backpack:FindFirstChild("Knife") then
+                MM2.Roles.Murderer = Player
+            end
+            -- Check for gun
+            if Backpack:FindFirstChild("Gun") or Backpack:FindFirstChild("Revolver") then
+                MM2.Roles.Sheriff = Player
+            end
+        end
+        
+        -- Also check equipped items
+        local Character = Player.Character
+        if Character then
+            if Character:FindFirstChild("Knife") then
+                MM2.Roles.Murderer = Player
+            end
+            if Character:FindFirstChild("Gun") or Character:FindFirstChild("Revolver") then
+                MM2.Roles.Sheriff = Player
+            end
+        end
+    end
+    
+    return MM2
+end
+
 -- Function to create a tab
 local function CreateTab(name, order)
     -- Create tab button with adjusted width for 6 tabs
@@ -474,224 +490,330 @@ local function CreateTab(name, order)
         SelectedTab = Tab
     end)
     
-    -- Create section function
-    function Tab:CreateSection(title, order)
-        -- Create section container
-        local SectionContainer = Instance.new("Frame")
-        SectionContainer.Name = title .. "Section"
-        SectionContainer.Size = UDim2.new(1, 0, 0, 30) -- Will grow based on content
-        SectionContainer.BackgroundColor3 = Colors.Container
-        SectionContainer.BorderSizePixel = 0
-        SectionContainer.LayoutOrder = order or 0
-        SectionContainer.AutomaticSize = Enum.AutomaticSize.Y
-        SectionContainer.Parent = self.Page
+    -- Add function to create a section
+    function Tab:AddSection(sectionName)
+        -- Create section frame
+        local Section = Instance.new("Frame")
+        Section.Name = sectionName .. "Section"
+        Section.Size = UDim2.new(1, 0, 0, 100)
+        Section.BackgroundColor3 = Colors.Background
+        Section.BorderSizePixel = 0
+        Section.AutomaticSize = Enum.AutomaticSize.Y
+        Section.Parent = TabPage
         
-        -- Add corner to section
+        -- Add corner
         local SectionCorner = Instance.new("UICorner")
         SectionCorner.CornerRadius = UDim.new(0, 6)
-        SectionCorner.Parent = SectionContainer
+        SectionCorner.Parent = Section
         
-        -- Add section title
+        -- Add stroke
+        local SectionStroke = Instance.new("UIStroke")
+        SectionStroke.Color = Colors.Border
+        SectionStroke.Thickness = 1.5
+        SectionStroke.Parent = Section
+        
+        -- Add title
         local SectionTitle = Instance.new("TextLabel")
         SectionTitle.Name = "Title"
-        SectionTitle.Size = UDim2.new(1, -10, 0, 26)
-        SectionTitle.Position = UDim2.new(0, 10, 0, 2)
+        SectionTitle.Size = UDim2.new(1, 0, 0, 30)
         SectionTitle.BackgroundTransparency = 1
         SectionTitle.Font = Enum.Font.GothamBold
         SectionTitle.TextSize = 14
         SectionTitle.TextColor3 = Colors.Text
         SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
-        SectionTitle.Text = title
-        SectionTitle.Parent = SectionContainer
+        SectionTitle.Text = "    " .. sectionName
+        SectionTitle.Parent = Section
         
-        -- Create content container
-        local ContentContainer = Instance.new("Frame")
-        ContentContainer.Name = "Content"
-        ContentContainer.Size = UDim2.new(1, -20, 0, 0) -- Size grows with elements
-        ContentContainer.Position = UDim2.new(0, 10, 0, 30)
-        ContentContainer.BackgroundTransparency = 1
-        ContentContainer.BorderSizePixel = 0
-        ContentContainer.AutomaticSize = Enum.AutomaticSize.Y
-        ContentContainer.Parent = SectionContainer
+        -- Create section content
+        local SectionContent = Instance.new("Frame")
+        SectionContent.Name = "Content"
+        SectionContent.Size = UDim2.new(1, -10, 0, 0)
+        SectionContent.Position = UDim2.new(0, 5, 0, 30)
+        SectionContent.BackgroundTransparency = 1
+        SectionContent.BorderSizePixel = 0
+        SectionContent.AutomaticSize = Enum.AutomaticSize.Y
+        SectionContent.Parent = Section
         
-        -- Add layout to content
-        local ContentLayout = Instance.new("UIListLayout")
-        ContentLayout.Padding = UDim.new(0, 6)
-        ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        ContentLayout.Parent = ContentContainer
+        -- Add layout
+        local SectionLayout = Instance.new("UIListLayout")
+        SectionLayout.Padding = UDim.new(0, 8)
+        SectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        SectionLayout.Parent = SectionContent
         
-        -- Add padding at the end
-        local BottomPadding = Instance.new("Frame")
-        BottomPadding.Name = "BottomPadding"
-        BottomPadding.Size = UDim2.new(1, 0, 0, 8) -- A bit of padding at the bottom
-        BottomPadding.BackgroundTransparency = 1
-        BottomPadding.LayoutOrder = 999 -- Ensure it's at the end
-        BottomPadding.Parent = ContentContainer
-        
-        -- Create section object
-        local Section = {
-            Container = SectionContainer,
-            Content = ContentContainer,
-            Elements = {}
-        }
-        
-        -- Auto-adjust content height
-        AddConnection(ContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
-            ContentContainer.Size = UDim2.new(1, -20, 0, ContentLayout.AbsoluteContentSize.Y)
+        -- Auto-size sections
+        AddConnection(SectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+            SectionContent.Size = UDim2.new(1, -10, 0, SectionLayout.AbsoluteContentSize.Y)
+            Section.Size = UDim2.new(1, 0, 0, SectionContent.Size.Y.Offset + 40)
         end)
         
-        -- Create toggle element
-        function Section:AddToggle(options)
-            options = options or {}
-            options.Name = options.Name or "Toggle"
-            options.Default = options.Default or false
-            options.Callback = options.Callback or function() end
-            options.LayoutOrder = options.LayoutOrder or #self.Elements
+        -- Create section object
+        local SectionObj = {
+            Frame = Section,
+            Content = SectionContent,
+            Layout = SectionLayout,
+            Name = sectionName
+        }
+        
+        -- Add function to add a label
+        function SectionObj:AddLabel(text)
+            local Label = Instance.new("TextLabel")
+            Label.Name = "Label"
+            Label.Size = UDim2.new(1, 0, 0, 20)
+            Label.BackgroundTransparency = 1
+            Label.Font = Enum.Font.Gotham
+            Label.TextSize = 14
+            Label.TextColor3 = Colors.Text
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.Text = "   " .. text
+            Label.Parent = SectionContent
             
-            -- Create toggle container
-            local ToggleContainer = Instance.new("Frame")
-            ToggleContainer.Name = options.Name .. "Toggle"
-            ToggleContainer.Size = UDim2.new(1, 0, 0, 30)
-            ToggleContainer.BackgroundTransparency = 1
-            ToggleContainer.LayoutOrder = options.LayoutOrder
-            ToggleContainer.Parent = self.Content
-            
-            -- Add toggle label
-            local ToggleLabel = Instance.new("TextLabel")
-            ToggleLabel.Name = "Label"
-            ToggleLabel.Size = UDim2.new(1, -56, 1, 0) -- Make room for the toggle
-            ToggleLabel.BackgroundTransparency = 1
-            ToggleLabel.Font = Enum.Font.Gotham
-            ToggleLabel.TextSize = 14
-            ToggleLabel.TextColor3 = Colors.Text
-            ToggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-            ToggleLabel.Text = options.Name
-            ToggleLabel.Parent = ToggleContainer
-            
-            -- Create toggle background
-            local ToggleBackground = Instance.new("Frame")
-            ToggleBackground.Name = "Background"
-            ToggleBackground.Size = UDim2.new(0, 44, 0, 22)
-            ToggleBackground.Position = UDim2.new(1, -46, 0.5, -11)
-            ToggleBackground.BackgroundColor3 = options.Default and Colors.Success or Colors.Danger
-            ToggleBackground.BorderSizePixel = 0
-            ToggleBackground.Parent = ToggleContainer
-            
-            -- Add corner to toggle background
-            local ToggleCorner = Instance.new("UICorner")
-            ToggleCorner.CornerRadius = UDim.new(1, 0) -- Fully rounded
-            ToggleCorner.Parent = ToggleBackground
-            
-            -- Create toggle knob
-            local ToggleKnob = Instance.new("Frame")
-            ToggleKnob.Name = "Knob"
-            ToggleKnob.Size = UDim2.new(0, 16, 0, 16)
-            ToggleKnob.Position = UDim2.new(options.Default and 1 or 0, options.Default and -19 or 3, 0.5, -8)
-            ToggleKnob.BackgroundColor3 = Colors.Text
-            ToggleKnob.BorderSizePixel = 0
-            ToggleKnob.Parent = ToggleBackground
-            
-            -- Add corner to toggle knob
-            local KnobCorner = Instance.new("UICorner")
-            KnobCorner.CornerRadius = UDim.new(1, 0) -- Fully rounded
-            KnobCorner.Parent = ToggleKnob
-            
-            -- Add hitbox
-            local Hitbox = Instance.new("TextButton")
-            Hitbox.Name = "Hitbox"
-            Hitbox.Size = UDim2.new(1, 0, 1, 0)
-            Hitbox.BackgroundTransparency = 1
-            Hitbox.Text = ""
-            Hitbox.Parent = ToggleContainer
-            
-            -- Current toggle state
-            local Enabled = options.Default
-            
-            -- Toggle function
-            local function UpdateToggle()
-                Enabled = not Enabled
-                
-                -- Update visuals with tweens
-                TweenService:Create(ToggleBackground, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Enabled and Colors.Success or Colors.Danger
-                }):Play()
-                
-                TweenService:Create(ToggleKnob, TweenInfo.new(0.2), {
-                    Position = Enabled and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
-                }):Play()
-                
-                -- Call the callback
-                options.Callback(Enabled)
-            end
-            
-            -- Add click handler
-            AddConnection(Hitbox.MouseButton1Click, UpdateToggle)
-            
-            -- Add hover effect
-            AddConnection(Hitbox.MouseEnter, function()
-                TweenService:Create(ToggleLabel, TweenInfo.new(0.2), {
-                    TextColor3 = Colors.Highlight
-                }):Play()
-            end)
-            
-            AddConnection(Hitbox.MouseLeave, function()
-                TweenService:Create(ToggleLabel, TweenInfo.new(0.2), {
-                    TextColor3 = Colors.Text
-                }):Play()
-            end)
-            
-            -- Add element to list
-            local Index = #self.Elements + 1
-            self.Elements[Index] = {
-                Type = "Toggle",
-                Instance = ToggleContainer,
-                State = Enabled,
-                Update = UpdateToggle,
-                SetState = function(state)
-                    if state ~= Enabled then
-                        UpdateToggle()
-                    end
-                end
+            local LabelObj = {
+                Label = Label,
+                Text = text
             }
             
-            -- Return the element
-            return self.Elements[Index]
+            function LabelObj:SetText(newText)
+                Label.Text = "   " .. newText
+            end
+            
+            return LabelObj
         end
         
-        -- Create button element
-        function Section:AddButton(options)
-            options = options or {}
-            options.Name = options.Name or "Button"
-            options.Callback = options.Callback or function() end
-            options.LayoutOrder = options.LayoutOrder or #self.Elements
+        -- Add function to add a toggle
+        function SectionObj:AddToggle(text, default, callback)
+            -- Create toggle frame
+            local ToggleFrame = Instance.new("Frame")
+            ToggleFrame.Name = "Toggle"
+            ToggleFrame.Size = UDim2.new(1, 0, 0, 34)
+            ToggleFrame.BackgroundTransparency = 1
+            ToggleFrame.BorderSizePixel = 0
+            ToggleFrame.Parent = SectionContent
             
+            -- Adjust size for mobile
+            if IsMobile then
+                ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+            end
+            
+            -- Create toggle text
+            local ToggleText = Instance.new("TextLabel")
+            ToggleText.Name = "Text"
+            ToggleText.Size = UDim2.new(1, -55, 1, 0)
+            ToggleText.BackgroundTransparency = 1
+            ToggleText.Font = Enum.Font.Gotham
+            ToggleText.TextSize = 14
+            ToggleText.TextColor3 = Colors.Text
+            ToggleText.TextXAlignment = Enum.TextXAlignment.Left
+            ToggleText.Text = "   " .. text
+            ToggleText.Parent = ToggleFrame
+            
+            -- Create toggle button background
+            local ToggleBackground = Instance.new("Frame")
+            ToggleBackground.Name = "Background"
+            ToggleBackground.Size = UDim2.new(0, 44, 0, 24)
+            ToggleBackground.Position = UDim2.new(1, -50, 0.5, -12)
+            ToggleBackground.BorderSizePixel = 0
+            ToggleBackground.BackgroundColor3 = default and Colors.Button or Colors.Background
+            ToggleBackground.Parent = ToggleFrame
+            
+            -- Add corner to toggle background
+            local ToggleBackgroundCorner = Instance.new("UICorner")
+            ToggleBackgroundCorner.CornerRadius = UDim.new(1, 0)
+            ToggleBackgroundCorner.Parent = ToggleBackground
+            
+            -- Create toggle indicator
+            local ToggleIndicator = Instance.new("Frame")
+            ToggleIndicator.Name = "Indicator"
+            ToggleIndicator.Size = UDim2.new(0, 18, 0, 18)
+            ToggleIndicator.Position = UDim2.new(0, default and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -9 or -9)
+            ToggleIndicator.BorderSizePixel = 0
+            ToggleIndicator.BackgroundColor3 = Colors.Text
+            ToggleIndicator.Parent = ToggleBackground
+            
+            -- Add corner to toggle indicator
+            local ToggleIndicatorCorner = Instance.new("UICorner")
+            ToggleIndicatorCorner.CornerRadius = UDim.new(1, 0)
+            ToggleIndicatorCorner.Parent = ToggleIndicator
+            
+            -- Create clickable button
+            local ToggleButton = Instance.new("TextButton")
+            ToggleButton.Name = "Button"
+            ToggleButton.Size = UDim2.new(1, 0, 1, 0)
+            ToggleButton.BackgroundTransparency = 1
+            ToggleButton.Font = Enum.Font.SourceSans
+            ToggleButton.TextSize = 14
+            ToggleButton.TextTransparency = 1
+            ToggleButton.Parent = ToggleFrame
+            
+            -- Create toggle object
+            local ToggleObj = {
+                Frame = ToggleFrame,
+                Button = ToggleButton,
+                Background = ToggleBackground,
+                Indicator = ToggleIndicator,
+                Enabled = default
+            }
+            
+            -- Add toggle event
+            AddConnection(ToggleButton.MouseButton1Click, function()
+                ToggleObj.Enabled = not ToggleObj.Enabled
+                
+                -- Animate toggle
+                TweenService:Create(ToggleBackground, TweenInfo.new(0.2), {
+                    BackgroundColor3 = ToggleObj.Enabled and Colors.Button or Colors.Background
+                }):Play()
+                
+                TweenService:Create(ToggleIndicator, TweenInfo.new(0.2), {
+                    Position = UDim2.new(0, ToggleObj.Enabled and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -9 or -9)
+                }):Play()
+                
+                -- Call callback
+                if callback then
+                    callback(ToggleObj.Enabled)
+                end
+            end)
+            
+            return ToggleObj
+        end
+        
+        -- Add function to add a slider
+        function SectionObj:AddSlider(text, min, max, default, callback)
+            -- Create slider frame
+            local SliderFrame = Instance.new("Frame")
+            SliderFrame.Name = "Slider"
+            SliderFrame.Size = UDim2.new(1, 0, 0, 50)
+            SliderFrame.BackgroundTransparency = 1
+            SliderFrame.BorderSizePixel = 0
+            SliderFrame.Parent = SectionContent
+            
+            -- Adjust size for mobile
+            if IsMobile then
+                SliderFrame.Size = UDim2.new(1, 0, 0, 60)
+            end
+            
+            -- Create slider text
+            local SliderText = Instance.new("TextLabel")
+            SliderText.Name = "Text"
+            SliderText.Size = UDim2.new(1, 0, 0, 20)
+            SliderText.BackgroundTransparency = 1
+            SliderText.Font = Enum.Font.Gotham
+            SliderText.TextSize = 14
+            SliderText.TextColor3 = Colors.Text
+            SliderText.TextXAlignment = Enum.TextXAlignment.Left
+            SliderText.Text = "   " .. text .. ": " .. default
+            SliderText.Parent = SliderFrame
+            
+            -- Create slider background
+            local SliderBackground = Instance.new("Frame")
+            SliderBackground.Name = "Background"
+            SliderBackground.Size = UDim2.new(1, -10, 0, 10)
+            SliderBackground.Position = UDim2.new(0, 5, 0, 30)
+            SliderBackground.BorderSizePixel = 0
+            SliderBackground.BackgroundColor3 = Colors.Background
+            SliderBackground.Parent = SliderFrame
+            
+            -- Add corner to slider background
+            local SliderBackgroundCorner = Instance.new("UICorner")
+            SliderBackgroundCorner.CornerRadius = UDim.new(0, 5)
+            SliderBackgroundCorner.Parent = SliderBackground
+            
+            -- Create slider fill
+            local SliderFill = Instance.new("Frame")
+            SliderFill.Name = "Fill"
+            SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+            SliderFill.BorderSizePixel = 0
+            SliderFill.BackgroundColor3 = Colors.Button
+            SliderFill.Parent = SliderBackground
+            
+            -- Add corner to slider fill
+            local SliderFillCorner = Instance.new("UICorner")
+            SliderFillCorner.CornerRadius = UDim.new(0, 5)
+            SliderFillCorner.Parent = SliderFill
+            
+            -- Create slider button
+            local SliderButton = Instance.new("TextButton")
+            SliderButton.Name = "Button"
+            SliderButton.Size = UDim2.new(1, 0, 1, 0)
+            SliderButton.BackgroundTransparency = 1
+            SliderButton.Font = Enum.Font.SourceSans
+            SliderButton.TextSize = 14
+            SliderButton.TextTransparency = 1
+            SliderButton.Parent = SliderBackground
+            
+            -- Create slider object
+            local SliderObj = {
+                Frame = SliderFrame,
+                Background = SliderBackground,
+                Fill = SliderFill,
+                Button = SliderButton,
+                Text = SliderText,
+                Value = default,
+                Min = min,
+                Max = max
+            }
+            
+            -- Function to update slider
+            local function UpdateSlider(input)
+                local pos = UDim2.new(math.clamp((input.Position.X - SliderBackground.AbsolutePosition.X) / SliderBackground.AbsoluteSize.X, 0, 1), 0, 1, 0)
+                SliderFill.Size = pos
+                
+                local value = math.floor(min + ((max - min) * pos.X.Scale))
+                SliderObj.Value = value
+                SliderText.Text = "   " .. text .. ": " .. value
+                
+                if callback then
+                    callback(value)
+                end
+            end
+            
+            -- Add slider events
+            AddConnection(SliderButton.MouseButton1Down, function(input)
+                UpdateSlider(input)
+                
+                -- Track mouse movement
+                local connection
+                connection = UserInputService.InputChanged:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                        UpdateSlider(input)
+                    end
+                end)
+                
+                -- Stop tracking when mouse up
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        if connection then
+                            connection:Disconnect()
+                            connection = nil
+                        end
+                    end
+                end)
+            end)
+            
+            return SliderObj
+        end
+        
+        -- Add function to add a button
+        function SectionObj:AddButton(text, callback)
             -- Create button
             local Button = Instance.new("TextButton")
-            Button.Name = options.Name .. "Button"
+            Button.Name = "Button"
             Button.Size = UDim2.new(1, 0, 0, 32)
             Button.BackgroundColor3 = Colors.Button
             Button.BorderSizePixel = 0
             Button.Font = Enum.Font.GothamSemibold
             Button.TextSize = 14
             Button.TextColor3 = Colors.Text
-            Button.Text = options.Name
-            Button.LayoutOrder = options.LayoutOrder
-            Button.AutoButtonColor = false
-            Button.Parent = self.Content
+            Button.Text = text
+            Button.Parent = SectionContent
             
             -- Add corner to button
             local ButtonCorner = Instance.new("UICorner")
             ButtonCorner.CornerRadius = UDim.new(0, 6)
             ButtonCorner.Parent = Button
             
-            -- Add button effects
+            -- Add button hover effect
             AddConnection(Button.MouseEnter, function()
                 TweenService:Create(Button, TweenInfo.new(0.2), {
-                    BackgroundColor3 = Color3.fromRGB(
-                        Colors.Button.R * 1.1,
-                        Colors.Button.G * 1.1,
-                        Colors.Button.B * 1.1
-                    )
+                    BackgroundColor3 = Color3.fromRGB(62, 115, 165)
                 }):Play()
             end)
             
@@ -701,843 +823,500 @@ local function CreateTab(name, order)
                 }):Play()
             end)
             
-            AddConnection(Button.MouseButton1Down, function()
+            -- Add button click event
+            AddConnection(Button.MouseButton1Click, function()
                 TweenService:Create(Button, TweenInfo.new(0.1), {
-                    Size = UDim2.new(0.98, 0, 0, 30),
-                    Position = UDim2.new(0.01, 0, 0, 1)
+                    BackgroundColor3 = Color3.fromRGB(32, 85, 135)
                 }):Play()
-            end)
-            
-            AddConnection(Button.MouseButton1Up, function()
-                TweenService:Create(Button, TweenInfo.new(0.1), {
-                    Size = UDim2.new(1, 0, 0, 32),
-                    Position = UDim2.new(0, 0, 0, 0)
-                }):Play()
-            end)
-            
-            -- Add click callback
-            AddConnection(Button.MouseButton1Click, options.Callback)
-            
-            -- Add element to list
-            local Index = #self.Elements + 1
-            self.Elements[Index] = {
-                Type = "Button",
-                Instance = Button,
-                SetText = function(text)
-                    Button.Text = text
+                
+                if callback then
+                    callback()
                 end
-            }
+                
+                wait(0.1)
+                
+                TweenService:Create(Button, TweenInfo.new(0.1), {
+                    BackgroundColor3 = Colors.Button
+                }):Play()
+            end)
             
-            -- Return the element
-            return self.Elements[Index]
+            return Button
         end
         
-        -- Create slider element
-        function Section:AddSlider(options)
-            options = options or {}
-            options.Name = options.Name or "Slider"
-            options.Min = options.Min or 0
-            options.Max = options.Max or 100
-            options.Default = options.Default or options.Min
-            options.ValueName = options.ValueName or ""
-            options.Callback = options.Callback or function() end
-            options.LayoutOrder = options.LayoutOrder or #self.Elements
-            
-            -- Create slider container
-            local SliderContainer = Instance.new("Frame")
-            SliderContainer.Name = options.Name .. "Slider"
-            SliderContainer.Size = UDim2.new(1, 0, 0, 50)
-            SliderContainer.BackgroundTransparency = 1
-            SliderContainer.LayoutOrder = options.LayoutOrder
-            SliderContainer.Parent = self.Content
-            
-            -- Add slider label and value
-            local SliderLabel = Instance.new("TextLabel")
-            SliderLabel.Name = "Label"
-            SliderLabel.Size = UDim2.new(1, 0, 0, 20)
-            SliderLabel.BackgroundTransparency = 1
-            SliderLabel.Font = Enum.Font.Gotham
-            SliderLabel.TextSize = 14
-            SliderLabel.TextColor3 = Colors.Text
-            SliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-            SliderLabel.Text = options.Name
-            SliderLabel.Parent = SliderContainer
-            
-            -- Add value display
-            local ValueLabel = Instance.new("TextLabel")
-            ValueLabel.Name = "Value"
-            ValueLabel.Size = UDim2.new(0, 100, 0, 20)
-            ValueLabel.Position = UDim2.new(1, -100, 0, 0)
-            ValueLabel.BackgroundTransparency = 1
-            ValueLabel.Font = Enum.Font.Gotham
-            ValueLabel.TextSize = 14
-            ValueLabel.TextColor3 = Colors.Text
-            ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
-            ValueLabel.Text = options.Default .. " " .. options.ValueName
-            ValueLabel.Parent = SliderContainer
-            
-            -- Create slider bar
-            local SliderBar = Instance.new("Frame")
-            SliderBar.Name = "Bar"
-            SliderBar.Size = UDim2.new(1, 0, 0, 10)
-            SliderBar.Position = UDim2.new(0, 0, 0.5, 5)
-            SliderBar.BackgroundColor3 = Color3.fromRGB(50, 50, 70)
-            SliderBar.BorderSizePixel = 0
-            SliderBar.Parent = SliderContainer
-            
-            -- Add corner to slider bar
-            local BarCorner = Instance.new("UICorner")
-            BarCorner.CornerRadius = UDim.new(1, 0)
-            BarCorner.Parent = SliderBar
-            
-            -- Create slider fill
-            local SliderFill = Instance.new("Frame")
-            SliderFill.Name = "Fill"
-            SliderFill.Size = UDim2.new((options.Default - options.Min) / (options.Max - options.Min), 0, 1, 0)
-            SliderFill.BackgroundColor3 = Colors.Button
-            SliderFill.BorderSizePixel = 0
-            SliderFill.Parent = SliderBar
-            
-            -- Add corner to slider fill
-            local FillCorner = Instance.new("UICorner")
-            FillCorner.CornerRadius = UDim.new(1, 0)
-            FillCorner.Parent = SliderFill
-            
-            -- Create slider knob
-            local SliderKnob = Instance.new("Frame")
-            SliderKnob.Name = "Knob"
-            SliderKnob.Size = UDim2.new(0, 16, 0, 16)
-            SliderKnob.Position = UDim2.new(1, -8, 0.5, -8)
-            SliderKnob.BackgroundColor3 = Colors.Text
-            SliderKnob.BorderSizePixel = 0
-            SliderKnob.Parent = SliderFill
-            
-            -- Add corner to slider knob
-            local KnobCorner = Instance.new("UICorner")
-            KnobCorner.CornerRadius = UDim.new(1, 0)
-            KnobCorner.Parent = SliderKnob
-            
-            -- Add hitbox for slider
-            local Hitbox = Instance.new("TextButton")
-            Hitbox.Name = "Hitbox"
-            Hitbox.Size = UDim2.new(1, 0, 1, 0)
-            Hitbox.BackgroundTransparency = 1
-            Hitbox.Text = ""
-            Hitbox.Parent = SliderBar
-            
-            -- Slider variables
-            local Value = options.Default
-            local IsDragging = false
-            
-            -- Update slider function
-            local function UpdateSlider(input)
-                -- Calculate position
-                local sizeX = math.clamp((input.Position.X - SliderBar.AbsolutePosition.X) / SliderBar.AbsoluteSize.X, 0, 1)
-                
-                -- Calculate value
-                local newValue = math.floor(options.Min + ((options.Max - options.Min) * sizeX))
-                Value = newValue
-                
-                -- Update slider visuals
-                SliderFill.Size = UDim2.new(sizeX, 0, 1, 0)
-                ValueLabel.Text = Value .. " " .. options.ValueName
-                
-                -- Call callback
-                options.Callback(Value)
-            end
-            
-            -- Handle slider input
-            AddConnection(Hitbox.MouseButton1Down, function(input)
-                IsDragging = true
-                UpdateSlider(input)
-            end)
-            
-            AddConnection(UserInputService.InputEnded, function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    IsDragging = false
-                end
-            end)
-            
-            AddConnection(UserInputService.InputChanged, function(input)
-                if IsDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                    UpdateSlider(input)
-                end
-            end)
-            
-            -- Add hovering effect
-            AddConnection(SliderContainer.MouseEnter, function()
-                TweenService:Create(SliderLabel, TweenInfo.new(0.2), {
-                    TextColor3 = Colors.Highlight
-                }):Play()
-            end)
-            
-            AddConnection(SliderContainer.MouseLeave, function()
-                TweenService:Create(SliderLabel, TweenInfo.new(0.2), {
-                    TextColor3 = Colors.Text
-                }):Play()
-            end)
-            
-            -- Add element to list
-            local Index = #self.Elements + 1
-            self.Elements[Index] = {
-                Type = "Slider",
-                Instance = SliderContainer,
-                Value = Value,
-                SetValue = function(value)
-                    -- Clamp value
-                    local clampedValue = math.clamp(value, options.Min, options.Max)
-                    
-                    -- Calculate position
-                    local sizeX = (clampedValue - options.Min) / (options.Max - options.Min)
-                    
-                    -- Update value
-                    Value = clampedValue
-                    
-                    -- Update slider visuals
-                    SliderFill.Size = UDim2.new(sizeX, 0, 1, 0)
-                    ValueLabel.Text = Value .. " " .. options.ValueName
-                    
-                    -- Call callback
-                    options.Callback(Value)
-                end
-            }
-            
-            -- Return the element
-            return self.Elements[Index]
-        end
-        
-        -- Return the section
-        self.Sections[title] = Section
-        return Section
+        -- Add section to tab
+        table.insert(Tab.Sections, SectionObj)
+        return SectionObj
     end
     
-    -- Return the tab
+    -- Add tab to tabs table
     table.insert(Tabs, Tab)
+    
+    -- If this is the first tab, select it
+    if #Tabs == 1 then
+        TabButton.BackgroundColor3 = Colors.TabActive
+        TabPage.Visible = true
+        SelectedTab = Tab
+    end
+    
     return Tab
 end
 
--- Start loading Anti-Detect module first for protection
-print("Loading Anti-Detection module...")
-Modules.AntiDetect = LoadModule("AntiDetect")
-if Modules.AntiDetect and Modules.AntiDetect.Initialize then
-    pcall(function() Modules.AntiDetect.Initialize() end)
-    pcall(function() Modules.AntiDetect.SetEnableDeadRailsBypass(true) end)
-    pcall(function() Modules.AntiDetect.SetEnableRemoteSpyProtection(true) end)
+-- Load modules
+local function LoadAllModules()
+    -- Load Anti-Ban module first
+    Modules.AntiBan = LoadModule("AntiBan")
+    if Modules.AntiBan then
+        Modules.AntiBan.Start()
+    end
+    
+    -- Load other modules
+    Modules.ESP = LoadModule("ESP")
+    Modules.CoinCollector = LoadModule("CoinCollector")
+    Modules.MurderDetection = LoadModule("MurderDetection")
+    Modules.Teleport = LoadModule("Teleport")
+    
+    -- Link modules
+    if Modules.ESP and Modules.MurderDetection then
+        Modules.MurderDetection.SetESPModule(Modules.ESP)
+    end
+    
+    if Modules.MurderDetection and Modules.Teleport then
+        Modules.Teleport.SetMurderDetectionModule(Modules.MurderDetection)
+    end
+    
+    -- Start modules
+    if Modules.ESP then Modules.ESP.Start() end
+    if Modules.CoinCollector then Modules.CoinCollector.Start() end
+    if Modules.MurderDetection then Modules.MurderDetection.Start() end
+    if Modules.Teleport then Modules.Teleport.Start() end
+    
+    return true
 end
 
 -- Create tabs
 local MainTab = CreateTab("Main", 1)
-local VisualsTab = CreateTab("Visuals", 2)
-local GunModsTab = CreateTab("Gun Mods", 3)
-local PlayerTab = CreateTab("Player", 4)
-local MiscTab = CreateTab("Misc", 5)
+local ESPTab = CreateTab("ESP", 2)
+local CoinsTab = CreateTab("Coins", 3)
+local MurderTab = CreateTab("Murder", 4)
+local TeleportTab = CreateTab("Teleport", 5)
+local AntiBanTab = CreateTab("Anti-Ban", 6)
 
--- Populate Main Tab
-local MainSection = MainTab:CreateSection("Quick Actions", 1)
+-- Create main tab content
+local InfoSection = MainTab:AddSection("Information")
+InfoSection:AddLabel("Device: " .. DeviceText)
+InfoSection:AddLabel("Game: Murder Mystery 2")
+local StatusLabel = InfoSection:AddLabel("Loading modules...")
 
--- Gun unlock button
-local UnlockButton = MainSection:AddButton({
-    Name = "Unlock All Guns",
-    Callback = function()
-        if not Modules.GunMods then
-            Modules.GunMods = LoadModule("GunMods")
-        end
+-- Load modules
+local success = LoadAllModules()
+
+-- Create UI controls for modules
+if success then
+    StatusLabel:SetText("Modules loaded successfully!")
+    
+    -- ESP Tab Content
+    if Modules.ESP then
+        local ESPSection = ESPTab:AddSection("ESP Features")
         
-        if Modules.GunMods and Modules.GunMods.UnlockAllGuns then
-            local success = Modules.GunMods.UnlockAllGuns()
-            Notify("SkyX Hub", success and "All guns unlocked!" or "Failed to unlock guns", 3)
-        end
-    end
-})
-
--- Max ammo button
-local AmmoButton = MainSection:AddButton({
-    Name = "Max Ammo (Current Weapon)",
-    Callback = function()
-        if not Modules.GunMods then
-            Modules.GunMods = LoadModule("GunMods")
-        }
+        ESPSection:AddToggle("ESP Enabled", false, function(value)
+            Modules.ESP.Settings.Enabled = value
+        end)
         
-        if Modules.GunMods and Modules.GunMods.MaxAmmoCurrentWeapon then
-            local success = Modules.GunMods.MaxAmmoCurrentWeapon()
-            Notify("SkyX Hub", success and "Ammo maximized!" or "No weapon equipped", 3)
-        end
-    end
-})
-
--- Auto farm section
-local FarmingSection = MainTab:CreateSection("Auto Farm", 2)
-
--- Load Auto Farm module when needed
-if not Modules.AutoFarm then
-    Modules.AutoFarm = LoadModule("AutoFarm")
-    if Modules.AutoFarm and Modules.AutoFarm.Initialize then
-        pcall(function() Modules.AutoFarm.Initialize() end)
-    end
-end
-
--- Auto round end toggle
-local AutoEndToggle = FarmingSection:AddToggle({
-    Name = "Auto Round End",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.AutoFarm then
-            Modules.AutoFarm = LoadModule("AutoFarm")
-        end
+        ESPSection:AddToggle("Show Distance", true, function(value)
+            Modules.ESP.Settings.ShowDistance = value
+        end)
         
-        if Modules.AutoFarm and Modules.AutoFarm.SetAutoEnd then
-            Modules.AutoFarm.SetAutoEnd(Value)
-        end
-    end
-})
-
--- Auto bone farm toggle
-local AutoBoneToggle = FarmingSection:AddToggle({
-    Name = "Auto Bone Farm",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.AutoFarm then
-            Modules.AutoFarm = LoadModule("AutoFarm")
-        end
+        ESPSection:AddToggle("Show Health", true, function(value)
+            Modules.ESP.Settings.ShowHealth = value
+        end)
         
-        if Modules.AutoFarm and Modules.AutoFarm.SetAutoBone then
-            Modules.AutoFarm.SetAutoBone(Value)
-        end
-    end
-})
-
--- Farm delay slider
-FarmingSection:AddSlider({
-    Name = "Farm Delay",
-    Min = 100,
-    Max = 2000,
-    Default = 500,
-    ValueName = "ms",
-    Callback = function(Value)
-        if not Modules.AutoFarm then
-            Modules.AutoFarm = LoadModule("AutoFarm")
-        end
+        ESPSection:AddToggle("Show Roles", true, function(value)
+            Modules.ESP.Settings.ShowRole = value
+        end)
         
-        if Modules.AutoFarm and Modules.AutoFarm.SetFarmDelay then
-            Modules.AutoFarm.SetFarmDelay(Value / 1000) -- Convert to seconds
-        end
-    end
-})
-
--- Populate Visuals Tab
-local ESPSection = VisualsTab:CreateSection("ESP Settings", 1)
-
--- Load ESP module when needed
-if not Modules.ESP then
-    Modules.ESP = LoadModule("ESP")
-    if Modules.ESP and Modules.ESP.Initialize then
-        pcall(function() Modules.ESP.Initialize() end)
-    end
-end
-
--- ESP Toggle
-local ESPToggle = ESPSection:AddToggle({
-    Name = "Enable ESP",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.ESP then
-            Modules.ESP = LoadModule("ESP")
-        end
+        ESPSection:AddToggle("Rainbow ESP", false, function(value)
+            Modules.ESP.Settings.RainbowESP = value
+        end)
         
-        if Modules.ESP and Modules.ESP.SetEnabled then
-            Modules.ESP.SetEnabled(Value)
-        end
+        ESPSection:AddSlider("Rainbow Speed", 1, 10, 5, function(value)
+            Modules.ESP.Settings.RainbowSpeed = value
+        end)
+    else
+        local ESPSection = ESPTab:AddSection("ESP Features")
+        ESPSection:AddLabel("ESP Module failed to load")
     end
-})
-
--- ESP settings
-ESPSection:AddToggle({
-    Name = "Show Names",
-    Default = true,
-    Callback = function(Value)
-        if not Modules.ESP then
-            Modules.ESP = LoadModule("ESP")
-        end
+    
+    -- Coins Tab Content
+    if Modules.CoinCollector then
+        local CoinsSection = CoinsTab:AddSection("Coin Collection")
         
-        if Modules.ESP and Modules.ESP.SetShowNames then
-            Modules.ESP.SetShowNames(Value)
-        end
-    end
-})
-
-ESPSection:AddToggle({
-    Name = "Show Distance",
-    Default = true,
-    Callback = function(Value)
-        if not Modules.ESP then
-            Modules.ESP = LoadModule("ESP")
-        end
+        CoinsSection:AddToggle("Auto Collect Coins", false, function(value)
+            Modules.CoinCollector.Settings.AutoCollectEnabled = value
+        end)
         
-        if Modules.ESP and Modules.ESP.SetShowDistance then
-            Modules.ESP.SetShowDistance(Value)
-        end
-    end
-})
-
-ESPSection:AddToggle({
-    Name = "Team Check",
-    Default = true,
-    Callback = function(Value)
-        if not Modules.ESP then
-            Modules.ESP = LoadModule("ESP")
-        end
+        CoinsSection:AddToggle("Coin ESP", false, function(value)
+            Modules.CoinCollector.Settings.ESP.Enabled = value
+        end)
         
-        if Modules.ESP and Modules.ESP.SetTeamCheck then
-            Modules.ESP.SetTeamCheck(Value)
-        end
-    end
-})
-
-ESPSection:AddToggle({
-    Name = "Item ESP",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.ESP then
-            Modules.ESP = LoadModule("ESP")
-        end
+        CoinsSection:AddSlider("Collection Radius", 5, 50, 15, function(value)
+            Modules.CoinCollector.Settings.CollectionRadius = value
+        end)
         
-        if Modules.ESP and Modules.ESP.SetItemESP then
-            Modules.ESP.SetItemESP(Value)
-        end
-    end
-})
-
--- World settings section
-local WorldSection = VisualsTab:CreateSection("World Settings", 2)
-
--- Full bright toggle
-WorldSection:AddToggle({
-    Name = "Full Bright",
-    Default = false,
-    Callback = function(Value)
-        if Value then
-            -- Store original lighting settings
-            _G.OriginalAmbient = Lighting.Ambient
-            _G.OriginalBrightness = Lighting.Brightness
-            _G.OriginalClockTime = Lighting.ClockTime
-            _G.OriginalFogEnd = Lighting.FogEnd
-            _G.OriginalGlobalShadows = Lighting.GlobalShadows
-            
-            -- Apply full bright
-            Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            Lighting.Brightness = 2
-            Lighting.ClockTime = 14
-            Lighting.FogEnd = 100000
-            Lighting.GlobalShadows = false
-        else
-            -- Restore original lighting
-            if _G.OriginalAmbient then Lighting.Ambient = _G.OriginalAmbient end
-            if _G.OriginalBrightness then Lighting.Brightness = _G.OriginalBrightness end
-            if _G.OriginalClockTime then Lighting.ClockTime = _G.OriginalClockTime end
-            if _G.OriginalFogEnd then Lighting.FogEnd = _G.OriginalFogEnd end
-            if _G.OriginalGlobalShadows then Lighting.GlobalShadows = _G.OriginalGlobalShadows end
-        end
-    end
-})
-
--- No fog toggle
-WorldSection:AddToggle({
-    Name = "No Fog",
-    Default = false,
-    Callback = function(Value)
-        if Value then
-            -- Save original fog settings
-            _G.OriginalFogStart = Lighting.FogStart
-            _G.OriginalFogEnd = Lighting.FogEnd
-            
-            -- Remove fog
-            Lighting.FogStart = 100000
-            Lighting.FogEnd = 100000
-        else
-            -- Restore original fog
-            if _G.OriginalFogStart then Lighting.FogStart = _G.OriginalFogStart end
-            if _G.OriginalFogEnd then Lighting.FogEnd = _G.OriginalFogEnd end
-        end
-    end
-})
-
--- Populate Gun Mods Tab
-local GunModsSection = GunModsTab:CreateSection("Weapon Modifications", 1)
-
--- Load Gun Mods module when needed
-if not Modules.GunMods then
-    Modules.GunMods = LoadModule("GunMods")
-    if Modules.GunMods and Modules.GunMods.Initialize then
-        pcall(function() Modules.GunMods.Initialize() end)
-    end
-end
-
--- Gun mod toggles
-GunModsSection:AddToggle({
-    Name = "No Recoil",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.GunMods then
-            Modules.GunMods = LoadModule("GunMods")
-        end
+        CoinsSection:AddToggle("Prioritize Nearby Coins", true, function(value)
+            Modules.CoinCollector.Settings.PrioritizeNearby = value
+        end)
         
-        if Modules.GunMods and Modules.GunMods.SetNoRecoil then
-            Modules.GunMods.SetNoRecoil(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "No Spread",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.GunMods then
-            Modules.GunMods = LoadModule("GunMods")
-        end
+        local CoinStats = CoinsSection:AddLabel("Coins Collected: 0")
         
-        if Modules.GunMods and Modules.GunMods.SetNoSpread then
-            Modules.GunMods.SetNoSpread(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "Rapid Fire",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.GunMods then
-            Modules.GunMods = LoadModule("GunMods")
-        end
-        
-        if Modules.GunMods and Modules.GunMods.SetRapidFire then
-            Modules.GunMods.SetRapidFire(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "Instant Reload",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.GunMods then
-            Modules.GunMods = LoadModule("GunMods")
-        end
-        
-        if Modules.GunMods and Modules.GunMods.SetInstantReload then
-            Modules.GunMods.SetInstantReload(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "Infinite Ammo",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.GunMods then
-            Modules.GunMods = LoadModule("GunMods")
-        end
-        
-        if Modules.GunMods and Modules.GunMods.SetInfiniteAmmo then
-            Modules.GunMods.SetInfiniteAmmo(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "Auto Fire",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.GunMods then
-            Modules.GunMods = LoadModule("GunMods")
-        end
-        
-        if Modules.GunMods and Modules.GunMods.SetAutoFire then
-            Modules.GunMods.SetAutoFire(Value)
-        end
-    end
-})
-
--- Aimbot Section
-local AimbotSection = GunModsTab:CreateSection("Aimbot", 2)
-
--- Load Aimbot module when needed
-if not Modules.Aimbot then
-    Modules.Aimbot = LoadModule("Aimbot")
-    if Modules.Aimbot and Modules.Aimbot.Initialize then
-        pcall(function() Modules.Aimbot.Initialize() end)
-    end
-end
-
--- Aimbot toggle
-AimbotSection:AddToggle({
-    Name = "Enable Aimbot",
-    Default = false,
-    Callback = function(Value)
-        if not Modules.Aimbot then
-            Modules.Aimbot = LoadModule("Aimbot")
-        end
-        
-        if Modules.Aimbot and Modules.Aimbot.SetEnabled then
-            Modules.Aimbot.SetEnabled(Value)
-        end
-    end
-})
-
--- Aimbot settings if available
-if Modules.Aimbot and Modules.Aimbot.SetTeamCheck then
-    AimbotSection:AddToggle({
-        Name = "Team Check",
-        Default = true,
-        Callback = function(Value)
-            Modules.Aimbot.SetTeamCheck(Value)
-        end
-    })
-end
-
-if Modules.Aimbot and Modules.Aimbot.SetAimPart then
-    AimbotSection:AddToggle({
-        Name = "Aim At Head",
-        Default = true,
-        Callback = function(Value)
-            Modules.Aimbot.SetAimPart(Value and "Head" or "HumanoidRootPart")
-        end
-    })
-end
-
--- Populate Player Tab
-local MovementSection = PlayerTab:CreateSection("Movement", 1)
-
--- Movement sliders
-local WalkSpeedSlider = MovementSection:AddSlider({
-    Name = "Walk Speed",
-    Min = 16,
-    Max = 250,
-    Default = 16,
-    ValueName = "",
-    Callback = function(Value)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = Value
-        end
-        
-        -- Keep applying speed on respawn
-        _G.SelectedWalkSpeed = Value
-    end
-})
-
-local JumpPowerSlider = MovementSection:AddSlider({
-    Name = "Jump Power",
-    Min = 50,
-    Max = 300,
-    Default = 50,
-    ValueName = "",
-    Callback = function(Value)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.JumpPower = Value
-        end
-        
-        -- Keep applying jump power on respawn
-        _G.SelectedJumpPower = Value
-    end
-})
-
--- Infinite jump toggle
-MovementSection:AddToggle({
-    Name = "Infinite Jump",
-    Default = false,
-    Callback = function(Value)
-        _G.InfiniteJump = Value
-    end
-})
-
--- Connect infinite jump
-UserInputService.JumpRequest:Connect(function()
-    if _G.InfiniteJump and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
--- Fly section
-local FlySection = PlayerTab:CreateSection("Flying", 2)
-
--- Fly toggle
-FlySection:AddToggle({
-    Name = "Enable Fly",
-    Default = false,
-    Callback = function(Value)
-        if Modules.AntiDetect and Modules.AntiDetect.SafeFly then
-            -- Use anti-detect's safe fly
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                Modules.AntiDetect.SafeFly(Value, LocalPlayer.Character.HumanoidRootPart)
+        -- Update coin stats periodically
+        spawn(function()
+            while wait(1) do
+                if Modules.CoinCollector then
+                    local stats = Modules.CoinCollector.GetStats()
+                    CoinStats:SetText("Coins Collected: " .. stats.CoinsCollected)
+                end
             end
-        end
+        end)
+    else
+        local CoinsSection = CoinsTab:AddSection("Coin Collection")
+        CoinsSection:AddLabel("Coin Collector Module failed to load")
     end
-})
-
--- Fly speed slider if fly is available
-FlySection:AddSlider({
-    Name = "Fly Speed",
-    Min = 10,
-    Max = 500,
-    Default = 100,
-    ValueName = "",
-    Callback = function(Value)
-        _G.FlySpeed = Value
-    end
-})
-
--- No clip toggle
-FlySection:AddToggle({
-    Name = "No Clip",
-    Default = false,
-    Callback = function(Value)
-        if Modules.AntiDetect and Modules.AntiDetect.SafeNoclip then
-            Modules.AntiDetect.SafeNoclip(Value)
-        else
-            -- Fallback to basic noclip
-            _G.NoClipEnabled = Value
-            
-            if Value then
-                -- Create noclip loop
-                _G.NoClipLoop = RunService.Stepped:Connect(function()
-                    if LocalPlayer.Character then
-                        for _, child in pairs(LocalPlayer.Character:GetDescendants()) do
-                            if child:IsA("BasePart") and child.CanCollide then
-                                child.CanCollide = false
-                            end
-                        end
-                    end
-                end)
+    
+    -- Murder Tab Content
+    if Modules.MurderDetection then
+        local MurderSection = MurderTab:AddSection("Murder Detection")
+        
+        MurderSection:AddToggle("Murder Detection", false, function(value)
+            Modules.MurderDetection.Settings.Enabled = value
+            if value then
+                Modules.MurderDetection.Start()
             else
-                -- Remove noclip
-                if _G.NoClipLoop then
-                    _G.NoClipLoop:Disconnect()
-                    _G.NoClipLoop = nil
-                end
-                
-                -- Reset collision
-                if LocalPlayer.Character then
-                    for _, child in pairs(LocalPlayer.Character:GetDescendants()) do
-                        if child:IsA("BasePart") then
-                            child.CanCollide = true
-                        end
-                    end
-                end
+                Modules.MurderDetection.Stop()
             end
-        end
-    end
-})
-
--- Populate Misc Tab
-local TeleportSection = MiscTab:CreateSection("Teleport", 1)
-
--- Load Teleport module
-if not Modules.Teleport then
-    Modules.Teleport = LoadModule("Teleport")
-    if Modules.Teleport and Modules.Teleport.Initialize then
-        pcall(function() Modules.Teleport.Initialize() end)
-    end
-end
-
--- Teleport buttons
-TeleportSection:AddButton({
-    Name = "TP to Random Gun",
-    Callback = function()
-        if not Modules.Teleport then
-            Modules.Teleport = LoadModule("Teleport")
-        end
+        end)
         
-        if Modules.Teleport and Modules.Teleport.TeleportToRandomWeapon then
-            Modules.Teleport.TeleportToRandomWeapon()
-        end
-    end
-})
-
-TeleportSection:AddButton({
-    Name = "TP to Nearest Enemy",
-    Callback = function()
-        if not Modules.Teleport then
-            Modules.Teleport = LoadModule("Teleport")
-        end
+        MurderSection:AddToggle("Auto-Kill Murderer", false, function(value)
+            Modules.MurderDetection.Settings.AutoKill = value
+        end)
         
-        if Modules.Teleport and Modules.Teleport.TeleportToNearestEnemy then
-            Modules.Teleport.TeleportToNearestEnemy()
-        end
-    end
-})
-
--- Anti-detect section
-local SecuritySection = MiscTab:CreateSection("Security", 2)
-
--- Toggle anti-detect if module is loaded
-SecuritySection:AddToggle({
-    Name = "Enable Anti-Detection",
-    Default = true,
-    Callback = function(Value)
-        if not Modules.AntiDetect then
-            Modules.AntiDetect = LoadModule("AntiDetect")
-            if Modules.AntiDetect and Modules.AntiDetect.Initialize then
-                pcall(function() Modules.AntiDetect.Initialize() end)
-            end
-        end
+        MurderSection:AddSlider("Warning Distance", 10, 50, 25, function(value)
+            Modules.MurderDetection.Settings.WarningDistance = value
+        end)
         
-        if Modules.AntiDetect then
-            if Modules.AntiDetect.SetEnableDeadRailsBypass then
-                Modules.AntiDetect.SetEnableDeadRailsBypass(Value)
-            end
-            if Modules.AntiDetect.SetEnableRemoteSpyProtection then
-                Modules.AntiDetect.SetEnableRemoteSpyProtection(Value)
-            end
-        end
-    end
-})
-
--- Handle character respawning
-LocalPlayer.CharacterAdded:Connect(function(character)
-    -- Wait for humanoid
-    local humanoid = character:WaitForChild("Humanoid")
-    
-    -- Reapply speed and jump power
-    if _G.SelectedWalkSpeed then
-        humanoid.WalkSpeed = _G.SelectedWalkSpeed
-    end
-    if _G.SelectedJumpPower then
-        humanoid.JumpPower = _G.SelectedJumpPower
-    end
-    
-    -- Re-enable noclip if it was enabled
-    if _G.NoClipEnabled then
-        -- Create noclip loop again
-        _G.NoClipLoop = RunService.Stepped:Connect(function()
-            if character then
-                for _, child in pairs(character:GetDescendants()) do
-                    if child:IsA("BasePart") and child.CanCollide then
-                        child.CanCollide = false
+        MurderSection:AddSlider("Kill Distance", 5, 20, 8, function(value)
+            Modules.MurderDetection.Settings.KillDistance = value
+        end)
+        
+        local MurdererInfo = MurderSection:AddLabel("Murderer: Not Found")
+        
+        -- Update murderer info periodically
+        spawn(function()
+            while wait(1) do
+                if Modules.MurderDetection then
+                    local info = Modules.MurderDetection.GetMurdererInfo()
+                    if info.MurdererFound then
+                        MurdererInfo:SetText("Murderer: " .. info.MurdererName)
+                    else
+                        MurdererInfo:SetText("Murderer: Not Found")
                     end
                 end
             end
         end)
+    else
+        local MurderSection = MurderTab:AddSection("Murder Detection")
+        MurderSection:AddLabel("Murder Detection Module failed to load")
     end
     
-    -- Notify when respawned
-    Notify("SkyX Hub", "Character respawned, re-applied settings", 3)
-end)
-
--- Initialize by selecting main tab
-if #Tabs > 0 then
-    Tabs[1].Button.BackgroundColor3 = Colors.TabActive
-    Tabs[1].Page.Visible = true
-    SelectedTab = Tabs[1]
+    -- Teleport Tab Content
+    if Modules.Teleport then
+        local TeleportSection = TeleportTab:AddSection("Teleport Features")
+        
+        TeleportSection:AddToggle("Safe Mode", true, function(value)
+            Modules.Teleport.Settings.SafeMode = value
+        end)
+        
+        TeleportSection:AddToggle("Anti-Detection", true, function(value)
+            Modules.Teleport.Settings.AntiDetection.Enabled = value
+        end)
+        
+        -- Get list of locations
+        local locations = Modules.Teleport.GetLocationsList()
+        for _, location in ipairs(locations) do
+            TeleportSection:AddButton(location.Icon .. " " .. location.Name, function()
+                local success, message = Modules.Teleport.TeleportToLocation(location.Name)
+                if success then
+                    StatusLabel:SetText("Teleported to " .. location.Name)
+                else
+                    StatusLabel:SetText("Failed to teleport: " .. message)
+                end
+            end)
+        end
+    else
+        local TeleportSection = TeleportTab:AddSection("Teleport Features")
+        TeleportSection:AddLabel("Teleport Module failed to load")
+    end
+    
+    -- Anti-Ban Tab Content
+    if Modules.AntiBan then
+        local AntiBanSection = AntiBanTab:AddSection("Anti-Ban System")
+        
+        AntiBanSection:AddToggle("Anti-Ban System", true, function(value)
+            Modules.AntiBan.Settings.Enabled = value
+            if value then
+                Modules.AntiBan.Start()
+            else
+                Modules.AntiBan.Stop()
+            end
+        end)
+        
+        AntiBanSection:AddToggle("Remove Exploit Detection", true, function(value)
+            Modules.AntiBan.Settings.Flags.ExploitDetectionRemoval = value
+        end)
+        
+        AntiBanSection:AddToggle("Reduce Auto-Punish Risk", true, function(value)
+            Modules.AntiBan.Settings.Flags.ReduceAutoPunishRisk = value
+        end)
+        
+        AntiBanSection:AddToggle("Randomize Actions", true, function(value)
+            Modules.AntiBan.Settings.Flags.RandomizeActions = value
+        end)
+        
+        AntiBanSection:AddToggle("Disable High-Risk Features", false, function(value)
+            Modules.AntiBan.Settings.Flags.DisableHighRiskFeatures = value
+        end)
+        
+        local AntiBanStats = AntiBanSection:AddLabel("Detections Evaded: 0")
+        
+        -- Update anti-ban stats periodically
+        spawn(function()
+            while wait(2) do
+                if Modules.AntiBan then
+                    local status = Modules.AntiBan.GetStatus()
+                    AntiBanStats:SetText("Detections Evaded: " .. status.DetectionsEvaded)
+                end
+            end
+        end)
+    else
+        local AntiBanSection = AntiBanTab:AddSection("Anti-Ban System")
+        AntiBanSection:AddLabel("Anti-Ban Module failed to load")
+    end
+else
+    StatusLabel:SetText("Failed to load modules")
 end
 
--- Bind toggle key (RightControl)
+-- Add keybind for toggling UI (closing and reopening)
+local ToggleKeyCode = Enum.KeyCode.RightControl -- Use Right Control as the toggle key
+
+-- Global variables to track UI state
+_G.SkyXUIVisible = true
+_G.SkyXUIData = {
+    MainPosition = UDim2.new(0.5, -250, 0.5, -175), -- Store position for reopening
+    LastTab = nil -- Store last active tab
+}
+
+-- Function to toggle UI visibility
+local function ToggleUI()
+    if _G.SkyXUIVisible then
+        -- Save current UI state
+        _G.SkyXUIData.MainPosition = MainWindow.Position
+        _G.SkyXUIData.LastTab = SelectedTab and SelectedTab.Name or "Main"
+        
+        -- Hide UI
+        SkyXUI.Enabled = false
+        _G.SkyXUIVisible = false
+        print("SkyX MM2 UI hidden - Press Right Control to show")
+    else
+        -- Show UI
+        SkyXUI.Enabled = true
+        _G.SkyXUIVisible = true
+        
+        -- Restore previous position
+        MainWindow.Position = _G.SkyXUIData.MainPosition
+        
+        -- Restore previous tab
+        if _G.SkyXUIData.LastTab then
+            for _, tab in pairs(Tabs) do
+                if tab.Name == _G.SkyXUIData.LastTab then
+                    -- Simulate click on this tab
+                    tab.Button.BackgroundColor3 = Colors.TabActive
+                    tab.Page.Visible = true
+                    SelectedTab = tab
+                else
+                    tab.Button.BackgroundColor3 = Colors.TabInactive
+                    tab.Page.Visible = false
+                end
+            end
+        end
+        
+        print("SkyX MM2 UI shown")
+    end
+end
+
+-- Add keybind for toggling UI
 AddConnection(UserInputService.InputBegan, function(input, gameProcessed)
-    if input.KeyCode == Enum.KeyCode.RightControl and not gameProcessed then
-        SkyXUI.Enabled = not SkyXUI.Enabled
+    if not gameProcessed and input.KeyCode == ToggleKeyCode then
+        ToggleUI()
     end
 end)
 
--- Final notification
-Notify("SkyX Hub", "Dead Rails loaded successfully! Press RightControl to toggle UI", 5)
+-- Add mobile button for toggling UI (since mobile can't use keyboard)
+if IsMobile then
+    -- Create toggle button container
+    local ToggleButtonGui = Instance.new("ScreenGui")
+    ToggleButtonGui.Name = "SkyXToggleButtonGui"
+    ToggleButtonGui.ResetOnSpawn = false
+    ToggleButtonGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Handle executor security models
+    if syn then
+        syn.protect_gui(ToggleButtonGui)
+        ToggleButtonGui.Parent = game.CoreGui
+    else
+        ToggleButtonGui.Parent = gethui() or game.CoreGui
+    end
+    
+    -- Create toggle button
+    local ToggleButton = Instance.new("ImageButton")
+    ToggleButton.Name = "SkyXToggleButton"
+    ToggleButton.Size = UDim2.new(0, 60, 0, 60) -- Larger for mobile touch
+    ToggleButton.Position = UDim2.new(0, 20, 0.5, -30) -- Right side of screen, middle height
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 80, 130) -- Distinct color
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Image = "rbxassetid://4483345998" -- Use a simple icon
+    ToggleButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.ZIndex = 9999 -- Extremely high to always be on top
+    ToggleButton.Parent = ToggleButtonGui
+    
+    -- Add corner
+    local ToggleButtonCorner = Instance.new("UICorner")
+    ToggleButtonCorner.CornerRadius = UDim.new(1, 0) -- Perfect circle
+    ToggleButtonCorner.Parent = ToggleButton
+    
+    -- Add stroke to make button more visible
+    local ToggleButtonStroke = Instance.new("UIStroke")
+    ToggleButtonStroke.Color = Color3.fromRGB(255, 255, 255)
+    ToggleButtonStroke.Thickness = 2
+    ToggleButtonStroke.Parent = ToggleButton
+    
+    -- Add text label
+    local ToggleButtonText = Instance.new("TextLabel")
+    ToggleButtonText.Name = "Text"
+    ToggleButtonText.Size = UDim2.new(1, 0, 1, 0)
+    ToggleButtonText.BackgroundTransparency = 1
+    ToggleButtonText.Font = Enum.Font.GothamBold
+    ToggleButtonText.TextSize = 18
+    ToggleButtonText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButtonText.Text = "UI"
+    ToggleButtonText.Parent = ToggleButton
+    
+    -- Add shadow
+    local ToggleButtonShadow = Instance.new("ImageLabel")
+    ToggleButtonShadow.Name = "Shadow"
+    ToggleButtonShadow.Size = UDim2.new(1, 10, 1, 10)
+    ToggleButtonShadow.Position = UDim2.new(0, -5, 0, -5)
+    ToggleButtonShadow.BackgroundTransparency = 1
+    ToggleButtonShadow.Image = "rbxassetid://6015897843" -- Shadow image
+    ToggleButtonShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    ToggleButtonShadow.ImageTransparency = 0.6
+    ToggleButtonShadow.ZIndex = 9998 -- Just below the button
+    ToggleButtonShadow.Parent = ToggleButton
+    
+    -- Make button draggable for positioning
+    local draggingToggle = false
+    local dragStartToggle
+    local startPosToggle
+    
+    AddConnection(ToggleButton.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if input.UserInputType == Enum.UserInputType.Touch then
+                -- For touch, use a timer to distinguish between tap and drag
+                local touchStartTime = tick()
+                local initialPos = input.Position
+                
+                local touchEnd
+                touchEnd = input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        touchEnd:Disconnect()
+                        local touchDuration = tick() - touchStartTime
+                        local touchMovement = (input.Position - initialPos).Magnitude
+                        
+                        if touchDuration < 0.3 and touchMovement < 10 then
+                            -- It was a tap, toggle UI
+                            ToggleUI()
+                        end
+                    end
+                end)
+            else
+                -- For mouse, just toggle immediately
+                ToggleUI()
+            end
+            
+            -- Start drag logic
+            draggingToggle = true
+            dragStartToggle = input.Position
+            startPosToggle = ToggleButton.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    draggingToggle = false
+                end
+            end)
+        end
+    end)
+    
+    AddConnection(ToggleButton.InputChanged, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if draggingToggle then
+                local delta = input.Position - dragStartToggle
+                ToggleButton.Position = UDim2.new(
+                    startPosToggle.X.Scale, 
+                    startPosToggle.X.Offset + delta.X, 
+                    startPosToggle.Y.Scale, 
+                    startPosToggle.Y.Offset + delta.Y
+                )
+            end
+        end
+    end)
+    
+    -- UI effect animations
+    local function AnimateButton()
+        while ToggleButton and ToggleButton.Parent do
+            -- Pulse effect when UI is hidden
+            if not _G.SkyXUIVisible then
+                TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    BackgroundColor3 = Color3.fromRGB(60, 120, 180)
+                }):Play()
+                
+                wait(1)
+                
+                TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    BackgroundColor3 = Color3.fromRGB(30, 80, 130)
+                }):Play()
+                
+                wait(1)
+            else
+                -- When UI is visible, just maintain normal appearance
+                ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 80, 130)
+                wait(0.5)
+            end
+        end
+    end
+    
+    -- Start animation in separate thread
+    task.spawn(AnimateButton)
+end
 
--- Return success message
-return "SkyX Dead Rails (MM2-Style) loaded successfully!"
+-- UI cleanup on script end
+game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
+    if State == Enum.TeleportState.Started then
+        for _, connection in pairs(SkyX.Connections) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+        SkyXUI:Destroy()
+    end
+end)
+
+print("SkyX MM2 Modular loaded successfully | Press Right Control to toggle UI")
+return SkyXUI
