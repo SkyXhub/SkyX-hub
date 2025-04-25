@@ -1,443 +1,115 @@
 --[[
-    EzUI Demo Script
+    SkyX UI Library Demo
     
-    A demonstration of the EzUI library capabilities
-    showing various UI components and interactions
+    This demo loads the SkyX UI Library directly from GitHub
+    and shows how to create a basic UI with it.
 ]]
 
--- Load the EzUI library
-local EzUI = require("EzUI")
-
--- Initialize the library with Dark theme
-EzUI:Init({Theme = "Dark"})
-
--- Print a welcome message
-print("Welcome to EzUI Demo!")
-print("This is a console-based demonstration of the EzUI library.")
-print("The library simulates a graphical UI in a console environment.")
-print("---------------------------------------------------------")
-
--- Create a window
-local mainWindow = EzUI:CreateWindow({
-    Title = "EzUI Demo",
-    Width = 600,
-    Height = 400
-})
-
--- Create additional tabs
-local homeTab = mainWindow.Tabs[1] -- Default "Main" tab is renamed to "Home"
-homeTab.Title = "Home"
-
-local featuresTab = mainWindow.CreateTab("Features")
-local settingsTab = mainWindow.CreateTab("Settings")
-local creditsTab = mainWindow.CreateTab("Credits")
-
--- === HOME TAB ===
--- Welcome section
-local welcomeSection = homeTab.CreateSection("Welcome to EzUI")
-
-welcomeSection.CreateLabel({
-    Text = "EzUI Library Demo",
-    TextSize = 18
-})
-
-welcomeSection.CreateLabel({
-    Text = "This is a demonstration of the EzUI library capabilities."
-})
-
-welcomeSection.CreateSeparator()
-
-welcomeSection.CreateLabel({
-    Text = "Navigation:"
-})
-
-welcomeSection.CreateLabel({
-    Text = "• Features - View available components"
-})
-
-welcomeSection.CreateLabel({
-    Text = "• Settings - Configure demo options"
-})
-
-welcomeSection.CreateLabel({
-    Text = "• Credits - View library credits"
-})
-
--- Quick actions section
-local quickActionsSection = homeTab.CreateSection("Quick Actions")
-
-quickActionsSection.CreateButton({
-    Text = "Show Success Notification",
-    Type = "Success",
-    Callback = function()
-        EzUI.Utilities.CreateNotification(
-            "Success",
-            "This is a success notification example",
-            {Type = "Success"}
-        )
-    end
-})
-
-quickActionsSection.CreateButton({
-    Text = "Show Error Notification",
-    Type = "Danger",
-    Callback = function()
-        EzUI.Utilities.CreateNotification(
-            "Error",
-            "This is an error notification example",
-            {Type = "Error"}
-        )
-    end
-})
-
-quickActionsSection.CreateButton({
-    Text = "Show Warning Notification",
-    Type = "Warning",
-    Callback = function()
-        EzUI.Utilities.CreateNotification(
-            "Warning",
-            "This is a warning notification example",
-            {Type = "Warning"}
-        )
-    end
-})
-
--- === FEATURES TAB ===
--- Buttons section
-local buttonsSection = featuresTab.CreateSection("Buttons")
-
-buttonsSection.CreateLabel({
-    Text = "Different button types:"
-})
-
-buttonsSection.CreateButton({
-    Text = "Default Button",
-    Callback = function()
-        print("Default button clicked")
-    end
-})
-
-buttonsSection.CreateButton({
-    Text = "Primary Button",
-    Type = "Primary",
-    Callback = function()
-        print("Primary button clicked")
-    end
-})
-
-buttonsSection.CreateButton({
-    Text = "Success Button",
-    Type = "Success",
-    Callback = function()
-        print("Success button clicked")
-    end
-})
-
-buttonsSection.CreateButton({
-    Text = "Danger Button",
-    Type = "Danger",
-    Callback = function()
-        print("Danger button clicked")
-    end
-})
-
-buttonsSection.CreateButton({
-    Text = "Warning Button",
-    Type = "Warning",
-    Callback = function()
-        print("Warning button clicked")
-    end
-})
-
--- Toggles section
-local togglesSection = featuresTab.CreateSection("Toggles")
-
-local toggle1 = togglesSection.CreateToggle({
-    Text = "Basic Toggle",
-    Default = false,
-    Callback = function(enabled)
-        print("Basic toggle: " .. (enabled and "ON" or "OFF"))
-    end
-})
-
-local toggle2 = togglesSection.CreateToggle({
-    Text = "Default ON Toggle",
-    Default = true,
-    Callback = function(enabled)
-        print("Default ON toggle: " .. (enabled and "ON" or "OFF"))
-    end
-})
-
-togglesSection.CreateButton({
-    Text = "Toggle Both",
-    Callback = function()
-        toggle1.Toggle()
-        toggle2.Toggle()
-        print("Toggled both toggles")
-    end
-})
-
--- Sliders section
-local slidersSection = featuresTab.CreateSection("Sliders")
-
-local slider1 = slidersSection.CreateSlider({
-    Text = "Basic Slider",
-    Min = 0,
-    Max = 100,
-    Default = 50,
-    Callback = function(value)
-        print("Basic slider value: " .. value)
-    end
-})
-
-slidersSection.CreateSlider({
-    Text = "Step Slider",
-    Min = 0,
-    Max = 100,
-    Default = 25,
-    Step = 5,
-    Callback = function(value)
-        print("Step slider value: " .. value)
-    end
-})
-
-slidersSection.CreateSlider({
-    Text = "Decimal Slider",
-    Min = 0,
-    Max = 1,
-    Default = 0.5,
-    Step = 0.1,
-    Decimals = 1,
-    Suffix = "x",
-    Callback = function(value)
-        print("Decimal slider value: " .. value)
-    end
-})
-
--- Dropdowns section
-local dropdownsSection = featuresTab.CreateSection("Dropdowns")
-
-local dropdown1 = dropdownsSection.CreateDropdown({
-    Text = "Basic Dropdown",
-    Items = {"Option 1", "Option 2", "Option 3"},
-    Default = "Option 1",
-    Callback = function(item)
-        print("Selected: " .. item)
-    end
-})
-
-local dropdown2 = dropdownsSection.CreateDropdown({
-    Text = "Color Theme",
-    Items = {"Red", "Green", "Blue", "Yellow", "Purple"},
-    Default = "Blue",
-    Callback = function(item)
-        print("Selected color: " .. item)
-        
-        -- Create a notification with the selected color
-        EzUI.Utilities.CreateNotification(
-            "Color Selected",
-            "You selected the color: " .. item,
-            {Type = "Info"}
-        )
-    end
-})
-
--- Input fields section
-local inputSection = featuresTab.CreateSection("Input Fields")
-
-local textInput1 = inputSection.CreateTextBox({
-    Text = "Basic Input",
-    Placeholder = "Type something...",
-    Default = "",
-    Callback = function(text)
-        print("Input text: " .. text)
-    end
-})
-
-local textInput2 = inputSection.CreateTextBox({
-    Text = "Validated Input",
-    Placeholder = "Enter at least 3 characters...",
-    Default = "",
-    ValidateFunc = function(text)
-        return #text >= 3, "Text must be at least 3 characters"
-    end,
-    Callback = function(text)
-        print("Valid input: " .. text)
-    end
-})
-
-inputSection.CreateButton({
-    Text = "Submit Inputs",
-    Type = "Primary",
-    Callback = function()
-        local text1 = textInput1.GetText()
-        local text2 = textInput2.GetText()
-        
-        EzUI.Utilities.CreateNotification(
-            "Inputs Submitted",
-            "Text 1: " .. text1 .. "\nText 2: " .. text2,
-            {Type = "Success"}
-        )
-    end
-})
-
--- === SETTINGS TAB ===
-local generalSettingsSection = settingsTab.CreateSection("General Settings")
-
-local themeDropdown = generalSettingsSection.CreateDropdown({
-    Text = "Theme",
-    Items = {"Default", "Dark", "Light"},
-    Default = "Dark",
-    Callback = function(theme)
-        EzUI.ActiveTheme = EzUI.Themes[theme]
-        
-        EzUI.Utilities.CreateNotification(
-            "Theme Changed",
-            "The UI theme has been changed to: " .. theme,
-            {Type = "Info"}
-        )
-    end
-})
-
-local enableLoggingToggle = generalSettingsSection.CreateToggle({
-    Text = "Enable Logging",
-    Default = true,
-    Callback = function(enabled)
-        print("Logging " .. (enabled and "enabled" or "disabled"))
-    end
-})
-
-local verboseLoggingToggle = generalSettingsSection.CreateToggle({
-    Text = "Verbose Logging",
-    Default = false,
-    Callback = function(enabled)
-        print("Verbose logging " .. (enabled and "enabled" or "disabled"))
-    end
-})
-
-local performanceSection = settingsTab.CreateSection("Performance Settings")
-
-local renderDistanceSlider = performanceSection.CreateSlider({
-    Text = "Render Distance",
-    Min = 1,
-    Max = 10,
-    Default = 5,
-    Step = 1,
-    Callback = function(value)
-        print("Render distance set to: " .. value)
-    end
-})
-
-local fpsLimitSlider = performanceSection.CreateSlider({
-    Text = "FPS Limit",
-    Min = 30,
-    Max = 240,
-    Default = 60,
-    Step = 10,
-    Callback = function(value)
-        print("FPS limit set to: " .. value)
-    end
-})
-
-local resetButton = settingsTab.CreateButton({
-    Text = "Reset All Settings",
-    Type = "Danger",
-    Callback = function()
-        -- Reset all settings to default
-        themeDropdown.SetSelectedItem("Dark")
-        enableLoggingToggle.SetEnabled(true)
-        verboseLoggingToggle.SetEnabled(false)
-        renderDistanceSlider.SetValue(5)
-        fpsLimitSlider.SetValue(60)
-        
-        EzUI.Utilities.CreateNotification(
-            "Settings Reset",
-            "All settings have been reset to default values",
-            {Type = "Warning"}
-        )
-    end
-})
-
--- === CREDITS TAB ===
-local creditsInfoSection = creditsTab.CreateSection("Library Information")
-
-creditsInfoSection.CreateLabel({
-    Text = "EzUI Library"
-})
-
-creditsInfoSection.CreateLabel({
-    Text = "Version: 1.0.0"
-})
-
-creditsInfoSection.CreateLabel({
-    Text = "Created by: EzUI Developer"
-})
-
-creditsInfoSection.CreateSeparator()
-
-creditsInfoSection.CreateLabel({
-    Text = "Description:"
-})
-
-creditsInfoSection.CreateLabel({
-    Text = "A modular UI library for Lua scripts that makes"
-})
-
-creditsInfoSection.CreateLabel({
-    Text = "it easy to create forms and interactive interfaces."
-})
-
-creditsInfoSection.CreateSeparator()
-
-creditsInfoSection.CreateLabel({
-    Text = "Features:"
-})
-
-local features = {
-    "Modular component system",
-    "Multiple themes",
-    "Easy form creation",
-    "Lightweight and performant",
-    "Customizable UI elements",
-    "Event-driven architecture"
-}
-
-for _, feature in ipairs(features) do
-    creditsInfoSection.CreateLabel({
-        Text = "• " .. feature
-    })
-end
-
-local specialThanksSection = creditsTab.CreateSection("Special Thanks")
-
-specialThanksSection.CreateLabel({
-    Text = "Thanks to all contributors and users!"
-})
-
--- Run the UI to display a text representation
-print("\nSimulated UI structure:")
-EzUI:Run()
-
--- Interact with some components to demo functionality
-print("\nDemo interactions:")
-
--- Click some buttons
-homeTab.Components[2].Components[1].Click() -- Success notification button
-
--- Toggle a toggle
-local toggleState = featuresTab.Components[2].Components[1].Toggle()
-print("Toggle is now: " .. (toggleState and "ON" or "OFF"))
-
--- Change a dropdown value
-featuresTab.Components[4].Components[2].SetSelectedItem("Green")
-
--- Submit a value to an input field
-featuresTab.Components[5].Components[1].SetText("Hello, EzUI!")
-
--- Create a goodbye notification
-print("\nEnd of demo")
-EzUI.Utilities.CreateNotification(
-    "Demo Complete",
-    "Thank you for trying the EzUI library demo!",
-    {Type = "Success", Duration = 10}
-)
+-- Load the library directly from GitHub
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua"))()
+
+-- Create the Window
+local Window = Library:CreateWindow("SkyX Demo UI", "", "Information", "rbxassetid://10618928818", false, "SkeetKey", "KeyBind")
+
+-- Create Tabs
+local HomeTab = Window:CreateTab("Home", "rbxassetid://8825051254")
+local PlayerTab = Window:CreateTab("Player", "rbxassetid://11904757361")
+local VisualsTab = Window:CreateTab("Visuals", "rbxassetid://13982380101")
+local MiscTab = Window:CreateTab("Misc", "rbxassetid://13982352173")
+local SettingsTab = Window:CreateTab("Settings", "rbxassetid://11746831823")
+
+-- Home Tab
+local WelcomeSection = HomeTab:CreateSection("Welcome")
+
+-- Add a label
+WelcomeSection:CreateLabel("Welcome to SkyX UI Library")
+
+-- Add a button
+WelcomeSection:CreateButton("Click Me", function()
+    Library:Notification("Notification", "Button Clicked!", "OK")
+end)
+
+-- Add a toggle
+local MyToggle = WelcomeSection:CreateToggle("Example Toggle", false, function(Value)
+    print("Toggle value:", Value)
+end)
+
+-- Player Tab
+local MovementSection = PlayerTab:CreateSection("Movement")
+
+-- Add a slider
+MovementSection:CreateSlider("Walk Speed", 16, 500, 16, 1, function(Value)
+    print("Walk Speed set to:", Value)
+end)
+
+-- Add dropdowns
+MovementSection:CreateDropdown("Teleport Location", {"Spawn", "Shop", "Volcano", "Desert"}, function(Option)
+    print("Teleporting to:", Option)
+end)
+
+-- Visuals Tab
+local ESPSection = VisualsTab:CreateSection("ESP Settings")
+
+-- Add a colorpicker
+ESPSection:CreateColorpicker("ESP Color", Color3.fromRGB(255, 255, 255), function(Color)
+    print("ESP Color set to:", Color)
+end)
+
+-- Add multiple toggles
+ESPSection:CreateToggle("Box ESP", false, function(Value)
+    print("Box ESP:", Value)
+end)
+
+ESPSection:CreateToggle("Name ESP", false, function(Value)
+    print("Name ESP:", Value)
+end)
+
+ESPSection:CreateToggle("Health ESP", false, function(Value)
+    print("Health ESP:", Value)
+end)
+
+-- Misc Tab  
+local MiscSection = MiscTab:CreateSection("Miscellaneous")
+
+-- Add a keybind
+MiscSection:CreateKeybind("Fly", "F", function()
+    print("Fly keybind pressed")
+end)
+
+-- Add a textbox
+MiscSection:CreateTextbox("Chat Message", "Type here...", function(Text)
+    print("Chat message:", Text)
+end)
+
+-- Settings Tab
+local ConfigSection = SettingsTab:CreateSection("Configuration")
+
+-- Add configuration options
+ConfigSection:CreateTextbox("Config Name", "Default", function(Text)
+    print("Config name set to:", Text)
+end)
+
+ConfigSection:CreateButton("Save Config", function()
+    print("Config saved")
+    Library:Notification("Configuration", "Config Saved Successfully!", "OK")
+end)
+
+ConfigSection:CreateButton("Load Config", function()
+    print("Config loaded")
+    Library:Notification("Configuration", "Config Loaded Successfully!", "OK")
+end)
+
+-- UI Settings section
+local UISection = SettingsTab:CreateSection("UI Settings")
+
+UISection:CreateToggle("UI Toggle Keybind", true, function(Value)
+    print("UI Toggle Keybind:", Value)
+end)
+
+UISection:CreateButton("Destroy GUI", function()
+    Library:Notification("UI", "Destroying GUI...", "OK")
+    -- In a real script, this would destroy the UI
+end)
+
+-- Show notification that UI loaded successfully
+Library:Notification("SkyX UI", "SkyX UI Library has been loaded!", "OK")
