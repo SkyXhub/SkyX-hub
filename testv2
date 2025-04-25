@@ -1,6 +1,6 @@
 --[[
     SkyX Blox Fruits Script
-    Mobile-friendly with MM2-stylmjm mm m m m m mm e fallback modules
+    Mobile-friendly with MM2-style fallback modules
     Works on: KRNL, Swift, Fluxus, Delta and other mobile executors
 ]]
 
@@ -1087,4 +1087,145 @@ else
     TPSection:AddLabel("⚠️ Teleport module failed to load")
 end
 
-print("SkyX Blox Fruits Mobile UI has been loaded successfully!")
+-- Add toggle functionality for closing/opening UI
+-- Global variables to track UI state
+_G.SkyXUIVisible = true
+_G.SkyXUIData = {
+    MainPosition = UDim2.new(0.5, -250, 0.5, -175), -- Store position for reopening
+    LastTab = nil -- Store last active tab
+}
+
+-- Function to toggle UI visibility
+local function ToggleUI()
+    if _G.SkyXUIVisible then
+        -- Save current UI state
+        _G.SkyXUIData.MainPosition = MainWindow.Position
+        _G.SkyXUIData.LastTab = SelectedTab and SelectedTab.Name or "Main"
+        
+        -- Hide UI
+        SkyXUI.Enabled = false
+        _G.SkyXUIVisible = false
+        print("SkyX Blox Fruits UI hidden - Press Right Control to show")
+    else
+        -- Show UI
+        SkyXUI.Enabled = true
+        _G.SkyXUIVisible = true
+        
+        -- Restore previous position
+        MainWindow.Position = _G.SkyXUIData.MainPosition
+        
+        -- Restore previous tab
+        if _G.SkyXUIData.LastTab then
+            for _, tab in pairs(Tabs) do
+                if tab.Name == _G.SkyXUIData.LastTab then
+                    -- Simulate click on this tab
+                    tab.Button.BackgroundColor3 = Colors.TabActive
+                    tab.Page.Visible = true
+                    SelectedTab = tab
+                else
+                    tab.Button.BackgroundColor3 = Colors.TabInactive
+                    tab.Page.Visible = false
+                end
+            end
+        end
+        
+        print("SkyX Blox Fruits UI shown")
+    end
+end
+
+-- Add keybind for toggling UI (Right Control key)
+local ToggleKeyCode = Enum.KeyCode.RightControl
+AddConnection(UserInputService.InputBegan, function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == ToggleKeyCode then
+        ToggleUI()
+    end
+end)
+
+-- For mobile users: Add a toggle button
+if IsMobile then
+    -- Create toggle button container
+    local ToggleButtonGui = Instance.new("ScreenGui")
+    ToggleButtonGui.Name = "SkyXToggleButtonGui"
+    ToggleButtonGui.ResetOnSpawn = false
+    ToggleButtonGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Handle executor security models
+    if syn then
+        syn.protect_gui(ToggleButtonGui)
+        ToggleButtonGui.Parent = game.CoreGui
+    else
+        ToggleButtonGui.Parent = gethui and gethui() or game.CoreGui
+    end
+    
+    -- Create toggle button
+    local ToggleButton = Instance.new("ImageButton")
+    ToggleButton.Name = "SkyXToggleButton"
+    ToggleButton.Size = UDim2.new(0, 60, 0, 60) -- Larger for mobile touch
+    ToggleButton.Position = UDim2.new(0, 20, 0.5, -30) -- Right side of screen, middle height
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 80, 130) -- Distinct color
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Image = "rbxassetid://4483345998" -- Use a simple icon
+    ToggleButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.ZIndex = 9999 -- Extremely high to always be on top
+    ToggleButton.Parent = ToggleButtonGui
+    
+    -- Add corner
+    local ToggleButtonCorner = Instance.new("UICorner")
+    ToggleButtonCorner.CornerRadius = UDim.new(1, 0) -- Perfect circle
+    ToggleButtonCorner.Parent = ToggleButton
+    
+    -- Add stroke to make button more visible
+    local ToggleButtonStroke = Instance.new("UIStroke")
+    ToggleButtonStroke.Color = Color3.fromRGB(255, 255, 255)
+    ToggleButtonStroke.Thickness = 2
+    ToggleButtonStroke.Parent = ToggleButton
+    
+    -- Add text label
+    local ToggleButtonText = Instance.new("TextLabel")
+    ToggleButtonText.Name = "Text"
+    ToggleButtonText.Size = UDim2.new(1, 0, 1, 0)
+    ToggleButtonText.BackgroundTransparency = 1
+    ToggleButtonText.Font = Enum.Font.GothamBold
+    ToggleButtonText.TextSize = 18
+    ToggleButtonText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButtonText.Text = "UI"
+    ToggleButtonText.Parent = ToggleButton
+    
+    -- Add click functionality
+    AddConnection(ToggleButton.MouseButton1Click, function()
+        ToggleUI()
+    end)
+    
+    -- Make button draggable
+    local draggingToggle = false
+    local dragStartToggle
+    local startPosToggle
+    
+    AddConnection(ToggleButton.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingToggle = true
+            dragStartToggle = input.Position
+            startPosToggle = ToggleButton.Position
+        end
+    end)
+    
+    AddConnection(ToggleButton.InputChanged, function(input)
+        if draggingToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStartToggle
+            ToggleButton.Position = UDim2.new(
+                startPosToggle.X.Scale, 
+                startPosToggle.X.Offset + delta.X, 
+                startPosToggle.Y.Scale, 
+                startPosToggle.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    AddConnection(ToggleButton.InputEnded, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingToggle = false
+        end
+    end)
+end
+
+print("SkyX Blox Fruits Mobile UI has been loaded successfully! Press Right Control to toggle UI")
