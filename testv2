@@ -1,5 +1,5 @@
 --[[
-🌊 SkyX MM2 Advansssced Script 🌊
+🌊 SkyX MM2 Advanced Script 🌊njjj
 Modular version with direct UI from SkyX_MM2_Direct
 Enhanced for mobile compatibility with advanced features
 
@@ -95,15 +95,19 @@ local SkyX = {}
 SkyX.Elements = {}
 SkyX.Connections = {}
 
--- Core colors - mobile-friendly theme
+-- Core colors - modern theme with gradients
 local Colors = {
-    Background = Color3.fromRGB(22, 35, 55),
-    Container = Color3.fromRGB(28, 44, 68),
-    Button = Color3.fromRGB(42, 95, 145),
-    Text = Color3.fromRGB(255, 255, 255),
-    Border = Color3.fromRGB(60, 110, 165),
-    TabActive = Color3.fromRGB(42, 95, 145),
-    TabInactive = Color3.fromRGB(32, 65, 105)
+    Background = Color3.fromRGB(25, 25, 35), -- Darker background
+    Container = Color3.fromRGB(30, 30, 45),  -- Slightly lighter container
+    Button = Color3.fromRGB(90, 120, 240),   -- Modern blue for buttons
+    Text = Color3.fromRGB(255, 255, 255),    -- White text
+    Border = Color3.fromRGB(100, 130, 255),  -- Lighter blue border
+    TabActive = Color3.fromRGB(90, 120, 240),-- Match button color
+    TabInactive = Color3.fromRGB(50, 50, 70),-- Darker for inactive
+    Success = Color3.fromRGB(70, 200, 120),  -- Green for success/enabled
+    Danger = Color3.fromRGB(240, 70, 90),    -- Red for danger/disabled
+    Warning = Color3.fromRGB(240, 180, 60),  -- Yellow for warnings
+    Highlight = Color3.fromRGB(140, 160, 255) -- Light purple highlight
 }
 
 -- Basic icon mapping - direct asset IDs, no external loading
@@ -156,7 +160,7 @@ local function MakeDraggable(frame)
     end)
 end
 
--- Create main window
+-- Create main window with modern styling
 local MainWindow = Instance.new("Frame")
 MainWindow.Name = "MainWindow"
 MainWindow.Size = UDim2.new(0, 500, 0, 350)
@@ -168,10 +172,36 @@ MainWindow.Parent = SkyXUI
 
 -- Add corner
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 8)
+MainCorner.CornerRadius = UDim.new(0, 10) -- Slightly more rounded corners
 MainCorner.Parent = MainWindow
 
--- Create window title bar
+-- Add shadow effect
+local MainShadow = Instance.new("ImageLabel")
+MainShadow.Name = "Shadow"
+MainShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+MainShadow.Size = UDim2.new(1, 30, 1, 30)
+MainShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainShadow.BackgroundTransparency = 1
+MainShadow.Image = "rbxassetid://6015897843" -- Shadow image
+MainShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+MainShadow.ImageTransparency = 0.6
+MainShadow.ZIndex = 0 -- Behind the main window
+MainShadow.Parent = MainWindow
+
+-- Add background gradient
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Colors.Background),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(
+        Colors.Background.R * 0.8,
+        Colors.Background.G * 0.8,
+        Colors.Background.B * 0.8
+    ))
+})
+MainGradient.Rotation = 45
+MainGradient.Parent = MainWindow
+
+-- Create window title bar with gradient
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
@@ -179,19 +209,45 @@ TitleBar.BackgroundColor3 = Colors.Button
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainWindow
 
+-- Add gradient to title bar
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Colors.Button),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(
+        Colors.Button.R * 0.8,
+        Colors.Button.G * 0.8,
+        Colors.Button.B * 0.8
+    ))
+})
+TitleGradient.Rotation = 90
+TitleGradient.Parent = TitleBar
+
 -- Add corner to title bar
 local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 8)
+TitleCorner.CornerRadius = UDim.new(0, 10) -- Match main window corners
 TitleCorner.Parent = TitleBar
 
 -- Fix corners
 local CornerFix = Instance.new("Frame")
 CornerFix.Name = "CornerFix"
-CornerFix.Size = UDim2.new(1, 0, 0, 10)
-CornerFix.Position = UDim2.new(0, 0, 1, -10)
+CornerFix.Size = UDim2.new(1, 0, 0, 15) -- Slightly larger
+CornerFix.Position = UDim2.new(0, 0, 1, -15)
 CornerFix.BackgroundColor3 = Colors.Button
 CornerFix.BorderSizePixel = 0
 CornerFix.Parent = TitleBar
+
+-- Add gradient to corner fix
+local CornerFixGradient = Instance.new("UIGradient")
+CornerFixGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Colors.Button),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(
+        Colors.Button.R * 0.8,
+        Colors.Button.G * 0.8,
+        Colors.Button.B * 0.8
+    ))
+})
+CornerFixGradient.Rotation = 90
+CornerFixGradient.Parent = CornerFix
 
 -- Add title text
 local TitleText = Instance.new("TextLabel")
