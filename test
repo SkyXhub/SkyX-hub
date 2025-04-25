@@ -1,57 +1,52 @@
 --[[
-🌊 SkyX Hub - Dead Rails 🌊
-Lightweight loader with Orion UI
+🌊 SkyX Dead Rails Advanced Script 🌊
+Modular version with direct UI from SkyX_MM2_Direct_Modularddddddddd
+Enhanced for mobile compatibility with advanced features
+
+Features:
+- Enhanced ESP System with Custom Colors and Distance Display
+- Advanced Auto Bone Farm & Round Completion
+- Military-Grade Anti-Ban System
+- Speed & Jump Boost Sliders 
+- One-Click Teleports with Anti-Detection 
+- Advanced Performance Optimization
+- Advanced Gun Modifications
+- Military-Grade Anti-Detection System
 ]]
 
--- Game check
-if game.PlaceId ~= 6729832410 and game.PlaceId ~= 12355337193 then
-    warn("This script is only for Dead Rails. Please execute in Dead Rails.")
-    return
-end
+-- This script loads modules from GitHub but keeps the original UI style
 
 -- Core services
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local UserInputService = game:GetService("UserInputService")
-
--- Device detection
-local IsMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
-local DeviceText = IsMobile and "Mobile" or "PC"
-
-print("SkyX Dead Rails - Starting on " .. DeviceText .. " device")
-
--- Prevent multiple execution
-if _G.SkyXDeadRailsLoaded then
-    warn("SkyX Dead Rails is already running!")
-    return
-end
-_G.SkyXDeadRailsLoaded = true
-
--- Send notification function
-local function Notify(title, text, duration)
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = title or "SkyX Hub",
-        Text = text or "Script is running!",
-        Duration = duration or 5
-    })
-end
-
-Notify("SkyX Hub", "Loading Dead Rails...", 3)
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 
 -- GitHub Module URLs
 local ModuleURLs = {
-    ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_esp.lua",
+     ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_esp.lua",
     GunMods = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_gunmods.lua",
     Aimbot = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_aimbot.lua",
-    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_teleport%20(1).lua",
+    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/deadrails_teleport%20(1).lua",
     AntiDetect = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_antidetect.lua",
     AutoFarm = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/main/deadrails_autofarm.lua"
 }
 
 -- Loaded modules
-local Modules = {}
+local Modules = {
+    ESP = nil,
+    GunMods = nil,
+    Aimbot = nil,
+    Teleport = nil,
+    AntiDetect = nil,
+    AutoFarm = nil
+}
 
--- Load a module from URL with error handling
+-- Load a module from URL
 local function LoadModule(moduleName)
     local url = ModuleURLs[moduleName]
     if not url then
@@ -67,397 +62,1292 @@ local function LoadModule(moduleName)
         print("✅ Successfully loaded: " .. moduleName)
         return result
     else
-        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. tostring(result))
-        
-        -- Return dummy module to prevent nil errors
-        return {
-            Initialize = function() return true end,
-            Stop = function() end,
-            SetEnabled = function(value) end
-        }
+        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. result)
+        return nil
     end
 end
 
--- Load Orion UI
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
-if not OrionLib then
-    warn("Failed to load Orion Library!")
-    return
+-- Device detection
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+local DeviceText = IsMobile and "Mobile" or "PC"
+
+print("SkyX Dead Rails - Starting on " .. DeviceText .. " device")
+
+-- Create main UI container
+local SkyXUI = Instance.new("ScreenGui")
+SkyXUI.Name = "SkyXUI"
+
+-- Handle different executor security models
+if syn then
+    syn.protect_gui(SkyXUI)
+    SkyXUI.Parent = game.CoreGui
+else
+    SkyXUI.Parent = gethui() or game.CoreGui
 end
 
--- Create main window with optimized settings
-local Window = OrionLib:MakeWindow({
-    Name = "SkyX Hub - Dead Rails", 
-    HidePremium = true, 
-    SaveConfig = false, 
-    ConfigFolder = "SkyXDeadRails",
-    IntroEnabled = false, -- Disable intro for faster loading
-    Icon = "rbxassetid://10723415903"
-})
-
-Notify("SkyX Hub", "Loading modules...", 3)
-
--- Start loading and initializing modules
-Modules.AntiDetect = LoadModule("AntiDetect")
-if Modules.AntiDetect and Modules.AntiDetect.Initialize then 
-    pcall(function() Modules.AntiDetect.Initialize() end)
+-- Remove existing UIs with the same name
+for _, Interface in pairs(game.CoreGui:GetChildren()) do
+    if Interface.Name == SkyXUI.Name and Interface ~= SkyXUI then
+        Interface:Destroy()
+    end
 end
 
-Modules.ESP = LoadModule("ESP")
-if Modules.ESP and Modules.ESP.Initialize then 
-    pcall(function() Modules.ESP.Initialize() end)
+-- Basic UI library
+local SkyX = {}
+SkyX.Elements = {}
+SkyX.Connections = {}
+
+-- Core colors - modern theme with gradients
+local Colors = {
+    Background = Color3.fromRGB(25, 25, 35), -- Darker background
+    Container = Color3.fromRGB(30, 30, 45),  -- Slightly lighter container
+    Button = Color3.fromRGB(90, 120, 240),   -- Modern blue for buttons
+    Text = Color3.fromRGB(255, 255, 255),    -- White text
+    Border = Color3.fromRGB(100, 130, 255),  -- Lighter blue border
+    TabActive = Color3.fromRGB(90, 120, 240),-- Match button color
+    TabInactive = Color3.fromRGB(50, 50, 70),-- Darker for inactive
+    Success = Color3.fromRGB(70, 200, 120),  -- Green for success/enabled
+    Danger = Color3.fromRGB(240, 70, 90),    -- Red for danger/disabled
+    Warning = Color3.fromRGB(240, 180, 60),  -- Yellow for warnings
+    Highlight = Color3.fromRGB(140, 160, 255) -- Light purple highlight
+}
+
+-- Basic icon mapping - direct asset IDs, no external loading
+local Icons = {
+    close = "rbxassetid://7743875629",
+    minimize = "rbxassetid://10664064072"
+}
+
+-- Helper functions
+local function AddConnection(signal, callback)
+    local connection = signal:Connect(callback)
+    table.insert(SkyX.Connections, connection)
+    return connection
 end
 
-Modules.GunMods = LoadModule("GunMods")
-if Modules.GunMods and Modules.GunMods.Initialize then 
-    pcall(function() Modules.GunMods.Initialize() end)
-end
-
-Modules.Aimbot = LoadModule("Aimbot")
-if Modules.Aimbot and Modules.Aimbot.Initialize then 
-    pcall(function() Modules.Aimbot.Initialize() end)
-end
-
-Modules.Teleport = LoadModule("Teleport")
-if Modules.Teleport and Modules.Teleport.Initialize then 
-    pcall(function() Modules.Teleport.Initialize() end)
-end
-
-Modules.AutoFarm = LoadModule("AutoFarm")
-if Modules.AutoFarm and Modules.AutoFarm.Initialize then 
-    pcall(function() Modules.AutoFarm.Initialize() end)
-end
-
--- Create Main Tab
-local MainTab = Window:MakeTab({
-    Name = "Main",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Create a main features section
-local MainSection = MainTab:AddSection({
-    Name = "Main Features"
-})
-
--- Add unlock guns button
-MainSection:AddButton({
-    Name = "Unlock All Guns",
-    Callback = function()
-        if Modules.GunMods and Modules.GunMods.UnlockAllGuns then
-            local success = Modules.GunMods.UnlockAllGuns()
-            Notify("SkyX Hub", success and "All guns unlocked!" or "Failed to unlock guns", 3)
-        end
-    end
-})
-
--- Add max ammo button
-MainSection:AddButton({
-    Name = "Max Ammo (Current Weapon)",
-    Callback = function()
-        if Modules.GunMods and Modules.GunMods.MaxAmmoCurrentWeapon then
-            local success = Modules.GunMods.MaxAmmoCurrentWeapon()
-            Notify("SkyX Hub", success and "Ammo maximized!" or "No weapon equipped", 3)
-        end
-    end
-})
-
--- Auto Farm Section
-local AutoFarmSection = MainTab:AddSection({
-    Name = "Auto Farm"
-})
-
--- Auto round end toggle
-AutoFarmSection:AddToggle({
-    Name = "Auto Round End",
-    Default = false,
-    Callback = function(Value)
-        if Modules.AutoFarm and Modules.AutoFarm.SetAutoEnd then
-            Modules.AutoFarm.SetAutoEnd(Value)
-        end
-    end
-})
-
--- Auto bone farm toggle
-AutoFarmSection:AddToggle({
-    Name = "Auto Bone Farm",
-    Default = false,
-    Callback = function(Value)
-        if Modules.AutoFarm and Modules.AutoFarm.SetAutoBone then
-            Modules.AutoFarm.SetAutoBone(Value)
-        end
-    end
-})
-
--- Create Visuals Tab
-local VisualsTab = Window:MakeTab({
-    Name = "Visuals",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- ESP section
-local ESPSection = VisualsTab:AddSection({
-    Name = "ESP"
-})
-
--- Toggle ESP
-ESPSection:AddToggle({
-    Name = "Enable ESP",
-    Default = false,
-    Callback = function(Value)
-        if Modules.ESP and Modules.ESP.SetEnabled then
-            Modules.ESP.SetEnabled(Value)
-        end
-    end
-})
-
--- ESP Settings
-ESPSection:AddToggle({
-    Name = "Show Names",
-    Default = true,
-    Callback = function(Value)
-        if Modules.ESP and Modules.ESP.SetShowNames then
-            Modules.ESP.SetShowNames(Value)
-        end
-    end
-})
-
-ESPSection:AddToggle({
-    Name = "Show Distance",
-    Default = true,
-    Callback = function(Value)
-        if Modules.ESP and Modules.ESP.SetShowDistance then
-            Modules.ESP.SetShowDistance(Value)
-        end
-    end
-})
-
-ESPSection:AddToggle({
-    Name = "Team Check",
-    Default = true,
-    Callback = function(Value)
-        if Modules.ESP and Modules.ESP.SetTeamCheck then
-            Modules.ESP.SetTeamCheck(Value)
-        end
-    end
-})
-
--- Create Gun Mods Tab
-local GunModsTab = Window:MakeTab({
-    Name = "Gun Mods",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Gun Mods Section
-local GunModsSection = GunModsTab:AddSection({
-    Name = "Weapon Modifications"
-})
-
--- Gun mod toggles
-GunModsSection:AddToggle({
-    Name = "No Recoil",
-    Default = false,
-    Callback = function(Value)
-        if Modules.GunMods and Modules.GunMods.SetNoRecoil then
-            Modules.GunMods.SetNoRecoil(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "No Spread",
-    Default = false,
-    Callback = function(Value)
-        if Modules.GunMods and Modules.GunMods.SetNoSpread then
-            Modules.GunMods.SetNoSpread(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "Rapid Fire",
-    Default = false,
-    Callback = function(Value)
-        if Modules.GunMods and Modules.GunMods.SetRapidFire then
-            Modules.GunMods.SetRapidFire(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "Instant Reload",
-    Default = false,
-    Callback = function(Value)
-        if Modules.GunMods and Modules.GunMods.SetInstantReload then
-            Modules.GunMods.SetInstantReload(Value)
-        end
-    end
-})
-
-GunModsSection:AddToggle({
-    Name = "Infinite Ammo",
-    Default = false,
-    Callback = function(Value)
-        if Modules.GunMods and Modules.GunMods.SetInfiniteAmmo then
-            Modules.GunMods.SetInfiniteAmmo(Value)
-        end
-    end
-})
-
--- Create Player Tab
-local PlayerTab = Window:MakeTab({
-    Name = "Player",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Movement Section
-local MovementSection = PlayerTab:AddSection({
-    Name = "Movement"
-})
-
--- Speed slider
-MovementSection:AddSlider({
-    Name = "Walk Speed",
-    Min = 16,
-    Max = 250,
-    Default = 16,
-    Color = Color3.fromRGB(30, 144, 255),
-    Increment = 5,
-    ValueName = "speed",
-    Callback = function(Value)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.WalkSpeed = Value
-        end
-        
-        -- Keep applying speed on respawn
-        _G.SelectedWalkSpeed = Value
-    end    
-})
-
--- Jump power slider
-MovementSection:AddSlider({
-    Name = "Jump Power",
-    Min = 50,
-    Max = 300,
-    Default = 50,
-    Color = Color3.fromRGB(30, 144, 255),
-    Increment = 10,
-    ValueName = "power",
-    Callback = function(Value)
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-            LocalPlayer.Character.Humanoid.JumpPower = Value
-        end
-        
-        -- Keep applying jump power on respawn
-        _G.SelectedJumpPower = Value
-    end    
-})
-
--- Fly section
-local FlySection = PlayerTab:AddSection({
-    Name = "Flying"
-})
-
--- Fly toggle
-FlySection:AddToggle({
-    Name = "Enable Fly",
-    Default = false,
-    Callback = function(Value)
-        if Modules.AntiDetect and Modules.AntiDetect.SafeFly then
-            -- Use anti-detect's safe fly
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                Modules.AntiDetect.SafeFly(Value, LocalPlayer.Character.HumanoidRootPart)
-            end
-        end
-    end
-})
-
--- No clip toggle
-FlySection:AddToggle({
-    Name = "No Clip",
-    Default = false,
-    Callback = function(Value)
-        if Modules.AntiDetect and Modules.AntiDetect.SafeNoclip then
-            Modules.AntiDetect.SafeNoclip(Value)
-        end
-    end
-})
-
--- Create Misc Tab
-local MiscTab = Window:MakeTab({
-    Name = "Misc",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Teleport Section
-local TeleportSection = MiscTab:AddSection({
-    Name = "Teleport"
-})
-
--- Teleport to random gun
-TeleportSection:AddButton({
-    Name = "TP to Random Gun",
-    Callback = function()
-        if Modules.Teleport and Modules.Teleport.TeleportToRandomWeapon then
-            Modules.Teleport.TeleportToRandomWeapon()
-        end
-    end
-})
-
--- Teleport to nearest player
-TeleportSection:AddButton({
-    Name = "TP to Nearest Enemy",
-    Callback = function()
-        if Modules.Teleport and Modules.Teleport.TeleportToNearestEnemy then
-            Modules.Teleport.TeleportToNearestEnemy()
-        end
-    end
-})
-
--- Anti Detect section
-local AntiDetectSection = MiscTab:AddSection({
-    Name = "Anti-Detection"
-})
-
--- Toggle anti-detect
-AntiDetectSection:AddToggle({
-    Name = "Enable Anti-Detection",
-    Default = true,
-    Callback = function(Value)
-        if Modules.AntiDetect then
-            if Modules.AntiDetect.SetEnableDeadRailsBypass then
-                Modules.AntiDetect.SetEnableDeadRailsBypass(Value)
-            end
-            if Modules.AntiDetect.SetEnableRemoteSpyProtection then
-                Modules.AntiDetect.SetEnableRemoteSpyProtection(Value)
-            end
-        end
-    end
-})
-
--- Handle character respawning
-LocalPlayer.CharacterAdded:Connect(function(character)
-    -- Wait for humanoid
-    local humanoid = character:WaitForChild("Humanoid")
+local function MakeDraggable(frame)
+    local dragging, dragInput, dragStart, startPos
     
-    -- Reapply speed and jump power
-    if _G.SelectedWalkSpeed then
-        humanoid.WalkSpeed = _G.SelectedWalkSpeed
+    AddConnection(frame.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    AddConnection(frame.InputChanged, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    
+    AddConnection(UserInputService.InputChanged, function(input)
+        if input == dragInput and dragging then
+            local Delta = input.Position - dragStart
+            -- Smooth dragging
+            frame.Position = UDim2.new(
+                startPos.X.Scale, 
+                startPos.X.Offset + Delta.X, 
+                startPos.Y.Scale, 
+                startPos.Y.Offset + Delta.Y
+            )
+        end
+    end)
+end
+
+-- Create main window with modern styling
+local MainWindow = Instance.new("Frame")
+MainWindow.Name = "MainWindow"
+MainWindow.Size = UDim2.new(0, 500, 0, 350)
+MainWindow.Position = UDim2.new(0.5, -250, 0.5, -175)
+MainWindow.BackgroundColor3 = Colors.Background
+MainWindow.BorderSizePixel = 0
+MainWindow.Active = true
+MainWindow.Parent = SkyXUI
+
+-- Add corner
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10) -- Slightly more rounded corners
+MainCorner.Parent = MainWindow
+
+-- Add shadow effect
+local MainShadow = Instance.new("ImageLabel")
+MainShadow.Name = "Shadow"
+MainShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+MainShadow.Size = UDim2.new(1, 30, 1, 30)
+MainShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+MainShadow.BackgroundTransparency = 1
+MainShadow.Image = "rbxassetid://6015897843" -- Shadow image
+MainShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+MainShadow.ImageTransparency = 0.6
+MainShadow.ZIndex = 0 -- Behind the main window
+MainShadow.Parent = MainWindow
+
+-- Add background gradient
+local MainGradient = Instance.new("UIGradient")
+MainGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Colors.Background),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(
+        Colors.Background.R * 0.8,
+        Colors.Background.G * 0.8,
+        Colors.Background.B * 0.8
+    ))
+})
+MainGradient.Rotation = 45
+MainGradient.Parent = MainWindow
+
+-- Create window title bar with gradient
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 40)
+TitleBar.BackgroundColor3 = Colors.Button
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainWindow
+
+-- Add gradient to title bar
+local TitleGradient = Instance.new("UIGradient")
+TitleGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Colors.Button),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(
+        Colors.Button.R * 0.8,
+        Colors.Button.G * 0.8,
+        Colors.Button.B * 0.8
+    ))
+})
+TitleGradient.Rotation = 90
+TitleGradient.Parent = TitleBar
+
+-- Add corner to title bar
+local TitleCorner = Instance.new("UICorner")
+TitleCorner.CornerRadius = UDim.new(0, 10) -- Match main window corners
+TitleCorner.Parent = TitleBar
+
+-- Fix corners
+local CornerFix = Instance.new("Frame")
+CornerFix.Name = "CornerFix"
+CornerFix.Size = UDim2.new(1, 0, 0, 15) -- Slightly larger
+CornerFix.Position = UDim2.new(0, 0, 1, -15)
+CornerFix.BackgroundColor3 = Colors.Button
+CornerFix.BorderSizePixel = 0
+CornerFix.Parent = TitleBar
+
+-- Add gradient to corner fix
+local CornerFixGradient = Instance.new("UIGradient")
+CornerFixGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Colors.Button),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(
+        Colors.Button.R * 0.8,
+        Colors.Button.G * 0.8,
+        Colors.Button.B * 0.8
+    ))
+})
+CornerFixGradient.Rotation = 90
+CornerFixGradient.Parent = CornerFix
+
+-- Add title text
+local TitleText = Instance.new("TextLabel")
+TitleText.Name = "Title"
+TitleText.Size = UDim2.new(1, -50, 1, 0)
+TitleText.Position = UDim2.new(0, 15, 0, 0)
+TitleText.BackgroundTransparency = 1
+TitleText.Font = Enum.Font.GothamBold
+TitleText.TextSize = 16
+TitleText.TextColor3 = Colors.Text
+TitleText.TextXAlignment = Enum.TextXAlignment.Left
+TitleText.Text = "🌊 SkyX Dead Rails 🌊"
+TitleText.Parent = TitleBar
+
+-- Add close button
+local CloseButton = Instance.new("ImageButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 20, 0, 20)
+CloseButton.Position = UDim2.new(1, -30, 0, 10)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Image = Icons.close
+CloseButton.Parent = TitleBar
+
+-- Add event for close button with proper functionality
+AddConnection(CloseButton.MouseButton1Click, function()
+    -- Clean up connections and resources before destroying
+    for _, connection in pairs(SkyX.Connections) do
+        if connection then
+            connection:Disconnect()
+        end
     end
-    if _G.SelectedJumpPower then
-        humanoid.JumpPower = _G.SelectedJumpPower
+    
+    -- Stop all modules
+    if Modules.ESP then Modules.ESP.Stop() end
+    if Modules.GunMods then Modules.GunMods.Stop() end
+    if Modules.Aimbot then Modules.Aimbot.Stop() end
+    if Modules.Teleport then Modules.Teleport.Stop() end
+    if Modules.AntiDetect then Modules.AntiDetect.Stop() end
+    if Modules.AutoFarm then Modules.AutoFarm.Stop() end
+    
+    -- Destroy GUI
+    SkyXUI:Destroy()
+    
+    print("SkyX Dead Rails script closed properly")
+end)
+
+-- Create content area
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, 0, 1, -50)
+ContentFrame.Position = UDim2.new(0, 0, 0, 40)
+ContentFrame.BackgroundColor3 = Colors.Container
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Parent = MainWindow
+
+-- Fix content corners
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 8)
+ContentCorner.Parent = ContentFrame
+
+-- Add tab container with proper size to prevent sticking out
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(1, -20, 0, 40)
+TabContainer.Position = UDim2.new(0, 10, 0, 10)
+TabContainer.BackgroundTransparency = 1
+TabContainer.BorderSizePixel = 0
+TabContainer.ClipsDescendants = true -- Prevent tabs from sticking out
+TabContainer.Parent = ContentFrame
+
+-- Add tab layout
+local TabLayout = Instance.new("UIListLayout")
+TabLayout.FillDirection = Enum.FillDirection.Horizontal
+TabLayout.Padding = UDim.new(0, 5)
+TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabLayout.Parent = TabContainer
+
+-- Add tab content container
+local TabContent = Instance.new("Frame")
+TabContent.Name = "TabContent"
+TabContent.Size = UDim2.new(1, -20, 1, -60)
+TabContent.Position = UDim2.new(0, 10, 0, 50)
+TabContent.BackgroundTransparency = 1
+TabContent.BorderSizePixel = 0
+TabContent.Parent = ContentFrame
+
+-- Make window draggable - fixed implementation
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+AddConnection(TitleBar.InputBegan, function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainWindow.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
     end
 end)
 
--- Initialize UI
-OrionLib:Init()
+AddConnection(TitleBar.InputChanged, function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
 
--- Final notification
-Notify("SkyX Hub", "Dead Rails loaded successfully!", 3)
+AddConnection(UserInputService.InputChanged, function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        MainWindow.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
 
--- Return completion message
-return "SkyX Dead Rails loaded!"
+-- Track tabs
+local Tabs = {}
+local SelectedTab = nil
+
+-- Get Dead Rails values
+local function GetDeadRailsValues()
+    local DeadRails = {}
+    DeadRails.Teams = {}
+    DeadRails.Players = {}
+    DeadRails.GameState = {}
+    DeadRails.Weapons = {}
+    
+    -- Current round status
+    local roundState = workspace:FindFirstChild("RoundState")
+    if roundState then
+        DeadRails.GameState.RoundState = roundState.Value
+    end
+    
+    -- Get round time
+    local roundTime = workspace:FindFirstChild("RoundTime")
+    if roundTime then
+        DeadRails.GameState.RoundTime = roundTime.Value
+    end
+    
+    -- Get all players
+    for _, Player in pairs(game.Players:GetPlayers()) do
+        if Player ~= game.Players.LocalPlayer then
+            local PlayerData = {
+                Player = Player,
+                Team = Player.Team and Player.Team.Name or "None",
+                Character = Player.Character,
+                Health = Player.Character and Player.Character:FindFirstChild("Humanoid") and 
+                         Player.Character.Humanoid.Health or 0,
+                MaxHealth = Player.Character and Player.Character:FindFirstChild("Humanoid") and 
+                            Player.Character.Humanoid.MaxHealth or 100
+            }
+            
+            table.insert(DeadRails.Players, PlayerData)
+            
+            -- Add to teams
+            if Player.Team then
+                if not DeadRails.Teams[Player.Team.Name] then
+                    DeadRails.Teams[Player.Team.Name] = {}
+                end
+                table.insert(DeadRails.Teams[Player.Team.Name], Player)
+            end
+        end
+    end
+    
+    -- Get local player's weapons
+    local localPlayer = game.Players.LocalPlayer
+    if localPlayer and localPlayer.Character then
+        DeadRails.Weapons.Equipped = nil
+        
+        -- Find equipped weapon
+        for _, child in pairs(localPlayer.Character:GetChildren()) do
+            if child:IsA("Tool") then
+                DeadRails.Weapons.Equipped = child
+                break
+            end
+        end
+        
+        -- Get weapons in backpack
+        DeadRails.Weapons.Backpack = {}
+        for _, tool in pairs(localPlayer.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                table.insert(DeadRails.Weapons.Backpack, tool)
+            end
+        end
+    end
+    
+    return DeadRails
+end
+
+-- Function to create a tab
+local function CreateTab(name, order)
+    -- Create tab button with adjusted width for 6 tabs
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = name .. "Tab"
+    TabButton.Size = UDim2.new(0, 80, 1, 0) -- Reduced from 100 to 80 to fit all tabs
+    TabButton.BackgroundColor3 = Colors.TabInactive
+    TabButton.BorderSizePixel = 0
+    TabButton.Font = Enum.Font.GothamBold
+    TabButton.TextSize = 14
+    TabButton.TextColor3 = Colors.Text
+    TabButton.Text = name
+    TabButton.LayoutOrder = order
+    TabButton.Parent = TabContainer
+    
+    -- Add corner to tab button
+    local TabButtonCorner = Instance.new("UICorner")
+    TabButtonCorner.CornerRadius = UDim.new(0, 6)
+    TabButtonCorner.Parent = TabButton
+    
+    -- Create tab page
+    local TabPage = Instance.new("ScrollingFrame")
+    TabPage.Name = name .. "Page"
+    TabPage.Size = UDim2.new(1, 0, 1, 0)
+    TabPage.BackgroundTransparency = 1
+    TabPage.BorderSizePixel = 0
+    TabPage.ScrollBarThickness = 4
+    TabPage.ScrollBarImageColor3 = Colors.Button
+    TabPage.Visible = false
+    TabPage.Parent = TabContent
+    
+    -- Add padding to tab page
+    local TabPagePadding = Instance.new("UIPadding")
+    TabPagePadding.PaddingLeft = UDim.new(0, 5)
+    TabPagePadding.PaddingRight = UDim.new(0, 5)
+    TabPagePadding.PaddingTop = UDim.new(0, 5)
+    TabPagePadding.PaddingBottom = UDim.new(0, 5)
+    TabPagePadding.Parent = TabPage
+    
+    -- Add layout to tab page
+    local TabPageLayout = Instance.new("UIListLayout")
+    TabPageLayout.Padding = UDim.new(0, 10)
+    TabPageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    TabPageLayout.Parent = TabPage
+    
+    -- Auto-size content
+    AddConnection(TabPageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        TabPage.CanvasSize = UDim2.new(0, 0, 0, TabPageLayout.AbsoluteContentSize.Y + 10)
+    end)
+    
+    -- Create tab object
+    local Tab = {
+        Button = TabButton,
+        Page = TabPage,
+        Layout = TabPageLayout,
+        Name = name,
+        Sections = {}
+    }
+    
+    -- Add tab click event
+    AddConnection(TabButton.MouseButton1Click, function()
+        -- Deselect current tab
+        if SelectedTab then
+            SelectedTab.Button.BackgroundColor3 = Colors.TabInactive
+            SelectedTab.Page.Visible = false
+        end
+        
+        -- Select this tab
+        TabButton.BackgroundColor3 = Colors.TabActive
+        TabPage.Visible = true
+        SelectedTab = Tab
+    end)
+    
+    -- Add function to create a section
+    function Tab:AddSection(sectionName)
+        -- Create section frame
+        local Section = Instance.new("Frame")
+        Section.Name = sectionName .. "Section"
+        Section.Size = UDim2.new(1, 0, 0, 100)
+        Section.BackgroundColor3 = Colors.Background
+        Section.BorderSizePixel = 0
+        Section.AutomaticSize = Enum.AutomaticSize.Y
+        Section.Parent = TabPage
+        
+        -- Add corner
+        local SectionCorner = Instance.new("UICorner")
+        SectionCorner.CornerRadius = UDim.new(0, 6)
+        SectionCorner.Parent = Section
+        
+        -- Add stroke
+        local SectionStroke = Instance.new("UIStroke")
+        SectionStroke.Color = Colors.Border
+        SectionStroke.Thickness = 1.5
+        SectionStroke.Parent = Section
+        
+        -- Add title
+        local SectionTitle = Instance.new("TextLabel")
+        SectionTitle.Name = "Title"
+        SectionTitle.Size = UDim2.new(1, 0, 0, 30)
+        SectionTitle.BackgroundTransparency = 1
+        SectionTitle.Font = Enum.Font.GothamBold
+        SectionTitle.TextSize = 14
+        SectionTitle.TextColor3 = Colors.Text
+        SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+        SectionTitle.Text = "    " .. sectionName
+        SectionTitle.Parent = Section
+        
+        -- Create section content
+        local SectionContent = Instance.new("Frame")
+        SectionContent.Name = "Content"
+        SectionContent.Size = UDim2.new(1, -10, 0, 0)
+        SectionContent.Position = UDim2.new(0, 5, 0, 30)
+        SectionContent.BackgroundTransparency = 1
+        SectionContent.BorderSizePixel = 0
+        SectionContent.AutomaticSize = Enum.AutomaticSize.Y
+        SectionContent.Parent = Section
+        
+        -- Add layout
+        local SectionLayout = Instance.new("UIListLayout")
+        SectionLayout.Padding = UDim.new(0, 8)
+        SectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        SectionLayout.Parent = SectionContent
+        
+        -- Auto-size sections
+        AddConnection(SectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+            SectionContent.Size = UDim2.new(1, -10, 0, SectionLayout.AbsoluteContentSize.Y)
+            Section.Size = UDim2.new(1, 0, 0, SectionContent.Size.Y.Offset + 40)
+        end)
+        
+        -- Create section object
+        local SectionObj = {
+            Frame = Section,
+            Content = SectionContent,
+            Layout = SectionLayout,
+            Name = sectionName
+        }
+        
+        -- Add function to add a label
+        function SectionObj:AddLabel(text)
+            local Label = Instance.new("TextLabel")
+            Label.Name = "Label"
+            Label.Size = UDim2.new(1, 0, 0, 20)
+            Label.BackgroundTransparency = 1
+            Label.Font = Enum.Font.Gotham
+            Label.TextSize = 14
+            Label.TextColor3 = Colors.Text
+            Label.TextXAlignment = Enum.TextXAlignment.Left
+            Label.Text = "   " .. text
+            Label.Parent = SectionContent
+            
+            local LabelObj = {
+                Label = Label,
+                Text = text
+            }
+            
+            function LabelObj:SetText(newText)
+                Label.Text = "   " .. newText
+            end
+            
+            return LabelObj
+        end
+        
+        -- Add function to add a toggle
+        function SectionObj:AddToggle(text, default, callback)
+            -- Create toggle frame
+            local ToggleFrame = Instance.new("Frame")
+            ToggleFrame.Name = "Toggle"
+            ToggleFrame.Size = UDim2.new(1, 0, 0, 34)
+            ToggleFrame.BackgroundTransparency = 1
+            ToggleFrame.BorderSizePixel = 0
+            ToggleFrame.Parent = SectionContent
+            
+            -- Adjust size for mobile
+            if IsMobile then
+                ToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+            end
+            
+            -- Create toggle text
+            local ToggleText = Instance.new("TextLabel")
+            ToggleText.Name = "Text"
+            ToggleText.Size = UDim2.new(1, -55, 1, 0)
+            ToggleText.BackgroundTransparency = 1
+            ToggleText.Font = Enum.Font.Gotham
+            ToggleText.TextSize = 14
+            ToggleText.TextColor3 = Colors.Text
+            ToggleText.TextXAlignment = Enum.TextXAlignment.Left
+            ToggleText.Text = "   " .. text
+            ToggleText.Parent = ToggleFrame
+            
+            -- Create toggle button background
+            local ToggleBackground = Instance.new("Frame")
+            ToggleBackground.Name = "Background"
+            ToggleBackground.Size = UDim2.new(0, 44, 0, 24)
+            ToggleBackground.Position = UDim2.new(1, -50, 0.5, -12)
+            ToggleBackground.BorderSizePixel = 0
+            ToggleBackground.BackgroundColor3 = default and Colors.Button or Colors.Background
+            ToggleBackground.Parent = ToggleFrame
+            
+            -- Add corner to toggle background
+            local ToggleBackgroundCorner = Instance.new("UICorner")
+            ToggleBackgroundCorner.CornerRadius = UDim.new(1, 0)
+            ToggleBackgroundCorner.Parent = ToggleBackground
+            
+            -- Create toggle indicator
+            local ToggleIndicator = Instance.new("Frame")
+            ToggleIndicator.Name = "Indicator"
+            ToggleIndicator.Size = UDim2.new(0, 18, 0, 18)
+            ToggleIndicator.Position = UDim2.new(0, default and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -9 or -9)
+            ToggleIndicator.BorderSizePixel = 0
+            ToggleIndicator.BackgroundColor3 = Colors.Text
+            ToggleIndicator.Parent = ToggleBackground
+            
+            -- Add corner to toggle indicator
+            local ToggleIndicatorCorner = Instance.new("UICorner")
+            ToggleIndicatorCorner.CornerRadius = UDim.new(1, 0)
+            ToggleIndicatorCorner.Parent = ToggleIndicator
+            
+            -- Create clickable button
+            local ToggleButton = Instance.new("TextButton")
+            ToggleButton.Name = "Button"
+            ToggleButton.Size = UDim2.new(1, 0, 1, 0)
+            ToggleButton.BackgroundTransparency = 1
+            ToggleButton.Font = Enum.Font.SourceSans
+            ToggleButton.TextSize = 14
+            ToggleButton.TextTransparency = 1
+            ToggleButton.Parent = ToggleFrame
+            
+            -- Create toggle object
+            local ToggleObj = {
+                Frame = ToggleFrame,
+                Button = ToggleButton,
+                Background = ToggleBackground,
+                Indicator = ToggleIndicator,
+                Enabled = default
+            }
+            
+            -- Add toggle event
+            AddConnection(ToggleButton.MouseButton1Click, function()
+                ToggleObj.Enabled = not ToggleObj.Enabled
+                
+                -- Animate toggle
+                TweenService:Create(ToggleBackground, TweenInfo.new(0.2), {
+                    BackgroundColor3 = ToggleObj.Enabled and Colors.Button or Colors.Background
+                }):Play()
+                
+                TweenService:Create(ToggleIndicator, TweenInfo.new(0.2), {
+                    Position = UDim2.new(0, ToggleObj.Enabled and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -9 or -9)
+                }):Play()
+                
+                -- Call callback
+                if callback then
+                    callback(ToggleObj.Enabled)
+                end
+            end)
+            
+            return ToggleObj
+        end
+        
+        -- Add function to add a slider
+        function SectionObj:AddSlider(text, min, max, default, callback)
+            -- Create slider frame
+            local SliderFrame = Instance.new("Frame")
+            SliderFrame.Name = "Slider"
+            SliderFrame.Size = UDim2.new(1, 0, 0, 50)
+            SliderFrame.BackgroundTransparency = 1
+            SliderFrame.BorderSizePixel = 0
+            SliderFrame.Parent = SectionContent
+            
+            -- Adjust size for mobile
+            if IsMobile then
+                SliderFrame.Size = UDim2.new(1, 0, 0, 60)
+            end
+            
+            -- Create slider text
+            local SliderText = Instance.new("TextLabel")
+            SliderText.Name = "Text"
+            SliderText.Size = UDim2.new(1, 0, 0, 20)
+            SliderText.BackgroundTransparency = 1
+            SliderText.Font = Enum.Font.Gotham
+            SliderText.TextSize = 14
+            SliderText.TextColor3 = Colors.Text
+            SliderText.TextXAlignment = Enum.TextXAlignment.Left
+            SliderText.Text = "   " .. text .. ": " .. default
+            SliderText.Parent = SliderFrame
+            
+            -- Create slider background
+            local SliderBackground = Instance.new("Frame")
+            SliderBackground.Name = "Background"
+            SliderBackground.Size = UDim2.new(1, -10, 0, 10)
+            SliderBackground.Position = UDim2.new(0, 5, 0, 30)
+            SliderBackground.BorderSizePixel = 0
+            SliderBackground.BackgroundColor3 = Colors.Background
+            SliderBackground.Parent = SliderFrame
+            
+            -- Add corner to slider background
+            local SliderBackgroundCorner = Instance.new("UICorner")
+            SliderBackgroundCorner.CornerRadius = UDim.new(0, 5)
+            SliderBackgroundCorner.Parent = SliderBackground
+            
+            -- Create slider fill
+            local SliderFill = Instance.new("Frame")
+            SliderFill.Name = "Fill"
+            SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+            SliderFill.BorderSizePixel = 0
+            SliderFill.BackgroundColor3 = Colors.Button
+            SliderFill.Parent = SliderBackground
+            
+            -- Add corner to slider fill
+            local SliderFillCorner = Instance.new("UICorner")
+            SliderFillCorner.CornerRadius = UDim.new(0, 5)
+            SliderFillCorner.Parent = SliderFill
+            
+            -- Create slider button
+            local SliderButton = Instance.new("TextButton")
+            SliderButton.Name = "Button"
+            SliderButton.Size = UDim2.new(1, 0, 1, 0)
+            SliderButton.BackgroundTransparency = 1
+            SliderButton.Font = Enum.Font.SourceSans
+            SliderButton.TextSize = 14
+            SliderButton.TextTransparency = 1
+            SliderButton.Parent = SliderBackground
+            
+            -- Create slider object
+            local SliderObj = {
+                Frame = SliderFrame,
+                Background = SliderBackground,
+                Fill = SliderFill,
+                Button = SliderButton,
+                Text = SliderText,
+                Value = default,
+                Min = min,
+                Max = max
+            }
+            
+            -- Function to update slider
+            local function UpdateSlider(input)
+                local pos = UDim2.new(math.clamp((input.Position.X - SliderBackground.AbsolutePosition.X) / SliderBackground.AbsoluteSize.X, 0, 1), 0, 1, 0)
+                SliderFill.Size = pos
+                
+                local value = math.floor(min + ((max - min) * pos.X.Scale))
+                SliderObj.Value = value
+                SliderText.Text = "   " .. text .. ": " .. value
+                
+                if callback then
+                    callback(value)
+                end
+            end
+            
+            -- Add slider events
+            AddConnection(SliderButton.MouseButton1Down, function(input)
+                UpdateSlider(input)
+                
+                -- Track mouse movement
+                local connection
+                connection = UserInputService.InputChanged:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                        UpdateSlider(input)
+                    end
+                end)
+                
+                -- Stop tracking when mouse up
+                UserInputService.InputEnded:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                        if connection then
+                            connection:Disconnect()
+                            connection = nil
+                        end
+                    end
+                end)
+            end)
+            
+            return SliderObj
+        end
+        
+        -- Add function to add a button
+        function SectionObj:AddButton(text, callback)
+            -- Create button
+            local Button = Instance.new("TextButton")
+            Button.Name = "Button"
+            Button.Size = UDim2.new(1, 0, 0, 32)
+            Button.BackgroundColor3 = Colors.Button
+            Button.BorderSizePixel = 0
+            Button.Font = Enum.Font.GothamSemibold
+            Button.TextSize = 14
+            Button.TextColor3 = Colors.Text
+            Button.Text = text
+            Button.Parent = SectionContent
+            
+            -- Add corner to button
+            local ButtonCorner = Instance.new("UICorner")
+            ButtonCorner.CornerRadius = UDim.new(0, 6)
+            ButtonCorner.Parent = Button
+            
+            -- Add button hover effect
+            AddConnection(Button.MouseEnter, function()
+                TweenService:Create(Button, TweenInfo.new(0.2), {
+                    BackgroundColor3 = Color3.fromRGB(62, 115, 165)
+                }):Play()
+            end)
+            
+            AddConnection(Button.MouseLeave, function()
+                TweenService:Create(Button, TweenInfo.new(0.2), {
+                    BackgroundColor3 = Colors.Button
+                }):Play()
+            end)
+            
+            -- Add button click event
+            AddConnection(Button.MouseButton1Click, function()
+                TweenService:Create(Button, TweenInfo.new(0.1), {
+                    BackgroundColor3 = Color3.fromRGB(32, 85, 135)
+                }):Play()
+                
+                if callback then
+                    callback()
+                end
+                
+                wait(0.1)
+                
+                TweenService:Create(Button, TweenInfo.new(0.1), {
+                    BackgroundColor3 = Colors.Button
+                }):Play()
+            end)
+            
+            return Button
+        end
+        
+        -- Add section to tab
+        table.insert(Tab.Sections, SectionObj)
+        return SectionObj
+    end
+    
+    -- Add tab to tabs table
+    table.insert(Tabs, Tab)
+    
+    -- If this is the first tab, select it
+    if #Tabs == 1 then
+        TabButton.BackgroundColor3 = Colors.TabActive
+        TabPage.Visible = true
+        SelectedTab = Tab
+    end
+    
+    return Tab
+end
+
+-- Load modules
+local function LoadAllModules()
+    -- Load Anti-Ban module first
+    Modules.AntiBan = LoadModule("AntiBan")
+    if Modules.AntiBan then
+        Modules.AntiBan.Start()
+    end
+    
+    -- Load other modules
+    Modules.ESP = LoadModule("ESP")
+    Modules.CoinCollector = LoadModule("CoinCollector")
+    Modules.MurderDetection = LoadModule("MurderDetection")
+    Modules.Teleport = LoadModule("Teleport")
+    
+    -- Link modules
+    if Modules.ESP and Modules.MurderDetection then
+        Modules.MurderDetection.SetESPModule(Modules.ESP)
+    end
+    
+    if Modules.MurderDetection and Modules.Teleport then
+        Modules.Teleport.SetMurderDetectionModule(Modules.MurderDetection)
+    end
+    
+    -- Start modules
+    if Modules.ESP then Modules.ESP.Start() end
+    if Modules.CoinCollector then Modules.CoinCollector.Start() end
+    if Modules.MurderDetection then Modules.MurderDetection.Start() end
+    if Modules.Teleport then Modules.Teleport.Start() end
+    
+    return true
+end
+
+-- Create tabs
+local MainTab = CreateTab("Main", 1)
+local ESPTab = CreateTab("ESP", 2)
+local CoinsTab = CreateTab("Coins", 3)
+local MurderTab = CreateTab("Murder", 4)
+local TeleportTab = CreateTab("Teleport", 5)
+local AntiBanTab = CreateTab("Anti-Ban", 6)
+
+-- Create main tab content
+local InfoSection = MainTab:AddSection("Information")
+InfoSection:AddLabel("Device: " .. DeviceText)
+InfoSection:AddLabel("Game: Murder Mystery 2")
+local StatusLabel = InfoSection:AddLabel("Loading modules...")
+
+-- Load modules
+local success = LoadAllModules()
+
+-- Create UI controls for modules
+if success then
+    StatusLabel:SetText("Modules loaded successfully!")
+    
+    -- ESP Tab Content
+    if Modules.ESP then
+        local ESPSection = ESPTab:AddSection("ESP Features")
+        
+        ESPSection:AddToggle("ESP Enabled", false, function(value)
+            Modules.ESP.Settings.Enabled = value
+        end)
+        
+        ESPSection:AddToggle("Show Distance", true, function(value)
+            Modules.ESP.Settings.ShowDistance = value
+        end)
+        
+        ESPSection:AddToggle("Show Health", true, function(value)
+            Modules.ESP.Settings.ShowHealth = value
+        end)
+        
+        ESPSection:AddToggle("Show Roles", true, function(value)
+            Modules.ESP.Settings.ShowRole = value
+        end)
+        
+        ESPSection:AddToggle("Rainbow ESP", false, function(value)
+            Modules.ESP.Settings.RainbowESP = value
+        end)
+        
+        ESPSection:AddSlider("Rainbow Speed", 1, 10, 5, function(value)
+            Modules.ESP.Settings.RainbowSpeed = value
+        end)
+    else
+        local ESPSection = ESPTab:AddSection("ESP Features")
+        ESPSection:AddLabel("ESP Module failed to load")
+    end
+    
+    -- Coins Tab Content
+    if Modules.CoinCollector then
+        local CoinsSection = CoinsTab:AddSection("Coin Collection")
+        
+        CoinsSection:AddToggle("Auto Collect Coins", false, function(value)
+            Modules.CoinCollector.Settings.AutoCollectEnabled = value
+        end)
+        
+        CoinsSection:AddToggle("Coin ESP", false, function(value)
+            Modules.CoinCollector.Settings.ESP.Enabled = value
+        end)
+        
+        CoinsSection:AddSlider("Collection Radius", 5, 50, 15, function(value)
+            Modules.CoinCollector.Settings.CollectionRadius = value
+        end)
+        
+        CoinsSection:AddToggle("Prioritize Nearby Coins", true, function(value)
+            Modules.CoinCollector.Settings.PrioritizeNearby = value
+        end)
+        
+        local CoinStats = CoinsSection:AddLabel("Coins Collected: 0")
+        
+        -- Update coin stats periodically
+        spawn(function()
+            while wait(1) do
+                if Modules.CoinCollector then
+                    local stats = Modules.CoinCollector.GetStats()
+                    CoinStats:SetText("Coins Collected: " .. stats.CoinsCollected)
+                end
+            end
+        end)
+    else
+        local CoinsSection = CoinsTab:AddSection("Coin Collection")
+        CoinsSection:AddLabel("Coin Collector Module failed to load")
+    end
+    
+    -- Murder Tab Content
+    if Modules.MurderDetection then
+        local MurderSection = MurderTab:AddSection("Murder Detection")
+        
+        MurderSection:AddToggle("Murder Detection", false, function(value)
+            Modules.MurderDetection.Settings.Enabled = value
+            if value then
+                Modules.MurderDetection.Start()
+            else
+                Modules.MurderDetection.Stop()
+            end
+        end)
+        
+        MurderSection:AddToggle("Auto-Kill Murderer", false, function(value)
+            Modules.MurderDetection.Settings.AutoKill = value
+        end)
+        
+        MurderSection:AddSlider("Warning Distance", 10, 50, 25, function(value)
+            Modules.MurderDetection.Settings.WarningDistance = value
+        end)
+        
+        MurderSection:AddSlider("Kill Distance", 5, 20, 8, function(value)
+            Modules.MurderDetection.Settings.KillDistance = value
+        end)
+        
+        local MurdererInfo = MurderSection:AddLabel("Murderer: Not Found")
+        
+        -- Update murderer info periodically
+        spawn(function()
+            while wait(1) do
+                if Modules.MurderDetection then
+                    local info = Modules.MurderDetection.GetMurdererInfo()
+                    if info.MurdererFound then
+                        MurdererInfo:SetText("Murderer: " .. info.MurdererName)
+                    else
+                        MurdererInfo:SetText("Murderer: Not Found")
+                    end
+                end
+            end
+        end)
+    else
+        local MurderSection = MurderTab:AddSection("Murder Detection")
+        MurderSection:AddLabel("Murder Detection Module failed to load")
+    end
+    
+    -- Teleport Tab Content
+    if Modules.Teleport then
+        local TeleportSection = TeleportTab:AddSection("Teleport Features")
+        
+        TeleportSection:AddToggle("Safe Mode", true, function(value)
+            Modules.Teleport.Settings.SafeMode = value
+        end)
+        
+        TeleportSection:AddToggle("Anti-Detection", true, function(value)
+            Modules.Teleport.Settings.AntiDetection.Enabled = value
+        end)
+        
+        -- Get list of locations
+        local locations = Modules.Teleport.GetLocationsList()
+        for _, location in ipairs(locations) do
+            TeleportSection:AddButton(location.Icon .. " " .. location.Name, function()
+                local success, message = Modules.Teleport.TeleportToLocation(location.Name)
+                if success then
+                    StatusLabel:SetText("Teleported to " .. location.Name)
+                else
+                    StatusLabel:SetText("Failed to teleport: " .. message)
+                end
+            end)
+        end
+    else
+        local TeleportSection = TeleportTab:AddSection("Teleport Features")
+        TeleportSection:AddLabel("Teleport Module failed to load")
+    end
+    
+    -- Anti-Ban Tab Content
+    if Modules.AntiBan then
+        local AntiBanSection = AntiBanTab:AddSection("Anti-Ban System")
+        
+        AntiBanSection:AddToggle("Anti-Ban System", true, function(value)
+            Modules.AntiBan.Settings.Enabled = value
+            if value then
+                Modules.AntiBan.Start()
+            else
+                Modules.AntiBan.Stop()
+            end
+        end)
+        
+        AntiBanSection:AddToggle("Remove Exploit Detection", true, function(value)
+            Modules.AntiBan.Settings.Flags.ExploitDetectionRemoval = value
+        end)
+        
+        AntiBanSection:AddToggle("Reduce Auto-Punish Risk", true, function(value)
+            Modules.AntiBan.Settings.Flags.ReduceAutoPunishRisk = value
+        end)
+        
+        AntiBanSection:AddToggle("Randomize Actions", true, function(value)
+            Modules.AntiBan.Settings.Flags.RandomizeActions = value
+        end)
+        
+        AntiBanSection:AddToggle("Disable High-Risk Features", false, function(value)
+            Modules.AntiBan.Settings.Flags.DisableHighRiskFeatures = value
+        end)
+        
+        local AntiBanStats = AntiBanSection:AddLabel("Detections Evaded: 0")
+        
+        -- Update anti-ban stats periodically
+        spawn(function()
+            while wait(2) do
+                if Modules.AntiBan then
+                    local status = Modules.AntiBan.GetStatus()
+                    AntiBanStats:SetText("Detections Evaded: " .. status.DetectionsEvaded)
+                end
+            end
+        end)
+    else
+        local AntiBanSection = AntiBanTab:AddSection("Anti-Ban System")
+        AntiBanSection:AddLabel("Anti-Ban Module failed to load")
+    end
+else
+    StatusLabel:SetText("Failed to load modules")
+end
+
+-- Add keybind for toggling UI (closing and reopening)
+local ToggleKeyCode = Enum.KeyCode.RightControl -- Use Right Control as the toggle key
+
+-- Global variables to track UI state
+_G.SkyXUIVisible = true
+_G.SkyXUIData = {
+    MainPosition = UDim2.new(0.5, -250, 0.5, -175), -- Store position for reopening
+    LastTab = nil -- Store last active tab
+}
+
+-- Function to toggle UI visibility
+local function ToggleUI()
+    if _G.SkyXUIVisible then
+        -- Save current UI state
+        _G.SkyXUIData.MainPosition = MainWindow.Position
+        _G.SkyXUIData.LastTab = SelectedTab and SelectedTab.Name or "Main"
+        
+        -- Hide UI
+        SkyXUI.Enabled = false
+        _G.SkyXUIVisible = false
+        print("SkyX MM2 UI hidden - Press Right Control to show")
+    else
+        -- Show UI
+        SkyXUI.Enabled = true
+        _G.SkyXUIVisible = true
+        
+        -- Restore previous position
+        MainWindow.Position = _G.SkyXUIData.MainPosition
+        
+        -- Restore previous tab
+        if _G.SkyXUIData.LastTab then
+            for _, tab in pairs(Tabs) do
+                if tab.Name == _G.SkyXUIData.LastTab then
+                    -- Simulate click on this tab
+                    tab.Button.BackgroundColor3 = Colors.TabActive
+                    tab.Page.Visible = true
+                    SelectedTab = tab
+                else
+                    tab.Button.BackgroundColor3 = Colors.TabInactive
+                    tab.Page.Visible = false
+                end
+            end
+        end
+        
+        print("SkyX MM2 UI shown")
+    end
+end
+
+-- Add keybind for toggling UI
+AddConnection(UserInputService.InputBegan, function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == ToggleKeyCode then
+        ToggleUI()
+    end
+end)
+
+-- Add mobile button for toggling UI (since mobile can't use keyboard)
+if IsMobile then
+    -- Create toggle button container
+    local ToggleButtonGui = Instance.new("ScreenGui")
+    ToggleButtonGui.Name = "SkyXToggleButtonGui"
+    ToggleButtonGui.ResetOnSpawn = false
+    ToggleButtonGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Handle executor security models
+    if syn then
+        syn.protect_gui(ToggleButtonGui)
+        ToggleButtonGui.Parent = game.CoreGui
+    else
+        ToggleButtonGui.Parent = gethui() or game.CoreGui
+    end
+    
+    -- Create toggle button
+    local ToggleButton = Instance.new("ImageButton")
+    ToggleButton.Name = "SkyXToggleButton"
+    ToggleButton.Size = UDim2.new(0, 60, 0, 60) -- Larger for mobile touch
+    ToggleButton.Position = UDim2.new(0, 20, 0.5, -30) -- Right side of screen, middle height
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 80, 130) -- Distinct color
+    ToggleButton.BorderSizePixel = 0
+    ToggleButton.Image = "rbxassetid://4483345998" -- Use a simple icon
+    ToggleButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.ZIndex = 9999 -- Extremely high to always be on top
+    ToggleButton.Parent = ToggleButtonGui
+    
+    -- Add corner
+    local ToggleButtonCorner = Instance.new("UICorner")
+    ToggleButtonCorner.CornerRadius = UDim.new(1, 0) -- Perfect circle
+    ToggleButtonCorner.Parent = ToggleButton
+    
+    -- Add stroke to make button more visible
+    local ToggleButtonStroke = Instance.new("UIStroke")
+    ToggleButtonStroke.Color = Color3.fromRGB(255, 255, 255)
+    ToggleButtonStroke.Thickness = 2
+    ToggleButtonStroke.Parent = ToggleButton
+    
+    -- Add text label
+    local ToggleButtonText = Instance.new("TextLabel")
+    ToggleButtonText.Name = "Text"
+    ToggleButtonText.Size = UDim2.new(1, 0, 1, 0)
+    ToggleButtonText.BackgroundTransparency = 1
+    ToggleButtonText.Font = Enum.Font.GothamBold
+    ToggleButtonText.TextSize = 18
+    ToggleButtonText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButtonText.Text = "UI"
+    ToggleButtonText.Parent = ToggleButton
+    
+    -- Add shadow
+    local ToggleButtonShadow = Instance.new("ImageLabel")
+    ToggleButtonShadow.Name = "Shadow"
+    ToggleButtonShadow.Size = UDim2.new(1, 10, 1, 10)
+    ToggleButtonShadow.Position = UDim2.new(0, -5, 0, -5)
+    ToggleButtonShadow.BackgroundTransparency = 1
+    ToggleButtonShadow.Image = "rbxassetid://6015897843" -- Shadow image
+    ToggleButtonShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    ToggleButtonShadow.ImageTransparency = 0.6
+    ToggleButtonShadow.ZIndex = 9998 -- Just below the button
+    ToggleButtonShadow.Parent = ToggleButton
+    
+    -- Make button draggable for positioning
+    local draggingToggle = false
+    local dragStartToggle
+    local startPosToggle
+    
+    AddConnection(ToggleButton.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            if input.UserInputType == Enum.UserInputType.Touch then
+                -- For touch, use a timer to distinguish between tap and drag
+                local touchStartTime = tick()
+                local initialPos = input.Position
+                
+                local touchEnd
+                touchEnd = input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        touchEnd:Disconnect()
+                        local touchDuration = tick() - touchStartTime
+                        local touchMovement = (input.Position - initialPos).Magnitude
+                        
+                        if touchDuration < 0.3 and touchMovement < 10 then
+                            -- It was a tap, toggle UI
+                            ToggleUI()
+                        end
+                    end
+                end)
+            else
+                -- For mouse, just toggle immediately
+                ToggleUI()
+            end
+            
+            -- Start drag logic
+            draggingToggle = true
+            dragStartToggle = input.Position
+            startPosToggle = ToggleButton.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    draggingToggle = false
+                end
+            end)
+        end
+    end)
+    
+    AddConnection(ToggleButton.InputChanged, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            if draggingToggle then
+                local delta = input.Position - dragStartToggle
+                ToggleButton.Position = UDim2.new(
+                    startPosToggle.X.Scale, 
+                    startPosToggle.X.Offset + delta.X, 
+                    startPosToggle.Y.Scale, 
+                    startPosToggle.Y.Offset + delta.Y
+                )
+            end
+        end
+    end)
+    
+    -- UI effect animations
+    local function AnimateButton()
+        while ToggleButton and ToggleButton.Parent do
+            -- Pulse effect when UI is hidden
+            if not _G.SkyXUIVisible then
+                TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    BackgroundColor3 = Color3.fromRGB(60, 120, 180)
+                }):Play()
+                
+                wait(1)
+                
+                TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                    BackgroundColor3 = Color3.fromRGB(30, 80, 130)
+                }):Play()
+                
+                wait(1)
+            else
+                -- When UI is visible, just maintain normal appearance
+                ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 80, 130)
+                wait(0.5)
+            end
+        end
+    end
+    
+    -- Start animation in separate thread
+    task.spawn(AnimateButton)
+end
+
+-- UI cleanup on script end
+game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
+    if State == Enum.TeleportState.Started then
+        for _, connection in pairs(SkyX.Connections) do
+            if connection then
+                connection:Disconnect()
+            end
+        end
+        SkyXUI:Destroy()
+    end
+end)
+
+print("SkyX Dead Rails Modular loaded successfully | Press Right Control to toggle UI")
+return SkyXUI
