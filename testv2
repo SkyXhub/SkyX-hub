@@ -1,0 +1,527 @@
+--[[
+🌊 SkyX MM2 Modular Script 🌊
+Enhanced version with modular loading system
+Optimized for mobile compatibility with advanced features
+
+Features:
+- Enhanced ESP System with Custom Colors and Distance Display
+- Advanced Auto Coin/Item Collector with Prioritization
+- Smart Role Prediction System
+- Smart Murder Detection and Auto-Kill
+- Anti-Detection Teleports
+- Military-Grade Anti-Ban System
+]]
+
+-- This script loads individual modules from GitHub for better organization and updates
+print("SkyX MM2 Modular Loader - Initializing...")
+
+-- Module URLs
+local ModuleURLs = {
+    ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/esp.lua",
+    CoinCollector = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/coin.lua",
+    MurderDetection = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/MurderDetection%20.lua",
+    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/SkyX_Teleport_Module.lua",
+    AntiBan = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Anti-Ban.lua"
+}
+
+-- Load Orion UI Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+
+-- Device detection
+local UserInputService = game:GetService("UserInputService")
+local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
+local DeviceText = IsMobile and "Mobile" or "PC"
+
+-- Create window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX Hub - MM2 Modular",
+    HidePremium = true,
+    SaveConfig = false,
+    ConfigFolder = "SkyXHubConfig",
+    IntroEnabled = false,
+    IntroText = "SkyX Hub"
+})
+
+-- Globals for loaded modules
+local Modules = {
+    ESP = nil,
+    CoinCollector = nil,
+    MurderDetection = nil,
+    Teleport = nil,
+    AntiBan = nil
+}
+
+-- Status tracking
+local LoadingStatus = {
+    TotalModules = 5,
+    LoadedModules = 0,
+    Errors = {},
+    Success = {}
+}
+
+-- Function to load a module
+local function LoadModule(moduleName)
+    local url = ModuleURLs[moduleName]
+    if not url then
+        warn("No URL found for module: " .. moduleName)
+        table.insert(LoadingStatus.Errors, "No URL for " .. moduleName)
+        return nil
+    end
+    
+    local success, result = pcall(function()
+        return loadstring(game:HttpGet(url))()
+    end)
+    
+    if success then
+        print("✅ Successfully loaded: " .. moduleName)
+        LoadingStatus.LoadedModules = LoadingStatus.LoadedModules + 1
+        table.insert(LoadingStatus.Success, moduleName)
+        return result
+    else
+        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. result)
+        table.insert(LoadingStatus.Errors, moduleName .. ": " .. result)
+        return nil
+    end
+end
+
+-- Create main tab
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Create status section
+local StatusSection = MainTab:AddSection({
+    Name = "Module Status"
+})
+
+-- Add status labels
+local StatusLabel = MainTab:AddLabel("Loading modules...")
+local DeviceLabel = MainTab:AddLabel("Device: " .. DeviceText)
+
+-- Function to update status
+local function UpdateStatus()
+    local status = "Loaded " .. LoadingStatus.LoadedModules .. "/" .. LoadingStatus.TotalModules .. " modules"
+    if #LoadingStatus.Errors > 0 then
+        status = status .. " | Errors: " .. #LoadingStatus.Errors
+    end
+    StatusLabel:Set(status)
+end
+
+-- Create tabs for each module
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local CoinsTab = Window:MakeTab({
+    Name = "Coins",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local MurderTab = Window:MakeTab({
+    Name = "Murder",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local TeleportTab = Window:MakeTab({
+    Name = "Teleport",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local AntiBanTab = Window:MakeTab({
+    Name = "Anti-Ban",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Function to initialize module UI
+local function InitializeModuleUI()
+    -- ESP Tab
+    if Modules.ESP then
+        ESPTab:AddToggle({
+            Name = "ESP Enabled",
+            Default = false,
+            Save = false,
+            Flag = "ESPEnabled",
+            Callback = function(Value)
+                Modules.ESP.Settings.Enabled = Value
+                if Value then
+                    Modules.ESP.Start()
+                else
+                    Modules.ESP.Stop()
+                end
+            end
+        })
+        
+        ESPTab:AddToggle({
+            Name = "Show Distance",
+            Default = true,
+            Save = false,
+            Flag = "ShowDistance",
+            Callback = function(Value)
+                Modules.ESP.Settings.ShowDistance = Value
+            end
+        })
+        
+        ESPTab:AddToggle({
+            Name = "Show Health",
+            Default = true,
+            Save = false,
+            Flag = "ShowHealth",
+            Callback = function(Value)
+                Modules.ESP.Settings.ShowHealth = Value
+            end
+        })
+        
+        ESPTab:AddToggle({
+            Name = "Show Roles",
+            Default = true,
+            Save = false,
+            Flag = "ShowRoles",
+            Callback = function(Value)
+                Modules.ESP.Settings.ShowRole = Value
+            end
+        })
+        
+        ESPTab:AddToggle({
+            Name = "Rainbow ESP",
+            Default = false,
+            Save = false,
+            Flag = "RainbowESP",
+            Callback = function(Value)
+                Modules.ESP.Settings.RainbowESP = Value
+            end
+        })
+        
+        ESPTab:AddSlider({
+            Name = "Rainbow Speed",
+            Min = 1,
+            Max = 10,
+            Default = 5,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            Save = false,
+            Flag = "RainbowSpeed",
+            Callback = function(Value)
+                Modules.ESP.Settings.RainbowSpeed = Value
+            end
+        })
+    else
+        ESPTab:AddLabel("ESP Module failed to load")
+    end
+    
+    -- Coins Tab
+    if Modules.CoinCollector then
+        CoinsTab:AddToggle({
+            Name = "Auto Collect Coins",
+            Default = false,
+            Save = false,
+            Flag = "AutoCollectCoins",
+            Callback = function(Value)
+                Modules.CoinCollector.Settings.AutoCollectEnabled = Value
+            end
+        })
+        
+        CoinsTab:AddToggle({
+            Name = "Coin ESP",
+            Default = false,
+            Save = false,
+            Flag = "CoinESP",
+            Callback = function(Value)
+                Modules.CoinCollector.Settings.ESP.Enabled = Value
+            end
+        })
+        
+        CoinsTab:AddSlider({
+            Name = "Collection Radius",
+            Min = 5,
+            Max = 50,
+            Default = 15,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "studs",
+            Save = false,
+            Flag = "CollectionRadius",
+            Callback = function(Value)
+                Modules.CoinCollector.Settings.CollectionRadius = Value
+            end
+        })
+        
+        CoinsTab:AddToggle({
+            Name = "Prioritize Nearby Coins",
+            Default = true,
+            Save = false,
+            Flag = "PrioritizeNearby",
+            Callback = function(Value)
+                Modules.CoinCollector.Settings.PrioritizeNearby = Value
+            end
+        })
+        
+        local coinStats = CoinsTab:AddLabel("Coins Collected: 0")
+        
+        -- Update coin stats periodically
+        spawn(function()
+            while wait(1) do
+                if Modules.CoinCollector then
+                    local stats = Modules.CoinCollector.GetStats()
+                    coinStats:Set("Coins Collected: " .. stats.CoinsCollected)
+                end
+            end
+        end)
+    else
+        CoinsTab:AddLabel("Coin Collector Module failed to load")
+    end
+    
+    -- Murder Tab
+    if Modules.MurderDetection then
+        MurderTab:AddToggle({
+            Name = "Murder Detection",
+            Default = false,
+            Save = false,
+            Flag = "MurderDetection",
+            Callback = function(Value)
+                Modules.MurderDetection.Settings.Enabled = Value
+                if Value then
+                    Modules.MurderDetection.Start()
+                else
+                    Modules.MurderDetection.Stop()
+                end
+            end
+        })
+        
+        MurderTab:AddToggle({
+            Name = "Auto-Kill Murderer",
+            Default = false,
+            Save = false,
+            Flag = "AutoKill",
+            Callback = function(Value)
+                Modules.MurderDetection.Settings.AutoKill = Value
+            end
+        })
+        
+        MurderTab:AddSlider({
+            Name = "Warning Distance",
+            Min = 10,
+            Max = 50,
+            Default = 25,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "studs",
+            Save = false,
+            Flag = "WarningDistance",
+            Callback = function(Value)
+                Modules.MurderDetection.Settings.WarningDistance = Value
+            end
+        })
+        
+        MurderTab:AddSlider({
+            Name = "Kill Distance",
+            Min = 5,
+            Max = 20,
+            Default = 8,
+            Color = Color3.fromRGB(255, 255, 255),
+            Increment = 1,
+            ValueName = "studs",
+            Save = false,
+            Flag = "KillDistance",
+            Callback = function(Value)
+                Modules.MurderDetection.Settings.KillDistance = Value
+            end
+        })
+        
+        local murdererInfo = MurderTab:AddLabel("Murderer: Not Found")
+        
+        -- Update murderer info periodically
+        spawn(function()
+            while wait(1) do
+                if Modules.MurderDetection then
+                    local info = Modules.MurderDetection.GetMurdererInfo()
+                    if info.MurdererFound then
+                        murdererInfo:Set("Murderer: " .. info.MurdererName)
+                    else
+                        murdererInfo:Set("Murderer: Not Found")
+                    end
+                end
+            end
+        end)
+    else
+        MurderTab:AddLabel("Murder Detection Module failed to load")
+    end
+    
+    -- Teleport Tab
+    if Modules.Teleport then
+        TeleportTab:AddToggle({
+            Name = "Safe Mode",
+            Default = true,
+            Save = false,
+            Flag = "SafeMode",
+            Callback = function(Value)
+                Modules.Teleport.Settings.SafeMode = Value
+            end
+        })
+        
+        TeleportTab:AddToggle({
+            Name = "Anti-Detection",
+            Default = true,
+            Save = false,
+            Flag = "AntiDetection",
+            Callback = function(Value)
+                Modules.Teleport.Settings.AntiDetection.Enabled = Value
+            end
+        })
+        
+        -- Get list of locations
+        local locations = Modules.Teleport.GetLocationsList()
+        for _, location in ipairs(locations) do
+            TeleportTab:AddButton({
+                Name = location.Icon .. " " .. location.Name,
+                Callback = function()
+                    local success, message = Modules.Teleport.TeleportToLocation(location.Name)
+                    OrionLib:MakeNotification({
+                        Name = success and "Teleport Success" or "Teleport Failed",
+                        Content = message,
+                        Image = "rbxassetid://4483345998",
+                        Time = 3
+                    })
+                end
+            })
+        end
+    else
+        TeleportTab:AddLabel("Teleport Module failed to load")
+    end
+    
+    -- Anti-Ban Tab
+    if Modules.AntiBan then
+        AntiBanTab:AddToggle({
+            Name = "Anti-Ban System",
+            Default = true,
+            Save = false,
+            Flag = "AntiBanSystem",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Enabled = Value
+                if Value then
+                    Modules.AntiBan.Start()
+                else
+                    Modules.AntiBan.Stop()
+                end
+            end
+        })
+        
+        AntiBanTab:AddToggle({
+            Name = "Remove Exploit Detection",
+            Default = true,
+            Save = false,
+            Flag = "ExploitDetectionRemoval",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Flags.ExploitDetectionRemoval = Value
+            end
+        })
+        
+        AntiBanTab:AddToggle({
+            Name = "Reduce Auto-Punish Risk",
+            Default = true,
+            Save = false,
+            Flag = "ReduceAutoPunishRisk",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Flags.ReduceAutoPunishRisk = Value
+            end
+        })
+        
+        AntiBanTab:AddToggle({
+            Name = "Randomize Actions",
+            Default = true,
+            Save = false,
+            Flag = "RandomizeActions",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Flags.RandomizeActions = Value
+            end
+        })
+        
+        AntiBanTab:AddToggle({
+            Name = "Disable High-Risk Features",
+            Default = false,
+            Save = false,
+            Flag = "DisableHighRiskFeatures",
+            Callback = function(Value)
+                Modules.AntiBan.Settings.Flags.DisableHighRiskFeatures = Value
+            end
+        })
+        
+        local antiBanStats = AntiBanTab:AddLabel("Detections Evaded: 0")
+        
+        -- Update anti-ban stats periodically
+        spawn(function()
+            while wait(2) do
+                if Modules.AntiBan then
+                    local status = Modules.AntiBan.GetStatus()
+                    antiBanStats:Set("Detections Evaded: " .. status.DetectionsEvaded)
+                end
+            end
+        end)
+    else
+        AntiBanTab:AddLabel("Anti-Ban Module failed to load")
+    end
+end
+
+-- Start loading modules
+local function LoadAllModules()
+    -- Load Anti-Ban module first for immediate protection
+    Modules.AntiBan = LoadModule("AntiBan")
+    if Modules.AntiBan then
+        Modules.AntiBan.Start()
+    end
+    
+    -- Load other modules
+    Modules.ESP = LoadModule("ESP")
+    Modules.CoinCollector = LoadModule("CoinCollector")
+    Modules.MurderDetection = LoadModule("MurderDetection")
+    Modules.Teleport = LoadModule("Teleport")
+    
+    -- Link ESP and Murder Detection modules
+    if Modules.ESP and Modules.MurderDetection then
+        Modules.MurderDetection.SetESPModule(Modules.ESP)
+    end
+    
+    -- Link Murder Detection and Teleport modules
+    if Modules.MurderDetection and Modules.Teleport then
+        Modules.Teleport.SetMurderDetectionModule(Modules.MurderDetection)
+    end
+    
+    -- Start modules
+    if Modules.ESP then Modules.ESP.Start() end
+    if Modules.CoinCollector then Modules.CoinCollector.Start() end
+    if Modules.MurderDetection then Modules.MurderDetection.Start() end
+    if Modules.Teleport then Modules.Teleport.Start() end
+    
+    -- Update final status
+    UpdateStatus()
+    
+    -- Initialize module UI elements
+    InitializeModuleUI()
+    
+    -- Show notification with loading results
+    OrionLib:MakeNotification({
+        Name = "SkyX MM2 Modular",
+        Content = "Loaded " .. LoadingStatus.LoadedModules .. "/" .. LoadingStatus.TotalModules .. " modules successfully!",
+        Image = "rbxassetid://4483345998",
+        Time = 5
+    })
+end
+
+-- Start loading modules
+LoadAllModules()
+
+-- UI cleanup on script end
+game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
+    if State == Enum.TeleportState.Started then
+        OrionLib:Destroy()
+    end
+end)
+
+return Window
