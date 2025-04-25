@@ -1,312 +1,212 @@
 --[[
-    🌊 SkyX Hub - MM2 Modern Script 🌊
-    ULTRA MODERN VERSION 5.0
-    
-    Features:
-    - Brand new sleek UI design with smooth animations
-    - Dark, ultra-modern aesthetic with customized controls
-    - Optimized performance and mobile compatibility
-    - All original MM2 features in a more elegant package
-    
-    Optimized for mobile executors (Swift, Fluxus, KRNL, Delta, etc.)
+    🌊 SkyX Hub - Modern UI Demo 🌊
+ddd    
+    This script demonstrates the Modern UI without requiring a Roblox game
+    It's useful for testing UI functionality in any executor
 ]]
-
--- Check for valid Roblox environment
-local success, services = pcall(function()
-    local Players = game:GetService("Players") 
-    local Workspace = game:GetService("Workspace")
-    local RunService = game:GetService("RunService")
-    local UserInputService = game:GetService("UserInputService")
-    local TweenService = game:GetService("TweenService")
-    
-    local LocalPlayer = Players.LocalPlayer
-    local Camera = Workspace.CurrentCamera
-    local Mouse = LocalPlayer:GetMouse()
-    
-    return {
-        Players = Players,
-        Workspace = Workspace,
-        RunService = RunService,
-        UserInputService = UserInputService,
-        TweenService = TweenService,
-        LocalPlayer = LocalPlayer,
-        Camera = Camera,
-        Mouse = Mouse
-    }
-end)
-
-if not success then
-    print("Not running in proper Roblox environment")
-    print("This script should only be executed in a Roblox game environment")
-    return
-end
-
--- Extract services for easier access
-local Players = services.Players
-local Workspace = services.Workspace
-local RunService = services.RunService
-local UserInputService = services.UserInputService
-local TweenService = services.TweenService
-local LocalPlayer = services.LocalPlayer
-local Camera = services.Camera
-local Mouse = services.Mouse
-
--- Prevent duplicate execution
-if _G.SkyXMM2Loaded then
-    print("SkyX MM2 Script is already running")
-    return
-end
-_G.SkyXMM2Loaded = true
 
 -- Load SkyX Modern UI Library
 local SkyXModern = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyX-Scripts/SkyX/main/UI/SkyXModern.lua'))()
 
--- Create window
+-- Create Window with custom theme
 local Window = SkyXModern:CreateWindow({
-    Name = "SkyX Hub - MM2",
+    Name = "SkyX Hub Demo",
     LoadingTitle = "SkyX Hub",
-    LoadingSubtitle = "Murder Mystery 2 Script",
+    LoadingSubtitle = "Modern UI Demo",
     ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "SkyXHub",
-        FileName = "MM2Config"
+        Enabled = false
     },
     Theme = {
-        -- Main background colors
         BackgroundColor = Color3.fromRGB(18, 18, 24),
         SidebarColor = Color3.fromRGB(24, 24, 34),
         ContainerColor = Color3.fromRGB(30, 30, 40),
-        
-        -- Accent and highlight colors
-        HighlightColor = Color3.fromRGB(80, 120, 255),    -- Bright blue accent
-        
-        -- Text colors
-        TextColor = Color3.fromRGB(240, 240, 245),       -- Almost white text
-        SubTextColor = Color3.fromRGB(180, 180, 190),    -- Light gray secondary text
-        HeadingColor = Color3.fromRGB(255, 255, 255),    -- Pure white headings
-        
-        -- UI component colors
-        ButtonColor = Color3.fromRGB(40, 40, 55),         -- Base button color
-        ButtonHoverColor = Color3.fromRGB(50, 50, 70),    -- Button hover state
-        
-        -- Toggle and slider colors
-        ToggleOffColor = Color3.fromRGB(60, 60, 80),      -- Toggle in off state
-        ToggleOnColor = Color3.fromRGB(80, 120, 255),     -- Toggle in on state
-        SliderBackgroundColor = Color3.fromRGB(40, 40, 60), -- Slider track
-        SliderFilledColor = Color3.fromRGB(80, 120, 255),  -- Filled part of slider
-        
-        -- Other UI elements
-        BorderColor = Color3.fromRGB(50, 50, 70),        -- Border for containers
-        TabColor = Color3.fromRGB(30, 30, 45),           -- Tab button color
-        TabActiveColor = Color3.fromRGB(80, 120, 255),   -- Selected tab color
-        InputBackgroundColor = Color3.fromRGB(30, 30, 45), -- Input field background
-        DropdownColor = Color3.fromRGB(30, 30, 45),        -- Dropdown menu color
-        
-        -- Status colors
-        ErrorColor = Color3.fromRGB(255, 85, 85),        -- Error red
-        SuccessColor = Color3.fromRGB(85, 255, 127),     -- Success green
-        WarningColor = Color3.fromRGB(255, 185, 85)      -- Warning yellow/orange
+        HighlightColor = Color3.fromRGB(85, 125, 255),
+        TextColor = Color3.fromRGB(240, 240, 245),
+        SubTextColor = Color3.fromRGB(180, 180, 190),
+        HeadingColor = Color3.fromRGB(255, 255, 255),
+        ButtonColor = Color3.fromRGB(40, 40, 55),
+        ButtonHoverColor = Color3.fromRGB(50, 50, 70),
+        ToggleOffColor = Color3.fromRGB(60, 60, 80),
+        ToggleOnColor = Color3.fromRGB(85, 125, 255),
+        SliderBackgroundColor = Color3.fromRGB(40, 40, 60),
+        SliderFilledColor = Color3.fromRGB(85, 125, 255),
+        BorderColor = Color3.fromRGB(50, 50, 70),
+        TabColor = Color3.fromRGB(30, 30, 45),
+        TabActiveColor = Color3.fromRGB(85, 125, 255),
+        InputBackgroundColor = Color3.fromRGB(30, 30, 45),
+        DropdownColor = Color3.fromRGB(30, 30, 45),
+        ErrorColor = Color3.fromRGB(255, 85, 85),
+        SuccessColor = Color3.fromRGB(85, 255, 127),
+        WarningColor = Color3.fromRGB(255, 185, 85)
     }
 })
 
 -- Create tabs with modern icons
 local MainTab = Window:CreateTab({
-    Name = "Main",
+    Name = "Buttons",
     Icon = "rbxassetid://7733658133" -- Dashboard icon
 })
 
-local ESPTab = Window:CreateTab({
-    Name = "ESP",
-    Icon = "rbxassetid://7733911690" -- Vision/eye icon
+local TogglesTab = Window:CreateTab({
+    Name = "Toggles",
+    Icon = "rbxassetid://7733911690" -- Toggle icon
 })
 
-local TeleportsTab = Window:CreateTab({
-    Name = "Teleport",
-    Icon = "rbxassetid://7734053495" -- Location/map icon
+local SlidersTab = Window:CreateTab({
+    Name = "Sliders",
+    Icon = "rbxassetid://7734053495" -- Sliders icon
 })
 
-local PlayerTab = Window:CreateTab({
-    Name = "Player",
-    Icon = "rbxassetid://7743877054" -- Person icon
+local DropdownsTab = Window:CreateTab({
+    Name = "Dropdowns",
+    Icon = "rbxassetid://7743877054" -- List icon
 })
 
-local SettingsTab = Window:CreateTab({
-    Name = "Settings",
-    Icon = "rbxassetid://7734053495" -- Gear icon
+-- Main Tab Content
+local ButtonSection = MainTab:CreateSection("Button Examples")
+
+-- Add some buttons
+local Button1 = ButtonSection:CreateButton({
+    Name = "Print Hello",
+    Callback = function()
+        print("Hello from Button 1!")
+    end
 })
 
--- Create main tab content
-local GameSection = MainTab:CreateSection("Game Features")
+local Button2 = ButtonSection:CreateButton({
+    Name = "Change Button Text",
+    Callback = function()
+        Button1:Update("Button Updated")
+        print("Button text updated!")
+    end
+})
 
--- Add toggles and buttons
-local ESPToggle = GameSection:CreateToggle({
-    Name = "Show ESP",
+local Button3 = ButtonSection:CreateButton({
+    Name = "Reset Button Text",
+    Callback = function()
+        Button1:Update("Print Hello")
+        print("Button text reset!")
+    end
+})
+
+-- Create info section
+local InfoSection = MainTab:CreateSection("UI Information")
+
+InfoSection:CreateButton({
+    Name = "How to Close UI",
+    Callback = function()
+        print("Press Right Control to toggle the UI visibility")
+        print("On mobile, use the blue floating button to toggle")
+    end
+})
+
+-- Toggles Tab Content
+local ToggleSection = TogglesTab:CreateSection("Toggle Examples")
+
+local Toggle1 = ToggleSection:CreateToggle({
+    Name = "Print Toggle State",
     Default = false,
     Callback = function(Value)
-        print("ESP Toggled:", Value)
+        print("Toggle 1 is now:", Value)
     end
 })
 
-local CoinCollectorToggle = GameSection:CreateToggle({
-    Name = "Auto Collect Coins",
+local Toggle2 = ToggleSection:CreateToggle({
+    Name = "Control Other Toggle",
     Default = false,
     Callback = function(Value)
-        print("Auto Collect Coins Toggled:", Value)
+        Toggle1:SetState(Value)
+        print("Controlling Toggle 1 to:", Value)
     end
 })
 
-local MurderDetectionToggle = GameSection:CreateToggle({
-    Name = "Murder Detection",
-    Default = false,
-    Callback = function(Value)
-        print("Murder Detection Toggled:", Value)
-    end
-})
-
-local RefreshButton = GameSection:CreateButton({
-    Name = "Refresh Players",
-    Callback = function()
-        print("Refreshing players...")
-    end
-})
-
--- Create game status section
-local StatusSection = MainTab:CreateSection("Game Status")
-
--- Create ESP tab content
-local ESPSettingsSection = ESPTab:CreateSection("ESP Settings")
-
-local ShowNamesToggle = ESPSettingsSection:CreateToggle({
-    Name = "Show Names",
+local Toggle3 = ToggleSection:CreateToggle({
+    Name = "Always On Toggle",
     Default = true,
     Callback = function(Value)
-        print("Show Names:", Value)
+        print("This toggle is always on!")
+        if not Value then
+            Toggle3:SetState(true)
+        end
     end
 })
 
-local ShowRolesToggle = ESPSettingsSection:CreateToggle({
-    Name = "Show Roles",
-    Default = true,
-    Callback = function(Value)
-        print("Show Roles:", Value)
-    end
-})
+-- Sliders Tab Content
+local SliderSection = SlidersTab:CreateSection("Slider Examples")
 
-local ShowDistanceToggle = ESPSettingsSection:CreateToggle({
-    Name = "Show Distance",
-    Default = true,
-    Callback = function(Value)
-        print("Show Distance:", Value)
-    end
-})
-
-local ESPColorSection = ESPTab:CreateSection("ESP Colors")
-
--- Create teleport tab content
-local TeleportSection = TeleportsTab:CreateSection("Map Teleports")
-
-local LobbyButton = TeleportSection:CreateButton({
-    Name = "Teleport to Lobby",
-    Callback = function()
-        print("Teleporting to Lobby...")
-    end
-})
-
-local MapButton = TeleportSection:CreateButton({
-    Name = "Teleport to Map",
-    Callback = function()
-        print("Teleporting to Map...")
-    end
-})
-
--- Player tab content
-local PlayerSection = PlayerTab:CreateSection("Player Settings")
-
-local WalkspeedSlider = PlayerSection:CreateSlider({
-    Name = "Walk Speed",
-    Min = 16,
+local Slider1 = SliderSection:CreateSlider({
+    Name = "Basic Slider",
+    Min = 0,
     Max = 100,
-    Default = 16,
-    Increment = 1,
-    Callback = function(Value)
-        print("Walk Speed set to:", Value)
-    end
-})
-
-local JumpPowerSlider = PlayerSection:CreateSlider({
-    Name = "Jump Power",
-    Min = 50,
-    Max = 200,
     Default = 50,
     Increment = 1,
     Callback = function(Value)
-        print("Jump Power set to:", Value)
+        print("Slider 1 value:", Value)
     end
 })
 
-local NoclipToggle = PlayerSection:CreateToggle({
-    Name = "Noclip",
-    Default = false,
+local Slider2 = SliderSection:CreateSlider({
+    Name = "Precise Slider",
+    Min = 0,
+    Max = 1,
+    Default = 0.5,
+    Increment = 0.01,
     Callback = function(Value)
-        print("Noclip Toggled:", Value)
+        print("Precise slider value:", Value)
     end
 })
 
-local FlyToggle = PlayerSection:CreateToggle({
-    Name = "Fly",
-    Default = false,
-    Callback = function(Value)
-        print("Fly Toggled:", Value)
-    end
-})
+local SliderControlSection = SlidersTab:CreateSection("Slider Controls")
 
--- Create miscellaneous section for teleport tab
-local MiscSection = TeleportsTab:CreateSection("Player Teleports")
-
-local PlayerDropdown = MiscSection:CreateDropdown({
-    Name = "Select Player",
-    Options = {"None"},
-    Default = "None",
-    Callback = function(Value)
-        print("Selected Player:", Value)
-    end
-})
-
-local TeleportToPlayerButton = MiscSection:CreateButton({
-    Name = "Teleport to Player",
+SliderControlSection:CreateButton({
+    Name = "Reset Sliders",
     Callback = function()
-        print("Teleporting to selected player...")
+        Slider1:SetValue(50)
+        Slider2:SetValue(0.5)
+        print("Sliders reset to default values!")
     end
 })
 
--- Settings tab content
-local SettingsSection = SettingsTab:CreateSection("UI Settings")
+-- Dropdowns Tab Content
+local DropdownSection = DropdownsTab:CreateSection("Dropdown Examples")
 
-local UnloadButton = SettingsSection:CreateButton({
-    Name = "Unload Script",
+local options = {"Option 1", "Option 2", "Option 3", "Option 4", "Option 5"}
+
+local Dropdown1 = DropdownSection:CreateDropdown({
+    Name = "Basic Dropdown",
+    Options = options,
+    Default = "Option 1",
+    Callback = function(Option)
+        print("Selected option:", Option)
+    end
+})
+
+local DropdownControlSection = DropdownsTab:CreateSection("Dropdown Controls")
+
+DropdownControlSection:CreateButton({
+    Name = "Set to Option 3",
     Callback = function()
-        _G.SkyXMM2Loaded = false
-        print("Unloading SkyX Hub MM2...")
+        Dropdown1:SetValue("Option 3")
+        print("Dropdown set to Option 3!")
     end
 })
 
--- Function to update players list
-local function UpdatePlayersList()
-    local playerNames = {"None"}
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(playerNames, player.Name)
-        end
+local newOptions = {"New Option 1", "New Option 2", "New Option 3"}
+
+DropdownControlSection:CreateButton({
+    Name = "Change Options",
+    Callback = function()
+        Dropdown1:UpdateOptions(newOptions)
+        print("Dropdown options changed!")
     end
-    
-    PlayerDropdown:UpdateOptions(playerNames)
-end
+})
 
--- Update players list initially and when players join/leave
-UpdatePlayersList()
+DropdownControlSection:CreateButton({
+    Name = "Reset Options",
+    Callback = function()
+        Dropdown1:UpdateOptions(options)
+        print("Dropdown options reset!")
+    end
+})
 
-Players.PlayerAdded:Connect(UpdatePlayersList)
-Players.PlayerRemoving:Connect(UpdatePlayersList)
-
-print("SkyX MM2 Modern UI loaded successfully | Press Right Control to toggle UI")
+print("SkyX Modern UI Demo loaded successfully | Press Right Control to toggle UI")
