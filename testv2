@@ -15,7 +15,7 @@ if game.PlaceId ~= 142823291 and game.PlaceId ~= 183364845 and game.PlaceId ~= 5
 end
 
 -- Load Modern UI Library
-local SkyXModern = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyX-Scripts/SkyX/main/UI/SkyXModern.lua'))()
+local SkyXModern = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua'))()
 
 -- Services
 local Players = game:GetService("Players")
