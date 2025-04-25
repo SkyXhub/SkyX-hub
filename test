@@ -1,7 +1,17 @@
 --[[
-🌊 SkyX MM2 Script 🌊
+🌊 SkyX MM2 Advanced Script 🌊
 Direct script with built-in UI (no external dependencies)
-This script will show UI elements properly without relying on GitHub assets
+Enhanced for mobile compatibility with advanced features
+
+Features:
+- Enhanced ESP System with Custom Colors and Distance Display
+- Advanced Auto Coin/Item Collector with Prioritization
+- Smart Role Prediction System
+- Speed & Jump Boost Sliders 
+- One-Click Teleports with Anti-Detection 
+- Advanced Performance Optimization
+- Smart Murder Detection and Auto-Kill
+- Military-Grade Anti-Ban System
 ]]
 
 -- Core services
@@ -9,6 +19,10 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 
 -- Device detection
 local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
@@ -432,9 +446,37 @@ AddConnection(ESPContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), 
     ESPSection.Size = UDim2.new(1, 0, 0, ESPSectionContent.Size.Y.Offset + 40)
 end)
 
--- ESP Toggle functions
-local ESPEnabled = false
-local PlayerESPHandles = {}
+-- Enhanced ESP System
+local ESPSettings = {
+    Enabled = false,
+    ShowDistance = true,
+    ShowRole = true,
+    Rainbow = false,
+    CustomColors = {
+        Murderer = Color3.fromRGB(255, 0, 0),    -- Red
+        Sheriff = Color3.fromRGB(0, 100, 255),   -- Blue
+        Innocent = Color3.fromRGB(0, 255, 100),  -- Green
+        Unknown = Color3.fromRGB(255, 255, 255), -- White
+    },
+    Transparency = 0.5
+}
+
+-- Anti-ban system variables
+local AntiBanEnabled = true
+local AntiBanFlags = {
+    ExploitDetectionRemoval = true,
+    ReduceAutoPunishRisk = true,
+    RandomizeActions = true,
+    AvoidTeleportPattern = true
+}
+
+-- Smart role prediction system
+local RolePrediction = {
+    Enabled = true,
+    PredictedRoles = {},
+    LastPrediction = 0,
+    Confidence = {}
+}
 
 -- Create ESP toggle
 local ESPToggleFrame = Instance.new("Frame")
@@ -444,6 +486,11 @@ ESPToggleFrame.BackgroundTransparency = 1
 ESPToggleFrame.BorderSizePixel = 0
 ESPToggleFrame.Parent = ESPSectionContent
 
+-- Adjust size for mobile
+if IsMobile then
+    ESPToggleFrame.Size = UDim2.new(1, 0, 0, 40)
+end
+
 -- Create toggle text
 local ESPToggleText = Instance.new("TextLabel")
 ESPToggleText.Name = "Text"
@@ -451,17 +498,17 @@ ESPToggleText.Size = UDim2.new(1, -55, 1, 0)
 ESPToggleText.Position = UDim2.new(0, 55, 0, 0)
 ESPToggleText.BackgroundTransparency = 1
 ESPToggleText.Font = Enum.Font.GothamSemibold
-ESPToggleText.TextSize = 14
+ESPToggleText.TextSize = IsMobile and 16 or 14
 ESPToggleText.TextColor3 = Colors.Text
 ESPToggleText.TextXAlignment = Enum.TextXAlignment.Left
-ESPToggleText.Text = "Enable Player ESP"
+ESPToggleText.Text = "Enhanced Player ESP"
 ESPToggleText.Parent = ESPToggleFrame
 
 -- Create toggle indicator background
 local ESPToggleBG = Instance.new("Frame")
 ESPToggleBG.Name = "Background"
-ESPToggleBG.Size = UDim2.new(0, 44, 0, 24)
-ESPToggleBG.Position = UDim2.new(0, 0, 0.5, -12)
+ESPToggleBG.Size = UDim2.new(0, IsMobile and 50 or 44, 0, IsMobile and 28 or 24)
+ESPToggleBG.Position = UDim2.new(0, 0, 0.5, IsMobile and -14 or -12)
 ESPToggleBG.BackgroundColor3 = Colors.Background
 ESPToggleBG.BorderSizePixel = 0
 ESPToggleBG.Parent = ESPToggleFrame
@@ -474,8 +521,8 @@ ESPToggleCorner.Parent = ESPToggleBG
 -- Create toggle indicator
 local ESPIndicator = Instance.new("Frame")
 ESPIndicator.Name = "Indicator"
-ESPIndicator.Size = UDim2.new(0, 18, 0, 18)
-ESPIndicator.Position = UDim2.new(0, 3, 0.5, -9)
+ESPIndicator.Size = UDim2.new(0, IsMobile and 22 or 18, 0, IsMobile and 22 or 18)
+ESPIndicator.Position = UDim2.new(0, 3, 0.5, IsMobile and -11 or -9)
 ESPIndicator.BackgroundColor3 = Colors.Text
 ESPIndicator.BorderSizePixel = 0
 ESPIndicator.Parent = ESPToggleBG
@@ -493,7 +540,188 @@ ESPHitbox.BackgroundTransparency = 1
 ESPHitbox.Text = ""
 ESPHitbox.Parent = ESPToggleFrame
 
--- ESP function
+-- Create show distance toggle
+local DistanceToggleFrame = Instance.new("Frame")
+DistanceToggleFrame.Name = "DistanceToggle"
+DistanceToggleFrame.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 34)
+DistanceToggleFrame.BackgroundTransparency = 1
+DistanceToggleFrame.BorderSizePixel = 0
+DistanceToggleFrame.Parent = ESPSectionContent
+
+-- Create toggle text
+local DistanceToggleText = Instance.new("TextLabel")
+DistanceToggleText.Name = "Text"
+DistanceToggleText.Size = UDim2.new(1, -55, 1, 0)
+DistanceToggleText.Position = UDim2.new(0, 55, 0, 0)
+DistanceToggleText.BackgroundTransparency = 1
+DistanceToggleText.Font = Enum.Font.GothamSemibold
+DistanceToggleText.TextSize = IsMobile and 16 or 14
+DistanceToggleText.TextColor3 = Colors.Text
+DistanceToggleText.TextXAlignment = Enum.TextXAlignment.Left
+DistanceToggleText.Text = "Show Distance"
+DistanceToggleText.Parent = DistanceToggleFrame
+
+-- Create toggle indicator background
+local DistanceToggleBG = Instance.new("Frame")
+DistanceToggleBG.Name = "Background"
+DistanceToggleBG.Size = UDim2.new(0, IsMobile and 50 or 44, 0, IsMobile and 28 or 24)
+DistanceToggleBG.Position = UDim2.new(0, 0, 0.5, IsMobile and -14 or -12)
+DistanceToggleBG.BackgroundColor3 = Colors.Background
+DistanceToggleBG.BorderSizePixel = 0
+DistanceToggleBG.Parent = DistanceToggleFrame
+
+-- Add corner to indicator
+local DistanceToggleCorner = Instance.new("UICorner")
+DistanceToggleCorner.CornerRadius = UDim.new(1, 0)
+DistanceToggleCorner.Parent = DistanceToggleBG
+
+-- Create toggle indicator
+local DistanceIndicator = Instance.new("Frame")
+DistanceIndicator.Name = "Indicator"
+DistanceIndicator.Size = UDim2.new(0, IsMobile and 22 or 18, 0, IsMobile and 22 or 18)
+DistanceIndicator.Position = UDim2.new(0, 3, 0.5, IsMobile and -11 or -9)
+DistanceIndicator.BackgroundColor3 = Colors.Text
+DistanceIndicator.BorderSizePixel = 0
+DistanceIndicator.Parent = DistanceToggleBG
+
+-- Add corner to indicator
+local DistanceIndicatorCorner = Instance.new("UICorner")
+DistanceIndicatorCorner.CornerRadius = UDim.new(1, 0)
+DistanceIndicatorCorner.Parent = DistanceIndicator
+
+-- Add hitbox
+local DistanceHitbox = Instance.new("TextButton")
+DistanceHitbox.Name = "Hitbox"
+DistanceHitbox.Size = UDim2.new(1, 0, 1, 0)
+DistanceHitbox.BackgroundTransparency = 1
+DistanceHitbox.Text = ""
+DistanceHitbox.Parent = DistanceToggleFrame
+
+-- Distance toggle functionality
+AddConnection(DistanceHitbox.MouseButton1Click, function()
+    ESPSettings.ShowDistance = not ESPSettings.ShowDistance
+    
+    -- Animate background
+    TweenService:Create(DistanceToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = ESPSettings.ShowDistance and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(DistanceIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, ESPSettings.ShowDistance and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -11 or -9)
+    }):Play()
+end)
+
+-- Role prediction system
+local function PredictRoles()
+    if not RolePrediction.Enabled then return end
+    
+    -- Don't predict too often
+    local now = tick()
+    if now - RolePrediction.LastPrediction < 5 then return end
+    RolePrediction.LastPrediction = now
+    
+    -- Clear old predictions
+    RolePrediction.PredictedRoles = {}
+    RolePrediction.Confidence = {}
+    
+    -- Get known roles
+    local MM2 = GetMM2Values()
+    local knownMurderer = MM2.Roles.Murderer
+    local knownSheriff = MM2.Roles.Sheriff
+    
+    -- Player behavior analysis for prediction
+    for _, Player in pairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer then
+            -- Skip players with already known roles
+            if (knownMurderer and Player == knownMurderer) or (knownSheriff and Player == knownSheriff) then
+                continue
+            end
+            
+            local confidence = 0
+            local Character = Player.Character
+            
+            if Character then
+                -- Check player movement patterns
+                local Humanoid = Character:FindFirstChild("Humanoid")
+                if Humanoid then
+                    -- Fast movement could indicate murderer
+                    if Humanoid.WalkSpeed > 18 then
+                        confidence = confidence + 0.1
+                    end
+                end
+                
+                -- Check if player is following others closely (murderer behavior)
+                for _, OtherPlayer in pairs(Players:GetPlayers()) do
+                    if OtherPlayer ~= Player and OtherPlayer ~= LocalPlayer then
+                        local OtherCharacter = OtherPlayer.Character
+                        if OtherCharacter and OtherCharacter:FindFirstChild("HumanoidRootPart") and Character:FindFirstChild("HumanoidRootPart") then
+                            local distance = (OtherCharacter.HumanoidRootPart.Position - Character.HumanoidRootPart.Position).Magnitude
+                            if distance < 10 then
+                                confidence = confidence + 0.15
+                            end
+                        end
+                    end
+                end
+                
+                -- Check if player is avoiding others (sheriff behavior)
+                local avoidingCount = 0
+                for _, OtherPlayer in pairs(Players:GetPlayers()) do
+                    if OtherPlayer ~= Player and OtherPlayer ~= LocalPlayer then
+                        local OtherCharacter = OtherPlayer.Character
+                        if OtherCharacter and OtherCharacter:FindFirstChild("HumanoidRootPart") and Character:FindFirstChild("HumanoidRootPart") then
+                            local distance = (OtherCharacter.HumanoidRootPart.Position - Character.HumanoidRootPart.Position).Magnitude
+                            if distance > 25 then
+                                avoidingCount = avoidingCount + 1
+                            end
+                        end
+                    end
+                end
+                
+                if avoidingCount > #Players:GetPlayers() / 2 then
+                    -- Likely sheriff if avoiding many players
+                    RolePrediction.PredictedRoles[Player.Name] = "Sheriff"
+                    RolePrediction.Confidence[Player.Name] = 0.6
+                else if confidence > 0.2 then
+                    -- Potential murderer
+                    RolePrediction.PredictedRoles[Player.Name] = "Murderer"
+                    RolePrediction.Confidence[Player.Name] = confidence
+                end
+                end
+            end
+        end
+    end
+end
+
+-- Player ESP handles
+local PlayerESPHandles = {}
+local ESPLabels = {}
+
+-- Create rainbow color generator
+local function GetRainbowColor()
+    local tick = tick() % 5 / 5
+    local hue = tick * 360
+    
+    local r, g, b
+    local h = hue / 60
+    local i = math.floor(h)
+    local f = h - i
+    local p = 0
+    local q = 1 - f
+    local t = f
+    
+    if i == 0 then r, g, b = 1, t, p
+    elseif i == 1 then r, g, b = q, 1, p
+    elseif i == 2 then r, g, b = p, 1, t
+    elseif i == 3 then r, g, b = p, q, 1
+    elseif i == 4 then r, g, b = t, p, 1
+    elseif i == 5 then r, g, b = 1, p, q
+    end
+    
+    return Color3.fromRGB(r * 255, g * 255, b * 255)
+end
+
+-- Enhanced ESP function
 local function UpdateESP()
     -- Clean up old ESP
     for _, handle in pairs(PlayerESPHandles) do
@@ -501,9 +729,20 @@ local function UpdateESP()
             handle:Destroy()
         end
     end
-    PlayerESPHandles = {}
     
-    if not ESPEnabled then return end
+    for _, label in pairs(ESPLabels) do
+        if label and label.Parent then
+            label:Destroy()
+        end
+    end
+    
+    PlayerESPHandles = {}
+    ESPLabels = {}
+    
+    if not ESPSettings.Enabled then return end
+    
+    -- Update role predictions
+    PredictRoles()
     
     -- Get MM2 values to know roles
     local MM2 = GetMM2Values()
@@ -512,61 +751,182 @@ local function UpdateESP()
     for _, Player in pairs(game.Players:GetPlayers()) do
         if Player ~= game.Players.LocalPlayer then
             local Character = Player.Character
-            if Character and Character:FindFirstChild("HumanoidRootPart") then
+            if Character and Character:FindFirstChild("HumanoidRootPart") and Character:FindFirstChild("Humanoid") then
                 -- Create ESP highlight
                 local Highlight = Instance.new("Highlight")
                 Highlight.Name = "SkyXESP_" .. Player.Name
                 
                 -- Determine role and color
-                local Color = Color3.fromRGB(255, 255, 255) -- Default innocent color
+                local Color = ESPSettings.CustomColors.Unknown
+                local Role = "Unknown"
                 
-                -- Murderer is red
+                -- Use actual role if known
                 if MM2.Roles.Murderer and MM2.Roles.Murderer == Player then
-                    Color = Color3.fromRGB(255, 0, 0)
-                -- Sheriff is blue
+                    Color = ESPSettings.CustomColors.Murderer
+                    Role = "Murderer"
                 elseif MM2.Roles.Sheriff and MM2.Roles.Sheriff == Player then
-                    Color = Color3.fromRGB(0, 0, 255)
+                    Color = ESPSettings.CustomColors.Sheriff
+                    Role = "Sheriff"
+                else
+                    -- Use predicted role if available
+                    local predictedRole = RolePrediction.PredictedRoles[Player.Name]
+                    if predictedRole then
+                        if predictedRole == "Murderer" then
+                            Color = Color3.fromRGB(255, 150, 150) -- Light red for predicted murderer
+                            Role = "Predicted Murderer"
+                        elseif predictedRole == "Sheriff" then
+                            Color = Color3.fromRGB(150, 150, 255) -- Light blue for predicted sheriff
+                            Role = "Predicted Sheriff"
+                        end
+                    else
+                        Color = ESPSettings.CustomColors.Innocent
+                        Role = "Innocent"
+                    end
                 end
                 
+                -- Apply rainbow effect if enabled
+                if ESPSettings.Rainbow then
+                    Color = GetRainbowColor()
+                end
+                
+                -- Apply colors
                 Highlight.FillColor = Color
                 Highlight.OutlineColor = Color
-                Highlight.FillTransparency = 0.5
+                Highlight.FillTransparency = ESPSettings.Transparency
                 Highlight.OutlineTransparency = 0
                 Highlight.Parent = Character
                 
-                -- Save for cleanup
+                -- Create ESP text label for distance and role
+                if ESPSettings.ShowDistance or ESPSettings.ShowRole then
+                    -- Create ESP text
+                    local ESPLabel = Instance.new("BillboardGui")
+                    ESPLabel.Name = "SkyXESPLabel_" .. Player.Name
+                    ESPLabel.AlwaysOnTop = true
+                    ESPLabel.Size = UDim2.new(0, 200, 0, 50)
+                    ESPLabel.StudsOffset = Vector3.new(0, 3, 0)
+                    ESPLabel.Adornee = Character.HumanoidRootPart
+                    ESPLabel.Parent = Character.HumanoidRootPart
+                    
+                    local TextLabel = Instance.new("TextLabel")
+                    TextLabel.Size = UDim2.new(1, 0, 1, 0)
+                    TextLabel.BackgroundTransparency = 1
+                    TextLabel.TextColor3 = Color
+                    TextLabel.TextStrokeTransparency = 0.4
+                    TextLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                    TextLabel.Font = Enum.Font.GothamBold
+                    TextLabel.TextSize = 14
+                    TextLabel.Parent = ESPLabel
+                    
+                    -- Update label text
+                    local function UpdateLabelText()
+                        local LabelText = ""
+                        
+                        -- Add role if enabled
+                        if ESPSettings.ShowRole then
+                            LabelText = LabelText .. Role
+                        end
+                        
+                        -- Add distance if enabled
+                        if ESPSettings.ShowDistance and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                            local distance = math.floor((LocalPlayer.Character.HumanoidRootPart.Position - Character.HumanoidRootPart.Position).Magnitude)
+                            if ESPSettings.ShowRole then
+                                LabelText = LabelText .. " (" .. distance .. "m)"
+                            else
+                                LabelText = distance .. "m"
+                            end
+                        end
+                        
+                        TextLabel.Text = LabelText
+                    end
+                    
+                    -- Initial update
+                    UpdateLabelText()
+                    
+                    -- Update position & text every frame
+                    local connection = RunService.RenderStepped:Connect(function()
+                        if not ESPLabel or not ESPLabel.Parent then
+                            connection:Disconnect()
+                            return
+                        end
+                        
+                        UpdateLabelText()
+                        
+                        -- Rainbow color update
+                        if ESPSettings.Rainbow then
+                            local rainbowColor = GetRainbowColor()
+                            TextLabel.TextColor3 = rainbowColor
+                            
+                            if Highlight and Highlight.Parent then
+                                Highlight.FillColor = rainbowColor
+                                Highlight.OutlineColor = rainbowColor
+                            end
+                        end
+                    end)
+                    
+                    -- Save for cleanup
+                    table.insert(ESPLabels, ESPLabel)
+                end
+                
+                -- Save highlight for cleanup
                 table.insert(PlayerESPHandles, Highlight)
             end
         end
     end
 end
 
--- ESP Toggle functionality
+-- Enhanced ESP Toggle functionality with anti-ban protection
 AddConnection(ESPHitbox.MouseButton1Click, function()
-    ESPEnabled = not ESPEnabled
+    ESPSettings.Enabled = not ESPSettings.Enabled
     
     -- Animate background
     TweenService:Create(ESPToggleBG, TweenInfo.new(0.2), {
-        BackgroundColor3 = ESPEnabled and Colors.Button or Colors.Background
+        BackgroundColor3 = ESPSettings.Enabled and Colors.Button or Colors.Background
     }):Play()
     
     -- Animate indicator
     TweenService:Create(ESPIndicator, TweenInfo.new(0.2), {
-        Position = UDim2.new(0, ESPEnabled and 23 or 3, 0.5, -9)
+        Position = UDim2.new(0, ESPSettings.Enabled and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -11 or -9)
     }):Play()
     
-    -- Update ESP
-    UpdateESP()
-end)
-
--- Update ESP periodically
-local ESPUpdateConnection = game:GetService("RunService").Heartbeat:Connect(function()
-    if ESPEnabled then
-        UpdateESP()
+    -- Anti-ban measures before enabling ESP
+    if ESPSettings.Enabled and AntiBanEnabled then
+        -- Randomize the ESP initialization with different delays
+        if AntiBanFlags.RandomizeActions then
+            delay(math.random() * 0.3, UpdateESP)
+        else
+            UpdateESP()
+        end
+        
+        -- Implement additional anti-detection measures
+        if AntiBanFlags.ExploitDetectionRemoval then
+            -- Remove common detection flags
+            for _, child in pairs(LocalPlayer.Character:GetChildren()) do
+                if child.Name:lower():find("exploit") or child.Name:lower():find("cheat") then
+                    child:Destroy()
+                end
+            end
+        end
+    else
+        UpdateESP() -- Update immediately when turning off
     end
 end)
 
--- Auto create connection to cleanup ESP on script end
+-- ESP Heartbeat update for real-time tracking
+local ESPUpdateConnection = RunService.Heartbeat:Connect(function()
+    if ESPSettings.Enabled then
+        -- Anti-ban: Don't update too frequently to avoid detection
+        if AntiBanEnabled and AntiBanFlags.ReduceAutoPunishRisk then
+            -- Only update ESP every few frames to reduce detection risk
+            if math.random(1, 3) == 1 then
+                UpdateESP()
+            end
+        else
+            UpdateESP()
+        end
+    end
+end)
+
+-- Auto cleanup connection
 AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
     if child == SkyXUI then
         ESPUpdateConnection:Disconnect()
@@ -577,13 +937,38 @@ AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
                 handle:Destroy()
             end
         end
+        
+        for _, label in pairs(ESPLabels) do
+            if label and label.Parent then
+                label:Destroy()
+            end
+        end
     end
 end)
 
--- Create coin ESP toggle
+-- Advanced auto-collector system
+local CollectorSettings = {
+    CoinESPEnabled = false,
+    AutoCollectEnabled = false,
+    AutoCollectCooldown = 0.5, -- Interval between collection attempts
+    CollectionRadius = 12,     -- Distance to collect coins automatically
+    PrioritizeNearby = true,   -- Collect closest coins first
+    ESP = {
+        Enabled = false,
+        Color = Color3.fromRGB(255, 215, 0),
+        Transparency = 0.5,
+        Handles = {}
+    },
+    Stats = {
+        CoinsCollected = 0,
+        LastCollection = 0
+    }
+}
+
+-- Create coin ESP toggle with mobile optimizations
 local CoinToggleFrame = Instance.new("Frame")
 CoinToggleFrame.Name = "CoinToggle"
-CoinToggleFrame.Size = UDim2.new(1, 0, 0, 34)
+CoinToggleFrame.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 34)
 CoinToggleFrame.BackgroundTransparency = 1
 CoinToggleFrame.BorderSizePixel = 0
 CoinToggleFrame.Parent = ESPSectionContent
@@ -595,7 +980,7 @@ CoinToggleText.Size = UDim2.new(1, -55, 1, 0)
 CoinToggleText.Position = UDim2.new(0, 55, 0, 0)
 CoinToggleText.BackgroundTransparency = 1
 CoinToggleText.Font = Enum.Font.GothamSemibold
-CoinToggleText.TextSize = 14
+CoinToggleText.TextSize = IsMobile and 16 or 14
 CoinToggleText.TextColor3 = Colors.Text
 CoinToggleText.TextXAlignment = Enum.TextXAlignment.Left
 CoinToggleText.Text = "Show Coin Locations"
@@ -604,8 +989,8 @@ CoinToggleText.Parent = CoinToggleFrame
 -- Create toggle indicator background
 local CoinToggleBG = Instance.new("Frame")
 CoinToggleBG.Name = "Background"
-CoinToggleBG.Size = UDim2.new(0, 44, 0, 24)
-CoinToggleBG.Position = UDim2.new(0, 0, 0.5, -12)
+CoinToggleBG.Size = UDim2.new(0, IsMobile and 50 or 44, 0, IsMobile and 28 or 24)
+CoinToggleBG.Position = UDim2.new(0, 0, 0.5, IsMobile and -14 or -12)
 CoinToggleBG.BackgroundColor3 = Colors.Background
 CoinToggleBG.BorderSizePixel = 0
 CoinToggleBG.Parent = CoinToggleFrame
@@ -618,8 +1003,8 @@ CoinToggleCorner.Parent = CoinToggleBG
 -- Create toggle indicator
 local CoinIndicator = Instance.new("Frame")
 CoinIndicator.Name = "Indicator"
-CoinIndicator.Size = UDim2.new(0, 18, 0, 18)
-CoinIndicator.Position = UDim2.new(0, 3, 0.5, -9)
+CoinIndicator.Size = UDim2.new(0, IsMobile and 22 or 18, 0, IsMobile and 22 or 18)
+CoinIndicator.Position = UDim2.new(0, 3, 0.5, IsMobile and -11 or -9)
 CoinIndicator.BackgroundColor3 = Colors.Text
 CoinIndicator.BorderSizePixel = 0
 CoinIndicator.Parent = CoinToggleBG
@@ -637,77 +1022,944 @@ CoinHitbox.BackgroundTransparency = 1
 CoinHitbox.Text = ""
 CoinHitbox.Parent = CoinToggleFrame
 
--- Coin ESP variables
-local CoinESPEnabled = false
-local CoinESPHandles = {}
+-- Create auto collect toggle
+local AutoCollectToggleFrame = Instance.new("Frame")
+AutoCollectToggleFrame.Name = "AutoCollectToggle"
+AutoCollectToggleFrame.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 34)
+AutoCollectToggleFrame.BackgroundTransparency = 1
+AutoCollectToggleFrame.BorderSizePixel = 0
+AutoCollectToggleFrame.Parent = ESPSectionContent
 
--- Coin ESP function
+-- Create toggle text
+local AutoCollectToggleText = Instance.new("TextLabel")
+AutoCollectToggleText.Name = "Text"
+AutoCollectToggleText.Size = UDim2.new(1, -55, 1, 0)
+AutoCollectToggleText.Position = UDim2.new(0, 55, 0, 0)
+AutoCollectToggleText.BackgroundTransparency = 1
+AutoCollectToggleText.Font = Enum.Font.GothamSemibold
+AutoCollectToggleText.TextSize = IsMobile and 16 or 14
+AutoCollectToggleText.TextColor3 = Colors.Text
+AutoCollectToggleText.TextXAlignment = Enum.TextXAlignment.Left
+AutoCollectToggleText.Text = "Auto Collect Coins"
+AutoCollectToggleText.Parent = AutoCollectToggleFrame
+
+-- Create toggle indicator background
+local AutoCollectToggleBG = Instance.new("Frame")
+AutoCollectToggleBG.Name = "Background"
+AutoCollectToggleBG.Size = UDim2.new(0, IsMobile and 50 or 44, 0, IsMobile and 28 or 24)
+AutoCollectToggleBG.Position = UDim2.new(0, 0, 0.5, IsMobile and -14 or -12)
+AutoCollectToggleBG.BackgroundColor3 = Colors.Background
+AutoCollectToggleBG.BorderSizePixel = 0
+AutoCollectToggleBG.Parent = AutoCollectToggleFrame
+
+-- Add corner to indicator
+local AutoCollectToggleCorner = Instance.new("UICorner")
+AutoCollectToggleCorner.CornerRadius = UDim.new(1, 0)
+AutoCollectToggleCorner.Parent = AutoCollectToggleBG
+
+-- Create toggle indicator
+local AutoCollectIndicator = Instance.new("Frame")
+AutoCollectIndicator.Name = "Indicator"
+AutoCollectIndicator.Size = UDim2.new(0, IsMobile and 22 or 18, 0, IsMobile and 22 or 18)
+AutoCollectIndicator.Position = UDim2.new(0, 3, 0.5, IsMobile and -11 or -9)
+AutoCollectIndicator.BackgroundColor3 = Colors.Text
+AutoCollectIndicator.BorderSizePixel = 0
+AutoCollectIndicator.Parent = AutoCollectToggleBG
+
+-- Add corner to indicator
+local AutoCollectIndicatorCorner = Instance.new("UICorner")
+AutoCollectIndicatorCorner.CornerRadius = UDim.new(1, 0)
+AutoCollectIndicatorCorner.Parent = AutoCollectIndicator
+
+-- Add hitbox
+local AutoCollectHitbox = Instance.new("TextButton")
+AutoCollectHitbox.Name = "Hitbox"
+AutoCollectHitbox.Size = UDim2.new(1, 0, 1, 0)
+AutoCollectHitbox.BackgroundTransparency = 1
+AutoCollectHitbox.Text = ""
+AutoCollectHitbox.Parent = AutoCollectToggleFrame
+
+-- Create collection stat label
+local CollectionStatLabel = Instance.new("TextLabel")
+CollectionStatLabel.Name = "CollectionStatLabel"
+CollectionStatLabel.Size = UDim2.new(1, 0, 0, 24)
+CollectionStatLabel.BackgroundTransparency = 1
+CollectionStatLabel.Font = Enum.Font.Gotham
+CollectionStatLabel.TextSize = IsMobile and 14 or 12
+CollectionStatLabel.TextColor3 = Colors.Text
+CollectionStatLabel.TextXAlignment = Enum.TextXAlignment.Left
+CollectionStatLabel.Text = "   Coins Collected: 0"
+CollectionStatLabel.Parent = ESPSectionContent
+
+-- Advanced coin finder function
+local function FindCoins()
+    local coins = {}
+    
+    -- Look for coins in workspace with advanced detection
+    for _, Object in pairs(workspace:GetDescendants()) do
+        if (Object.Name == "Coin" or Object.Name == "CoinContainer" or 
+            Object.Name:lower():find("coin") or Object.Name:lower():find("collect")) and 
+            (Object:IsA("BasePart") or Object:IsA("Model")) then
+            
+            -- Get coin position
+            local position
+            if Object:IsA("BasePart") then
+                position = Object.Position
+            elseif Object:IsA("Model") and Object.PrimaryPart then
+                position = Object.PrimaryPart.Position
+            elseif Object:IsA("Model") then
+                for _, part in pairs(Object:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        position = part.Position
+                        break
+                    end
+                end
+            end
+            
+            if position then
+                table.insert(coins, {
+                    Object = Object,
+                    Position = position,
+                    Distance = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and 
+                              (LocalPlayer.Character.HumanoidRootPart.Position - position).Magnitude or 1000
+                })
+            end
+        end
+    end
+    
+    -- Sort by distance if prioritizing nearby coins
+    if CollectorSettings.PrioritizeNearby then
+        table.sort(coins, function(a, b)
+            return a.Distance < b.Distance
+        end)
+    end
+    
+    return coins
+end
+
+-- Enhanced Coin ESP function with distance display
 local function UpdateCoinESP()
     -- Clean up old coin ESP
-    for _, handle in pairs(CoinESPHandles) do
+    for _, handle in pairs(CollectorSettings.ESP.Handles) do
         if handle and handle.Parent then
             handle:Destroy()
         end
     end
-    CoinESPHandles = {}
+    CollectorSettings.ESP.Handles = {}
     
-    if not CoinESPEnabled then return end
+    if not CollectorSettings.CoinESPEnabled then return end
     
-    -- Look for coins in workspace
-    for _, Object in pairs(workspace:GetDescendants()) do
-        if Object.Name == "Coin" or Object.Name == "CoinContainer" then
-            -- Create ESP highlight
-            local Highlight = Instance.new("Highlight")
-            Highlight.Name = "SkyXCoinESP_" .. Object:GetFullName()
+    -- Find all coins
+    local coins = FindCoins()
+    
+    -- Add ESP to coins
+    for _, coinData in pairs(coins) do
+        local Object = coinData.Object
+        
+        -- Create ESP highlight
+        local Highlight = Instance.new("Highlight")
+        Highlight.Name = "SkyXCoinESP_" .. Object:GetFullName()
+        
+        -- Apply colors
+        Highlight.FillColor = CollectorSettings.ESP.Color
+        Highlight.OutlineColor = CollectorSettings.ESP.Color
+        Highlight.FillTransparency = CollectorSettings.ESP.Transparency
+        Highlight.OutlineTransparency = 0
+        Highlight.Parent = Object
+        
+        -- Add distance label for coins
+        if coinData.Distance <= 50 then -- Only show distance for nearby coins
+            local BillboardGui = Instance.new("BillboardGui")
+            BillboardGui.Name = "SkyXCoinDistance"
+            BillboardGui.AlwaysOnTop = true
+            BillboardGui.Size = UDim2.new(0, 100, 0, 30)
+            BillboardGui.StudsOffset = Vector3.new(0, 2, 0)
             
-            -- Gold color for coins
-            Highlight.FillColor = Color3.fromRGB(255, 215, 0)
-            Highlight.OutlineColor = Color3.fromRGB(255, 215, 0)
-            Highlight.FillTransparency = 0.5
-            Highlight.OutlineTransparency = 0
-            Highlight.Parent = Object
+            -- Find part to attach to
+            local attachPart
+            if Object:IsA("BasePart") then
+                attachPart = Object
+            elseif Object:IsA("Model") and Object.PrimaryPart then
+                attachPart = Object.PrimaryPart
+            else
+                for _, part in pairs(Object:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        attachPart = part
+                        break
+                    end
+                end
+            end
             
-            -- Save for cleanup
-            table.insert(CoinESPHandles, Highlight)
+            if attachPart then
+                BillboardGui.Adornee = attachPart
+                BillboardGui.Parent = attachPart
+                
+                -- Create text label
+                local TextLabel = Instance.new("TextLabel")
+                TextLabel.BackgroundTransparency = 1
+                TextLabel.Size = UDim2.new(1, 0, 1, 0)
+                TextLabel.Font = Enum.Font.GothamBold
+                TextLabel.TextSize = 12
+                TextLabel.TextColor3 = CollectorSettings.ESP.Color
+                TextLabel.TextStrokeTransparency = 0.5
+                TextLabel.Text = math.floor(coinData.Distance) .. "m"
+                TextLabel.Parent = BillboardGui
+                
+                -- Save for cleanup
+                table.insert(CollectorSettings.ESP.Handles, BillboardGui)
+            end
+        end
+        
+        -- Save highlight for cleanup
+        table.insert(CollectorSettings.ESP.Handles, Highlight)
+    end
+end
+
+-- Advanced auto collect function with anti-detection
+local function AutoCollectCoins()
+    if not CollectorSettings.AutoCollectEnabled then return end
+    
+    -- Apply anti-detection cooldown pattern
+    local now = tick()
+    if now - CollectorSettings.Stats.LastCollection < CollectorSettings.AutoCollectCooldown then
+        return
+    end
+    CollectorSettings.Stats.LastCollection = now
+    
+    -- Safety check for character
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
+    
+    -- Find all coins
+    local coins = FindCoins()
+    
+    -- Process collectibles in order (sorted by distance if prioritizing nearby)
+    for _, coinData in pairs(coins) do
+        if coinData.Distance <= CollectorSettings.CollectionRadius then
+            local Object = coinData.Object
+            
+            -- Anti-ban measures: Randomize collection pattern
+            if AntiBanEnabled and AntiBanFlags.RandomizeActions then
+                -- Small random delay before collection
+                task.wait(math.random() * 0.1)
+            end
+            
+            -- Approach 1: Try to fire touch events using FireTouchInterest
+            if Object:IsA("BasePart") then
+                pcall(function()
+                    firetouchinterest(LocalPlayer.Character.HumanoidRootPart, Object, 0)
+                    task.wait(0.1)
+                    firetouchinterest(LocalPlayer.Character.HumanoidRootPart, Object, 1)
+                    
+                    -- Update statistics
+                    CollectorSettings.Stats.CoinsCollected = CollectorSettings.Stats.CoinsCollected + 1
+                    CollectionStatLabel.Text = "   Coins Collected: " .. CollectorSettings.Stats.CoinsCollected
+                end)
+            elseif Object:IsA("Model") then
+                -- Try to find collectible parts in the model
+                for _, part in pairs(Object:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        pcall(function()
+                            firetouchinterest(LocalPlayer.Character.HumanoidRootPart, part, 0)
+                            task.wait(0.1)
+                            firetouchinterest(LocalPlayer.Character.HumanoidRootPart, part, 1)
+                            
+                            -- Update statistics
+                            CollectorSettings.Stats.CoinsCollected = CollectorSettings.Stats.CoinsCollected + 1
+                            CollectionStatLabel.Text = "   Coins Collected: " .. CollectorSettings.Stats.CoinsCollected
+                        end)
+                        break -- Only need to touch one part
+                    end
+                end
+            end
+            
+            -- Approach 2: Try to invoke remote events (in case firetouchinterest doesn't work)
+            -- This is a backup method for games that use remote events for collection
+            for _, descendant in pairs(game:GetDescendants()) do
+                if (descendant:IsA("RemoteEvent") or descendant:IsA("RemoteFunction")) and
+                    (descendant.Name:lower():find("collect") or descendant.Name:lower():find("coin") or 
+                     descendant.Name:lower():find("pickup") or descendant.Name:lower():find("grab")) then
+                    
+                    -- Try to fire the remote with the coin as an argument
+                    pcall(function()
+                        if descendant:IsA("RemoteEvent") then
+                            descendant:FireServer(Object)
+                        elseif descendant:IsA("RemoteFunction") then
+                            descendant:InvokeServer(Object)
+                        end
+                    end)
+                end
+            end
         end
     end
 end
 
 -- Coin Toggle functionality
 AddConnection(CoinHitbox.MouseButton1Click, function()
-    CoinESPEnabled = not CoinESPEnabled
+    CollectorSettings.CoinESPEnabled = not CollectorSettings.CoinESPEnabled
     
     -- Animate background
     TweenService:Create(CoinToggleBG, TweenInfo.new(0.2), {
-        BackgroundColor3 = CoinESPEnabled and Colors.Button or Colors.Background
+        BackgroundColor3 = CollectorSettings.CoinESPEnabled and Colors.Button or Colors.Background
     }):Play()
     
     -- Animate indicator
     TweenService:Create(CoinIndicator, TweenInfo.new(0.2), {
-        Position = UDim2.new(0, CoinESPEnabled and 23 or 3, 0.5, -9)
+        Position = UDim2.new(0, CollectorSettings.CoinESPEnabled and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -11 or -9)
     }):Play()
     
     -- Update Coin ESP
     UpdateCoinESP()
 end)
 
--- Update Coin ESP periodically
-local CoinESPUpdateConnection = game:GetService("RunService").Heartbeat:Connect(function()
-    if CoinESPEnabled then
+-- Auto Collect Toggle functionality
+AddConnection(AutoCollectHitbox.MouseButton1Click, function()
+    CollectorSettings.AutoCollectEnabled = not CollectorSettings.AutoCollectEnabled
+    
+    -- Animate background
+    TweenService:Create(AutoCollectToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = CollectorSettings.AutoCollectEnabled and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(AutoCollectIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, CollectorSettings.AutoCollectEnabled and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -11 or -9)
+    }):Play()
+end)
+
+-- Combined update loop for ESP and collection with anti-detection pattern
+local CollectorUpdateConnection = RunService.Heartbeat:Connect(function()
+    -- Update ESP less frequently to reduce performance impact
+    if CollectorSettings.CoinESPEnabled and tick() % 1 < 0.1 then
         UpdateCoinESP()
+    end
+    
+    -- Run auto-collect with randomized timing for anti-detection
+    if CollectorSettings.AutoCollectEnabled then
+        AutoCollectCoins()
     end
 end)
 
--- Auto create connection to cleanup Coin ESP on script end
+-- Auto create connection to cleanup on script end
 AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
     if child == SkyXUI then
-        CoinESPUpdateConnection:Disconnect()
+        CollectorUpdateConnection:Disconnect()
         
-        -- Clean up Coin ESP
-        for _, handle in pairs(CoinESPHandles) do
+        -- Clean up ESP
+        for _, handle in pairs(CollectorSettings.ESP.Handles) do
             if handle and handle.Parent then
                 handle:Destroy()
             end
+        end
+    end
+end)
+
+-- Smart Murder Detection and Auto-Kill feature
+local MurderDetection = {
+    Enabled = false,
+    AutoKill = false,
+    SafeDistance = 15,        -- Distance to maintain from murderer
+    WarningDistance = 25,     -- Distance to show warning at
+    KillDistance = 8,         -- Distance to automatically kill murderer if they get this close
+    MurdererFound = false,
+    MurdererPlayer = nil,
+    MurdererWarningUI = nil,
+    KillCooldown = 5,         -- Seconds between auto-kill attempts
+    LastKillAttempt = 0,
+    MovementPrediction = true -- Predict murderer's movement for better avoidance
+}
+
+-- Create Murder Detection section
+local MurderDetectionSection = Instance.new("Frame")
+MurderDetectionSection.Name = "MurderDetectionSection"
+MurderDetectionSection.Size = UDim2.new(1, 0, 0, 140)
+MurderDetectionSection.BackgroundColor3 = Colors.Background
+MurderDetectionSection.BorderSizePixel = 0
+MurderDetectionSection.AutomaticSize = Enum.AutomaticSize.Y
+MurderDetectionSection.Parent = MainTabPage
+
+-- Add corner
+local MurderSectionCorner = Instance.new("UICorner")
+MurderSectionCorner.CornerRadius = UDim.new(0, 6)
+MurderSectionCorner.Parent = MurderDetectionSection
+
+-- Add stroke
+local MurderSectionStroke = Instance.new("UIStroke")
+MurderSectionStroke.Color = Colors.Border
+MurderSectionStroke.Thickness = 1.5
+MurderSectionStroke.Parent = MurderDetectionSection
+
+-- Add title
+local MurderSectionTitle = Instance.new("TextLabel")
+MurderSectionTitle.Name = "Title"
+MurderSectionTitle.Size = UDim2.new(1, 0, 0, 30)
+MurderSectionTitle.BackgroundTransparency = 1
+MurderSectionTitle.Font = Enum.Font.GothamBold
+MurderSectionTitle.TextSize = 14
+MurderSectionTitle.TextColor3 = Colors.Text
+MurderSectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+MurderSectionTitle.Text = "    Murder Detection & Protection"
+MurderSectionTitle.Parent = MurderDetectionSection
+
+-- Create section content
+local MurderSectionContent = Instance.new("Frame")
+MurderSectionContent.Name = "Content"
+MurderSectionContent.Size = UDim2.new(1, -10, 0, 0)
+MurderSectionContent.Position = UDim2.new(0, 5, 0, 30)
+MurderSectionContent.BackgroundTransparency = 1
+MurderSectionContent.BorderSizePixel = 0
+MurderSectionContent.AutomaticSize = Enum.AutomaticSize.Y
+MurderSectionContent.Parent = MurderDetectionSection
+
+-- Add layout
+local MurderContentLayout = Instance.new("UIListLayout")
+MurderContentLayout.Padding = UDim.new(0, 8)
+MurderContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
+MurderContentLayout.Parent = MurderSectionContent
+
+-- Create murder detection toggle
+local MurderToggleFrame = Instance.new("Frame")
+MurderToggleFrame.Name = "MurderToggle"
+MurderToggleFrame.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 34)
+MurderToggleFrame.BackgroundTransparency = 1
+MurderToggleFrame.BorderSizePixel = 0
+MurderToggleFrame.Parent = MurderSectionContent
+
+-- Create toggle text
+local MurderToggleText = Instance.new("TextLabel")
+MurderToggleText.Name = "Text"
+MurderToggleText.Size = UDim2.new(1, -55, 1, 0)
+MurderToggleText.Position = UDim2.new(0, 55, 0, 0)
+MurderToggleText.BackgroundTransparency = 1
+MurderToggleText.Font = Enum.Font.GothamSemibold
+MurderToggleText.TextSize = IsMobile and 16 or 14
+MurderToggleText.TextColor3 = Colors.Text
+MurderToggleText.TextXAlignment = Enum.TextXAlignment.Left
+MurderToggleText.Text = "Smart Murder Detection"
+MurderToggleText.Parent = MurderToggleFrame
+
+-- Create toggle indicator background
+local MurderToggleBG = Instance.new("Frame")
+MurderToggleBG.Name = "Background"
+MurderToggleBG.Size = UDim2.new(0, IsMobile and 50 or 44, 0, IsMobile and 28 or 24)
+MurderToggleBG.Position = UDim2.new(0, 0, 0.5, IsMobile and -14 or -12)
+MurderToggleBG.BackgroundColor3 = Colors.Background
+MurderToggleBG.BorderSizePixel = 0
+MurderToggleBG.Parent = MurderToggleFrame
+
+-- Add corner to indicator
+local MurderToggleCorner = Instance.new("UICorner")
+MurderToggleCorner.CornerRadius = UDim.new(1, 0)
+MurderToggleCorner.Parent = MurderToggleBG
+
+-- Create toggle indicator
+local MurderIndicator = Instance.new("Frame")
+MurderIndicator.Name = "Indicator"
+MurderIndicator.Size = UDim2.new(0, IsMobile and 22 or 18, 0, IsMobile and 22 or 18)
+MurderIndicator.Position = UDim2.new(0, 3, 0.5, IsMobile and -11 or -9)
+MurderIndicator.BackgroundColor3 = Colors.Text
+MurderIndicator.BorderSizePixel = 0
+MurderIndicator.Parent = MurderToggleBG
+
+-- Add corner to indicator
+local MurderIndicatorCorner = Instance.new("UICorner")
+MurderIndicatorCorner.CornerRadius = UDim.new(1, 0)
+MurderIndicatorCorner.Parent = MurderIndicator
+
+-- Add hitbox
+local MurderHitbox = Instance.new("TextButton")
+MurderHitbox.Name = "Hitbox"
+MurderHitbox.Size = UDim2.new(1, 0, 1, 0)
+MurderHitbox.BackgroundTransparency = 1
+MurderHitbox.Text = ""
+MurderHitbox.Parent = MurderToggleFrame
+
+-- Create auto-kill toggle
+local AutoKillToggleFrame = Instance.new("Frame")
+AutoKillToggleFrame.Name = "AutoKillToggle"
+AutoKillToggleFrame.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 34)
+AutoKillToggleFrame.BackgroundTransparency = 1
+AutoKillToggleFrame.BorderSizePixel = 0
+AutoKillToggleFrame.Parent = MurderSectionContent
+
+-- Create toggle text
+local AutoKillToggleText = Instance.new("TextLabel")
+AutoKillToggleText.Name = "Text"
+AutoKillToggleText.Size = UDim2.new(1, -55, 1, 0)
+AutoKillToggleText.Position = UDim2.new(0, 55, 0, 0)
+AutoKillToggleText.BackgroundTransparency = 1
+AutoKillToggleText.Font = Enum.Font.GothamSemibold
+AutoKillToggleText.TextSize = IsMobile and 16 or 14
+AutoKillToggleText.TextColor3 = Colors.Text
+AutoKillToggleText.TextXAlignment = Enum.TextXAlignment.Left
+AutoKillToggleText.Text = "Auto-Kill When Too Close"
+AutoKillToggleText.Parent = AutoKillToggleFrame
+
+-- Create toggle indicator background
+local AutoKillToggleBG = Instance.new("Frame")
+AutoKillToggleBG.Name = "Background"
+AutoKillToggleBG.Size = UDim2.new(0, IsMobile and 50 or 44, 0, IsMobile and 28 or 24)
+AutoKillToggleBG.Position = UDim2.new(0, 0, 0.5, IsMobile and -14 or -12)
+AutoKillToggleBG.BackgroundColor3 = Colors.Background
+AutoKillToggleBG.BorderSizePixel = 0
+AutoKillToggleBG.Parent = AutoKillToggleFrame
+
+-- Add corner to indicator
+local AutoKillToggleCorner = Instance.new("UICorner")
+AutoKillToggleCorner.CornerRadius = UDim.new(1, 0)
+AutoKillToggleCorner.Parent = AutoKillToggleBG
+
+-- Create toggle indicator
+local AutoKillIndicator = Instance.new("Frame")
+AutoKillIndicator.Name = "Indicator"
+AutoKillIndicator.Size = UDim2.new(0, IsMobile and 22 or 18, 0, IsMobile and 22 or 18)
+AutoKillIndicator.Position = UDim2.new(0, 3, 0.5, IsMobile and -11 or -9)
+AutoKillIndicator.BackgroundColor3 = Colors.Text
+AutoKillIndicator.BorderSizePixel = 0
+AutoKillIndicator.Parent = AutoKillToggleBG
+
+-- Add corner to indicator
+local AutoKillIndicatorCorner = Instance.new("UICorner")
+AutoKillIndicatorCorner.CornerRadius = UDim.new(1, 0)
+AutoKillIndicatorCorner.Parent = AutoKillIndicator
+
+-- Add hitbox
+local AutoKillHitbox = Instance.new("TextButton")
+AutoKillHitbox.Name = "Hitbox"
+AutoKillHitbox.Size = UDim2.new(1, 0, 1, 0)
+AutoKillHitbox.BackgroundTransparency = 1
+AutoKillHitbox.Text = ""
+AutoKillHitbox.Parent = AutoKillToggleFrame
+
+-- Create murderer info label
+local MurdererInfoLabel = Instance.new("TextLabel")
+MurdererInfoLabel.Name = "MurdererInfoLabel"
+MurdererInfoLabel.Size = UDim2.new(1, 0, 0, 24)
+MurdererInfoLabel.BackgroundTransparency = 1
+MurdererInfoLabel.Font = Enum.Font.Gotham
+MurdererInfoLabel.TextSize = IsMobile and 14 or 12
+MurdererInfoLabel.TextColor3 = Colors.Text
+MurdererInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+MurdererInfoLabel.Text = "   Murderer: Not Detected"
+MurdererInfoLabel.Parent = MurderSectionContent
+
+-- Create distance info label
+local DistanceInfoLabel = Instance.new("TextLabel")
+DistanceInfoLabel.Name = "DistanceInfoLabel"
+DistanceInfoLabel.Size = UDim2.new(1, 0, 0, 24)
+DistanceInfoLabel.BackgroundTransparency = 1
+DistanceInfoLabel.Font = Enum.Font.Gotham
+DistanceInfoLabel.TextSize = IsMobile and 14 or 12
+DistanceInfoLabel.TextColor3 = Colors.Text
+DistanceInfoLabel.TextXAlignment = Enum.TextXAlignment.Left
+DistanceInfoLabel.Text = "   Distance: N/A"
+DistanceInfoLabel.Parent = MurderSectionContent
+
+-- Create on-screen warning for when murderer is close
+local function CreateMurdererWarning()
+    -- Remove existing warning if any
+    if MurderDetection.MurdererWarningUI and MurderDetection.MurdererWarningUI.Parent then
+        MurderDetection.MurdererWarningUI:Destroy()
+    end
+    
+    -- Create warning UI
+    local WarningUI = Instance.new("ScreenGui")
+    WarningUI.Name = "MurdererWarning"
+    WarningUI.ResetOnSpawn = false
+    WarningUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Handle executor security models
+    if syn then
+        syn.protect_gui(WarningUI)
+        WarningUI.Parent = game.CoreGui
+    else
+        WarningUI.Parent = gethui() or game.CoreGui
+    end
+    
+    -- Create warning frame
+    local WarningFrame = Instance.new("Frame")
+    WarningFrame.Name = "WarningFrame"
+    WarningFrame.Size = UDim2.new(0, 300, 0, 60)
+    WarningFrame.Position = UDim2.new(0.5, -150, 0, 50)
+    WarningFrame.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+    WarningFrame.BackgroundTransparency = 0.3
+    WarningFrame.BorderSizePixel = 0
+    WarningFrame.Visible = false
+    WarningFrame.Parent = WarningUI
+    
+    -- Add corner
+    local WarningCorner = Instance.new("UICorner")
+    WarningCorner.CornerRadius = UDim.new(0, 8)
+    WarningCorner.Parent = WarningFrame
+    
+    -- Add stroke
+    local WarningStroke = Instance.new("UIStroke")
+    WarningStroke.Color = Color3.fromRGB(255, 0, 0)
+    WarningStroke.Thickness = 2
+    WarningStroke.Parent = WarningFrame
+    
+    -- Add text
+    local WarningText = Instance.new("TextLabel")
+    WarningText.Name = "WarningText"
+    WarningText.Size = UDim2.new(1, 0, 1, 0)
+    WarningText.BackgroundTransparency = 1
+    WarningText.Font = Enum.Font.GothamBold
+    WarningText.TextSize = IsMobile and 18 or 16
+    WarningText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    WarningText.Text = "⚠️ MURDERER NEARBY ⚠️"
+    WarningText.Parent = WarningFrame
+    
+    -- Add distance text
+    local DistanceText = Instance.new("TextLabel")
+    DistanceText.Name = "DistanceText"
+    DistanceText.Size = UDim2.new(1, 0, 0, 20)
+    DistanceText.Position = UDim2.new(0, 0, 1, -20)
+    DistanceText.BackgroundTransparency = 1
+    DistanceText.Font = Enum.Font.GothamSemibold
+    DistanceText.TextSize = IsMobile and 16 or 14
+    DistanceText.TextColor3 = Color3.fromRGB(255, 255, 255)
+    DistanceText.Text = "Distance: 0m"
+    DistanceText.Parent = WarningFrame
+    
+    -- Create pulse animation
+    local function AnimateWarning()
+        while WarningFrame and WarningFrame.Parent do
+            TweenService:Create(WarningFrame, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                BackgroundTransparency = 0.1
+            }):Play()
+            
+            TweenService:Create(WarningStroke, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                Transparency = 0
+            }):Play()
+            
+            wait(0.5)
+            
+            TweenService:Create(WarningFrame, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                BackgroundTransparency = 0.3
+            }):Play()
+            
+            TweenService:Create(WarningStroke, TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                Transparency = 0.5
+            }):Play()
+            
+            wait(0.5)
+        end
+    end
+    
+    task.spawn(AnimateWarning)
+    
+    MurderDetection.MurdererWarningUI = WarningUI
+    return WarningUI
+end
+
+-- Auto-kill function to eliminate murderer
+local function KillMurderer(murderer)
+    local now = tick()
+    if now - MurderDetection.LastKillAttempt < MurderDetection.KillCooldown then
+        return false -- On cooldown
+    end
+    
+    MurderDetection.LastKillAttempt = now
+    
+    -- Safety checks
+    if not murderer or not murderer.Character or not murderer.Character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return false
+    end
+    
+    -- Get MM2 values
+    local MM2 = GetMM2Values()
+    
+    -- Check if we are sheriff or have a gun
+    local hasGun = false
+    local gun
+    
+    if MM2.Roles.Sheriff and MM2.Roles.Sheriff == LocalPlayer then
+        hasGun = true
+    end
+    
+    -- Check inventory for gun
+    if not hasGun then
+        local Backpack = LocalPlayer:FindFirstChild("Backpack")
+        if Backpack then
+            gun = Backpack:FindFirstChild("Gun") or Backpack:FindFirstChild("Revolver")
+            
+            if gun then
+                hasGun = true
+                
+                -- Equip gun
+                LocalPlayer.Character.Humanoid:EquipTool(gun)
+                task.wait(0.1) -- Wait for equip
+            end
+        end
+        
+        -- Check if gun is already equipped
+        if not gun and LocalPlayer.Character then
+            gun = LocalPlayer.Character:FindFirstChild("Gun") or LocalPlayer.Character:FindFirstChild("Revolver")
+            if gun then
+                hasGun = true
+            end
+        end
+    end
+    
+    if not hasGun then
+        return false -- Can't kill without gun
+    end
+    
+    -- Try to kill methods:
+    
+    -- Method 1: Find and fire click detector
+    if gun then
+        for _, desc in pairs(gun:GetDescendants()) do
+            if desc:IsA("ClickDetector") then
+                pcall(function()
+                    fireclickdetector(desc)
+                end)
+            end
+        end
+    end
+    
+    -- Method 2: Use mouse methods
+    pcall(function()
+        -- Set mouse target to murderer
+        LocalPlayer:GetMouse().Target = murderer.Character.HumanoidRootPart
+        
+        -- Simulate clicks
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
+        task.wait(0.1)
+        game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
+    end)
+    
+    -- Method 3: Try known remote events
+    for _, descendant in pairs(game:GetDescendants()) do
+        if (descendant:IsA("RemoteEvent") or descendant:IsA("RemoteFunction")) and
+           (descendant.Name:lower():find("shoot") or descendant.Name:lower():find("fire") or
+            descendant.Name:lower():find("gun") or descendant.Name:lower():find("attack")) then
+            
+            pcall(function()
+                if descendant:IsA("RemoteEvent") then
+                    descendant:FireServer(murderer.Character.HumanoidRootPart)
+                elseif descendant:IsA("RemoteFunction") then
+                    descendant:InvokeServer(murderer.Character.HumanoidRootPart)
+                end
+            end)
+        end
+    end
+    
+    return true -- Attempted kill
+end
+
+-- Smart Murder detection function
+local function UpdateMurderDetection()
+    if not MurderDetection.Enabled then
+        -- Hide warning if disabled
+        if MurderDetection.MurdererWarningUI and MurderDetection.MurdererWarningUI.Parent then
+            MurderDetection.MurdererWarningUI.WarningFrame.Visible = false
+        end
+        return
+    end
+    
+    -- Reset info if we don't have character
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        MurderDetection.MurdererFound = false
+        MurderDetection.MurdererPlayer = nil
+        MurdererInfoLabel.Text = "   Murderer: Not Detected"
+        DistanceInfoLabel.Text = "   Distance: N/A"
+        
+        -- Hide warning
+        if MurderDetection.MurdererWarningUI and MurderDetection.MurdererWarningUI.Parent then
+            MurderDetection.MurdererWarningUI.WarningFrame.Visible = false
+        end
+        return
+    end
+    
+    -- Get MM2 values
+    local MM2 = GetMM2Values()
+    
+    -- Check if murderer is known
+    if MM2.Roles.Murderer then
+        -- Murderer found through normal detection
+        MurderDetection.MurdererFound = true
+        MurderDetection.MurdererPlayer = MM2.Roles.Murderer
+        MurdererInfoLabel.Text = "   Murderer: " .. MM2.Roles.Murderer.Name
+        MurdererInfoLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+    elseif RolePrediction.Enabled and RolePrediction.PredictedRoles then
+        -- Try to use prediction if available
+        for playerName, role in pairs(RolePrediction.PredictedRoles) do
+            if role == "Murderer" then
+                -- Find player by name
+                for _, player in pairs(Players:GetPlayers()) do
+                    if player.Name == playerName then
+                        MurderDetection.MurdererFound = true
+                        MurderDetection.MurdererPlayer = player
+                        local confidence = RolePrediction.Confidence[playerName] or 0
+                        local confidencePercent = math.floor(confidence * 100)
+                        MurdererInfoLabel.Text = "   Murderer: " .. player.Name .. " (" .. confidencePercent .. "% confident)"
+                        MurdererInfoLabel.TextColor3 = Color3.fromRGB(255, 150, 150)
+                        break
+                    end
+                end
+            end
+        end
+    else
+        -- No murderer found yet
+        MurderDetection.MurdererFound = false
+        MurderDetection.MurdererPlayer = nil
+        MurdererInfoLabel.Text = "   Murderer: Not Detected"
+        MurdererInfoLabel.TextColor3 = Colors.Text
+        
+        -- Hide warning
+        if MurderDetection.MurdererWarningUI and MurderDetection.MurdererWarningUI.Parent then
+            MurderDetection.MurdererWarningUI.WarningFrame.Visible = false
+        end
+    end
+    
+    -- If murderer found, check distance and update UI
+    if MurderDetection.MurdererFound and MurderDetection.MurdererPlayer then
+        -- Make sure murderer has character
+        if MurderDetection.MurdererPlayer.Character and MurderDetection.MurdererPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            -- Calculate distance
+            local distance = (LocalPlayer.Character.HumanoidRootPart.Position - MurderDetection.MurdererPlayer.Character.HumanoidRootPart.Position).Magnitude
+            DistanceInfoLabel.Text = "   Distance: " .. math.floor(distance) .. "m"
+            
+            -- Set text color based on distance
+            if distance < MurderDetection.SafeDistance then
+                DistanceInfoLabel.TextColor3 = Color3.fromRGB(255, 0, 0) -- Red (danger)
+            elseif distance < MurderDetection.WarningDistance then
+                DistanceInfoLabel.TextColor3 = Color3.fromRGB(255, 255, 0) -- Yellow (warning)
+            else
+                DistanceInfoLabel.TextColor3 = Color3.fromRGB(0, 255, 0) -- Green (safe)
+            end
+            
+            -- Show warning if murderer is too close
+            if distance < MurderDetection.WarningDistance then
+                -- Create warning UI if it doesn't exist
+                if not MurderDetection.MurdererWarningUI or not MurderDetection.MurdererWarningUI.Parent then
+                    MurderDetection.MurdererWarningUI = CreateMurdererWarning()
+                end
+                
+                -- Show and update warning
+                MurderDetection.MurdererWarningUI.WarningFrame.Visible = true
+                MurderDetection.MurdererWarningUI.WarningFrame.DistanceText.Text = "Distance: " .. math.floor(distance) .. "m"
+                
+                -- Set warning color based on distance
+                if distance < MurderDetection.SafeDistance then
+                    -- Red pulsing for immediate danger
+                    MurderDetection.MurdererWarningUI.WarningFrame.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+                    MurderDetection.MurdererWarningUI.WarningFrame.UIStroke.Color = Color3.fromRGB(255, 0, 0)
+                    MurderDetection.MurdererWarningUI.WarningFrame.WarningText.Text = "⚠️ DANGER! MURDERER VERY CLOSE! ⚠️"
+                else
+                    -- Yellow for warning
+                    MurderDetection.MurdererWarningUI.WarningFrame.BackgroundColor3 = Color3.fromRGB(200, 150, 0)
+                    MurderDetection.MurdererWarningUI.WarningFrame.UIStroke.Color = Color3.fromRGB(255, 200, 0)
+                    MurderDetection.MurdererWarningUI.WarningFrame.WarningText.Text = "⚠️ MURDERER NEARBY ⚠️"
+                end
+                
+                -- Auto kill if enabled and murderer is very close
+                if MurderDetection.AutoKill and distance < MurderDetection.KillDistance then
+                    local killed = KillMurderer(MurderDetection.MurdererPlayer)
+                    
+                    -- Update warning text if kill was attempted
+                    if killed then
+                        MurderDetection.MurdererWarningUI.WarningFrame.WarningText.Text = "🔫 ATTEMPTING TO KILL MURDERER 🔫"
+                    end
+                end
+            else
+                -- Hide warning if murderer is far away
+                if MurderDetection.MurdererWarningUI and MurderDetection.MurdererWarningUI.Parent then
+                    MurderDetection.MurdererWarningUI.WarningFrame.Visible = false
+                end
+            end
+        else
+            -- Murderer has no character, reset
+            DistanceInfoLabel.Text = "   Distance: N/A"
+            DistanceInfoLabel.TextColor3 = Colors.Text
+            
+            -- Hide warning
+            if MurderDetection.MurdererWarningUI and MurderDetection.MurdererWarningUI.Parent then
+                MurderDetection.MurdererWarningUI.WarningFrame.Visible = false
+            end
+        end
+    end
+end
+
+-- Toggle functionality for murder detection
+AddConnection(MurderHitbox.MouseButton1Click, function()
+    MurderDetection.Enabled = not MurderDetection.Enabled
+    
+    -- Animate background
+    TweenService:Create(MurderToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = MurderDetection.Enabled and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(MurderIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, MurderDetection.Enabled and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -11 or -9)
+    }):Play()
+    
+    -- Create warning UI if enabled
+    if MurderDetection.Enabled and not MurderDetection.MurdererWarningUI then
+        MurderDetection.MurdererWarningUI = CreateMurdererWarning()
+    end
+end)
+
+-- Toggle functionality for auto-kill
+AddConnection(AutoKillHitbox.MouseButton1Click, function()
+    MurderDetection.AutoKill = not MurderDetection.AutoKill
+    
+    -- Animate background
+    TweenService:Create(AutoKillToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = MurderDetection.AutoKill and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(AutoKillIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, MurderDetection.AutoKill and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -11 or -9)
+    }):Play()
+    
+    -- Ensure murder detection is enabled if auto-kill is enabled
+    if MurderDetection.AutoKill and not MurderDetection.Enabled then
+        MurderDetection.Enabled = true
+        
+        -- Update toggle visuals
+        TweenService:Create(MurderToggleBG, TweenInfo.new(0.2), {
+            BackgroundColor3 = Colors.Button
+        }):Play()
+        
+        TweenService:Create(MurderIndicator, TweenInfo.new(0.2), {
+            Position = UDim2.new(0, IsMobile and 25 or 23, 0.5, IsMobile and -11 or -9)
+        }):Play()
+        
+        -- Create warning UI if needed
+        if not MurderDetection.MurdererWarningUI then
+            MurderDetection.MurdererWarningUI = CreateMurdererWarning()
+        end
+    end
+end)
+
+-- Auto-size the section
+AddConnection(MurderContentLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    MurderSectionContent.Size = UDim2.new(1, -10, 0, MurderContentLayout.AbsoluteContentSize.Y)
+    MurderDetectionSection.Size = UDim2.new(1, 0, 0, MurderSectionContent.Size.Y.Offset + 40)
+end)
+
+-- Start murder detection update loop
+local MurderDetectionUpdateConnection = RunService.Heartbeat:Connect(function()
+    UpdateMurderDetection()
+end)
+
+-- Auto cleanup on script end
+AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
+    if child == SkyXUI then
+        MurderDetectionUpdateConnection:Disconnect()
+        
+        -- Clean up warning UI
+        if MurderDetection.MurdererWarningUI and MurderDetection.MurdererWarningUI.Parent then
+            MurderDetection.MurdererWarningUI:Destroy()
         end
     end
 end)
@@ -766,139 +2018,784 @@ AddConnection(TeleportContentLayout:GetPropertyChangedSignal("AbsoluteContentSiz
     TeleportSection.Size = UDim2.new(1, 0, 0, TeleportSectionContent.Size.Y.Offset + 40)
 end)
 
--- Create lobby teleport button
-local LobbyButton = Instance.new("TextButton")
-LobbyButton.Name = "LobbyButton"
-LobbyButton.Size = UDim2.new(1, 0, 0, 34)
-LobbyButton.BackgroundColor3 = Colors.Button
-LobbyButton.BorderSizePixel = 0
-LobbyButton.Font = Enum.Font.GothamSemibold
-LobbyButton.TextSize = 14
-LobbyButton.TextColor3 = Colors.Text
-LobbyButton.Text = "Teleport to Lobby"
-LobbyButton.AutoButtonColor = false
-LobbyButton.Parent = TeleportSectionContent
+-- Advanced teleport system with anti-detection
+local TeleportSystem = {
+    Enabled = true,
+    SafeMode = true,     -- Use safer teleport methods to avoid detection
+    Locations = {},      -- Will be populated with found locations
+    CustomLocations = {
+        Lobby = Vector3.new(0, 0, 0), -- Will be updated with discovered positions
+        Map = Vector3.new(0, 0, 0),
+        Sheriff = Vector3.new(0, 0, 0),
+        GunDrop = Vector3.new(0, 0, 0),
+        Hiding = Vector3.new(0, 0, 0)
+    },
+    TeleportInProgress = false
+}
 
--- Add corner
-local LobbyButtonCorner = Instance.new("UICorner")
-LobbyButtonCorner.CornerRadius = UDim.new(0, 6)
-LobbyButtonCorner.Parent = LobbyButton
-
--- Add hover effect
-AddConnection(LobbyButton.MouseEnter, function()
-    TweenService:Create(LobbyButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
-    }):Play()
-end)
-
-AddConnection(LobbyButton.MouseLeave, function()
-    TweenService:Create(LobbyButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = Colors.Button
-    }):Play()
-end)
-
--- Add click effect
-AddConnection(LobbyButton.MouseButton1Down, function()
-    TweenService:Create(LobbyButton, TweenInfo.new(0.1), {
-        BackgroundColor3 = Color3.fromRGB(62, 135, 205)
-    }):Play()
-end)
-
-AddConnection(LobbyButton.MouseButton1Up, function()
-    TweenService:Create(LobbyButton, TweenInfo.new(0.1), {
-        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
-    }):Play()
-end)
-
--- Lobby teleport function
-AddConnection(LobbyButton.MouseButton1Click, function()
-    -- Find lobby spawn
-    local Spawns = workspace:FindFirstChild("Lobby") or workspace:FindFirstChild("SpawnLocation")
-    if Spawns then
-        local Character = LocalPlayer.Character
-        if Character and Character:FindFirstChild("HumanoidRootPart") then
-            Character.HumanoidRootPart.CFrame = Spawns.CFrame + Vector3.new(0, 5, 0)
-        end
-    end
-end)
-
--- Create map teleport button
-local MapButton = Instance.new("TextButton")
-MapButton.Name = "MapButton"
-MapButton.Size = UDim2.new(1, 0, 0, 34)
-MapButton.BackgroundColor3 = Colors.Button
-MapButton.BorderSizePixel = 0
-MapButton.Font = Enum.Font.GothamSemibold
-MapButton.TextSize = 14
-MapButton.TextColor3 = Colors.Text
-MapButton.Text = "Teleport to Map"
-MapButton.AutoButtonColor = false
-MapButton.Parent = TeleportSectionContent
-
--- Add corner
-local MapButtonCorner = Instance.new("UICorner")
-MapButtonCorner.CornerRadius = UDim.new(0, 6)
-MapButtonCorner.Parent = MapButton
-
--- Add hover effect
-AddConnection(MapButton.MouseEnter, function()
-    TweenService:Create(MapButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
-    }):Play()
-end)
-
-AddConnection(MapButton.MouseLeave, function()
-    TweenService:Create(MapButton, TweenInfo.new(0.2), {
-        BackgroundColor3 = Colors.Button
-    }):Play()
-end)
-
--- Add click effect
-AddConnection(MapButton.MouseButton1Down, function()
-    TweenService:Create(MapButton, TweenInfo.new(0.1), {
-        BackgroundColor3 = Color3.fromRGB(62, 135, 205)
-    }):Play()
-end)
-
-AddConnection(MapButton.MouseButton1Up, function()
-    TweenService:Create(MapButton, TweenInfo.new(0.1), {
-        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
-    }):Play()
-end)
-
--- Map teleport function
-AddConnection(MapButton.MouseButton1Click, function()
-    -- Find map spawns
-    local Map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Level")
+-- Find all possible teleport locations in the game
+local function DiscoverLocations()
+    -- Clear old locations
+    TeleportSystem.Locations = {}
     
-    if Map then
-        local SpawnPoints = {}
-        
-        -- Find spawn points in map
-        for _, Part in pairs(Map:GetDescendants()) do
-            if Part:IsA("SpawnLocation") or Part.Name:lower():find("spawn") then
-                table.insert(SpawnPoints, Part)
+    -- Update custom locations based on findings
+    local Map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Level")
+    local Lobby = workspace:FindFirstChild("Lobby")
+    
+    -- Search for locations in workspace
+    for _, Object in pairs(workspace:GetDescendants()) do
+        -- Find lobby
+        if Object.Name == "Lobby" or Object.Name == "SpawnLocation" or Object.Name:lower():find("spawn") then
+            if Object:IsA("BasePart") then
+                table.insert(TeleportSystem.Locations, {
+                    Name = "Lobby",
+                    Position = Object.Position,
+                    Object = Object
+                })
+                TeleportSystem.CustomLocations.Lobby = Object.Position
+            elseif Object:IsA("Model") and Object.PrimaryPart then
+                table.insert(TeleportSystem.Locations, {
+                    Name = "Lobby",
+                    Position = Object.PrimaryPart.Position,
+                    Object = Object.PrimaryPart
+                })
+                TeleportSystem.CustomLocations.Lobby = Object.PrimaryPart.Position
             end
         end
         
-        -- If no spawn points found, just use the first part in the map
-        if #SpawnPoints == 0 then
-            for _, Part in pairs(Map:GetDescendants()) do
-                if Part:IsA("BasePart") then
-                    table.insert(SpawnPoints, Part)
-                    break
+        -- Find map spawns
+        if Map and (Object:IsA("SpawnLocation") or Object.Name:lower():find("spawn")) then
+            if Object:IsA("BasePart") then
+                table.insert(TeleportSystem.Locations, {
+                    Name = "Map",
+                    Position = Object.Position,
+                    Object = Object
+                })
+                TeleportSystem.CustomLocations.Map = Object.Position
+            end
+        end
+        
+        -- Find item spawns for gun, sheriff, etc.
+        if Object.Name:lower():find("gun") or Object.Name:lower():find("sheriff") then
+            if Object:IsA("BasePart") then
+                table.insert(TeleportSystem.Locations, {
+                    Name = "Sheriff Spawn",
+                    Position = Object.Position,
+                    Object = Object
+                })
+                TeleportSystem.CustomLocations.Sheriff = Object.Position
+            elseif Object:IsA("Model") and Object:FindFirstChildOfClass("BasePart") then
+                local Part = Object:FindFirstChildOfClass("BasePart")
+                table.insert(TeleportSystem.Locations, {
+                    Name = "Sheriff Spawn",
+                    Position = Part.Position,
+                    Object = Part
+                })
+                TeleportSystem.CustomLocations.Sheriff = Part.Position
+            end
+        end
+        
+        -- Find hiding spots (usually small enclosed areas)
+        if Object.Name:lower():find("hide") or Object.Name:lower():find("hiding") or Object.Name:lower():find("secret") then
+            if Object:IsA("BasePart") then
+                table.insert(TeleportSystem.Locations, {
+                    Name = "Hiding Spot",
+                    Position = Object.Position,
+                    Object = Object
+                })
+                TeleportSystem.CustomLocations.Hiding = Object.Position
+            elseif Object:IsA("Model") and Object:FindFirstChildOfClass("BasePart") then
+                local Part = Object:FindFirstChildOfClass("BasePart")
+                table.insert(TeleportSystem.Locations, {
+                    Name = "Hiding Spot",
+                    Position = Part.Position,
+                    Object = Part
+                })
+                TeleportSystem.CustomLocations.Hiding = Part.Position
+            end
+        end
+    end
+    
+    -- Set default Map location if not found yet
+    if Map then
+        local MapPart
+        if Map:IsA("BasePart") then
+            MapPart = Map
+        elseif Map.PrimaryPart then
+            MapPart = Map.PrimaryPart
+        else
+            MapPart = Map:FindFirstChildOfClass("BasePart")
+        end
+        
+        if MapPart and TeleportSystem.CustomLocations.Map == Vector3.new(0, 0, 0) then
+            TeleportSystem.CustomLocations.Map = MapPart.Position
+        end
+    end
+    
+    -- Set default Lobby location if not found yet
+    if Lobby then
+        local LobbyPart
+        if Lobby:IsA("BasePart") then
+            LobbyPart = Lobby
+        elseif Lobby.PrimaryPart then
+            LobbyPart = Lobby.PrimaryPart
+        else
+            LobbyPart = Lobby:FindFirstChildOfClass("BasePart")
+        end
+        
+        if LobbyPart and TeleportSystem.CustomLocations.Lobby == Vector3.new(0, 0, 0) then
+            TeleportSystem.CustomLocations.Lobby = LobbyPart.Position
+        end
+    end
+end
+
+-- Safe teleport function with anti-detection measures
+local function SafeTeleport(destination)
+    if TeleportSystem.TeleportInProgress then return end
+    TeleportSystem.TeleportInProgress = true
+    
+    local Character = LocalPlayer.Character
+    if not Character or not Character:FindFirstChild("HumanoidRootPart") or not Character:FindFirstChild("Humanoid") then
+        TeleportSystem.TeleportInProgress = false
+        return
+    end
+    
+    local HRP = Character.HumanoidRootPart
+    local Humanoid = Character.Humanoid
+    
+    -- Store original position and state
+    local startPos = HRP.Position
+    local originalWalkSpeed = Humanoid.WalkSpeed
+    
+    -- Apply anti-ban measures
+    if AntiBanEnabled then
+        -- Hide teleport by temporarily disabling rendering
+        if AntiBanFlags.AvoidTeleportPattern then
+            -- Safer approach: Gradually move instead of instant teleport
+            task.spawn(function()
+                -- Path distance calculation
+                local distance = (destination - startPos).Magnitude
+                local steps = math.min(10, math.max(3, math.floor(distance / 20)))
+                local delay = 0.05
+                
+                -- Temporarily increase movement speed for smoother teleport
+                Humanoid.WalkSpeed = math.min(50, Humanoid.WalkSpeed * 2)
+                
+                -- Move in stages to avoid detection
+                for i = 1, steps do
+                    local progress = i / steps
+                    local targetPos = startPos:Lerp(destination, progress)
+                    
+                    -- Add small random offset to avoid perfect straight-line detection
+                    if AntiBanFlags.RandomizeActions and i < steps then
+                        local offset = Vector3.new(
+                            math.random(-200, 200) / 100,
+                            0,
+                            math.random(-200, 200) / 100
+                        )
+                        targetPos = targetPos + offset
+                    end
+                    
+                    -- Update position
+                    HRP.CFrame = CFrame.new(targetPos) * HRP.CFrame.Rotation
+                    
+                    -- Short delay between movements
+                    task.wait(delay)
+                end
+                
+                -- Final position adjustment
+                HRP.CFrame = CFrame.new(destination + Vector3.new(0, 3, 0)) * HRP.CFrame.Rotation
+                
+                -- Mobile touch optimization: Wait a little longer before allowing next teleport
+                if IsMobile then
+                    task.wait(0.5)
+                end
+                
+                -- Restore original speed
+                Humanoid.WalkSpeed = originalWalkSpeed
+                
+                -- Allow next teleport
+                TeleportSystem.TeleportInProgress = false
+            end)
+        else
+            -- Direct teleport if not using anti-ban
+            HRP.CFrame = CFrame.new(destination + Vector3.new(0, 3, 0))
+            TeleportSystem.TeleportInProgress = false
+        end
+    else
+        -- Direct teleport if not using anti-ban
+        HRP.CFrame = CFrame.new(destination + Vector3.new(0, 3, 0))
+        TeleportSystem.TeleportInProgress = false
+    end
+end
+
+-- Discover locations initially
+DiscoverLocations()
+
+-- Add teleport location buttons
+local teleportButtonSize = IsMobile and UDim2.new(1, 0, 0, 40) or UDim2.new(1, 0, 0, 34)
+local teleportButtonTextSize = IsMobile and 16 or 14
+
+-- Create teleport location dropdown
+local TeleportDropdown = Instance.new("Frame")
+TeleportDropdown.Name = "TeleportDropdown"
+TeleportDropdown.Size = UDim2.new(1, 0, 0, 34)
+TeleportDropdown.BackgroundColor3 = Colors.Background
+TeleportDropdown.BorderSizePixel = 0
+TeleportDropdown.Parent = TeleportSectionContent
+
+-- Add corner
+local TeleportDropdownCorner = Instance.new("UICorner")
+TeleportDropdownCorner.CornerRadius = UDim.new(0, 6)
+TeleportDropdownCorner.Parent = TeleportDropdown
+
+-- Add selected location text
+local SelectedLocationText = Instance.new("TextLabel")
+SelectedLocationText.Name = "SelectedLocation"
+SelectedLocationText.Size = UDim2.new(1, -40, 1, 0)
+SelectedLocationText.Position = UDim2.new(0, 15, 0, 0)
+SelectedLocationText.BackgroundTransparency = 1
+SelectedLocationText.Font = Enum.Font.GothamSemibold
+SelectedLocationText.TextSize = teleportButtonTextSize
+SelectedLocationText.TextColor3 = Colors.Text
+SelectedLocationText.TextXAlignment = Enum.TextXAlignment.Left
+SelectedLocationText.Text = "Select Destination"
+SelectedLocationText.Parent = TeleportDropdown
+
+-- Add dropdown arrow
+local DropdownArrow = Instance.new("TextLabel")
+DropdownArrow.Name = "Arrow"
+DropdownArrow.Size = UDim2.new(0, 20, 0, 20)
+DropdownArrow.Position = UDim2.new(1, -30, 0.5, -10)
+DropdownArrow.BackgroundTransparency = 1
+DropdownArrow.Font = Enum.Font.GothamBold
+DropdownArrow.TextSize = 18
+DropdownArrow.TextColor3 = Colors.Text
+DropdownArrow.Text = "▼"
+DropdownArrow.Parent = TeleportDropdown
+
+-- Add dropdown hitbox
+local DropdownHitbox = Instance.new("TextButton")
+DropdownHitbox.Name = "Hitbox"
+DropdownHitbox.Size = UDim2.new(1, 0, 1, 0)
+DropdownHitbox.BackgroundTransparency = 1
+DropdownHitbox.Text = ""
+DropdownHitbox.Parent = TeleportDropdown
+
+-- Create dropdown menu container
+local DropdownMenu = Instance.new("Frame")
+DropdownMenu.Name = "DropdownMenu"
+DropdownMenu.Size = UDim2.new(1, 0, 0, 0)
+DropdownMenu.Position = UDim2.new(0, 0, 1, 5)
+DropdownMenu.BackgroundColor3 = Colors.Background
+DropdownMenu.BorderSizePixel = 0
+DropdownMenu.Visible = false
+DropdownMenu.ClipsDescendants = true
+DropdownMenu.ZIndex = 10
+DropdownMenu.Parent = TeleportDropdown
+
+-- Add corner to dropdown menu
+local DropdownMenuCorner = Instance.new("UICorner")
+DropdownMenuCorner.CornerRadius = UDim.new(0, 6)
+DropdownMenuCorner.Parent = DropdownMenu
+
+-- Add layout to dropdown menu
+local DropdownLayout = Instance.new("UIListLayout")
+DropdownLayout.Padding = UDim.new(0, 2)
+DropdownLayout.SortOrder = Enum.SortOrder.LayoutOrder
+DropdownLayout.Parent = DropdownMenu
+
+-- Add padding
+local DropdownPadding = Instance.new("UIPadding")
+DropdownPadding.PaddingTop = UDim.new(0, 5)
+DropdownPadding.PaddingBottom = UDim.new(0, 5)
+DropdownPadding.Parent = DropdownMenu
+
+-- Define teleport locations
+local TeleportLocations = {
+    { Name = "Lobby", Icon = "🏠", Description = "Spawn Area" },
+    { Name = "Map", Icon = "🗺️", Description = "Current Game Map" },
+    { Name = "Sheriff Spawn", Icon = "🔫", Description = "Gun Spawn Area" },
+    { Name = "Hiding Spot", Icon = "🚪", Description = "Safe Hiding Location" },
+    { Name = "Behind Murderer", Icon = "🔪", Description = "Teleport Behind Murderer" },
+    { Name = "To Sheriff", Icon = "👮", Description = "Teleport To Sheriff" },
+    { Name = "To Random Player", Icon = "👥", Description = "Random Player Location" }
+}
+
+-- Selected teleport location
+local SelectedLocation = TeleportLocations[1].Name
+local IsDropdownOpen = false
+
+-- Add dropdown options
+for i, location in ipairs(TeleportLocations) do
+    local OptionButton = Instance.new("TextButton")
+    OptionButton.Name = location.Name .. "Option"
+    OptionButton.Size = UDim2.new(1, -10, 0, 30)
+    OptionButton.Position = UDim2.new(0, 5, 0, (i-1) * 32 + 5)
+    OptionButton.BackgroundTransparency = 0.9
+    OptionButton.BackgroundColor3 = Colors.Button
+    OptionButton.BorderSizePixel = 0
+    OptionButton.Font = Enum.Font.GothamSemibold
+    OptionButton.TextSize = teleportButtonTextSize - 1
+    OptionButton.TextColor3 = Colors.Text
+    OptionButton.Text = location.Icon .. " " .. location.Name
+    OptionButton.TextXAlignment = Enum.TextXAlignment.Left
+    OptionButton.ZIndex = 11
+    OptionButton.AutoButtonColor = false
+    OptionButton.LayoutOrder = i
+    OptionButton.Parent = DropdownMenu
+    
+    -- Add padding to text
+    local TextPadding = Instance.new("UIPadding")
+    TextPadding.PaddingLeft = UDim.new(0, 10)
+    TextPadding.Parent = OptionButton
+    
+    -- Add corner
+    local OptionCorner = Instance.new("UICorner")
+    OptionCorner.CornerRadius = UDim.new(0, 4)
+    OptionCorner.Parent = OptionButton
+    
+    -- Add description
+    local DescriptionLabel = Instance.new("TextLabel")
+    DescriptionLabel.Name = "Description"
+    DescriptionLabel.Size = UDim2.new(0.5, 0, 1, 0)
+    DescriptionLabel.Position = UDim2.new(0.5, 0, 0, 0)
+    DescriptionLabel.BackgroundTransparency = 1
+    DescriptionLabel.Font = Enum.Font.Gotham
+    DescriptionLabel.TextSize = teleportButtonTextSize - 3
+    DescriptionLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+    DescriptionLabel.Text = location.Description
+    DescriptionLabel.TextXAlignment = Enum.TextXAlignment.Right
+    DescriptionLabel.ZIndex = 11
+    DescriptionLabel.Parent = OptionButton
+    
+    -- Add padding to description
+    local DescPadding = Instance.new("UIPadding")
+    DescPadding.PaddingRight = UDim.new(0, 10)
+    DescPadding.Parent = DescriptionLabel
+    
+    -- Option hover effect
+    AddConnection(OptionButton.MouseEnter, function()
+        TweenService:Create(OptionButton, TweenInfo.new(0.2), {
+            BackgroundTransparency = 0.7,
+            BackgroundColor3 = Colors.TabActive
+        }):Play()
+    end)
+    
+    AddConnection(OptionButton.MouseLeave, function()
+        TweenService:Create(OptionButton, TweenInfo.new(0.2), {
+            BackgroundTransparency = 0.9,
+            BackgroundColor3 = Colors.Button
+        }):Play()
+    end)
+    
+    -- Option selection
+    AddConnection(OptionButton.MouseButton1Click, function()
+        SelectedLocation = location.Name
+        SelectedLocationText.Text = location.Icon .. " " .. location.Name
+        
+        -- Close dropdown
+        IsDropdownOpen = false
+        TweenService:Create(DropdownMenu, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(1, 0, 0, 0)
+        }):Play()
+        
+        -- Change arrow direction
+        TweenService:Create(DropdownArrow, TweenInfo.new(0.3), {
+            Rotation = 0
+        }):Play()
+        
+        -- Hide after animation
+        delay(0.3, function()
+            if not IsDropdownOpen then
+                DropdownMenu.Visible = false
+            end
+        end)
+    end)
+end
+
+-- Toggle dropdown
+AddConnection(DropdownHitbox.MouseButton1Click, function()
+    IsDropdownOpen = not IsDropdownOpen
+    
+    -- Calculate dropdown height
+    local contentHeight = DropdownLayout.AbsoluteContentSize.Y + 10 -- Add padding
+    
+    if IsDropdownOpen then
+        -- Show dropdown
+        DropdownMenu.Visible = true
+        DropdownMenu.Size = UDim2.new(1, 0, 0, 0)
+        
+        -- Animate open
+        TweenService:Create(DropdownMenu, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(1, 0, 0, contentHeight)
+        }):Play()
+        
+        -- Rotate arrow
+        TweenService:Create(DropdownArrow, TweenInfo.new(0.3), {
+            Rotation = 180
+        }):Play()
+    else
+        -- Animate close
+        TweenService:Create(DropdownMenu, TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
+            Size = UDim2.new(1, 0, 0, 0)
+        }):Play()
+        
+        -- Rotate arrow back
+        TweenService:Create(DropdownArrow, TweenInfo.new(0.3), {
+            Rotation = 0
+        }):Play()
+        
+        -- Hide after animation
+        delay(0.3, function()
+            if not IsDropdownOpen then
+                DropdownMenu.Visible = false
+            end
+        end)
+    end
+end)
+
+-- Create teleport button
+local TeleportButton = Instance.new("TextButton")
+TeleportButton.Name = "TeleportButton"
+TeleportButton.Size = teleportButtonSize
+TeleportButton.BackgroundColor3 = Colors.Button
+TeleportButton.BorderSizePixel = 0
+TeleportButton.Font = Enum.Font.GothamBold
+TeleportButton.TextSize = teleportButtonTextSize
+TeleportButton.TextColor3 = Colors.Text
+TeleportButton.Text = "TELEPORT NOW"
+TeleportButton.AutoButtonColor = false
+TeleportButton.Position = UDim2.new(0, 0, 0, 45)
+TeleportButton.Parent = TeleportSectionContent
+
+-- Add corner
+local TeleportButtonCorner = Instance.new("UICorner")
+TeleportButtonCorner.CornerRadius = UDim.new(0, 6)
+TeleportButtonCorner.Parent = TeleportButton
+
+-- Add hover effect
+AddConnection(TeleportButton.MouseEnter, function()
+    TweenService:Create(TeleportButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
+    }):Play()
+end)
+
+AddConnection(TeleportButton.MouseLeave, function()
+    TweenService:Create(TeleportButton, TweenInfo.new(0.2), {
+        BackgroundColor3 = Colors.Button
+    }):Play()
+end)
+
+-- Add click effect
+AddConnection(TeleportButton.MouseButton1Down, function()
+    TweenService:Create(TeleportButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3.fromRGB(62, 135, 205)
+    }):Play()
+end)
+
+AddConnection(TeleportButton.MouseButton1Up, function()
+    TweenService:Create(TeleportButton, TweenInfo.new(0.1), {
+        BackgroundColor3 = Color3.fromRGB(52, 115, 175)
+    }):Play()
+end)
+
+-- Create teleport status label
+local TeleportStatusLabel = Instance.new("TextLabel")
+TeleportStatusLabel.Name = "TeleportStatus"
+TeleportStatusLabel.Size = UDim2.new(1, 0, 0, 24)
+TeleportStatusLabel.Position = UDim2.new(0, 0, 0, 85)
+TeleportStatusLabel.BackgroundTransparency = 1
+TeleportStatusLabel.Font = Enum.Font.Gotham
+TeleportStatusLabel.TextSize = IsMobile and 14 or 12
+TeleportStatusLabel.TextColor3 = Colors.Text
+TeleportStatusLabel.Text = "Status: Ready"
+TeleportStatusLabel.Parent = TeleportSectionContent
+
+-- Advanced teleport function
+AddConnection(TeleportButton.MouseButton1Click, function()
+    if TeleportSystem.TeleportInProgress then
+        TeleportStatusLabel.Text = "Status: Teleport in progress..."
+        TeleportStatusLabel.TextColor3 = Color3.fromRGB(255, 200, 0)
+        return
+    end
+    
+    TeleportStatusLabel.Text = "Status: Teleporting..."
+    TeleportStatusLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
+    
+    local destination
+    
+    -- Get destination based on selection
+    if SelectedLocation == "Lobby" then
+        if TeleportSystem.CustomLocations.Lobby ~= Vector3.new(0, 0, 0) then
+            destination = TeleportSystem.CustomLocations.Lobby
+        else
+            -- Find lobby spawn
+            local Spawns = workspace:FindFirstChild("Lobby") or workspace:FindFirstChild("SpawnLocation")
+            if Spawns then
+                if Spawns:IsA("BasePart") then
+                    destination = Spawns.Position
+                elseif Spawns.PrimaryPart then
+                    destination = Spawns.PrimaryPart.Position
+                end
+            end
+        end
+    elseif SelectedLocation == "Map" then
+        if TeleportSystem.CustomLocations.Map ~= Vector3.new(0, 0, 0) then
+            destination = TeleportSystem.CustomLocations.Map
+        else
+            -- Find map spawns
+            local Map = workspace:FindFirstChild("Map") or workspace:FindFirstChild("Level")
+            
+            if Map then
+                local SpawnPoints = {}
+                
+                -- Find spawn points in map
+                for _, Part in pairs(Map:GetDescendants()) do
+                    if Part:IsA("SpawnLocation") or Part.Name:lower():find("spawn") then
+                        table.insert(SpawnPoints, Part)
+                    end
+                end
+                
+                -- If no spawn points found, just use the first part in the map
+                if #SpawnPoints == 0 then
+                    for _, Part in pairs(Map:GetDescendants()) do
+                        if Part:IsA("BasePart") then
+                            table.insert(SpawnPoints, Part)
+                            break
+                        end
+                    end
+                end
+                
+                -- Use first spawn point
+                if #SpawnPoints > 0 then
+                    destination = SpawnPoints[1].Position
+                end
+            end
+        end
+    elseif SelectedLocation == "Sheriff Spawn" then
+        if TeleportSystem.CustomLocations.Sheriff ~= Vector3.new(0, 0, 0) then
+            destination = TeleportSystem.CustomLocations.Sheriff
+        else
+            -- Find gun/sheriff location
+            for _, Object in pairs(workspace:GetDescendants()) do
+                if Object.Name:lower():find("gun") or Object.Name:lower():find("sheriff") then
+                    if Object:IsA("BasePart") then
+                        destination = Object.Position
+                        break
+                    elseif Object:IsA("Model") and Object:FindFirstChildOfClass("BasePart") then
+                        destination = Object:FindFirstChildOfClass("BasePart").Position
+                        break
+                    end
+                end
+            end
+        end
+    elseif SelectedLocation == "Hiding Spot" then
+        if TeleportSystem.CustomLocations.Hiding ~= Vector3.new(0, 0, 0) then
+            destination = TeleportSystem.CustomLocations.Hiding
+        else
+            -- Find hiding spot
+            for _, Object in pairs(workspace:GetDescendants()) do
+                if Object.Name:lower():find("hide") or Object.Name:lower():find("hiding") or Object.Name:lower():find("secret") then
+                    if Object:IsA("BasePart") then
+                        destination = Object.Position
+                        break
+                    elseif Object:IsA("Model") and Object:FindFirstChildOfClass("BasePart") then
+                        destination = Object:FindFirstChildOfClass("BasePart").Position
+                        break
+                    end
+                end
+            end
+        end
+    elseif SelectedLocation == "Behind Murderer" then
+        -- Find murderer
+        local murderer = MurderDetection.MurdererPlayer
+        
+        -- If not found through detection, try to get from MM2 values
+        if not murderer then
+            local MM2 = GetMM2Values()
+            if MM2.Roles.Murderer then
+                murderer = MM2.Roles.Murderer
+            end
+        end
+        
+        -- If murderer found, teleport behind them
+        if murderer and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") then
+            local HRP = murderer.Character.HumanoidRootPart
+            
+            -- Get position behind murderer
+            local LookVector = HRP.CFrame.LookVector
+            destination = HRP.Position - (LookVector * 5) -- 5 studs behind
+        else
+            TeleportStatusLabel.Text = "Status: Murderer not found!"
+            TeleportStatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            return
+        end
+    elseif SelectedLocation == "To Sheriff" then
+        -- Find sheriff
+        local sheriff
+        local MM2 = GetMM2Values()
+        
+        if MM2.Roles.Sheriff then
+            sheriff = MM2.Roles.Sheriff
+        else
+            -- Try to find player with gun
+            for _, Player in pairs(Players:GetPlayers()) do
+                local Character = Player.Character
+                if Character then
+                    if Character:FindFirstChild("Gun") or Character:FindFirstChild("Revolver") then
+                        sheriff = Player
+                        break
+                    end
+                end
+                
+                local Backpack = Player:FindFirstChild("Backpack")
+                if Backpack then
+                    if Backpack:FindFirstChild("Gun") or Backpack:FindFirstChild("Revolver") then
+                        sheriff = Player
+                        break
+                    end
                 end
             end
         end
         
-        -- Teleport to first spawn point found
-        if #SpawnPoints > 0 then
-            local Character = LocalPlayer.Character
-            if Character and Character:FindFirstChild("HumanoidRootPart") then
-                Character.HumanoidRootPart.CFrame = SpawnPoints[1].CFrame + Vector3.new(0, 5, 0)
+        -- If sheriff found, teleport to them
+        if sheriff and sheriff.Character and sheriff.Character:FindFirstChild("HumanoidRootPart") then
+            destination = sheriff.Character.HumanoidRootPart.Position
+        else
+            TeleportStatusLabel.Text = "Status: Sheriff not found!"
+            TeleportStatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            return
+        end
+    elseif SelectedLocation == "To Random Player" then
+        -- Get list of players
+        local playerList = {}
+        for _, Player in pairs(Players:GetPlayers()) do
+            if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                table.insert(playerList, Player)
             end
         end
+        
+        -- Select random player
+        if #playerList > 0 then
+            local randomPlayer = playerList[math.random(1, #playerList)]
+            destination = randomPlayer.Character.HumanoidRootPart.Position
+        else
+            TeleportStatusLabel.Text = "Status: No players found!"
+            TeleportStatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+            return
+        end
     end
+    
+    -- Perform teleport if destination found
+    if destination then
+        -- Use safe teleport method
+        SafeTeleport(destination)
+        
+        -- Update status
+        TeleportStatusLabel.Text = "Status: Teleported!"
+        TeleportStatusLabel.TextColor3 = Color3.fromRGB(50, 255, 50)
+        
+        -- Reset status after delay
+        delay(3, function()
+            if TeleportStatusLabel and TeleportStatusLabel.Parent then
+                TeleportStatusLabel.Text = "Status: Ready"
+                TeleportStatusLabel.TextColor3 = Colors.Text
+            end
+        end)
+    else
+        TeleportStatusLabel.Text = "Status: Location not found!"
+        TeleportStatusLabel.TextColor3 = Color3.fromRGB(255, 50, 50)
+        
+        -- Reset status after delay
+        delay(3, function()
+            if TeleportStatusLabel and TeleportStatusLabel.Parent then
+                TeleportStatusLabel.Text = "Status: Ready"
+                TeleportStatusLabel.TextColor3 = Colors.Text
+            end
+        end)
+    end
+end)
+
+-- Rediscover locations when game state changes
+AddConnection(workspace.DescendantAdded, function()
+    -- Wait a bit for new objects to initialize
+    delay(1, function()
+        DiscoverLocations()
+    end)
+end)
+
+-- Create safe teleport toggle
+local SafeTeleportToggleFrame = Instance.new("Frame")
+SafeTeleportToggleFrame.Name = "SafeTeleportToggle"
+SafeTeleportToggleFrame.Size = UDim2.new(1, 0, 0, IsMobile and 40 or 34)
+SafeTeleportToggleFrame.BackgroundTransparency = 1
+SafeTeleportToggleFrame.BorderSizePixel = 0
+SafeTeleportToggleFrame.Position = UDim2.new(0, 0, 0, 115)
+SafeTeleportToggleFrame.Parent = TeleportSectionContent
+
+-- Create toggle text
+local SafeTeleportToggleText = Instance.new("TextLabel")
+SafeTeleportToggleText.Name = "Text"
+SafeTeleportToggleText.Size = UDim2.new(1, -55, 1, 0)
+SafeTeleportToggleText.Position = UDim2.new(0, 55, 0, 0)
+SafeTeleportToggleText.BackgroundTransparency = 1
+SafeTeleportToggleText.Font = Enum.Font.GothamSemibold
+SafeTeleportToggleText.TextSize = IsMobile and 16 or 14
+SafeTeleportToggleText.TextColor3 = Colors.Text
+SafeTeleportToggleText.TextXAlignment = Enum.TextXAlignment.Left
+SafeTeleportToggleText.Text = "Safe Teleport Mode"
+SafeTeleportToggleText.Parent = SafeTeleportToggleFrame
+
+-- Create toggle indicator background
+local SafeTeleportToggleBG = Instance.new("Frame")
+SafeTeleportToggleBG.Name = "Background"
+SafeTeleportToggleBG.Size = UDim2.new(0, IsMobile and 50 or 44, 0, IsMobile and 28 or 24)
+SafeTeleportToggleBG.Position = UDim2.new(0, 0, 0.5, IsMobile and -14 or -12)
+SafeTeleportToggleBG.BackgroundColor3 = Colors.Button
+SafeTeleportToggleBG.BorderSizePixel = 0
+SafeTeleportToggleBG.Parent = SafeTeleportToggleFrame
+
+-- Add corner to indicator
+local SafeTeleportToggleCorner = Instance.new("UICorner")
+SafeTeleportToggleCorner.CornerRadius = UDim.new(1, 0)
+SafeTeleportToggleCorner.Parent = SafeTeleportToggleBG
+
+-- Create toggle indicator
+local SafeTeleportIndicator = Instance.new("Frame")
+SafeTeleportIndicator.Name = "Indicator"
+SafeTeleportIndicator.Size = UDim2.new(0, IsMobile and 22 or 18, 0, IsMobile and 22 or 18)
+SafeTeleportIndicator.Position = UDim2.new(0, IsMobile and 25 or 23, 0.5, IsMobile and -11 or -9)
+SafeTeleportIndicator.BackgroundColor3 = Colors.Text
+SafeTeleportIndicator.BorderSizePixel = 0
+SafeTeleportIndicator.Parent = SafeTeleportToggleBG
+
+-- Add corner to indicator
+local SafeTeleportIndicatorCorner = Instance.new("UICorner")
+SafeTeleportIndicatorCorner.CornerRadius = UDim.new(1, 0)
+SafeTeleportIndicatorCorner.Parent = SafeTeleportIndicator
+
+-- Add hitbox
+local SafeTeleportHitbox = Instance.new("TextButton")
+SafeTeleportHitbox.Name = "Hitbox"
+SafeTeleportHitbox.Size = UDim2.new(1, 0, 1, 0)
+SafeTeleportHitbox.BackgroundTransparency = 1
+SafeTeleportHitbox.Text = ""
+SafeTeleportHitbox.Parent = SafeTeleportToggleFrame
+
+-- Toggle functionality
+AddConnection(SafeTeleportHitbox.MouseButton1Click, function()
+    TeleportSystem.SafeMode = not TeleportSystem.SafeMode
+    
+    -- Animate background
+    TweenService:Create(SafeTeleportToggleBG, TweenInfo.new(0.2), {
+        BackgroundColor3 = TeleportSystem.SafeMode and Colors.Button or Colors.Background
+    }):Play()
+    
+    -- Animate indicator
+    TweenService:Create(SafeTeleportIndicator, TweenInfo.new(0.2), {
+        Position = UDim2.new(0, TeleportSystem.SafeMode and (IsMobile and 25 or 23) or 3, 0.5, IsMobile and -11 or -9)
+    }):Play()
 end)
 
 -- Create Character tab
@@ -1002,100 +2899,187 @@ AddConnection(MovementContentLayout:GetPropertyChangedSignal("AbsoluteContentSiz
     MovementSection.Size = UDim2.new(1, 0, 0, MovementSectionContent.Size.Y.Offset + 40)
 end)
 
--- Create speed toggle
-local SpeedToggleFrame = Instance.new("Frame")
-SpeedToggleFrame.Name = "SpeedToggle"
-SpeedToggleFrame.Size = UDim2.new(1, 0, 0, 34)
-SpeedToggleFrame.BackgroundTransparency = 1
-SpeedToggleFrame.BorderSizePixel = 0
-SpeedToggleFrame.Parent = MovementSectionContent
+-- Create speed label
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Name = "SpeedLabel"
+SpeedLabel.Size = UDim2.new(1, 0, 0, 30)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.Font = Enum.Font.GothamSemibold
+SpeedLabel.TextSize = IsMobile and 16 or 14
+SpeedLabel.TextColor3 = Colors.Text
+SpeedLabel.TextXAlignment = Enum.TextXAlignment.Left
+SpeedLabel.Text = "   Walk Speed: 16"
+SpeedLabel.Parent = MovementSectionContent
 
--- Create toggle text
-local SpeedToggleText = Instance.new("TextLabel")
-SpeedToggleText.Name = "Text"
-SpeedToggleText.Size = UDim2.new(1, -55, 1, 0)
-SpeedToggleText.Position = UDim2.new(0, 55, 0, 0)
-SpeedToggleText.BackgroundTransparency = 1
-SpeedToggleText.Font = Enum.Font.GothamSemibold
-SpeedToggleText.TextSize = 14
-SpeedToggleText.TextColor3 = Colors.Text
-SpeedToggleText.TextXAlignment = Enum.TextXAlignment.Left
-SpeedToggleText.Text = "Walk Speed Boost"
-SpeedToggleText.Parent = SpeedToggleFrame
+-- Create speed slider container
+local SpeedSliderFrame = Instance.new("Frame")
+SpeedSliderFrame.Name = "SpeedSliderFrame"
+SpeedSliderFrame.Size = UDim2.new(1, 0, 0, 40)
+SpeedSliderFrame.BackgroundTransparency = 1
+SpeedSliderFrame.BorderSizePixel = 0
+SpeedSliderFrame.Parent = MovementSectionContent
 
--- Create toggle indicator background
-local SpeedToggleBG = Instance.new("Frame")
-SpeedToggleBG.Name = "Background"
-SpeedToggleBG.Size = UDim2.new(0, 44, 0, 24)
-SpeedToggleBG.Position = UDim2.new(0, 0, 0.5, -12)
-SpeedToggleBG.BackgroundColor3 = Colors.Background
-SpeedToggleBG.BorderSizePixel = 0
-SpeedToggleBG.Parent = SpeedToggleFrame
+-- Create speed slider background
+local SpeedSliderBG = Instance.new("Frame")
+SpeedSliderBG.Name = "Background"
+SpeedSliderBG.Size = UDim2.new(1, 0, 0, IsMobile and 12 or 8)
+SpeedSliderBG.Position = UDim2.new(0, 0, 0.5, -(IsMobile and 6 or 4))
+SpeedSliderBG.BackgroundColor3 = Colors.Background
+SpeedSliderBG.BorderSizePixel = 0
+SpeedSliderBG.Parent = SpeedSliderFrame
 
--- Add corner to indicator
-local SpeedToggleCorner = Instance.new("UICorner")
-SpeedToggleCorner.CornerRadius = UDim.new(1, 0)
-SpeedToggleCorner.Parent = SpeedToggleBG
+-- Add corner to slider background
+local SpeedSliderCorner = Instance.new("UICorner")
+SpeedSliderCorner.CornerRadius = UDim.new(1, 0)
+SpeedSliderCorner.Parent = SpeedSliderBG
 
--- Create toggle indicator
-local SpeedIndicator = Instance.new("Frame")
-SpeedIndicator.Name = "Indicator"
-SpeedIndicator.Size = UDim2.new(0, 18, 0, 18)
-SpeedIndicator.Position = UDim2.new(0, 3, 0.5, -9)
-SpeedIndicator.BackgroundColor3 = Colors.Text
-SpeedIndicator.BorderSizePixel = 0
-SpeedIndicator.Parent = SpeedToggleBG
+-- Create slider fill
+local SpeedSliderFill = Instance.new("Frame")
+SpeedSliderFill.Name = "Fill"
+SpeedSliderFill.Size = UDim2.new(0.3, 0, 1, 0)
+SpeedSliderFill.BackgroundColor3 = Colors.Button
+SpeedSliderFill.BorderSizePixel = 0
+SpeedSliderFill.Parent = SpeedSliderBG
 
--- Add corner to indicator
-local SpeedIndicatorCorner = Instance.new("UICorner")
-SpeedIndicatorCorner.CornerRadius = UDim.new(1, 0)
-SpeedIndicatorCorner.Parent = SpeedIndicator
+-- Add corner to slider fill
+local SpeedFillCorner = Instance.new("UICorner")
+SpeedFillCorner.CornerRadius = UDim.new(1, 0)
+SpeedFillCorner.Parent = SpeedSliderFill
 
--- Add hitbox
-local SpeedHitbox = Instance.new("TextButton")
-SpeedHitbox.Name = "Hitbox"
-SpeedHitbox.Size = UDim2.new(1, 0, 1, 0)
-SpeedHitbox.BackgroundTransparency = 1
-SpeedHitbox.Text = ""
-SpeedHitbox.Parent = SpeedToggleFrame
+-- Create slider knob
+local SpeedSliderKnob = Instance.new("Frame")
+SpeedSliderKnob.Name = "Knob"
+SpeedSliderKnob.Size = UDim2.new(0, IsMobile and 20 or 16, 0, IsMobile and 20 or 16)
+SpeedSliderKnob.Position = UDim2.new(0.3, -(IsMobile and 10 or 8), 0.5, -(IsMobile and 10 or 8))
+SpeedSliderKnob.BackgroundColor3 = Colors.Text
+SpeedSliderKnob.BorderSizePixel = 0
+SpeedSliderKnob.ZIndex = 2
+SpeedSliderKnob.Parent = SpeedSliderBG
+
+-- Add corner to slider knob
+local SpeedKnobCorner = Instance.new("UICorner")
+SpeedKnobCorner.CornerRadius = UDim.new(1, 0)
+SpeedKnobCorner.Parent = SpeedSliderKnob
+
+-- Add slider hitbox
+local SpeedSliderHitbox = Instance.new("TextButton")
+SpeedSliderHitbox.Name = "Hitbox"
+SpeedSliderHitbox.Size = UDim2.new(1, 0, 1, 0)
+SpeedSliderHitbox.BackgroundTransparency = 1
+SpeedSliderHitbox.Text = ""
+SpeedSliderHitbox.ZIndex = 3
+SpeedSliderHitbox.Parent = SpeedSliderFrame
 
 -- Speed boost variables
 local SpeedEnabled = false
 local OriginalSpeed = 16
 local SpeedBoostValue = 32
+local MaxSpeed = 100
+local MinSpeed = 16
 
--- Speed boost function
+-- Speed slider functionality with anti-detection
+AddConnection(SpeedSliderHitbox.InputBegan, function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local dragging = true
+        SpeedEnabled = true
+        
+        local function UpdateSlider()
+            local mousePos = UserInputService:GetMouseLocation().X
+            local sliderPos = SpeedSliderBG.AbsolutePosition.X
+            local sliderWidth = SpeedSliderBG.AbsoluteSize.X
+            
+            -- Calculate position
+            local relativePos = math.clamp((mousePos - sliderPos) / sliderWidth, 0, 1)
+            
+            -- Calculate speed value (16-100)
+            SpeedBoostValue = math.floor(MinSpeed + relativePos * (MaxSpeed - MinSpeed))
+            
+            -- Update slider
+            SpeedSliderFill.Size = UDim2.new(relativePos, 0, 1, 0)
+            SpeedSliderKnob.Position = UDim2.new(relativePos, -(IsMobile and 10 or 8), 0.5, -(IsMobile and 10 or 8))
+            
+            -- Update label
+            SpeedLabel.Text = "   Walk Speed: " .. SpeedBoostValue
+            
+            -- Update speed (with anti-ban patterns)
+            UpdateSpeed()
+        end
+        
+        -- Initial update
+        UpdateSlider()
+        
+        -- Update while dragging
+        local moveConnection
+        moveConnection = UserInputService.InputChanged:Connect(function(inputChanged)
+            if dragging and (inputChanged.UserInputType == Enum.UserInputType.MouseMovement or inputChanged.UserInputType == Enum.UserInputType.Touch) then
+                UpdateSlider()
+            end
+        end)
+        
+        -- Stop dragging on input end
+        local endConnection
+        endConnection = UserInputService.InputEnded:Connect(function(inputEnded)
+            if inputEnded.UserInputType == Enum.UserInputType.MouseButton1 or inputEnded.UserInputType == Enum.UserInputType.Touch then
+                dragging = false
+                if moveConnection then
+                    moveConnection:Disconnect()
+                end
+                endConnection:Disconnect()
+            end
+        end)
+    end
+end)
+
+-- Advanced speed boost function with anti-detection measures
 local function UpdateSpeed()
-    local Character = LocalPlayer.Character
-    if Character then
-        local Humanoid = Character:FindFirstChild("Humanoid")
-        if Humanoid then
-            if SpeedEnabled then
-                Humanoid.WalkSpeed = SpeedBoostValue
-            else
-                Humanoid.WalkSpeed = OriginalSpeed
+    if AntiBanEnabled and AntiBanFlags.AvoidTeleportPattern then
+        -- Use a pattern that's less likely to be detected as hacking
+        task.spawn(function()
+            local Character = LocalPlayer.Character
+            if Character then
+                local Humanoid = Character:FindFirstChild("Humanoid")
+                if Humanoid then
+                    -- Gradually adjust speed instead of instant change
+                    local currentSpeed = Humanoid.WalkSpeed
+                    local targetSpeed = SpeedEnabled and SpeedBoostValue or OriginalSpeed
+                    
+                    -- Small randomization to avoid detection patterns
+                    local randomOffset = 0
+                    if AntiBanFlags.RandomizeActions then
+                        randomOffset = math.random(-2, 2) / 10
+                    end
+                    
+                    -- Gradually adjust in smaller steps to avoid detection
+                    local steps = 5
+                    local speedDiff = (targetSpeed - currentSpeed) / steps
+                    
+                    for i = 1, steps do
+                        if not Character or not Character:FindFirstChild("Humanoid") then
+                            break
+                        end
+                        
+                        Humanoid.WalkSpeed = currentSpeed + speedDiff * i + randomOffset
+                        task.wait(0.02) -- Small delay between adjustments
+                    end
+                    
+                    -- Final adjustment to exact value
+                    if Character and Character:FindFirstChild("Humanoid") then
+                        Humanoid.WalkSpeed = targetSpeed
+                    end
+                end
+            end
+        end)
+    else
+        -- Direct speed change if anti-ban is disabled
+        local Character = LocalPlayer.Character
+        if Character then
+            local Humanoid = Character:FindFirstChild("Humanoid")
+            if Humanoid then
+                Humanoid.WalkSpeed = SpeedEnabled and SpeedBoostValue or OriginalSpeed
             end
         end
     end
 end
-
--- Speed Toggle functionality
-AddConnection(SpeedHitbox.MouseButton1Click, function()
-    SpeedEnabled = not SpeedEnabled
-    
-    -- Animate background
-    TweenService:Create(SpeedToggleBG, TweenInfo.new(0.2), {
-        BackgroundColor3 = SpeedEnabled and Colors.Button or Colors.Background
-    }):Play()
-    
-    -- Animate indicator
-    TweenService:Create(SpeedIndicator, TweenInfo.new(0.2), {
-        Position = UDim2.new(0, SpeedEnabled and 23 or 3, 0.5, -9)
-    }):Play()
-    
-    -- Update Speed
-    UpdateSpeed()
-end)
 
 -- Update Speed when character changes
 AddConnection(LocalPlayer.CharacterAdded, function(Character)
@@ -1103,7 +3087,7 @@ AddConnection(LocalPlayer.CharacterAdded, function(Character)
     if Humanoid then
         OriginalSpeed = Humanoid.WalkSpeed
         if SpeedEnabled then
-            Humanoid.WalkSpeed = SpeedBoostValue
+            UpdateSpeed()
         end
     end
 end)
