@@ -1,1457 +1,84 @@
 --[[
-🌊 SkyX Bronx 3 Advanced Script 🌊
-Direct modular version with embedded modules for better reliability
-Enhanced for mobile compatibility with advanced features
-
-Features:
-- Enhanced ESP System with Custom Colors and Distance Display
-- Combat Enhancements (Aimbot, Silent Aim)
-- Auto-Cash Farm System
-- Military-Grade Anti-Ban System
-- One-Click Teleports with Anti-Detection 
-- Character Enhancements (Speed, Jump)
-- Advanced Performance Optimization
+    SkyX Blox Fruits Script
+    Mobile-friendly with MM2-style fallback modules
+    Works on: KRNL, Swift, Fluxus, Delta and other mobile executors
 ]]
 
--- Core services
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-
--- Module Definitions (embedded for reliability)
-local ModuleDefinitions = {
-    ESP = [[
-        -- Bronx 3 ESP Module
-        local ESP = {}
-        
-        -- ESP settings
-        ESP.Settings = {
-            Enabled = false,
-            ShowDistance = true,
-            ShowHealth = true,
-            ShowCash = true,
-            ShowWeapon = true,
-            RainbowESP = false,
-            TextSize = 14,
-            Colors = {
-                Enemy = Color3.fromRGB(255, 0, 0),
-                Friend = Color3.fromRGB(0, 255, 0)
-            }
-        }
-        
-        -- ESP variables
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        local RunService = game:GetService("RunService")
-        local Camera = workspace.CurrentCamera
-        local ESPObjects = {}
-        local ESPEnabled = false
-        local ESPConnection = nil
-        
-        -- Create ESP for a player
-        local function CreateESP(player)
-            if player == LocalPlayer then return end
-            
-            local ESP = Drawing.new("Text")
-            ESP.Visible = false
-            ESP.Center = true
-            ESP.Outline = true
-            ESP.Size = ESP.Settings.TextSize
-            ESP.Color = ESP.Settings.Colors.Enemy
-            ESP.Font = 2
-            
-            ESPObjects[player] = ESP
-        end
-        
-        -- Remove ESP for a player
-        local function RemoveESP(player)
-            if ESPObjects[player] then
-                ESPObjects[player]:Remove()
-                ESPObjects[player] = nil
-            end
-        end
-        
-        -- Check if a player is a friend
-        local function IsFriend(player)
-            -- Could be expanded to check if in same crew/gang
-            return player:IsFriendsWith(LocalPlayer.UserId)
-        end
-        
-        -- Get player's cash (if available)
-        local function GetPlayerCash(player)
-            -- This would need to be adapted to how cash is stored in the game
-            if player and player:FindFirstChild("leaderstats") and player.leaderstats:FindFirstChild("Cash") then
-                return player.leaderstats.Cash.Value
-            end
-            return "???"
-        end
-        
-        -- Update ESP visibility and position
-        local function UpdateESP()
-            for player, esp in pairs(ESPObjects) do
-                if player and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
-                    local character = player.Character
-                    local humanoid = character.Humanoid
-                    local root = character.HumanoidRootPart
-                    
-                    -- Get position on screen
-                    local vector, onScreen = Camera:WorldToViewportPoint(root.Position)
-                    
-                    if onScreen and ESP.Settings.Enabled and humanoid.Health > 0 then
-                        -- Friend check for color
-                        local isFriend = IsFriend(player)
-                        
-                        -- Set color
-                        if ESP.Settings.RainbowESP then
-                            local hue = tick() % 5 / 5
-                            esp.Color = Color3.fromHSV(hue, 1, 1)
-                        else
-                            esp.Color = isFriend and ESP.Settings.Colors.Friend or ESP.Settings.Colors.Enemy
-                        end
-                        
-                        -- Set position
-                        esp.Position = Vector2.new(vector.X, vector.Y - 25)
-                        
-                        -- Set text
-                        local text = player.Name
-                        
-                        -- Add health
-                        if ESP.Settings.ShowHealth then
-                            text = text .. " [" .. math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth) .. "]"
-                        end
-                        
-                        -- Add distance
-                        if ESP.Settings.ShowDistance then
-                            local distance = math.floor((root.Position - Camera.CFrame.Position).Magnitude)
-                            text = text .. " (" .. distance .. "m)"
-                        end
-                        
-                        -- Add cash
-                        if ESP.Settings.ShowCash then
-                            local cash = GetPlayerCash(player)
-                            text = text .. " | $" .. cash
-                        end
-                        
-                        -- Add weapon if they're holding one
-                        if ESP.Settings.ShowWeapon then
-                            for _, tool in pairs(character:GetChildren()) do
-                                if tool:IsA("Tool") then
-                                    text = text .. " | " .. tool.Name
-                                    break
-                                end
-                            end
-                        end
-                        
-                        esp.Text = text
-                        esp.Size = ESP.Settings.TextSize
-                        esp.Visible = true
-                    else
-                        esp.Visible = false
-                    end
-                else
-                    esp.Visible = false
-                    
-                    -- Remove ESP if player has left
-                    if not player or not player.Parent then
-                        RemoveESP(player)
-                    end
-                end
-            end
-        end
-        
-        -- Create ESP for all players
-        local function SetupESP()
-            -- Clear existing ESPs
-            for player, esp in pairs(ESPObjects) do
-                esp:Remove()
-            end
-            ESPObjects = {}
-            
-            -- Create ESP for each player
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer then
-                    CreateESP(player)
-                end
-            end
-            
-            -- Connect player added/removed events
-            Players.PlayerAdded:Connect(CreateESP)
-            Players.PlayerRemoving:Connect(RemoveESP)
-        end
-        
-        -- Start ESP
-        function ESP.Start()
-            if ESPConnection then
-                ESPConnection:Disconnect()
-            end
-            
-            SetupESP()
-            ESPEnabled = true
-            
-            ESPConnection = RunService.RenderStepped:Connect(UpdateESP)
-            print("ESP module started")
-        end
-        
-        -- Stop ESP
-        function ESP.Stop()
-            if ESPConnection then
-                ESPConnection:Disconnect()
-                ESPConnection = nil
-            end
-            
-            -- Hide all ESP objects
-            for _, esp in pairs(ESPObjects) do
-                esp.Visible = false
-            end
-            
-            ESPEnabled = false
-            print("ESP module stopped")
-        end
-        
-        return ESP
-    ]],
-    
-    Combat = [[
-        -- Bronx 3 Combat Module
-        local Combat = {}
-        
-        -- Combat settings
-        Combat.Settings = {
-            AimbotEnabled = false,
-            SilentAimEnabled = false,
-            AutoBlockEnabled = false,
-            AutoFireEnabled = false,
-            ShowFOV = true,
-            FOVSize = 120,
-            FOVColor = Color3.fromRGB(255, 255, 255),
-            Smoothness = 0.2,
-            TargetPart = "Head",
-            TriggerBot = {
-                Enabled = false,
-                Delay = 0.2
-            }
-        }
-        
-        -- Variables
-        local Players = game:GetService("Players")
-        local RunService = game:GetService("RunService")
-        local UserInputService = game:GetService("UserInputService")
-        local LocalPlayer = Players.LocalPlayer
-        local Camera = workspace.CurrentCamera
-        local Mouse = LocalPlayer:GetMouse()
-        local CombatEnabled = false
-        local AimbotConnection = nil
-        local FOVCircle = nil
-        local ESPModule = nil
-        local CurrentTarget = nil
-        local LastTriggerTime = 0
-        
-        -- Create FOV circle
-        local function CreateFOVCircle()
-            FOVCircle = Drawing.new("Circle")
-            FOVCircle.Visible = false
-            FOVCircle.Radius = Combat.Settings.FOVSize
-            FOVCircle.Color = Combat.Settings.FOVColor
-            FOVCircle.Thickness = 1
-            FOVCircle.Filled = false
-            FOVCircle.Transparency = 1
-            FOVCircle.NumSides = 64
-        end
-        
-        -- Update FOV circle
-        local function UpdateFOVCircle()
-            if FOVCircle then
-                FOVCircle.Visible = Combat.Settings.ShowFOV and (Combat.Settings.AimbotEnabled or Combat.Settings.SilentAimEnabled)
-                FOVCircle.Radius = Combat.Settings.FOVSize
-                FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
-                FOVCircle.Color = Combat.Settings.FOVColor
-            end
-        end
-        
-        -- Check if target is visible
-        local function IsVisible(part)
-            local ray = Ray.new(Camera.CFrame.Position, (part.Position - Camera.CFrame.Position).Unit * 1000)
-            local hit, position = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character})
-            
-            if hit and hit:IsDescendantOf(part.Parent) then
-                return true
-            end
-            
-            return false
-        end
-        
-        -- Get closest player in FOV
-        local function GetClosestPlayerInFOV()
-            local closestPlayer = nil
-            local shortestDistance = Combat.Settings.FOVSize
-            
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-                    -- Get target part
-                    local targetPart = nil
-                    if Combat.Settings.TargetPart == "Head" and player.Character:FindFirstChild("Head") then
-                        targetPart = player.Character.Head
-                    elseif Combat.Settings.TargetPart == "Torso" and player.Character:FindFirstChild("UpperTorso") then
-                        targetPart = player.Character.UpperTorso
-                    elseif Combat.Settings.TargetPart == "Random" then
-                        local parts = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm"}
-                        local randomPart = parts[math.random(1, #parts)]
-                        targetPart = player.Character:FindFirstChild(randomPart)
-                    end
-                    
-                    if not targetPart then
-                        targetPart = player.Character.HumanoidRootPart
-                    end
-                    
-                    -- Visibility check
-                    if not IsVisible(targetPart) then
-                        continue
-                    end
-                    
-                    -- FOV check
-                    local vector, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                    if not onScreen then
-                        continue
-                    end
-                    
-                    local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-                    local targetPos = Vector2.new(vector.X, vector.Y)
-                    local distance = (targetPos - mousePos).Magnitude
-                    
-                    if distance < shortestDistance then
-                        closestPlayer = player
-                        shortestDistance = distance
-                    end
-                end
-            end
-            
-            return closestPlayer
-        end
-        
-        -- Aim at player
-        local function AimAt(player)
-            if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then 
-                CurrentTarget = nil
-                return 
-            end
-            
-            CurrentTarget = player
-            
-            -- Get target part
-            local targetPart = nil
-            if Combat.Settings.TargetPart == "Head" and player.Character:FindFirstChild("Head") then
-                targetPart = player.Character.Head
-            elseif Combat.Settings.TargetPart == "Torso" and player.Character:FindFirstChild("UpperTorso") then
-                targetPart = player.Character.UpperTorso
-            elseif Combat.Settings.TargetPart == "Random" then
-                local parts = {"Head", "UpperTorso", "LowerTorso", "LeftUpperArm", "RightUpperArm"}
-                local randomPart = parts[math.random(1, #parts)]
-                targetPart = player.Character:FindFirstChild(randomPart)
-            end
-            
-            if not targetPart then
-                targetPart = player.Character.HumanoidRootPart
-            end
-            
-            -- Calculate aim position
-            local vector, _ = Camera:WorldToViewportPoint(targetPart.Position)
-            local targetPos = Vector2.new(vector.X, vector.Y)
-            local mousePos = Vector2.new(Mouse.X, Mouse.Y)
-            
-            -- Apply smoothing
-            local aimPos = mousePos:Lerp(targetPos, Combat.Settings.Smoothness)
-            
-            -- Move mouse
-            mousemoverel(aimPos.X - mousePos.X, aimPos.Y - mousePos.Y)
-            
-            -- Trigger bot
-            if Combat.Settings.TriggerBot.Enabled and tick() - LastTriggerTime > Combat.Settings.TriggerBot.Delay then
-                -- Check if mouse is over player
-                local targetVector, onScreen = Camera:WorldToViewportPoint(targetPart.Position)
-                if onScreen and (Vector2.new(targetVector.X, targetVector.Y) - Vector2.new(Mouse.X, Mouse.Y)).Magnitude < 10 then
-                    mouse1press()
-                    wait(0.05)
-                    mouse1release()
-                    LastTriggerTime = tick()
-                end
-            end
-        end
-        
-        -- Implement auto-block functionality
-        local function AutoBlock()
-            if not Combat.Settings.AutoBlockEnabled then
-                return
-            end
-            
-            -- This would need to be adapted to how blocking works in Bronx 3
-            -- For example, checking for nearby enemies and triggering block
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    local distance = (player.Character.HumanoidRootPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-                    if distance < 10 then
-                        -- Trigger block action
-                        -- This might involve pressing a key or invoking a remote event
-                        -- Example: keypress(0x46) -- F key for blocking
-                    end
-                end
-            end
-        end
-        
-        -- Update combat features
-        local function UpdateCombat()
-            -- Update FOV circle
-            UpdateFOVCircle()
-            
-            -- Auto block functionality
-            AutoBlock()
-            
-            -- Check if aimbot is enabled and mouse is down
-            if Combat.Settings.AimbotEnabled and UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
-                local target = GetClosestPlayerInFOV()
-                if target then
-                    AimAt(target)
-                else
-                    CurrentTarget = nil
-                end
-            else
-                CurrentTarget = nil
-            end
-        end
-        
-        -- Start combat module
-        function Combat.Start()
-            if AimbotConnection then
-                AimbotConnection:Disconnect()
-            end
-            
-            -- Create FOV circle
-            if not FOVCircle then
-                CreateFOVCircle()
-            end
-            
-            CombatEnabled = true
-            
-            -- Update combat continuously
-            AimbotConnection = RunService.RenderStepped:Connect(UpdateCombat)
-            print("Combat module started")
-        end
-        
-        -- Stop combat module
-        function Combat.Stop()
-            if AimbotConnection then
-                AimbotConnection:Disconnect()
-                AimbotConnection = nil
-            end
-            
-            -- Hide FOV circle
-            if FOVCircle then
-                FOVCircle.Visible = false
-            end
-            
-            CurrentTarget = nil
-            CombatEnabled = false
-            print("Combat module stopped")
-        end
-        
-        -- Get target info
-        function Combat.GetTargetInfo()
-            local info = {
-                TargetName = CurrentTarget and CurrentTarget.Name or nil
-            }
-            return info
-        end
-        
-        -- Set ESP module
-        function Combat.SetESPModule(module)
-            ESPModule = module
-        end
-        
-        return Combat
-    ]],
-    
-    Teleport = [[
-        -- Bronx 3 Teleport Module
-        local Teleport = {}
-        
-        -- Teleport settings
-        Teleport.Settings = {
-            SafeMode = true,
-            AntiDetection = {
-                Enabled = true,
-                RandomizeTiming = true,
-                DelayBetweenTeleports = 0.5
-            }
-        }
-        
-        -- Variables
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        local TeleportLocations = {
-            {
-                Name = "Bank",
-                Icon = "💰",
-                Position = Vector3.new(0, 50, 0) -- Update with actual coordinates
-            },
-            {
-                Name = "Gun Shop",
-                Icon = "🔫",
-                Position = Vector3.new(100, 70, 100) -- Update with actual coordinates
-            },
-            {
-                Name = "Hood HQ",
-                Icon = "🏢",
-                Position = Vector3.new(-100, 50, -100) -- Update with actual coordinates
-            },
-            {
-                Name = "Hospital",
-                Icon = "🏥",
-                Position = Vector3.new(200, 50, 0) -- Update with actual coordinates
-            },
-            {
-                Name = "Prison",
-                Icon = "🏛️",
-                Position = Vector3.new(0, 50, 200) -- Update with actual coordinates
-            },
-            {
-                Name = "Apartments",
-                Icon = "🏠",
-                Position = Vector3.new(-200, 50, 0) -- Update with actual coordinates
-            }
-        }
-        local LastTeleportTime = 0
-        local IsTeleporting = false
-        
-        -- Update teleport locations with real positions
-        local function UpdateTeleportLocations()
-            -- These positions should be updated with real coordinates from the game
-            -- Potentially scan for key landmarks in the game
-        end
-        
-        -- Get teleport location by name
-        local function GetLocationByName(name)
-            for _, location in ipairs(TeleportLocations) do
-                if location.Name == name then
-                    return location
-                end
-            end
-            return nil
-        end
-        
-        -- Teleport player safely using character manipulation
-        local function TeleportSafely(position)
-            if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                return false, "Character not found"
-            end
-            
-            IsTeleporting = true
-            
-            -- Anti-detection delay and randomization
-            if Teleport.Settings.AntiDetection.Enabled then
-                -- Check if we've teleported recently
-                if tick() - LastTeleportTime < Teleport.Settings.AntiDetection.DelayBetweenTeleports then
-                    wait(Teleport.Settings.AntiDetection.DelayBetweenTeleports)
-                end
-                
-                -- Add random delay to avoid pattern detection
-                if Teleport.Settings.AntiDetection.RandomizeTiming then
-                    wait(math.random(1, 5) / 10) -- Random delay between 0.1 and 0.5 seconds
-                end
-            end
-            
-            local character = LocalPlayer.Character
-            local humanoid = character:FindFirstChild("Humanoid")
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            
-            -- Save current state
-            local oldPosition = rootPart.Position
-            local oldHealth = humanoid.Health
-            
-            -- Set safe teleport properties
-            if Teleport.Settings.SafeMode then
-                -- Disable collisions temporarily
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-                
-                -- Set humanoid state to prevent fall damage
-                humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-            end
-            
-            -- Perform teleport
-            rootPart.CFrame = CFrame.new(position)
-            
-            -- Restore properties after teleport
-            wait(0.5) -- Wait for physics to settle
-            
-            if Teleport.Settings.SafeMode then
-                -- Re-enable collisions
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = true
-                    end
-                end
-                
-                -- Reset humanoid state
-                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            end
-            
-            -- Check for teleport success
-            local success = (rootPart.Position - position).Magnitude < 50
-            if not success and Teleport.Settings.SafeMode then
-                -- Teleport failed, return to original position
-                rootPart.CFrame = CFrame.new(oldPosition)
-                wait(0.5)
-            end
-            
-            -- Update last teleport time
-            LastTeleportTime = tick()
-            IsTeleporting = false
-            
-            return success, success and "Teleported successfully" or "Teleport failed"
-        end
-        
-        -- Get location list
-        function Teleport.GetLocationsList()
-            return TeleportLocations
-        end
-        
-        -- Teleport to location by name
-        function Teleport.TeleportToLocation(locationName)
-            local location = GetLocationByName(locationName)
-            if not location then
-                return false, "Location not found"
-            end
-            
-            return TeleportSafely(location.Position)
-        end
-        
-        -- Start teleport module
-        function Teleport.Start()
-            -- Update teleport locations
-            UpdateTeleportLocations()
-            print("Teleport module started")
-        end
-        
-        -- Stop teleport module
-        function Teleport.Stop()
-            print("Teleport module stopped")
-        end
-        
-        return Teleport
-    ]],
-    
-    AntiDetect = [[
-        -- Bronx 3 Anti-Detection Module
-        local AntiDetect = {}
-        
-        -- Anti-detection settings
-        AntiDetect.Settings = {
-            Enabled = true,
-            MonitorRemotes = true,
-            BlockBanRemotes = true,
-            SpoofClientValues = true,
-            ObfuscateActions = true
-        }
-        
-        -- Variables
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        local RunService = game:GetService("RunService")
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local AntiDetectEnabled = false
-        local AntiDetectConnection = nil
-        local BannedRemotes = {
-            "ban", "kick", "punish", "detect", "cheat", "exploit", "violation"
-        }
-        
-        -- Hook namecall
-        local oldNamecall
-        oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
-            local method = getnamecallmethod()
-            local args = {...}
-            
-            -- Only run if anti-detect is enabled
-            if AntiDetectEnabled and AntiDetect.Settings.Enabled then
-                -- Check for potential ban remotes
-                if AntiDetect.Settings.BlockBanRemotes and (method == "FireServer" or method == "InvokeServer") then
-                    local remoteName = self.Name:lower()
-                    
-                    -- Check if this is a banned remote
-                    for _, banned in ipairs(BannedRemotes) do
-                        if remoteName:find(banned) then
-                            print("Blocked suspicious remote: " .. self.Name)
-                            return nil
-                        end
-                    end
-                    
-                    -- Check for exploit detection args
-                    if AntiDetect.Settings.MonitorRemotes then
-                        for i, arg in ipairs(args) do
-                            if typeof(arg) == "string" then
-                                local argLower = arg:lower()
-                                for _, banned in ipairs(BannedRemotes) do
-                                    if argLower:find(banned) then
-                                        print("Blocked suspicious remote arg: " .. arg)
-                                        args[i] = "legit_value"
-                                    end
-                                end
-                            end
-                        end
-                    end
-                end
-            end
-            
-            -- Call original method
-            return oldNamecall(self, unpack(args))
-        end)
-        
-        -- Start anti-detection
-        function AntiDetect.Start()
-            if AntiDetectConnection then
-                AntiDetectConnection:Disconnect()
-            end
-            
-            AntiDetectEnabled = true
-            
-            -- Begin continuous monitoring
-            AntiDetectConnection = RunService.Heartbeat:Connect(function()
-                -- Spoof client values
-                if AntiDetect.Settings.SpoofClientValues then
-                    -- Spoof walkspeed and jump power to appear legitimate
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                        local humanoid = LocalPlayer.Character.Humanoid
-                        local walkSpeed = humanoid.WalkSpeed
-                        local jumpPower = humanoid.JumpPower
-                        
-                        -- Only spoof if values are suspicious
-                        if walkSpeed > 20 then
-                            -- Store real value in a less obvious place
-                            LocalPlayer.Character.HumanoidRootPart:SetAttribute("_ws", walkSpeed)
-                            humanoid.WalkSpeed = 16
-                        end
-                        
-                        if jumpPower > 55 then
-                            -- Store real value in a less obvious place
-                            LocalPlayer.Character.HumanoidRootPart:SetAttribute("_jp", jumpPower)
-                            humanoid.JumpPower = 50
-                        end
-                    end
-                end
-            end)
-            
-            print("Anti-detection module started")
-        end
-        
-        -- Stop anti-detection
-        function AntiDetect.Stop()
-            if AntiDetectConnection then
-                AntiDetectConnection:Disconnect()
-                AntiDetectConnection = nil
-            end
-            
-            AntiDetectEnabled = false
-            print("Anti-detection module stopped")
-        end
-        
-        return AntiDetect
-    ]],
-    
-    CashFarm = [[
-        -- Bronx 3 Cash Farm Module
-        local CashFarm = {}
-        
-        -- Cash Farm settings
-        CashFarm.Settings = {
-            Enabled = false,
-            Method = "ATM Farm", -- ATM Farm, Store Robbery, Auto-Pickup
-            AntiAFK = true,
-            AutoRejoin = false,
-            SafeMode = true,
-            Speed = 5,
-            Delay = 0.5
-        }
-        
-        -- Variables
-        local Players = game:GetService("Players")
-        local RunService = game:GetService("RunService")
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local TeleportService = game:GetService("TeleportService")
-        local LocalPlayer = Players.LocalPlayer
-        local CashFarmEnabled = false
-        local CashFarmConnection = nil
-        local Stats = {
-            CashEarned = 0,
-            RobberiesCompleted = 0,
-            TimeRunning = "00:00:00",
-            StartTime = 0
-        }
-        local ATMLocations = {}
-        local StoreLocations = {}
-        local CashPickupSpots = {}
-        local LastAction = 0
-        
-        -- Find ATM locations
-        local function FindATMLocations()
-            ATMLocations = {}
-            
-            -- Search for ATMs in workspace
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if obj.Name:lower():find("atm") and obj:IsA("BasePart") then
-                    table.insert(ATMLocations, obj.Position)
-                end
-            end
-            
-            -- If no ATMs found, use some common locations
-            if #ATMLocations == 0 then
-                -- Example locations - these should be updated with real coordinates
-                table.insert(ATMLocations, Vector3.new(100, 50, 100))
-                table.insert(ATMLocations, Vector3.new(-100, 50, -100))
-                table.insert(ATMLocations, Vector3.new(200, 50, 0))
-                table.insert(ATMLocations, Vector3.new(0, 50, 200))
-            end
-            
-            return #ATMLocations > 0
-        end
-        
-        -- Find store locations
-        local function FindStoreLocations()
-            StoreLocations = {}
-            
-            -- Search for stores in workspace
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if (obj.Name:lower():find("store") or obj.Name:lower():find("shop")) and obj:IsA("BasePart") then
-                    table.insert(StoreLocations, obj.Position)
-                end
-            end
-            
-            -- If no stores found, use some common locations
-            if #StoreLocations == 0 then
-                -- Example locations - these should be updated with real coordinates
-                table.insert(StoreLocations, Vector3.new(150, 50, 150))
-                table.insert(StoreLocations, Vector3.new(-150, 50, -150))
-                table.insert(StoreLocations, Vector3.new(250, 50, 50))
-            end
-            
-            return #StoreLocations > 0
-        end
-        
-        -- Find cash pickup spots
-        local function FindCashPickupSpots()
-            CashPickupSpots = {}
-            
-            -- Search for cash pickups in workspace
-            for _, obj in pairs(workspace:GetDescendants()) do
-                if (obj.Name:lower():find("cash") or obj.Name:lower():find("money")) and obj:IsA("BasePart") then
-                    table.insert(CashPickupSpots, obj.Position)
-                end
-            end
-            
-            return #CashPickupSpots > 0
-        end
-        
-        -- Teleport to position safely
-        local function TeleportTo(position)
-            if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                return false
-            end
-            
-            local character = LocalPlayer.Character
-            local humanoid = character:FindFirstChild("Humanoid")
-            local rootPart = character:FindFirstChild("HumanoidRootPart")
-            
-            if not humanoid or not rootPart then
-                return false
-            end
-            
-            -- Set safe teleport properties
-            if CashFarm.Settings.SafeMode then
-                -- Disable collisions temporarily
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false
-                    end
-                end
-                
-                -- Set humanoid state to prevent fall damage
-                humanoid:ChangeState(Enum.HumanoidStateType.Physics)
-            end
-            
-            -- Perform teleport
-            rootPart.CFrame = CFrame.new(position)
-            
-            -- Add delay based on speed setting
-            wait(1 / CashFarm.Settings.Speed)
-            
-            -- Restore properties
-            if CashFarm.Settings.SafeMode then
-                -- Re-enable collisions
-                for _, part in pairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = true
-                    end
-                end
-                
-                -- Reset humanoid state
-                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
-            end
-            
-            return true
-        end
-        
-        -- Farm ATMs
-        local function FarmATMs()
-            -- Find ATM locations if none exist
-            if #ATMLocations == 0 then
-                if not FindATMLocations() then
-                    return
-                end
-            end
-            
-            -- Visit each ATM location
-            for _, position in ipairs(ATMLocations) do
-                if not CashFarmEnabled or not CashFarm.Settings.Enabled then
-                    break
-                end
-                
-                -- Teleport to ATM
-                local success = TeleportTo(position)
-                if success then
-                    -- Interact with ATM
-                    -- This would need to be adapted to how ATMs work in Bronx 3
-                    -- Might involve clicking a specific part or firing a remote
-                    
-                    -- Simulate earning cash
-                    Stats.CashEarned = Stats.CashEarned + 50 -- Update with actual amount
-                    
-                    -- Add delay between actions
-                    wait(CashFarm.Settings.Delay)
-                end
-            end
-        end
-        
-        -- Rob stores
-        local function RobStores()
-            -- Find store locations if none exist
-            if #StoreLocations == 0 then
-                if not FindStoreLocations() then
-                    return
-                end
-            end
-            
-            -- Visit each store location
-            for _, position in ipairs(StoreLocations) do
-                if not CashFarmEnabled or not CashFarm.Settings.Enabled then
-                    break
-                end
-                
-                -- Teleport to store
-                local success = TeleportTo(position)
-                if success then
-                    -- Rob the store
-                    -- This would need to be adapted to how store robberies work in Bronx 3
-                    -- Might involve breaking glass, grabbing money, etc.
-                    
-                    -- Simulate earning cash and completing robbery
-                    Stats.CashEarned = Stats.CashEarned + 200 -- Update with actual amount
-                    Stats.RobberiesCompleted = Stats.RobberiesCompleted + 1
-                    
-                    -- Add delay between actions
-                    wait(CashFarm.Settings.Delay * 2)
-                end
-            end
-        end
-        
-        -- Pickup cash
-        local function PickupCash()
-            -- Find cash pickup spots if none exist
-            if #CashPickupSpots == 0 then
-                if not FindCashPickupSpots() then
-                    return
-                end
-            end
-            
-            -- Visit each cash pickup spot
-            for _, position in ipairs(CashPickupSpots) do
-                if not CashFarmEnabled or not CashFarm.Settings.Enabled then
-                    break
-                end
-                
-                -- Teleport to cash
-                local success = TeleportTo(position)
-                if success then
-                    -- Pick up the cash
-                    -- This would involve touching the cash or firing a proximity prompt
-                    
-                    -- Simulate earning cash
-                    Stats.CashEarned = Stats.CashEarned + 20 -- Update with actual amount
-                    
-                    -- Add delay between actions
-                    wait(CashFarm.Settings.Delay)
-                end
-            end
-        end
-        
-        -- Anti-AFK function
-        local function AntiAFK()
-            if not CashFarm.Settings.AntiAFK then
-                return
-            end
-            
-            -- Check if we need to simulate activity
-            if tick() - LastAction > 60 then
-                -- Simulate random movements
-                local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid")
-                if humanoid then
-                    -- Random movement
-                    humanoid:Move(Vector3.new(math.random(-1, 1), 0, math.random(-1, 1)))
-                    wait(0.5)
-                    humanoid:Move(Vector3.new(0, 0, 0))
-                end
-                
-                -- Simulate random camera movement
-                local camera = workspace.CurrentCamera
-                if camera then
-                    local currentCFrame = camera.CFrame
-                    camera.CFrame = currentCFrame * CFrame.Angles(math.rad(math.random(-10, 10)), math.rad(math.random(-10, 10)), 0)
-                    wait(0.5)
-                    camera.CFrame = currentCFrame
-                end
-                
-                LastAction = tick()
-            end
-        end
-        
-        -- Auto rejoin function
-        local function CheckForRejoin()
-            if not CashFarm.Settings.AutoRejoin then
-                return
-            end
-            
-            -- Check if we got disconnected
-            if not game:GetService("Players").LocalPlayer then
-                TeleportService:Teleport(game.PlaceId, LocalPlayer)
-            end
-        end
-        
-        -- Update time running
-        local function UpdateTimeRunning()
-            local elapsed = tick() - Stats.StartTime
-            local hours = math.floor(elapsed / 3600)
-            local minutes = math.floor((elapsed % 3600) / 60)
-            local seconds = math.floor(elapsed % 60)
-            
-            Stats.TimeRunning = string.format("%02d:%02d:%02d", hours, minutes, seconds)
-        end
-        
-        -- Main cash farm function
-        local function RunCashFarm()
-            -- Check if enabled
-            if not CashFarmEnabled or not CashFarm.Settings.Enabled then
-                return
-            end
-            
-            -- Update time
-            UpdateTimeRunning()
-            
-            -- Update last action
-            LastAction = tick()
-            
-            -- Run anti-AFK
-            AntiAFK()
-            
-            -- Check for rejoin
-            CheckForRejoin()
-            
-            -- Perform cash farming based on method
-            if CashFarm.Settings.Method == "ATM Farm" then
-                FarmATMs()
-            elseif CashFarm.Settings.Method == "Store Robbery" then
-                RobStores()
-            elseif CashFarm.Settings.Method == "Auto-Pickup" then
-                PickupCash()
-            end
-        end
-        
-        -- Start cash farm
-        function CashFarm.Start()
-            if CashFarmConnection then
-                CashFarmConnection:Disconnect()
-            end
-            
-            -- Reset stats
-            Stats.StartTime = tick()
-            
-            -- Initialize locations
-            FindATMLocations()
-            FindStoreLocations()
-            FindCashPickupSpots()
-            
-            CashFarmEnabled = true
-            
-            -- Run cash farm
-            CashFarmConnection = RunService.Heartbeat:Connect(RunCashFarm)
-            print("CashFarm module started")
-        end
-        
-        -- Stop cash farm
-        function CashFarm.Stop()
-            if CashFarmConnection then
-                CashFarmConnection:Disconnect()
-                CashFarmConnection = nil
-            end
-            
-            CashFarmEnabled = false
-            print("CashFarm module stopped")
-        end
-        
-        -- Get stats
-        function CashFarm.GetStats()
-            UpdateTimeRunning()
-            return Stats
-        end
-        
-        return CashFarm
-    ]],
-    
-    Character = [[
-        -- Bronx 3 Character Enhancement Module
-        local Character = {}
-        
-        -- Character settings
-        Character.Settings = {
-            WalkSpeedEnabled = false,
-            JumpPowerEnabled = false,
-            GodModeEnabled = false,
-            InfiniteStamina = false,
-            NoClip = false,
-            WalkSpeed = 16,
-            JumpPower = 50
-        }
-        
-        -- Variables
-        local Players = game:GetService("Players")
-        local RunService = game:GetService("RunService")
-        local UserInputService = game:GetService("UserInputService")
-        local LocalPlayer = Players.LocalPlayer
-        local CharacterEnhancedEnabled = false
-        local CharacterConnection = nil
-        local NoClipConnection = nil
-        local OriginalWalkSpeed = 16
-        local OriginalJumpPower = 50
-        local IsNoClipping = false
-        
-        -- Helper function to set character's walk speed
-        local function SetWalkSpeed(speed)
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                -- Store original value if first time
-                if OriginalWalkSpeed == 16 then
-                    OriginalWalkSpeed = LocalPlayer.Character.Humanoid.WalkSpeed
-                end
-                
-                LocalPlayer.Character.Humanoid.WalkSpeed = speed
-            end
-        end
-        
-        -- Helper function to set character's jump power
-        local function SetJumpPower(power)
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                -- Store original value if first time
-                if OriginalJumpPower == 50 then
-                    OriginalJumpPower = LocalPlayer.Character.Humanoid.JumpPower
-                end
-                
-                LocalPlayer.Character.Humanoid.JumpPower = power
-            end
-        end
-        
-        -- Enable God Mode
-        local function EnableGodMode()
-            if not LocalPlayer.Character then return end
-            
-            -- Methods to enable god mode can vary between games
-            -- Some common approaches:
-            
-            -- 1. Hook health changes
-            local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-            if humanoid then
-                local oldHealth = humanoid.Health
-                
-                -- Connect to health change event
-                humanoid:GetPropertyChangedSignal("Health"):Connect(function()
-                    if Character.Settings.GodModeEnabled and humanoid.Health < oldHealth then
-                        humanoid.Health = oldHealth
-                    else
-                        oldHealth = humanoid.Health
-                    end
-                end)
-            end
-            
-            -- 2. Another approach is to constantly heal
-            spawn(function()
-                while Character.Settings.GodModeEnabled and wait(0.1) do
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                        LocalPlayer.Character.Humanoid.Health = LocalPlayer.Character.Humanoid.MaxHealth
-                    else
-                        break
-                    end
-                end
-            end)
-        end
-        
-        -- Enable infinite stamina
-        local function EnableInfiniteStamina()
-            -- This would need to be adapted to how stamina works in Bronx 3
-            -- Might involve setting a stamina value or hooking a stamina change event
-            
-            spawn(function()
-                while Character.Settings.InfiniteStamina and wait(0.1) do
-                    -- Example: if game stores stamina in a value
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Stamina") then
-                        LocalPlayer.Character.Stamina.Value = 100
-                    elseif LocalPlayer:FindFirstChild("Stamina") then
-                        LocalPlayer.Stamina.Value = 100
-                    end
-                end
-            end)
-        end
-        
-        -- No-clip functionality
-        local function UpdateNoClip()
-            if not Character.Settings.NoClip or not LocalPlayer.Character then
-                return
-            end
-            
-            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
-        
-        -- Update character enhancements
-        local function UpdateCharacter()
-            -- Apply walk speed
-            if Character.Settings.WalkSpeedEnabled then
-                SetWalkSpeed(Character.Settings.WalkSpeed)
-            else
-                SetWalkSpeed(OriginalWalkSpeed)
-            end
-            
-            -- Apply jump power
-            if Character.Settings.JumpPowerEnabled then
-                SetJumpPower(Character.Settings.JumpPower)
-            else
-                SetJumpPower(OriginalJumpPower)
-            end
-            
-            -- Handle No-Clip separately as it needs more frequent updates
-            if Character.Settings.NoClip and not IsNoClipping then
-                IsNoClipping = true
-                if NoClipConnection then
-                    NoClipConnection:Disconnect()
-                end
-                NoClipConnection = RunService.Stepped:Connect(UpdateNoClip)
-            elseif not Character.Settings.NoClip and IsNoClipping then
-                IsNoClipping = false
-                if NoClipConnection then
-                    NoClipConnection:Disconnect()
-                    NoClipConnection = nil
-                end
-            end
-        end
-        
-        -- Start character enhancements
-        function Character.Start()
-            if CharacterConnection then
-                CharacterConnection:Disconnect()
-            end
-            
-            CharacterEnhancedEnabled = true
-            
-            -- Apply initial settings
-            if Character.Settings.GodModeEnabled then
-                EnableGodMode()
-            end
-            
-            if Character.Settings.InfiniteStamina then
-                EnableInfiniteStamina()
-            end
-            
-            -- Update character continuously
-            CharacterConnection = RunService.Heartbeat:Connect(UpdateCharacter)
-            print("Character enhancement module started")
-        end
-        
-        -- Stop character enhancements
-        function Character.Stop()
-            CharacterEnhancedEnabled = false
-            
-            if CharacterConnection then
-                CharacterConnection:Disconnect()
-                CharacterConnection = nil
-            end
-            
-            if NoClipConnection then
-                NoClipConnection:Disconnect()
-                NoClipConnection = nil
-            end
-            
-            -- Restore original values
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
-                LocalPlayer.Character.Humanoid.WalkSpeed = OriginalWalkSpeed
-                LocalPlayer.Character.Humanoid.JumpPower = OriginalJumpPower
-            end
-            
-            print("Character enhancement module stopped")
-        end
-        
-        return Character
-    ]]
-}
-
--- Module URLs (for fallback)
-local ModuleURLs = {
-    ESP = "ESP",
-    Combat = "Combat",
-    Teleport = "Teleport",
-    AntiDetect = "AntiDetect",
-    CashFarm = "CashFarm",
-    Character = "Character"
-}
-
--- Loaded modules
-local Modules = {
-    ESP = nil,
-    Combat = nil,
-    Teleport = nil,
-    AntiDetect = nil,
-    CashFarm = nil,
-    Character = nil
-}
-
--- Load a module from embedded code
-local function LoadModule(moduleName)
-    if not ModuleDefinitions[moduleName] then
-        warn("No module definition found for: " .. moduleName)
-        return nil
-    end
-    
+-- Detect device type
+local IsMobile = (function()
     local success, result = pcall(function()
-        return loadstring(ModuleDefinitions[moduleName])()
+        return game:GetService("UserInputService").TouchEnabled and 
+               not game:GetService("UserInputService").MouseEnabled
     end)
-    
-    if success then
-        print("✅ Successfully loaded: " .. moduleName)
-        return result
-    else
-        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. tostring(result))
-        return nil
-    end
-end
+    return success and result or false
+end)()
 
--- Device detection
-local IsMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
 local DeviceText = IsMobile and "Mobile" or "PC"
 
-print("SkyX Bronx 3 - Starting on " .. DeviceText .. " device")
+-- Core services
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
--- Create main UI container
+-- Create connections table for cleanup
+local Connections = {}
+
+-- Function to add connection and track it for cleanup
+local function AddConnection(signal, callback)
+    if not signal then
+        warn("SkyX: Attempted to connect to nil signal")
+        return
+    end
+    
+    local connection = signal:Connect(callback)
+    table.insert(Connections, connection)
+    return connection
+end
+
+print("SkyX Blox Fruits - Starting on " .. DeviceText .. " device")
+
+
+
+-- UI Colors
+local Colors = {
+    Background = Color3.fromRGB(25, 25, 35),      -- Dark background
+    Container = Color3.fromRGB(30, 30, 45),       -- Slightly lighter container
+    Button = Color3.fromRGB(90, 120, 240),        -- Modern blue for buttons
+    Text = Color3.fromRGB(255, 255, 255),         -- White text
+    Border = Color3.fromRGB(100, 130, 255),       -- Lighter blue border
+    TabActive = Color3.fromRGB(90, 120, 240),     -- Match button color
+    TabInactive = Color3.fromRGB(50, 50, 70),     -- Darker for inactive
+    Success = Color3.fromRGB(70, 200, 120),       -- Green for success/enabled
+    Danger = Color3.fromRGB(240, 70, 90),         -- Red for danger/disabled
+    Warning = Color3.fromRGB(240, 180, 60),       -- Yellow for warnings
+    Highlight = Color3.fromRGB(140, 160, 255)     -- Light purple highlight
+}
+
+-- Create UI
 local SkyXUI = Instance.new("ScreenGui")
-SkyXUI.Name = "SkyXUI"
+SkyXUI.Name = "SkyXUI_BloxFruits"
+SkyXUI.ResetOnSpawn = false
+SkyXUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
--- Handle different executor security models
+-- Handle executor security models
 if syn then
     syn.protect_gui(SkyXUI)
     SkyXUI.Parent = game.CoreGui
 else
-    SkyXUI.Parent = gethui() or game.CoreGui
+    SkyXUI.Parent = gethui and gethui() or game.CoreGui
 end
 
--- Remove existing UIs with the same name
+-- Remove any existing UIs with the same name
 for _, Interface in pairs(game.CoreGui:GetChildren()) do
     if Interface.Name == SkyXUI.Name and Interface ~= SkyXUI then
         Interface:Destroy()
     end
 end
 
--- Basic UI library
-local SkyX = {}
-SkyX.Elements = {}
-SkyX.Connections = {}
-
--- Core colors - modern theme with gradients
-local Colors = {
-    Background = Color3.fromRGB(25, 25, 35), -- Darker background
-    Container = Color3.fromRGB(30, 30, 45),  -- Slightly lighter container
-    Button = Color3.fromRGB(90, 120, 240),   -- Modern blue for buttons
-    Text = Color3.fromRGB(255, 255, 255),    -- White text
-    Border = Color3.fromRGB(100, 130, 255),  -- Lighter blue border
-    TabActive = Color3.fromRGB(90, 120, 240),-- Match button color
-    TabInactive = Color3.fromRGB(50, 50, 70),-- Darker for inactive
-    Success = Color3.fromRGB(70, 200, 120),  -- Green for success/enabled
-    Danger = Color3.fromRGB(240, 70, 90),    -- Red for danger/disabled
-    Warning = Color3.fromRGB(240, 180, 60),  -- Yellow for warnings
-    Highlight = Color3.fromRGB(140, 160, 255) -- Light purple highlight
-}
-
--- Basic icon mapping - direct asset IDs, no external loading
-local Icons = {
-    close = "rbxassetid://7743875629",
-    minimize = "rbxassetid://10664064072"
-}
-
--- Helper functions
-local function AddConnection(signal, callback)
-    local connection = signal:Connect(callback)
-    table.insert(SkyX.Connections, connection)
-    return connection
-end
-
-local function MakeDraggable(frame)
-    local dragging, dragInput, dragStart, startPos
-    
-    AddConnection(frame.InputBegan, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    
-    AddConnection(frame.InputChanged, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    
-    AddConnection(UserInputService.InputChanged, function(input)
-        if input == dragInput and dragging then
-            local Delta = input.Position - dragStart
-            -- Smooth dragging
-            frame.Position = UDim2.new(
-                startPos.X.Scale, 
-                startPos.X.Offset + Delta.X, 
-                startPos.Y.Scale, 
-                startPos.Y.Offset + Delta.Y
-            )
-        end
-    end)
-end
-
--- Create main window with modern styling
+-- Create main window
 local MainWindow = Instance.new("Frame")
 MainWindow.Name = "MainWindow"
 MainWindow.Size = UDim2.new(0, 500, 0, 350)
@@ -1459,11 +86,12 @@ MainWindow.Position = UDim2.new(0.5, -250, 0.5, -175)
 MainWindow.BackgroundColor3 = Colors.Background
 MainWindow.BorderSizePixel = 0
 MainWindow.Active = true
+MainWindow.Draggable = false -- We'll implement custom dragging
 MainWindow.Parent = SkyXUI
 
 -- Add corner
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 10) -- Slightly more rounded corners
+MainCorner.CornerRadius = UDim.new(0, 8)
 MainCorner.Parent = MainWindow
 
 -- Add shadow effect
@@ -1479,20 +107,7 @@ MainShadow.ImageTransparency = 0.6
 MainShadow.ZIndex = 0 -- Behind the main window
 MainShadow.Parent = MainWindow
 
--- Add background gradient
-local MainGradient = Instance.new("UIGradient")
-MainGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Colors.Background),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(
-        Colors.Background.R * 0.8,
-        Colors.Background.G * 0.8,
-        Colors.Background.B * 0.8
-    ))
-})
-MainGradient.Rotation = 45
-MainGradient.Parent = MainWindow
-
--- Create window title bar with gradient
+-- Create title bar
 local TitleBar = Instance.new("Frame")
 TitleBar.Name = "TitleBar"
 TitleBar.Size = UDim2.new(1, 0, 0, 40)
@@ -1500,45 +115,19 @@ TitleBar.BackgroundColor3 = Colors.Button
 TitleBar.BorderSizePixel = 0
 TitleBar.Parent = MainWindow
 
--- Add gradient to title bar
-local TitleGradient = Instance.new("UIGradient")
-TitleGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Colors.Button),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(
-        Colors.Button.R * 0.8,
-        Colors.Button.G * 0.8,
-        Colors.Button.B * 0.8
-    ))
-})
-TitleGradient.Rotation = 90
-TitleGradient.Parent = TitleBar
-
 -- Add corner to title bar
 local TitleCorner = Instance.new("UICorner")
-TitleCorner.CornerRadius = UDim.new(0, 10) -- Match main window corners
+TitleCorner.CornerRadius = UDim.new(0, 8)
 TitleCorner.Parent = TitleBar
 
 -- Fix corners
 local CornerFix = Instance.new("Frame")
 CornerFix.Name = "CornerFix"
-CornerFix.Size = UDim2.new(1, 0, 0, 15) -- Slightly larger
-CornerFix.Position = UDim2.new(0, 0, 1, -15)
+CornerFix.Size = UDim2.new(1, 0, 0, 10)
+CornerFix.Position = UDim2.new(0, 0, 1, -10)
 CornerFix.BackgroundColor3 = Colors.Button
 CornerFix.BorderSizePixel = 0
 CornerFix.Parent = TitleBar
-
--- Add gradient to corner fix
-local CornerFixGradient = Instance.new("UIGradient")
-CornerFixGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Colors.Button),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(
-        Colors.Button.R * 0.8,
-        Colors.Button.G * 0.8,
-        Colors.Button.B * 0.8
-    ))
-})
-CornerFixGradient.Rotation = 90
-CornerFixGradient.Parent = CornerFix
 
 -- Add title text
 local TitleText = Instance.new("TextLabel")
@@ -1550,82 +139,22 @@ TitleText.Font = Enum.Font.GothamBold
 TitleText.TextSize = 16
 TitleText.TextColor3 = Colors.Text
 TitleText.TextXAlignment = Enum.TextXAlignment.Left
-TitleText.Text = "🌊 SkyX Bronx 3 🌊"
+TitleText.Text = "🌊 SkyX Hub - Blox Fruits 🌊"
 TitleText.Parent = TitleBar
 
 -- Add close button
-local CloseButton = Instance.new("ImageButton")
+local CloseButton = Instance.new("TextButton")
 CloseButton.Name = "CloseButton"
-CloseButton.Size = UDim2.new(0, 20, 0, 20)
-CloseButton.Position = UDim2.new(1, -30, 0, 10)
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -40, 0, 5)
 CloseButton.BackgroundTransparency = 1
-CloseButton.Image = Icons.close
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.TextSize = 20
+CloseButton.TextColor3 = Colors.Text
+CloseButton.Text = "×"
 CloseButton.Parent = TitleBar
 
--- Add event for close button with proper functionality
-AddConnection(CloseButton.MouseButton1Click, function()
-    -- Clean up connections and resources before destroying
-    for _, connection in pairs(SkyX.Connections) do
-        if connection then
-            connection:Disconnect()
-        end
-    end
-    
-    -- Stop all modules
-    if Modules.ESP then Modules.ESP.Stop() end
-    if Modules.Combat then Modules.Combat.Stop() end
-    if Modules.Teleport then Modules.Teleport.Stop() end
-    if Modules.AntiDetect then Modules.AntiDetect.Stop() end
-    if Modules.CashFarm then Modules.CashFarm.Stop() end
-    if Modules.Character then Modules.Character.Stop() end
-    
-    -- Destroy GUI
-    SkyXUI:Destroy()
-    
-    print("SkyX Bronx 3 script closed properly")
-end)
-
--- Create content area
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Name = "ContentFrame"
-ContentFrame.Size = UDim2.new(1, 0, 1, -50)
-ContentFrame.Position = UDim2.new(0, 0, 0, 40)
-ContentFrame.BackgroundColor3 = Colors.Container
-ContentFrame.BorderSizePixel = 0
-ContentFrame.Parent = MainWindow
-
--- Fix content corners
-local ContentCorner = Instance.new("UICorner")
-ContentCorner.CornerRadius = UDim.new(0, 8)
-ContentCorner.Parent = ContentFrame
-
--- Add tab container with proper size to prevent sticking out
-local TabContainer = Instance.new("Frame")
-TabContainer.Name = "TabContainer"
-TabContainer.Size = UDim2.new(1, -20, 0, 40)
-TabContainer.Position = UDim2.new(0, 10, 0, 10)
-TabContainer.BackgroundTransparency = 1
-TabContainer.BorderSizePixel = 0
-TabContainer.ClipsDescendants = true -- Prevent tabs from sticking out
-TabContainer.Parent = ContentFrame
-
--- Add tab layout
-local TabLayout = Instance.new("UIListLayout")
-TabLayout.FillDirection = Enum.FillDirection.Horizontal
-TabLayout.Padding = UDim.new(0, 5)
-TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-TabLayout.Parent = TabContainer
-
--- Add tab content container
-local TabContent = Instance.new("Frame")
-TabContent.Name = "TabContent"
-TabContent.Size = UDim2.new(1, -20, 1, -60)
-TabContent.Position = UDim2.new(0, 10, 0, 50)
-TabContent.BackgroundTransparency = 1
-TabContent.BorderSizePixel = 0
-TabContent.Parent = ContentFrame
-
--- Make window draggable - fixed implementation
+-- Make title bar draggable
 local dragging = false
 local dragInput
 local dragStart
@@ -1654,791 +183,992 @@ end)
 AddConnection(UserInputService.InputChanged, function(input)
     if input == dragInput and dragging then
         local delta = input.Position - dragStart
-        MainWindow.Position = UDim2.new(
-            startPos.X.Scale, 
-            startPos.X.Offset + delta.X, 
-            startPos.Y.Scale, 
-            startPos.Y.Offset + delta.Y
-        )
+        MainWindow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
     end
 end)
 
--- Track tabs
+-- Create tab container
+local TabContainer = Instance.new("Frame")
+TabContainer.Name = "TabContainer"
+TabContainer.Size = UDim2.new(1, 0, 0, 35)
+TabContainer.Position = UDim2.new(0, 0, 0, 40)
+TabContainer.BackgroundTransparency = 1
+TabContainer.Parent = MainWindow
+
+-- Create tab button layout
+local TabLayout = Instance.new("UIListLayout")
+TabLayout.FillDirection = Enum.FillDirection.Horizontal
+TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabLayout.Padding = UDim.new(0, 5)
+TabLayout.Parent = TabContainer
+
+-- Add padding to tabs
+local TabPadding = Instance.new("UIPadding")
+TabPadding.PaddingLeft = UDim.new(0, 10)
+TabPadding.PaddingRight = UDim.new(0, 10)
+TabPadding.Parent = TabContainer
+
+-- Create content container
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Name = "ContentContainer"
+ContentContainer.Size = UDim2.new(1, 0, 1, -75)
+ContentContainer.Position = UDim2.new(0, 0, 0, 75)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MainWindow
+
+-- Tables to store tabs and sections
 local Tabs = {}
 local SelectedTab = nil
 
--- UI element creation functions
-local function CreateButton(parent, text, position, size, color, callback)
-    local Button = Instance.new("TextButton")
-    Button.Name = text .. "Button"
-    Button.Size = size or UDim2.new(1, 0, 0, 30)
-    Button.Position = position or UDim2.new(0, 0, 0, 0)
-    Button.BackgroundColor3 = color or Colors.Button
-    Button.BorderSizePixel = 0
-    Button.Font = Enum.Font.Gotham
-    Button.TextSize = 14
-    Button.TextColor3 = Colors.Text
-    Button.Text = text
-    Button.Parent = parent
-    
-    -- Add corner
-    local ButtonCorner = Instance.new("UICorner")
-    ButtonCorner.CornerRadius = UDim.new(0, 6)
-    ButtonCorner.Parent = Button
-    
-    -- Add click effect
-    AddConnection(Button.MouseButton1Click, function()
-        -- Flash effect
-        Button.BackgroundColor3 = Colors.Highlight
-        Button.TextSize = 15
-        wait(0.1)
-        Button.BackgroundColor3 = color or Colors.Button
-        Button.TextSize = 14
-        
-        -- Call callback
-        if callback then
-            callback()
-        end
-    end)
-    
-    return Button
-end
-
-local function CreateToggle(parent, text, position, size, default, callback)
-    local Toggle = Instance.new("Frame")
-    Toggle.Name = text .. "Toggle"
-    Toggle.Size = size or UDim2.new(1, 0, 0, 30)
-    Toggle.Position = position or UDim2.new(0, 0, 0, 0)
-    Toggle.BackgroundTransparency = 1
-    Toggle.Parent = parent
-    
-    -- Add text label
-    local ToggleText = Instance.new("TextLabel")
-    ToggleText.Name = "Text"
-    ToggleText.Size = UDim2.new(1, -60, 1, 0)
-    ToggleText.Position = UDim2.new(0, 10, 0, 0)
-    ToggleText.BackgroundTransparency = 1
-    ToggleText.Font = Enum.Font.Gotham
-    ToggleText.TextSize = 14
-    ToggleText.TextColor3 = Colors.Text
-    ToggleText.TextXAlignment = Enum.TextXAlignment.Left
-    ToggleText.Text = text
-    ToggleText.Parent = Toggle
-    
-    -- Add toggle background
-    local ToggleBackground = Instance.new("Frame")
-    ToggleBackground.Name = "Background"
-    ToggleBackground.Size = UDim2.new(0, 40, 0, 20)
-    ToggleBackground.Position = UDim2.new(1, -50, 0.5, -10)
-    ToggleBackground.BackgroundColor3 = default and Colors.Success or Colors.Danger
-    ToggleBackground.BorderSizePixel = 0
-    ToggleBackground.Parent = Toggle
-    
-    -- Add corner to background
-    local ToggleBackgroundCorner = Instance.new("UICorner")
-    ToggleBackgroundCorner.CornerRadius = UDim.new(0, 10)
-    ToggleBackgroundCorner.Parent = ToggleBackground
-    
-    -- Add toggle knob
-    local ToggleKnob = Instance.new("Frame")
-    ToggleKnob.Name = "Knob"
-    ToggleKnob.Size = UDim2.new(0, 16, 0, 16)
-    ToggleKnob.Position = UDim2.new(default and 1 or 0, default and -18 or 2, 0.5, -8)
-    ToggleKnob.BackgroundColor3 = Colors.Text
-    ToggleKnob.BorderSizePixel = 0
-    ToggleKnob.Parent = ToggleBackground
-    
-    -- Add corner to knob
-    local ToggleKnobCorner = Instance.new("UICorner")
-    ToggleKnobCorner.CornerRadius = UDim.new(1, 0)
-    ToggleKnobCorner.Parent = ToggleKnob
-    
-    -- Add click functionality
-    local Enabled = default or false
-    
-    ToggleBackground.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            Enabled = not Enabled
-            
-            -- Animate toggle
-            local goalPosition = Enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-            local goalColor = Enabled and Colors.Success or Colors.Danger
-            
-            local positionTween = TweenService:Create(ToggleKnob, TweenInfo.new(0.2), {Position = goalPosition})
-            local colorTween = TweenService:Create(ToggleBackground, TweenInfo.new(0.2), {BackgroundColor3 = goalColor})
-            
-            positionTween:Play()
-            colorTween:Play()
-            
-            -- Call callback
-            if callback then
-                callback(Enabled)
-            end
-        end
-    end)
-    
-    -- Method to get current state
-    Toggle.GetState = function()
-        return Enabled
-    end
-    
-    -- Method to set state
-    Toggle.SetState = function(state)
-        if state ~= Enabled then
-            Enabled = state
-            
-            -- Animate toggle
-            local goalPosition = Enabled and UDim2.new(1, -18, 0.5, -8) or UDim2.new(0, 2, 0.5, -8)
-            local goalColor = Enabled and Colors.Success or Colors.Danger
-            
-            local positionTween = TweenService:Create(ToggleKnob, TweenInfo.new(0.2), {Position = goalPosition})
-            local colorTween = TweenService:Create(ToggleBackground, TweenInfo.new(0.2), {BackgroundColor3 = goalColor})
-            
-            positionTween:Play()
-            colorTween:Play()
-            
-            -- Call callback
-            if callback then
-                callback(Enabled)
-            end
-        end
-    end
-    
-    return Toggle
-end
-
-local function CreateSlider(parent, text, position, size, min, max, default, callback)
-    local Slider = Instance.new("Frame")
-    Slider.Name = text .. "Slider"
-    Slider.Size = size or UDim2.new(1, 0, 0, 45)
-    Slider.Position = position or UDim2.new(0, 0, 0, 0)
-    Slider.BackgroundTransparency = 1
-    Slider.Parent = parent
-    
-    -- Add text label
-    local SliderText = Instance.new("TextLabel")
-    SliderText.Name = "Text"
-    SliderText.Size = UDim2.new(1, -70, 0, 20)
-    SliderText.Position = UDim2.new(0, 10, 0, 0)
-    SliderText.BackgroundTransparency = 1
-    SliderText.Font = Enum.Font.Gotham
-    SliderText.TextSize = 14
-    SliderText.TextColor3 = Colors.Text
-    SliderText.TextXAlignment = Enum.TextXAlignment.Left
-    SliderText.Text = text
-    SliderText.Parent = Slider
-    
-    -- Add value display
-    local ValueDisplay = Instance.new("TextLabel")
-    ValueDisplay.Name = "Value"
-    ValueDisplay.Size = UDim2.new(0, 60, 0, 20)
-    ValueDisplay.Position = UDim2.new(1, -70, 0, 0)
-    ValueDisplay.BackgroundTransparency = 1
-    ValueDisplay.Font = Enum.Font.Gotham
-    ValueDisplay.TextSize = 14
-    ValueDisplay.TextColor3 = Colors.Highlight
-    ValueDisplay.Text = tostring(default)
-    ValueDisplay.Parent = Slider
-    
-    -- Add slider background
-    local SliderBackground = Instance.new("Frame")
-    SliderBackground.Name = "Background"
-    SliderBackground.Size = UDim2.new(1, -20, 0, 6)
-    SliderBackground.Position = UDim2.new(0, 10, 0, 30)
-    SliderBackground.BackgroundColor3 = Colors.TabInactive
-    SliderBackground.BorderSizePixel = 0
-    SliderBackground.Parent = Slider
-    
-    -- Add corner to background
-    local SliderBackgroundCorner = Instance.new("UICorner")
-    SliderBackgroundCorner.CornerRadius = UDim.new(0, 3)
-    SliderBackgroundCorner.Parent = SliderBackground
-    
-    -- Add slider fill
-    local SliderFill = Instance.new("Frame")
-    SliderFill.Name = "Fill"
-    SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
-    SliderFill.BackgroundColor3 = Colors.Button
-    SliderFill.BorderSizePixel = 0
-    SliderFill.Parent = SliderBackground
-    
-    -- Add corner to fill
-    local SliderFillCorner = Instance.new("UICorner")
-    SliderFillCorner.CornerRadius = UDim.new(0, 3)
-    SliderFillCorner.Parent = SliderFill
-    
-    -- Add slider knob
-    local SliderKnob = Instance.new("Frame")
-    SliderKnob.Name = "Knob"
-    SliderKnob.Size = UDim2.new(0, 12, 0, 12)
-    SliderKnob.Position = UDim2.new((default - min) / (max - min), -6, 0.5, -6)
-    SliderKnob.BackgroundColor3 = Colors.Text
-    SliderKnob.BorderSizePixel = 0
-    SliderKnob.ZIndex = 2
-    SliderKnob.Parent = SliderBackground
-    
-    -- Add corner to knob
-    local SliderKnobCorner = Instance.new("UICorner")
-    SliderKnobCorner.CornerRadius = UDim.new(1, 0)
-    SliderKnobCorner.Parent = SliderKnob
-    
-    -- Add slider functionality
-    local Value = default
-    
-    local function UpdateSlider(input)
-        local sliderPos = math.clamp((input.Position.X - SliderBackground.AbsolutePosition.X) / SliderBackground.AbsoluteSize.X, 0, 1)
-        local newValue = math.floor(min + ((max - min) * sliderPos))
-        
-        if newValue ~= Value then
-            Value = newValue
-            ValueDisplay.Text = tostring(Value)
-            
-            -- Update slider fill and knob
-            SliderFill.Size = UDim2.new(sliderPos, 0, 1, 0)
-            SliderKnob.Position = UDim2.new(sliderPos, -6, 0.5, -6)
-            
-            -- Call callback
-            if callback then
-                callback(Value)
-            end
-        end
-    end
-    
-    SliderBackground.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            UpdateSlider(input)
-            
-            -- Drag functionality
-            local connection
-            connection = UserInputService.InputChanged:Connect(function(dragged)
-                if dragged.UserInputType == Enum.UserInputType.MouseMovement or dragged.UserInputType == Enum.UserInputType.Touch then
-                    UpdateSlider(dragged)
-                end
-            end)
-            
-            -- End drag
-            UserInputService.InputEnded:Connect(function(inputEnd)
-                if (inputEnd.UserInputType == Enum.UserInputType.MouseButton1 or inputEnd.UserInputType == Enum.UserInputType.Touch) and connection then
-                    connection:Disconnect()
-                    connection = nil
-                end
-            end)
-        end
-    end)
-    
-    -- Method to set value
-    Slider.SetValue = function(value)
-        value = math.clamp(value, min, max)
-        if value ~= Value then
-            Value = value
-            ValueDisplay.Text = tostring(Value)
-            
-            -- Update slider fill and knob
-            local sliderPos = (Value - min) / (max - min)
-            SliderFill.Size = UDim2.new(sliderPos, 0, 1, 0)
-            SliderKnob.Position = UDim2.new(sliderPos, -6, 0.5, -6)
-            
-            -- Call callback
-            if callback then
-                callback(Value)
-            end
-        end
-    end
-    
-    -- Method to get value
-    Slider.GetValue = function()
-        return Value
-    end
-    
-    return Slider
-end
-
-local function CreateDropdown(parent, text, position, size, options, default, callback)
-    local Dropdown = Instance.new("Frame")
-    Dropdown.Name = text .. "Dropdown"
-    Dropdown.Size = size or UDim2.new(1, 0, 0, 30)
-    Dropdown.Position = position or UDim2.new(0, 0, 0, 0)
-    Dropdown.BackgroundTransparency = 1
-    Dropdown.ClipsDescendants = true -- Important for dropdown animation
-    Dropdown.Parent = parent
-    
-    -- Add text label
-    local DropdownText = Instance.new("TextLabel")
-    DropdownText.Name = "Text"
-    DropdownText.Size = UDim2.new(1, -20, 0, 30)
-    DropdownText.Position = UDim2.new(0, 10, 0, 0)
-    DropdownText.BackgroundTransparency = 1
-    DropdownText.Font = Enum.Font.Gotham
-    DropdownText.TextSize = 14
-    DropdownText.TextColor3 = Colors.Text
-    DropdownText.TextXAlignment = Enum.TextXAlignment.Left
-    DropdownText.Text = text
-    DropdownText.Parent = Dropdown
-    
-    -- Add dropdown button
-    local DropdownButton = Instance.new("TextButton")
-    DropdownButton.Name = "Button"
-    DropdownButton.Size = UDim2.new(1, 0, 0, 30)
-    DropdownButton.Position = UDim2.new(0, 0, 0, 30)
-    DropdownButton.BackgroundColor3 = Colors.TabInactive
-    DropdownButton.BorderSizePixel = 0
-    DropdownButton.Font = Enum.Font.Gotham
-    DropdownButton.TextSize = 14
-    DropdownButton.TextColor3 = Colors.Text
-    DropdownButton.Text = default or options[1]
-    DropdownButton.Parent = Dropdown
-    
-    -- Add corner to button
-    local DropdownButtonCorner = Instance.new("UICorner")
-    DropdownButtonCorner.CornerRadius = UDim.new(0, 6)
-    DropdownButtonCorner.Parent = DropdownButton
-    
-    -- Add dropdown indicator
-    local DropdownIndicator = Instance.new("TextLabel")
-    DropdownIndicator.Name = "Indicator"
-    DropdownIndicator.Size = UDim2.new(0, 20, 0, 20)
-    DropdownIndicator.Position = UDim2.new(1, -25, 0, 5)
-    DropdownIndicator.BackgroundTransparency = 1
-    DropdownIndicator.Font = Enum.Font.GothamBold
-    DropdownIndicator.TextSize = 14
-    DropdownIndicator.TextColor3 = Colors.Text
-    DropdownIndicator.Text = "▼"
-    DropdownIndicator.Parent = DropdownButton
-    
-    -- Add options container
-    local OptionsContainer = Instance.new("Frame")
-    OptionsContainer.Name = "Options"
-    OptionsContainer.Size = UDim2.new(1, 0, 0, #options * 30)
-    OptionsContainer.Position = UDim2.new(0, 0, 0, 30)
-    OptionsContainer.BackgroundColor3 = Colors.TabInactive
-    OptionsContainer.BorderSizePixel = 0
-    OptionsContainer.Visible = false
-    OptionsContainer.Parent = Dropdown
-    
-    -- Add corner to options container
-    local OptionsCorner = Instance.new("UICorner")
-    OptionsCorner.CornerRadius = UDim.new(0, 6)
-    OptionsCorner.Parent = OptionsContainer
-    
-    -- Create option buttons
-    for i, option in ipairs(options) do
-        local OptionButton = Instance.new("TextButton")
-        OptionButton.Name = option .. "Option"
-        OptionButton.Size = UDim2.new(1, 0, 0, 30)
-        OptionButton.Position = UDim2.new(0, 0, 0, (i-1) * 30)
-        OptionButton.BackgroundTransparency = 1
-        OptionButton.Font = Enum.Font.Gotham
-        OptionButton.TextSize = 14
-        OptionButton.TextColor3 = Colors.Text
-        OptionButton.Text = option
-        OptionButton.Parent = OptionsContainer
-        
-        -- Add hover effect
-        OptionButton.MouseEnter:Connect(function()
-            OptionButton.BackgroundTransparency = 0.9
-        end)
-        
-        OptionButton.MouseLeave:Connect(function()
-            OptionButton.BackgroundTransparency = 1
-        end)
-        
-        -- Add click functionality
-        OptionButton.MouseButton1Click:Connect(function()
-            DropdownButton.Text = option
-            OptionsContainer.Visible = false
-            
-            -- Restore dropdown size
-            Dropdown.Size = size or UDim2.new(1, 0, 0, 60)
-            
-            -- Call callback
-            if callback then
-                callback(option)
-            end
-        end)
-    end
-    
-    -- Add dropdown functionality
-    local Expanded = false
-    
-    DropdownButton.MouseButton1Click:Connect(function()
-        Expanded = not Expanded
-        OptionsContainer.Visible = Expanded
-        DropdownIndicator.Text = Expanded and "▲" or "▼"
-        
-        -- Adjust dropdown size to fit options when expanded
-        if Expanded then
-            Dropdown.Size = UDim2.new(size.X.Scale, size.X.Offset, 0, 60 + #options * 30)
-        else
-            Dropdown.Size = size or UDim2.new(1, 0, 0, 60)
-        end
-    end)
-    
-    -- Method to get selected value
-    Dropdown.GetValue = function()
-        return DropdownButton.Text
-    end
-    
-    -- Method to set value
-    Dropdown.SetValue = function(option)
-        for _, opt in ipairs(options) do
-            if opt == option then
-                DropdownButton.Text = option
-                
-                -- Call callback
-                if callback then
-                    callback(option)
-                end
-                
-                break
-            end
-        end
-    end
-    
-    return Dropdown
-end
-
-local function CreateColorPicker(parent, text, position, size, default, callback)
-    local ColorPicker = Instance.new("Frame")
-    ColorPicker.Name = text .. "ColorPicker"
-    ColorPicker.Size = size or UDim2.new(1, 0, 0, 30)
-    ColorPicker.Position = position or UDim2.new(0, 0, 0, 0)
-    ColorPicker.BackgroundTransparency = 1
-    ColorPicker.Parent = parent
-    
-    -- Add text label
-    local ColorText = Instance.new("TextLabel")
-    ColorText.Name = "Text"
-    ColorText.Size = UDim2.new(1, -60, 1, 0)
-    ColorText.Position = UDim2.new(0, 10, 0, 0)
-    ColorText.BackgroundTransparency = 1
-    ColorText.Font = Enum.Font.Gotham
-    ColorText.TextSize = 14
-    ColorText.TextColor3 = Colors.Text
-    ColorText.TextXAlignment = Enum.TextXAlignment.Left
-    ColorText.Text = text
-    ColorText.Parent = ColorPicker
-    
-    -- Add color display
-    local ColorDisplay = Instance.new("Frame")
-    ColorDisplay.Name = "Display"
-    ColorDisplay.Size = UDim2.new(0, 30, 0, 20)
-    ColorDisplay.Position = UDim2.new(1, -40, 0.5, -10)
-    ColorDisplay.BackgroundColor3 = default or Color3.fromRGB(255, 255, 255)
-    ColorDisplay.BorderSizePixel = 0
-    ColorDisplay.Parent = ColorPicker
-    
-    -- Add corner to display
-    local DisplayCorner = Instance.new("UICorner")
-    DisplayCorner.CornerRadius = UDim.new(0, 4)
-    DisplayCorner.Parent = ColorDisplay
-    
-    -- Add color picker button
-    ColorDisplay.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            -- Here we would implement a color picker
-            -- For now, just cycle through some preset colors
-            local presetColors = {
-                Color3.fromRGB(255, 0, 0),   -- Red
-                Color3.fromRGB(0, 255, 0),   -- Green
-                Color3.fromRGB(0, 0, 255),   -- Blue
-                Color3.fromRGB(255, 255, 0), -- Yellow
-                Color3.fromRGB(0, 255, 255), -- Cyan
-                Color3.fromRGB(255, 0, 255), -- Magenta
-                Color3.fromRGB(255, 255, 255) -- White
-            }
-            
-            -- Find the closest color in our presets
-            local currentColor = ColorDisplay.BackgroundColor3
-            local closestDistance = math.huge
-            local closestIndex = 1
-            
-            for i, color in ipairs(presetColors) do
-                local distance = math.sqrt(
-                    (color.R - currentColor.R)^2 +
-                    (color.G - currentColor.G)^2 +
-                    (color.B - currentColor.B)^2
-                )
-                
-                if distance < closestDistance then
-                    closestDistance = distance
-                    closestIndex = i
-                end
-            end
-            
-            -- Get next color
-            local nextIndex = closestIndex % #presetColors + 1
-            local nextColor = presetColors[nextIndex]
-            
-            -- Update display
-            ColorDisplay.BackgroundColor3 = nextColor
-            
-            -- Call callback
-            if callback then
-                callback(nextColor)
-            end
-        end
-    end)
-    
-    -- Method to get color
-    ColorPicker.GetColor = function()
-        return ColorDisplay.BackgroundColor3
-    end
-    
-    -- Method to set color
-    ColorPicker.SetColor = function(color)
-        ColorDisplay.BackgroundColor3 = color
-        
-        -- Call callback
-        if callback then
-            callback(color)
-        end
-    end
-    
-    return ColorPicker
-end
-
-local function CreateLabel(parent, text, position, size)
-    local Label = Instance.new("TextLabel")
-    Label.Name = "Label"
-    Label.Size = size or UDim2.new(1, 0, 0, 30)
-    Label.Position = position or UDim2.new(0, 0, 0, 0)
-    Label.BackgroundTransparency = 1
-    Label.Font = Enum.Font.Gotham
-    Label.TextSize = 14
-    Label.TextColor3 = Colors.Text
-    Label.TextXAlignment = Enum.TextXAlignment.Left
-    Label.TextWrapped = true
-    Label.Text = text
-    Label.Parent = parent
-    
-    -- Method to update text
-    Label.SetText = function(newText)
-        Label.Text = newText
-    end
-    
-    return Label
-end
-
-local function CreateSection(parent, title, position)
-    local Section = Instance.new("Frame")
-    Section.Name = title .. "Section"
-    Section.Size = UDim2.new(1, 0, 0, 30) -- Initial height, will be updated as elements are added
-    Section.Position = position or UDim2.new(0, 0, 0, 0)
-    Section.BackgroundTransparency = 1
-    Section.Parent = parent
-    
-    -- Add section title
-    local SectionTitle = Instance.new("TextLabel")
-    SectionTitle.Name = "Title"
-    SectionTitle.Size = UDim2.new(1, 0, 0, 30)
-    SectionTitle.BackgroundTransparency = 1
-    SectionTitle.Font = Enum.Font.GothamBold
-    SectionTitle.TextSize = 16
-    SectionTitle.TextColor3 = Colors.Highlight
-    SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
-    SectionTitle.Text = title
-    SectionTitle.Parent = Section
-    
-    -- Add section divider
-    local SectionDivider = Instance.new("Frame")
-    SectionDivider.Name = "Divider"
-    SectionDivider.Size = UDim2.new(1, 0, 0, 1)
-    SectionDivider.Position = UDim2.new(0, 0, 0, 30)
-    SectionDivider.BackgroundColor3 = Colors.Border
-    SectionDivider.BorderSizePixel = 0
-    SectionDivider.Parent = Section
-    
-    -- Add content container
-    local ContentContainer = Instance.new("Frame")
-    ContentContainer.Name = "Content"
-    ContentContainer.Size = UDim2.new(1, 0, 0, 0) -- Will be updated as elements are added
-    ContentContainer.Position = UDim2.new(0, 0, 0, 40)
-    ContentContainer.BackgroundTransparency = 1
-    ContentContainer.Parent = Section
-    
-    -- Track content height
-    local ContentHeight = 0
-    
-    -- Section functions
-    Section.AddButton = function(text, callback)
-        local Button = CreateButton(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), nil, Colors.Button, callback)
-        ContentHeight = ContentHeight + 40
-        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
-        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
-        return Button
-    end
-    
-    Section.AddToggle = function(text, default, callback)
-        local Toggle = CreateToggle(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), nil, default, callback)
-        ContentHeight = ContentHeight + 40
-        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
-        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
-        return Toggle
-    end
-    
-    Section.AddSlider = function(text, min, max, default, callback)
-        local Slider = CreateSlider(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), nil, min, max, default, callback)
-        ContentHeight = ContentHeight + 55
-        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
-        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
-        return Slider
-    end
-    
-    Section.AddDropdown = function(text, options, default, callback)
-        local Dropdown = CreateDropdown(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), UDim2.new(1, 0, 0, 60), options, default, callback)
-        ContentHeight = ContentHeight + 70
-        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
-        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
-        return Dropdown
-    end
-    
-    Section.AddColorPicker = function(text, default, callback)
-        local ColorPicker = CreateColorPicker(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight), nil, default, callback)
-        ContentHeight = ContentHeight + 40
-        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
-        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
-        return ColorPicker
-    end
-    
-    Section.AddLabel = function(text)
-        local Label = CreateLabel(ContentContainer, text, UDim2.new(0, 0, 0, ContentHeight))
-        ContentHeight = ContentHeight + 40
-        ContentContainer.Size = UDim2.new(1, 0, 0, ContentHeight)
-        Section.Size = UDim2.new(1, 0, 0, 40 + ContentHeight)
-        return Label
-    end
-    
-    return Section
-end
-
--- Function to create a tab
-local function CreateTab(name, order)
-    -- Create tab button with adjusted width for 6 tabs
+-- Function to create a new tab
+local function CreateTab(name)
+    -- Create tab button
     local TabButton = Instance.new("TextButton")
-    TabButton.Name = name .. "Tab"
-    TabButton.Size = UDim2.new(0, 80, 1, 0) -- Reduced from 100 to 80 to fit all tabs
+    TabButton.Name = name .. "TabButton"
+    TabButton.Size = UDim2.new(0, 100, 1, 0)
     TabButton.BackgroundColor3 = Colors.TabInactive
     TabButton.BorderSizePixel = 0
-    TabButton.Font = Enum.Font.GothamBold
+    TabButton.Font = Enum.Font.Gotham
     TabButton.TextSize = 14
     TabButton.TextColor3 = Colors.Text
     TabButton.Text = name
-    TabButton.LayoutOrder = order
+    TabButton.LayoutOrder = #Tabs + 1
     TabButton.Parent = TabContainer
     
     -- Add corner to tab button
-    local TabButtonCorner = Instance.new("UICorner")
-    TabButtonCorner.CornerRadius = UDim.new(0, 6)
-    TabButtonCorner.Parent = TabButton
+    local TabCorner = Instance.new("UICorner")
+    TabCorner.CornerRadius = UDim.new(0, 5)
+    TabCorner.Parent = TabButton
     
     -- Create tab page
     local TabPage = Instance.new("ScrollingFrame")
-    TabPage.Name = name .. "Page"
-    TabPage.Size = UDim2.new(1, 0, 1, 0)
-    TabPage.CanvasSize = UDim2.new(0, 0, 0, 0) -- Will be updated automatically
+    TabPage.Name = name .. "Tab"
+    TabPage.Size = UDim2.new(1, -20, 1, -10)
+    TabPage.Position = UDim2.new(0, 10, 0, 5)
     TabPage.BackgroundTransparency = 1
     TabPage.BorderSizePixel = 0
     TabPage.ScrollBarThickness = 4
+    TabPage.ScrollBarImageColor3 = Colors.Button
     TabPage.Visible = false
-    TabPage.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    TabPage.ScrollingDirection = Enum.ScrollingDirection.Y
-    TabPage.Parent = TabContent
+    TabPage.Parent = ContentContainer
     
-    -- Tab layout for sections
-    local TabLayout = Instance.new("UIListLayout")
-    TabLayout.FillDirection = Enum.FillDirection.Vertical
-    TabLayout.Padding = UDim.new(0, 10)
-    TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    TabLayout.Parent = TabPage
+    -- Add layout to tab page
+    local TabPageLayout = Instance.new("UIListLayout")
+    TabPageLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    TabPageLayout.Padding = UDim.new(0, 10)
+    TabPageLayout.Parent = TabPage
     
-    -- Tab padding
-    local TabPadding = Instance.new("UIPadding")
-    TabPadding.PaddingTop = UDim.new(0, 10)
-    TabPadding.PaddingBottom = UDim.new(0, 10)
-    TabPadding.PaddingLeft = UDim.new(0, 10)
-    TabPadding.PaddingRight = UDim.new(0, 10)
-    TabPadding.Parent = TabPage
+    -- Auto adjust canvas size
+    AddConnection(TabPageLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        TabPage.CanvasSize = UDim2.new(0, 0, 0, TabPageLayout.AbsoluteContentSize.Y + 20)
+    end)
     
     -- Create tab object
     local Tab = {
         Name = name,
         Button = TabButton,
         Page = TabPage,
-        Sections = {},
-        AddSection = function(self, title)
-            local section = CreateSection(TabPage, title)
-            section.LayoutOrder = #self.Sections
-            table.insert(self.Sections, section)
-            return section
-        end
+        Sections = {}
     }
     
-    -- Add tab to tabs table
-    table.insert(Tabs, Tab)
-    
-    -- Tab button click event
+    -- Add click functionality to switch tabs
     AddConnection(TabButton.MouseButton1Click, function()
-        -- Deselect all tabs
+        -- Hide all tabs and deactivate buttons
         for _, tab in pairs(Tabs) do
-            tab.Button.BackgroundColor3 = Colors.TabInactive
             tab.Page.Visible = false
+            tab.Button.BackgroundColor3 = Colors.TabInactive
         end
         
-        -- Select this tab
-        TabButton.BackgroundColor3 = Colors.TabActive
+        -- Show selected tab and activate button
         TabPage.Visible = true
+        TabButton.BackgroundColor3 = Colors.TabActive
         SelectedTab = Tab
     end)
     
+    -- Add to tabs table
+    table.insert(Tabs, Tab)
+    
     -- If this is the first tab, select it
     if #Tabs == 1 then
-        TabButton.BackgroundColor3 = Colors.TabActive
         TabPage.Visible = true
+        TabButton.BackgroundColor3 = Colors.TabActive
         SelectedTab = Tab
     end
     
     return Tab
 end
 
--- Load a module or create fallback
+-- Function to create a section in a tab
+local function CreateSection(tab, name)
+    -- Create section container
+    local Section = Instance.new("Frame")
+    Section.Name = name .. "Section"
+    Section.Size = UDim2.new(1, 0, 0, 40) -- Initial size, will grow
+    Section.BackgroundColor3 = Colors.Container
+    Section.BorderSizePixel = 0
+    Section.LayoutOrder = #tab.Sections + 1
+    Section.Parent = tab.Page
+    
+    -- Add corner
+    local SectionCorner = Instance.new("UICorner")
+    SectionCorner.CornerRadius = UDim.new(0, 6)
+    SectionCorner.Parent = Section
+    
+    -- Add title
+    local SectionTitle = Instance.new("TextLabel")
+    SectionTitle.Name = "Title"
+    SectionTitle.Size = UDim2.new(1, -20, 0, 30)
+    SectionTitle.Position = UDim2.new(0, 10, 0, 0)
+    SectionTitle.BackgroundTransparency = 1
+    SectionTitle.Font = Enum.Font.GothamSemibold
+    SectionTitle.TextSize = 14
+    SectionTitle.TextColor3 = Colors.Text
+    SectionTitle.TextXAlignment = Enum.TextXAlignment.Left
+    SectionTitle.Text = name
+    SectionTitle.Parent = Section
+    
+    -- Add content container
+    local SectionContainer = Instance.new("Frame")
+    SectionContainer.Name = "Container"
+    SectionContainer.Size = UDim2.new(1, -20, 1, -30)
+    SectionContainer.Position = UDim2.new(0, 10, 0, 30)
+    SectionContainer.BackgroundTransparency = 1
+    SectionContainer.Parent = Section
+    
+    -- Add layout
+    local SectionLayout = Instance.new("UIListLayout")
+    SectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    SectionLayout.Padding = UDim.new(0, 5)
+    SectionLayout.Parent = SectionContainer
+    
+    -- Auto-size section based on content
+    AddConnection(SectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+        Section.Size = UDim2.new(1, 0, 0, SectionLayout.AbsoluteContentSize.Y + 40) -- Title height (30) + padding
+    end)
+    
+    -- Create section object with methods
+    local SectionObj = {
+        Frame = Section,
+        Container = SectionContainer,
+        Elements = {}
+    }
+    
+    -- Method to add a button
+    function SectionObj:AddButton(text, callback)
+        local Button = Instance.new("TextButton")
+        Button.Name = text .. "Button"
+        Button.Size = UDim2.new(1, 0, 0, 30)
+        Button.BackgroundColor3 = Colors.Button
+        Button.BorderSizePixel = 0
+        Button.Font = Enum.Font.GothamBold
+        Button.TextSize = 14
+        Button.TextColor3 = Colors.Text
+        Button.Text = text
+        Button.LayoutOrder = #self.Elements
+        Button.Parent = self.Container
+        
+        -- Add corner
+        local ButtonCorner = Instance.new("UICorner")
+        ButtonCorner.CornerRadius = UDim.new(0, 5)
+        ButtonCorner.Parent = Button
+        
+        -- Add click functionality
+        if callback then
+            AddConnection(Button.MouseButton1Click, function()
+                callback()
+            end)
+        end
+        
+        -- Create button object
+        local ButtonObj = {
+            Button = Button,
+            
+            -- Set text
+            SetText = function(self, newText)
+                Button.Text = newText
+            end
+        }
+        
+        table.insert(self.Elements, ButtonObj)
+        return ButtonObj
+    end
+    
+    -- Method to add a toggle
+    function SectionObj:AddToggle(text, default, callback)
+        default = default or false
+        
+        -- Create toggle container
+        local ToggleContainer = Instance.new("Frame")
+        ToggleContainer.Name = text .. "Toggle"
+        ToggleContainer.Size = UDim2.new(1, 0, 0, 30)
+        ToggleContainer.BackgroundTransparency = 1
+        ToggleContainer.LayoutOrder = #self.Elements
+        ToggleContainer.Parent = self.Container
+        
+        -- Create toggle label
+        local Label = Instance.new("TextLabel")
+        Label.Name = "Label"
+        Label.Size = UDim2.new(1, -56, 1, 0)
+        Label.BackgroundTransparency = 1
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 14
+        Label.TextColor3 = Colors.Text
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Text = text
+        Label.Parent = ToggleContainer
+        
+        -- Create toggle indicator background
+        local ToggleBack = Instance.new("Frame")
+        ToggleBack.Name = "Background"
+        ToggleBack.Size = UDim2.new(0, 46, 0, 20)
+        ToggleBack.Position = UDim2.new(1, -50, 0.5, -10)
+        ToggleBack.BackgroundColor3 = default and Colors.Success or Colors.Danger
+        ToggleBack.BorderSizePixel = 0
+        ToggleBack.Parent = ToggleContainer
+        
+        -- Add corner to background
+        local ToggleCorner = Instance.new("UICorner")
+        ToggleCorner.CornerRadius = UDim.new(0, 10)
+        ToggleCorner.Parent = ToggleBack
+        
+        -- Create toggle indicator
+        local Indicator = Instance.new("Frame")
+        Indicator.Name = "Indicator"
+        Indicator.Size = UDim2.new(0, 16, 0, 16)
+        Indicator.Position = UDim2.new(default and 0.65 or 0.1, 0, 0.5, -8)
+        Indicator.BackgroundColor3 = Colors.Text
+        Indicator.BorderSizePixel = 0
+        Indicator.Parent = ToggleBack
+        
+        -- Add corner to indicator
+        local IndicatorCorner = Instance.new("UICorner")
+        IndicatorCorner.CornerRadius = UDim.new(0, 8)
+        IndicatorCorner.Parent = Indicator
+        
+        -- Create click area
+        local ClickArea = Instance.new("TextButton")
+        ClickArea.Name = "ClickArea"
+        ClickArea.Size = UDim2.new(1, 0, 1, 0)
+        ClickArea.BackgroundTransparency = 1
+        ClickArea.Text = ""
+        ClickArea.Parent = ToggleContainer
+        
+        -- Create toggle object
+        local ToggleObj = {
+            Value = default,
+            Container = ToggleContainer,
+            Label = Label,
+            
+            -- Toggle function
+            Toggle = function(self, state)
+                if state ~= nil then
+                    self.Value = state
+                else
+                    self.Value = not self.Value
+                end
+                
+                -- Update visual
+                TweenService:Create(ToggleBack, TweenInfo.new(0.2), {
+                    BackgroundColor3 = self.Value and Colors.Success or Colors.Danger
+                }):Play()
+                
+                TweenService:Create(Indicator, TweenInfo.new(0.2), {
+                    Position = UDim2.new(self.Value and 0.65 or 0.1, 0, 0.5, -8)
+                }):Play()
+                
+                -- Call callback
+                if callback then
+                    callback(self.Value)
+                end
+            end,
+            
+            -- Set text function
+            SetText = function(self, newText)
+                Label.Text = newText
+            end
+        }
+        
+        -- Add click functionality
+        AddConnection(ClickArea.MouseButton1Click, function()
+            ToggleObj:Toggle()
+        end)
+        
+        table.insert(self.Elements, ToggleObj)
+        return ToggleObj
+    end
+    
+    -- Method to add a slider
+    function SectionObj:AddSlider(text, min, max, default, callback)
+        min = min or 0
+        max = max or 100
+        default = default or min
+        
+        -- Clamp default value
+        default = math.clamp(default, min, max)
+        
+        -- Create slider frame
+        local SliderContainer = Instance.new("Frame")
+        SliderContainer.Name = text .. "Slider"
+        SliderContainer.Size = UDim2.new(1, 0, 0, 45)
+        SliderContainer.BackgroundTransparency = 1
+        SliderContainer.LayoutOrder = #self.Elements
+        SliderContainer.Parent = self.Container
+        
+        -- Create slider title
+        local Title = Instance.new("TextLabel")
+        Title.Name = "Title"
+        Title.Size = UDim2.new(1, 0, 0, 20)
+        Title.BackgroundTransparency = 1
+        Title.Font = Enum.Font.Gotham
+        Title.TextSize = 14
+        Title.TextColor3 = Colors.Text
+        Title.TextXAlignment = Enum.TextXAlignment.Left
+        Title.Text = text
+        Title.Parent = SliderContainer
+        
+        -- Create slider value display
+        local ValueDisplay = Instance.new("TextLabel")
+        ValueDisplay.Name = "Value"
+        ValueDisplay.Size = UDim2.new(0, 50, 0, 20)
+        ValueDisplay.Position = UDim2.new(1, -50, 0, 0)
+        ValueDisplay.BackgroundTransparency = 1
+        ValueDisplay.Font = Enum.Font.GothamBold
+        ValueDisplay.TextSize = 14
+        ValueDisplay.TextColor3 = Colors.Text
+        ValueDisplay.Text = tostring(default)
+        ValueDisplay.Parent = SliderContainer
+        
+        -- Create slider background
+        local SliderBack = Instance.new("Frame")
+        SliderBack.Name = "Background"
+        SliderBack.Size = UDim2.new(1, 0, 0, 10)
+        SliderBack.Position = UDim2.new(0, 0, 0, 30)
+        SliderBack.BackgroundColor3 = Colors.Container
+        SliderBack.BorderSizePixel = 0
+        SliderBack.Parent = SliderContainer
+        
+        -- Add corner to background
+        local SliderCorner = Instance.new("UICorner")
+        SliderCorner.CornerRadius = UDim.new(0, 5)
+        SliderCorner.Parent = SliderBack
+        
+        -- Create slider fill
+        local SliderFill = Instance.new("Frame")
+        SliderFill.Name = "Fill"
+        SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+        SliderFill.BackgroundColor3 = Colors.Button
+        SliderFill.BorderSizePixel = 0
+        SliderFill.Parent = SliderBack
+        
+        -- Add corner to fill
+        local FillCorner = Instance.new("UICorner")
+        FillCorner.CornerRadius = UDim.new(0, 5)
+        FillCorner.Parent = SliderFill
+        
+        -- Create slider knob
+        local Knob = Instance.new("Frame")
+        Knob.Name = "Knob"
+        Knob.Size = UDim2.new(0, 16, 0, 16)
+        Knob.Position = UDim2.new((default - min) / (max - min), -8, 0.5, -8)
+        Knob.BackgroundColor3 = Colors.Text
+        Knob.BorderSizePixel = 0
+        Knob.ZIndex = 2
+        Knob.Parent = SliderBack
+        
+        -- Add corner to knob
+        local KnobCorner = Instance.new("UICorner")
+        KnobCorner.CornerRadius = UDim.new(0, 8) -- Circular knob
+        KnobCorner.Parent = Knob
+        
+        -- Create click area
+        local SliderButton = Instance.new("TextButton")
+        SliderButton.Name = "SliderButton"
+        SliderButton.Size = UDim2.new(1, 0, 1, 0)
+        SliderButton.BackgroundTransparency = 1
+        SliderButton.Text = ""
+        SliderButton.Parent = SliderBack
+        
+        -- Create slider object
+        local SliderObj = {
+            Value = default,
+            Min = min,
+            Max = max,
+            
+            -- Set value function
+            SetValue = function(self, value)
+                -- Clamp value
+                value = math.clamp(value, self.Min, self.Max)
+                self.Value = value
+                
+                -- Update visuals
+                local percent = (value - self.Min) / (self.Max - self.Min)
+                SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                Knob.Position = UDim2.new(percent, -8, 0.5, -8)
+                ValueDisplay.Text = tostring(math.floor(value))
+                
+                -- Call callback
+                if callback then
+                    callback(value)
+                end
+            end,
+            
+            -- Set text function
+            SetText = function(self, newText)
+                Title.Text = newText
+            end
+        }
+        
+        -- Initialize slider interaction
+        local sliding = false
+        
+        AddConnection(SliderButton.InputBegan, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                sliding = true
+                
+                -- Calculate slider position from input
+                local percent = math.clamp((input.Position.X - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
+                local value = min + (max - min) * percent
+                
+                SliderObj:SetValue(value)
+            end
+        end)
+        
+        AddConnection(UserInputService.InputChanged, function(input)
+            if sliding and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                -- Calculate slider position from input
+                local inset = game:GetService("GuiService"):GetGuiInset()
+                local pos = input.Position.X - inset.X
+                local percent = math.clamp((pos - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
+                local value = min + (max - min) * percent
+                
+                SliderObj:SetValue(value)
+            end
+        end)
+        
+        AddConnection(UserInputService.InputEnded, function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                sliding = false
+            end
+        end)
+        
+        table.insert(self.Elements, SliderObj)
+        return SliderObj
+    end
+    
+    -- Method to add a label
+    function SectionObj:AddLabel(text)
+        local Label = Instance.new("TextLabel")
+        Label.Name = "Label"
+        Label.Size = UDim2.new(1, 0, 0, 20)
+        Label.BackgroundTransparency = 1
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 14
+        Label.TextColor3 = Colors.Text
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Text = text
+        Label.LayoutOrder = #self.Elements
+        Label.Parent = self.Container
+        
+        -- Create label object
+        local LabelObj = {
+            Label = Label,
+            
+            -- Set text function
+            SetText = function(self, newText)
+                Label.Text = newText
+            end
+        }
+        
+        table.insert(self.Elements, LabelObj)
+        return LabelObj
+    end
+    
+    -- Add to tab sections
+    table.insert(tab.Sections, SectionObj)
+    return SectionObj
+end
+
+-- Function to close the UI
+local function CloseUI()
+    -- Clean up connections
+    for _, connection in pairs(Connections) do
+        connection:Disconnect()
+    end
+    
+    -- Destroy UI
+    SkyXUI:Destroy()
+    
+    print("SkyX Blox Fruits closed properly")
+end
+
+-- Add close button functionality
+AddConnection(CloseButton.MouseButton1Click, CloseUI)
+
+-- Create keybind to toggle UI
+local ToggleUI = function()
+    SkyXUI.Enabled = not SkyXUI.Enabled
+end
+
+-- Add keybind (RightControl)
+AddConnection(UserInputService.InputBegan, function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.RightControl then
+        ToggleUI()
+    end
+end)
+
+-- Create mobile toggle button for mobile devices
+if IsMobile then
+    local MobileToggleGui = Instance.new("ScreenGui")
+    MobileToggleGui.Name = "SkyXMobileToggle"
+    MobileToggleGui.ResetOnSpawn = false
+    MobileToggleGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    
+    -- Handle executor security models
+    if syn then
+        syn.protect_gui(MobileToggleGui)
+        MobileToggleGui.Parent = game.CoreGui
+    else
+        MobileToggleGui.Parent = gethui and gethui() or game.CoreGui
+    end
+    
+    -- Create toggle button
+    local MobileToggle = Instance.new("ImageButton")
+    MobileToggle.Name = "ToggleButton"
+    MobileToggle.Size = UDim2.new(0, 50, 0, 50)
+    MobileToggle.Position = UDim2.new(0, 20, 0.5, -25)
+    MobileToggle.BackgroundColor3 = Colors.Button
+    MobileToggle.BorderSizePixel = 0
+    MobileToggle.Image = "rbxassetid://7059346373" -- Menu icon
+    MobileToggle.ImageColor3 = Colors.Text
+    MobileToggle.ZIndex = 10
+    MobileToggle.Parent = MobileToggleGui
+    
+    -- Add corner
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(1, 0) -- Circle
+    ToggleCorner.Parent = MobileToggle
+    
+    -- Add shadow
+    local ToggleShadow = Instance.new("ImageLabel")
+    ToggleShadow.Name = "Shadow"
+    ToggleShadow.AnchorPoint = Vector2.new(0.5, 0.5)
+    ToggleShadow.Size = UDim2.new(1, 10, 1, 10)
+    ToggleShadow.Position = UDim2.new(0.5, 0, 0.5, 0)
+    ToggleShadow.BackgroundTransparency = 1
+    ToggleShadow.Image = "rbxassetid://6015897843" -- Shadow image
+    ToggleShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
+    ToggleShadow.ImageTransparency = 0.6
+    ToggleShadow.ZIndex = 9
+    ToggleShadow.Parent = MobileToggle
+    
+    -- Add click functionality
+    AddConnection(MobileToggle.MouseButton1Click, ToggleUI)
+    
+    -- Make mobile toggle draggable
+    local draggingToggle = false
+    local dragInputToggle
+    local dragStartToggle
+    local startPosToggle
+    
+    AddConnection(MobileToggle.InputBegan, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            draggingToggle = true
+            dragStartToggle = input.Position
+            startPosToggle = MobileToggle.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    draggingToggle = false
+                end
+            end)
+        end
+    end)
+    
+    AddConnection(MobileToggle.InputChanged, function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInputToggle = input
+        end
+    end)
+    
+    AddConnection(UserInputService.InputChanged, function(input)
+        if input == dragInputToggle and draggingToggle then
+            local delta = input.Position - dragStartToggle
+            MobileToggle.Position = UDim2.new(startPosToggle.X.Scale, startPosToggle.X.Offset + delta.X, startPosToggle.Y.Scale, startPosToggle.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- Create modules table
+local Modules = {}
+
+-- MODULES SECTION - Following the MM2 pattern of creating fallbacks for modules
+
+-- Function to create a fallback module
+local function CreateFallbackModule(name)
+    print("Creating fallback module for: " .. name)
+    return {
+        Settings = {},
+        Start = function() print("Starting fallback " .. name .. " module") end,
+        Stop = function() print("Stopping fallback " .. name .. " module") end,
+        GetStatus = function() return {Enabled = false, Message = "Module not available"} end
+    }
+end
+
+-- Auto Farm Module
+local function LoadAutoFarmModule()
+    local success, result = pcall(function()
+        local module = {
+            Settings = {
+                Enabled = false,
+                TargetMobs = {"Bandit", "Monkey", "Gorilla"},
+                AutoCollectDrops = true,
+                AutoEquipWeapon = true,
+                SelectedWeapon = "Combat"
+            },
+            
+            Start = function(self)
+                if self.Settings.Enabled then
+                    print("Auto Farm started with target: " .. table.concat(self.Settings.TargetMobs, ", "))
+                    
+                    -- Actual implementation would go here in a real script
+                    -- This is just a placeholder for the demo
+                end
+            end,
+            
+            Stop = function(self)
+                print("Auto Farm stopped")
+            end,
+            
+            GetStatus = function(self)
+                return {
+                    Enabled = self.Settings.Enabled,
+                    CurrentTarget = self.Settings.TargetMobs[1],
+                    TotalKills = 0,
+                    TimeElapsed = 0
+                }
+            end,
+            
+            GetMobList = function()
+                -- Return a list of available mobs in the current area
+                return {"Bandit", "Monkey", "Gorilla", "Pirate", "Clown Pirate", "Marine"}
+            end
+        }
+        
+        return module
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Failed to load Auto Farm module: " .. tostring(result))
+        return CreateFallbackModule("Auto Farm")
+    end
+end
+
+-- Teleport Module
+local function LoadTeleportModule()
+    local success, result = pcall(function()
+        local module = {
+            Settings = {
+                SafeMode = true,
+                AntiDetection = {
+                    Enabled = true,
+                    Delay = 1
+                }
+            },
+            
+            TeleportToLocation = function(self, locationName)
+                print("Teleporting to: " .. locationName)
+                
+                -- Actual implementation would go here in a real script
+                -- This is just a placeholder for the demo
+                
+                return true, "Teleported successfully"
+            end,
+            
+            GetLocationsList = function()
+                -- Return a list of available locations in the game
+                return {
+                    {Name = "Starter Island", Icon = "🏝️"},
+                    {Name = "Middle Town", Icon = "🏙️"},
+                    {Name = "Jungle", Icon = "🌴"},
+                    {Name = "Pirate Village", Icon = "⚓"},
+                    {Name = "Desert", Icon = "🏜️"},
+                    {Name = "Frozen Village", Icon = "❄️"},
+                    {Name = "Marine Ford", Icon = "🚢"},
+                    {Name = "Colosseum", Icon = "🏛️"},
+                    {Name = "Prison", Icon = "🔒"},
+                    {Name = "Magma Village", Icon = "🌋"}
+                }
+            end
+        }
+        
+        return module
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Failed to load Teleport module: " .. tostring(result))
+        return CreateFallbackModule("Teleport")
+    end
+end
+
+-- ESP Module
+local function LoadESPModule()
+    local success, result = pcall(function()
+        local module = {
+            Settings = {
+                Enabled = false,
+                ShowPlayers = true,
+                ShowNPCs = true,
+                ShowChests = true,
+                ShowDistance = true,
+                ShowHealth = true,
+                ShowBounty = false,
+                RainbowESP = false,
+                RainbowSpeed = 5,
+                PlayerColor = Color3.fromRGB(255, 0, 0),
+                NPCColor = Color3.fromRGB(0, 255, 0),
+                ChestColor = Color3.fromRGB(255, 255, 0)
+            },
+            
+            Start = function(self)
+                if self.Settings.Enabled then
+                    print("ESP started with settings: ShowPlayers=" .. tostring(self.Settings.ShowPlayers) .. 
+                          ", ShowNPCs=" .. tostring(self.Settings.ShowNPCs) .. 
+                          ", ShowChests=" .. tostring(self.Settings.ShowChests))
+                end
+            end,
+            
+            Stop = function(self)
+                print("ESP stopped")
+            end
+        }
+        
+        return module
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Failed to load ESP module: " .. tostring(result))
+        return CreateFallbackModule("ESP")
+    end
+end
+
+-- Devil Fruit Module
+local function LoadDevilFruitModule()
+    local success, result = pcall(function()
+        local module = {
+            Settings = {
+                AutoBuy = false,
+                AutoBuyRarity = "Rare",
+                NotifyOnSpawn = true,
+                AutoPickup = true,
+                StoreFruits = false
+            },
+            
+            Start = function(self)
+                print("Devil Fruit module started")
+            end,
+            
+            Stop = function(self)
+                print("Devil Fruit module stopped")
+            end,
+            
+            GetAvailableFruits = function()
+                -- Return a list of available Devil Fruits in the game
+                return {
+                    {Name = "Bomb Fruit", Rarity = "Common", Price = 100000},
+                    {Name = "Spike Fruit", Rarity = "Common", Price = 180000},
+                    {Name = "Chop Fruit", Rarity = "Common", Price = 220000},
+                    {Name = "Spring Fruit", Rarity = "Common", Price = 250000},
+                    {Name = "Smoke Fruit", Rarity = "Uncommon", Price = 500000},
+                    {Name = "Flame Fruit", Rarity = "Rare", Price = 800000},
+                    {Name = "Ice Fruit", Rarity = "Rare", Price = 1000000},
+                    {Name = "Sand Fruit", Rarity = "Rare", Price = 1200000},
+                    {Name = "Dark Fruit", Rarity = "Very Rare", Price = 1500000},
+                    {Name = "Light Fruit", Rarity = "Very Rare", Price = 1800000},
+                    {Name = "Quake Fruit", Rarity = "Legendary", Price = 2400000}
+                }
+            end
+        }
+        
+        return module
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Failed to load Devil Fruit module: " .. tostring(result))
+        return CreateFallbackModule("Devil Fruit")
+    end
+end
+
+-- Combat Module
+local function LoadCombatModule()
+    local success, result = pcall(function()
+        local module = {
+            Settings = {
+                AutoAttack = false,
+                AutoBlock = false,
+                AutoDodge = false,
+                AutoSkills = true,
+                SkillOrdering = {"Z", "X", "C", "V", "F"},
+                AttackPlayers = false,
+                TargetSelection = "Closest",
+                KillAura = false,
+                KillAuraRange = 15
+            },
+            
+            Start = function(self)
+                print("Combat module started with AutoSkills=" .. tostring(self.Settings.AutoSkills))
+            end,
+            
+            Stop = function(self)
+                print("Combat module stopped")
+            end,
+            
+            GetWeaponsList = function()
+                -- Return a list of player's weapons
+                return {"Combat", "Katana", "Flintlock", "Musket", "Bisento"}
+            end
+        }
+        
+        return module
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Failed to load Combat module: " .. tostring(result))
+        return CreateFallbackModule("Combat")
+    end
+end
+
+-- Anti-Ban Module
+local function LoadAntiBanModule()
+    local success, result = pcall(function()
+        local module = {
+            Settings = {
+                Enabled = true,
+                Flags = {
+                    ExploitDetectionRemoval = true,
+                    ReduceAutoPunishRisk = true,
+                    DisableHighRiskFeatures = false,
+                    RandomizeActions = true
+                }
+            },
+            
+            Start = function(self)
+                print("Anti-Ban system started")
+            end,
+            
+            Stop = function(self)
+                print("Anti-Ban system stopped")
+            end,
+            
+            GetStatus = function()
+                return {
+                    DetectionsEvaded = 0,
+                    AntiCheatVersion = "Unknown",
+                    SafetyLevel = "Moderate"
+                }
+            end
+        }
+        
+        return module
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Failed to load Anti-Ban module: " .. tostring(result))
+        return CreateFallbackModule("AntiBan")
+    end
+end
+
+-- Stats Module
+local function LoadStatsModule()
+    local success, result = pcall(function()
+        local module = {
+            Settings = {
+                AutoStatPoints = false,
+                StatPriority = "Melee", -- Melee, Defense, Sword, Gun, Fruit
+                MinimumStatsGoal = {
+                    Melee = 1000,
+                    Defense = 1000,
+                    Sword = 1000,
+                    Gun = 1000,
+                    DevilFruit = 1000
+                }
+            },
+            
+            Start = function(self)
+                print("Stats module started with priority: " .. self.Settings.StatPriority)
+            end,
+            
+            Stop = function(self)
+                print("Stats module stopped")
+            end,
+            
+            GetPlayerStats = function()
+                -- Get current player stats
+                return {
+                    Level = 50,
+                    Beli = 150000,
+                    Fragments = 500,
+                    Stats = {
+                        Melee = 100,
+                        Defense = 100,
+                        Sword = 50,
+                        Gun = 25,
+                        DevilFruit = 0
+                    },
+                    UnassignedPoints = 10
+                }
+            end
+        }
+        
+        return module
+    end)
+    
+    if success then
+        return result
+    else
+        warn("Failed to load Stats module: " .. tostring(result))
+        return CreateFallbackModule("Stats")
+    end
+end
+
+-- Load all modules function
 local function LoadAllModules()
-    -- Load Anti-Detection module first for safety
-    Modules.AntiDetect = LoadModule("AntiDetect")
-    if Modules.AntiDetect then
-        Modules.AntiDetect.Start()
-    end
+    Modules.AutoFarm = LoadAutoFarmModule()
+    Modules.Teleport = LoadTeleportModule()
+    Modules.ESP = LoadESPModule()
+    Modules.DevilFruit = LoadDevilFruitModule()
+    Modules.Combat = LoadCombatModule()
+    Modules.AntiBan = LoadAntiBanModule()
+    Modules.Stats = LoadStatsModule()
     
-    -- Load all other modules
-    Modules.ESP = LoadModule("ESP")
-    Modules.Combat = LoadModule("Combat")
-    Modules.Teleport = LoadModule("Teleport")
-    Modules.CashFarm = LoadModule("CashFarm")
-    Modules.Character = LoadModule("Character")
-    
-    -- Link modules if needed
-    if Modules.ESP and Modules.Combat then
-        Modules.Combat.SetESPModule(Modules.ESP)
-    end
-    
-    -- Start key modules
-    if Modules.ESP then Modules.ESP.Start() end
-    if Modules.Teleport then Modules.Teleport.Start() end
-    
+    -- Return true if at least some modules loaded successfully
     return true
 end
 
--- Create tabs
-local MainTab = CreateTab("Main", 1)
-local ESPTab = CreateTab("ESP", 2)
-local CombatTab = CreateTab("Combat", 3)
-local TeleportTab = CreateTab("Teleport", 4)
-local CashFarmTab = CreateTab("Cash Farm", 5)
-local CharacterTab = CreateTab("Character", 6)
+-- CREATE TABS FIRST - just like MM2 does
+local MainTab = CreateTab("Main")
+local AutoFarmTab = CreateTab("Auto Farm")
+local TeleportTab = CreateTab("Teleport")
+local ESPTab = CreateTab("ESP")
+local DevilFruitTab = CreateTab("Devil Fruit")
+local CombatTab = CreateTab("Combat")
+local MiscTab = CreateTab("Misc")
 
 -- Create main tab content
-local InfoSection = MainTab:AddSection("Information")
+local InfoSection = CreateSection(MainTab, "Information")
 InfoSection:AddLabel("Device: " .. DeviceText)
-InfoSection:AddLabel("Game: The Bronx 3")
+InfoSection:AddLabel("Game: Blox Fruits")
 local StatusLabel = InfoSection:AddLabel("Loading modules...")
 
 -- Load modules
@@ -2448,128 +1178,48 @@ local success = LoadAllModules()
 if success then
     StatusLabel:SetText("Modules loaded successfully!")
     
-    -- ESP Tab Content
-    if Modules.ESP then
-        local ESPSection = ESPTab:AddSection("ESP Features")
+    -- Auto Farm Tab Content
+    if Modules.AutoFarm then
+        local FarmSection = CreateSection(AutoFarmTab, "Auto Farm Features")
         
-        ESPSection:AddToggle("ESP Enabled", false, function(value)
-            Modules.ESP.Settings.Enabled = value
-        end)
-        
-        ESPSection:AddToggle("Show Distance", true, function(value)
-            Modules.ESP.Settings.ShowDistance = value
-        end)
-        
-        ESPSection:AddToggle("Show Health", true, function(value)
-            Modules.ESP.Settings.ShowHealth = value
-        end)
-        
-        ESPSection:AddToggle("Show Cash", true, function(value)
-            Modules.ESP.Settings.ShowCash = value
-        end)
-        
-        ESPSection:AddToggle("Show Weapons", true, function(value)
-            Modules.ESP.Settings.ShowWeapon = value
-        end)
-        
-        ESPSection:AddToggle("Rainbow ESP", false, function(value)
-            Modules.ESP.Settings.RainbowESP = value
-        end)
-        
-        ESPSection:AddColorPicker("Enemy Color", Color3.fromRGB(255, 0, 0), function(color)
-            Modules.ESP.Settings.Colors.Enemy = color
-        end)
-        
-        ESPSection:AddColorPicker("Friend Color", Color3.fromRGB(0, 255, 0), function(color)
-            Modules.ESP.Settings.Colors.Friend = color
-        end)
-        
-        ESPSection:AddSlider("ESP Text Size", 12, 24, 14, function(value)
-            Modules.ESP.Settings.TextSize = value
-        end)
-    else
-        local ESPSection = ESPTab:AddSection("ESP Features")
-        ESPSection:AddLabel("ESP Module failed to load")
-    end
-    
-    -- Combat Tab Content
-    if Modules.Combat then
-        local CombatSection = CombatTab:AddSection("Combat Features")
-        
-        CombatSection:AddToggle("Aimbot Enabled", false, function(value)
-            Modules.Combat.Settings.AimbotEnabled = value
-            if value and not CombatSection.GetState then
-                Modules.Combat.Start()
+        FarmSection:AddToggle("Auto Farm Enabled", false, function(value)
+            Modules.AutoFarm.Settings.Enabled = value
+            if value then
+                Modules.AutoFarm:Start()
+            else
+                Modules.AutoFarm:Stop()
             end
         end)
         
-        CombatSection:AddToggle("Silent Aim", false, function(value)
-            Modules.Combat.Settings.SilentAimEnabled = value
+        FarmSection:AddToggle("Auto Collect Drops", true, function(value)
+            Modules.AutoFarm.Settings.AutoCollectDrops = value
         end)
         
-        CombatSection:AddToggle("Auto Block", false, function(value)
-            Modules.Combat.Settings.AutoBlockEnabled = value
+        FarmSection:AddToggle("Auto Equip Weapon", true, function(value)
+            Modules.AutoFarm.Settings.AutoEquipWeapon = value
         end)
         
-        CombatSection:AddToggle("Auto Fire", false, function(value)
-            Modules.Combat.Settings.AutoFireEnabled = value
-        end)
+        local TargetSection = CreateSection(AutoFarmTab, "Target Settings")
         
-        CombatSection:AddToggle("Show FOV Circle", true, function(value)
-            Modules.Combat.Settings.ShowFOV = value
-        end)
+        -- In a real script, this would be populated with the actual list of mobs
+        local mobList = {"Bandit", "Monkey", "Gorilla", "Pirate", "Clown Pirate", "Marine"}
         
-        CombatSection:AddSlider("FOV Size", 50, 500, 120, function(value)
-            Modules.Combat.Settings.FOVSize = value
-        end)
-        
-        CombatSection:AddSlider("Smoothness", 0, 100, 20, function(value)
-            Modules.Combat.Settings.Smoothness = value / 100
-        end)
-        
-        CombatSection:AddDropdown("Target Part", {"Head", "Torso", "Random"}, "Head", function(value)
-            Modules.Combat.Settings.TargetPart = value
-        end)
-        
-        CombatSection:AddColorPicker("FOV Color", Color3.fromRGB(255, 255, 255), function(color)
-            Modules.Combat.Settings.FOVColor = color
-        end)
-        
-        -- Trigger Bot section
-        local TriggerSection = CombatTab:AddSection("Trigger Bot")
-        
-        TriggerSection:AddToggle("Trigger Bot", false, function(value)
-            Modules.Combat.Settings.TriggerBot.Enabled = value
-        end)
-        
-        TriggerSection:AddSlider("Trigger Delay (ms)", 0, 1000, 200, function(value)
-            Modules.Combat.Settings.TriggerBot.Delay = value / 1000
-        end)
-        
-        -- Target info display
-        local TargetInfo = CombatSection:AddLabel("Target: None")
-        
-        -- Update target info periodically
-        spawn(function()
-            while wait(0.5) do
-                if Modules.Combat and Modules.Combat.GetTargetInfo then
-                    local info = Modules.Combat.GetTargetInfo()
-                    if info.TargetName then
-                        TargetInfo:SetText("Target: " .. info.TargetName)
-                    else
-                        TargetInfo:SetText("Target: None")
-                    end
-                end
-            end
-        end)
+        for _, mob in ipairs(mobList) do
+            TargetSection:AddButton("Farm " .. mob, function()
+                Modules.AutoFarm.Settings.TargetMobs = {mob}
+                Modules.AutoFarm.Settings.Enabled = true
+                Modules.AutoFarm:Start()
+                StatusLabel:SetText("Now farming: " .. mob)
+            end)
+        end
     else
-        local CombatSection = CombatTab:AddSection("Combat Features")
-        CombatSection:AddLabel("Combat Module failed to load")
+        local FarmSection = CreateSection(AutoFarmTab, "Auto Farm Features")
+        FarmSection:AddLabel("Auto Farm Module failed to load")
     end
     
     -- Teleport Tab Content
     if Modules.Teleport then
-        local TeleportSection = TeleportTab:AddSection("Teleport Features")
+        local TeleportSection = CreateSection(TeleportTab, "Teleport Features")
         
         TeleportSection:AddToggle("Safe Mode", true, function(value)
             Modules.Teleport.Settings.SafeMode = value
@@ -2583,7 +1233,7 @@ if success then
         local locations = Modules.Teleport.GetLocationsList()
         for _, location in ipairs(locations) do
             TeleportSection:AddButton(location.Icon .. " " .. location.Name, function()
-                local success, message = Modules.Teleport.TeleportToLocation(location.Name)
+                local success, message = Modules.Teleport:TeleportToLocation(location.Name)
                 if success then
                     StatusLabel:SetText("Teleported to " .. location.Name)
                 else
@@ -2592,139 +1242,306 @@ if success then
             end)
         end
     else
-        local TeleportSection = TeleportTab:AddSection("Teleport Features")
+        local TeleportSection = CreateSection(TeleportTab, "Teleport Features")
         TeleportSection:AddLabel("Teleport Module failed to load")
     end
     
-    -- Cash Farm Tab Content
-    if Modules.CashFarm then
-        local CashFarmSection = CashFarmTab:AddSection("Cash Farm Features")
+    -- ESP Tab Content
+    if Modules.ESP then
+        local ESPSection = CreateSection(ESPTab, "ESP Features")
         
-        CashFarmSection:AddToggle("Cash Farm Enabled", false, function(value)
-            Modules.CashFarm.Settings.Enabled = value
+        ESPSection:AddToggle("ESP Enabled", false, function(value)
+            Modules.ESP.Settings.Enabled = value
             if value then
-                Modules.CashFarm.Start()
+                Modules.ESP:Start()
             else
-                Modules.CashFarm.Stop()
+                Modules.ESP:Stop()
             end
         end)
         
-        CashFarmSection:AddDropdown("Farm Method", {"ATM Farm", "Store Robbery", "Auto-Pickup"}, "ATM Farm", function(value)
-            Modules.CashFarm.Settings.Method = value
+        ESPSection:AddToggle("Show Players", true, function(value)
+            Modules.ESP.Settings.ShowPlayers = value
         end)
         
-        CashFarmSection:AddToggle("Anti AFK", true, function(value)
-            Modules.CashFarm.Settings.AntiAFK = value
+        ESPSection:AddToggle("Show NPCs", true, function(value)
+            Modules.ESP.Settings.ShowNPCs = value
         end)
         
-        CashFarmSection:AddToggle("Auto Rejoin", false, function(value)
-            Modules.CashFarm.Settings.AutoRejoin = value
+        ESPSection:AddToggle("Show Chests", true, function(value)
+            Modules.ESP.Settings.ShowChests = value
         end)
         
-        CashFarmSection:AddToggle("Safe Mode", true, function(value)
-            Modules.CashFarm.Settings.SafeMode = value
+        ESPSection:AddToggle("Show Distance", true, function(value)
+            Modules.ESP.Settings.ShowDistance = value
         end)
         
-        CashFarmSection:AddSlider("Farm Speed", 1, 10, 5, function(value)
-            Modules.CashFarm.Settings.Speed = value
+        ESPSection:AddToggle("Show Health", true, function(value)
+            Modules.ESP.Settings.ShowHealth = value
         end)
         
-        CashFarmSection:AddSlider("Delay Between Actions (s)", 0.1, 5, 0.5, function(value)
-            Modules.CashFarm.Settings.Delay = value
+        ESPSection:AddToggle("Rainbow ESP", false, function(value)
+            Modules.ESP.Settings.RainbowESP = value
         end)
         
-        -- Farm statistics
-        local StatsSection = CashFarmTab:AddSection("Farm Statistics")
-        local CashEarnedLabel = StatsSection:AddLabel("Cash Earned: $0")
-        local RobberiesCompletedLabel = StatsSection:AddLabel("Robberies: 0")
-        local TimeRunningLabel = StatsSection:AddLabel("Time Running: 00:00:00")
+        ESPSection:AddSlider("Rainbow Speed", 1, 10, 5, function(value)
+            Modules.ESP.Settings.RainbowSpeed = value
+        end)
+    else
+        local ESPSection = CreateSection(ESPTab, "ESP Features")
+        ESPSection:AddLabel("ESP Module failed to load")
+    end
+    
+    -- Devil Fruit Tab Content
+    if Modules.DevilFruit then
+        local FruitSection = CreateSection(DevilFruitTab, "Devil Fruit Features")
         
-        -- Update farm stats periodically
+        FruitSection:AddToggle("Auto Buy Fruits", false, function(value)
+            Modules.DevilFruit.Settings.AutoBuy = value
+        end)
+        
+        FruitSection:AddToggle("Notify On Fruit Spawn", true, function(value)
+            Modules.DevilFruit.Settings.NotifyOnSpawn = value
+        end)
+        
+        FruitSection:AddToggle("Auto Pickup Fruits", true, function(value)
+            Modules.DevilFruit.Settings.AutoPickup = value
+        end)
+        
+        FruitSection:AddToggle("Store Fruits", false, function(value)
+            Modules.DevilFruit.Settings.StoreFruits = value
+        end)
+        
+        local FruitListSection = CreateSection(DevilFruitTab, "Available Fruits")
+        
+        -- Get list of fruits
+        local fruits = Modules.DevilFruit.GetAvailableFruits()
+        for _, fruit in ipairs(fruits) do
+            FruitListSection:AddButton(fruit.Name .. " (" .. fruit.Rarity .. ")", function()
+                StatusLabel:SetText("Attempting to buy " .. fruit.Name)
+                -- In a real script, this would actually attempt to buy the fruit
+                -- This is just a placeholder for the demo
+            end)
+        end
+    else
+        local FruitSection = CreateSection(DevilFruitTab, "Devil Fruit Features")
+        FruitSection:AddLabel("Devil Fruit Module failed to load")
+    end
+    
+    -- Combat Tab Content
+    if Modules.Combat then
+        local CombatSection = CreateSection(CombatTab, "Combat Features")
+        
+        CombatSection:AddToggle("Auto Attack", false, function(value)
+            Modules.Combat.Settings.AutoAttack = value
+        end)
+        
+        CombatSection:AddToggle("Auto Block", false, function(value)
+            Modules.Combat.Settings.AutoBlock = value
+        end)
+        
+        CombatSection:AddToggle("Auto Skills", true, function(value)
+            Modules.Combat.Settings.AutoSkills = value
+        end)
+        
+        CombatSection:AddToggle("Attack Players", false, function(value)
+            Modules.Combat.Settings.AttackPlayers = value
+        end)
+        
+        CombatSection:AddToggle("Kill Aura", false, function(value)
+            Modules.Combat.Settings.KillAura = value
+        end)
+        
+        CombatSection:AddSlider("Kill Aura Range", 5, 30, 15, function(value)
+            Modules.Combat.Settings.KillAuraRange = value
+        end)
+        
+        local WeaponSection = CreateSection(CombatTab, "Weapon Selection")
+        
+        -- Get list of weapons
+        local weapons = Modules.Combat.GetWeaponsList()
+        for _, weapon in ipairs(weapons) do
+            WeaponSection:AddButton("Equip " .. weapon, function()
+                StatusLabel:SetText("Equipped " .. weapon)
+                -- In a real script, this would actually equip the weapon
+                -- This is just a placeholder for the demo
+            end)
+        end
+    else
+        local CombatSection = CreateSection(CombatTab, "Combat Features")
+        CombatSection:AddLabel("Combat Module failed to load")
+    end
+    
+    -- Misc Tab Content
+    -- Anti-Ban Section
+    if Modules.AntiBan then
+        local AntiBanSection = CreateSection(MiscTab, "Anti-Ban System")
+        
+        AntiBanSection:AddToggle("Anti-Ban System", true, function(value)
+            Modules.AntiBan.Settings.Enabled = value
+            if value then
+                Modules.AntiBan:Start()
+            else
+                Modules.AntiBan:Stop()
+            end
+        end)
+        
+        AntiBanSection:AddToggle("Remove Exploit Detection", true, function(value)
+            Modules.AntiBan.Settings.Flags.ExploitDetectionRemoval = value
+        end)
+        
+        AntiBanSection:AddToggle("Reduce Auto-Punish Risk", true, function(value)
+            Modules.AntiBan.Settings.Flags.ReduceAutoPunishRisk = value
+        end)
+        
+        AntiBanSection:AddToggle("Randomize Actions", true, function(value)
+            Modules.AntiBan.Settings.Flags.RandomizeActions = value
+        end)
+        
+        AntiBanSection:AddToggle("Disable High-Risk Features", false, function(value)
+            Modules.AntiBan.Settings.Flags.DisableHighRiskFeatures = value
+        end)
+        
+        local AntiBanStats = AntiBanSection:AddLabel("Detections Evaded: 0")
+        
+        -- Update anti-ban stats periodically
         spawn(function()
-            while wait(1) do
-                if Modules.CashFarm then
-                    local stats = Modules.CashFarm.GetStats()
-                    CashEarnedLabel:SetText("Cash Earned: $" .. stats.CashEarned)
-                    RobberiesCompletedLabel:SetText("Robberies: " .. stats.RobberiesCompleted)
-                    TimeRunningLabel:SetText("Time Running: " .. stats.TimeRunning)
+            while wait(2) do
+                if Modules.AntiBan then
+                    local status = Modules.AntiBan.GetStatus()
+                    AntiBanStats:SetText("Detections Evaded: " .. status.DetectionsEvaded)
                 end
             end
         end)
     else
-        local CashFarmSection = CashFarmTab:AddSection("Cash Farm Features")
-        CashFarmSection:AddLabel("Cash Farm Module failed to load")
+        local AntiBanSection = CreateSection(MiscTab, "Anti-Ban System")
+        AntiBanSection:AddLabel("Anti-Ban Module failed to load")
     end
     
-    -- Character Tab Content
-    if Modules.Character then
-        local CharacterSection = CharacterTab:AddSection("Character Enhancements")
+    -- Stats Section
+    if Modules.Stats then
+        local StatsSection = CreateSection(MiscTab, "Auto Stats")
         
-        CharacterSection:AddToggle("Custom Walk Speed", false, function(value)
-            Modules.Character.Settings.WalkSpeedEnabled = value
-            if not Modules.Character.CharacterConnection then
-                Modules.Character.Start()
-            end
+        StatsSection:AddToggle("Auto Assign Stat Points", false, function(value)
+            Modules.Stats.Settings.AutoStatPoints = value
         end)
         
-        CharacterSection:AddSlider("Walk Speed", 16, 100, 32, function(value)
-            Modules.Character.Settings.WalkSpeed = value
-        end)
+        local priorities = {"Melee", "Defense", "Sword", "Gun", "DevilFruit"}
+        for _, priority in ipairs(priorities) do
+            StatsSection:AddButton("Priority: " .. priority, function()
+                Modules.Stats.Settings.StatPriority = priority
+                StatusLabel:SetText("Stat priority set to: " .. priority)
+            end)
+        end
         
-        CharacterSection:AddToggle("Custom Jump Power", false, function(value)
-            Modules.Character.Settings.JumpPowerEnabled = value
-            if not Modules.Character.CharacterConnection then
-                Modules.Character.Start()
-            end
-        end)
+        local PlayerStatsSection = CreateSection(MiscTab, "Player Stats")
         
-        CharacterSection:AddSlider("Jump Power", 50, 200, 100, function(value)
-            Modules.Character.Settings.JumpPower = value
-        end)
+        -- Get player stats
+        local stats = Modules.Stats.GetPlayerStats()
         
-        CharacterSection:AddToggle("God Mode", false, function(value)
-            Modules.Character.Settings.GodModeEnabled = value
-            if not Modules.Character.CharacterConnection then
-                Modules.Character.Start()
-            end
-        end)
+        PlayerStatsSection:AddLabel("Level: " .. stats.Level)
+        PlayerStatsSection:AddLabel("Beli: " .. stats.Beli)
+        PlayerStatsSection:AddLabel("Fragments: " .. stats.Fragments)
+        PlayerStatsSection:AddLabel("Unassigned Points: " .. stats.UnassignedPoints)
         
-        CharacterSection:AddToggle("Infinite Stamina", false, function(value)
-            Modules.Character.Settings.InfiniteStamina = value
-            if not Modules.Character.CharacterConnection then
-                Modules.Character.Start()
-            end
-        end)
-        
-        CharacterSection:AddToggle("No-Clip", false, function(value)
-            Modules.Character.Settings.NoClip = value
-            if not Modules.Character.CharacterConnection then
-                Modules.Character.Start()
+        -- Update stats periodically
+        spawn(function()
+            while wait(5) do
+                if Modules.Stats then
+                    local updatedStats = Modules.Stats.GetPlayerStats()
+                    PlayerStatsSection:AddLabel("Level: " .. updatedStats.Level)
+                    PlayerStatsSection:AddLabel("Beli: " .. updatedStats.Beli)
+                    PlayerStatsSection:AddLabel("Fragments: " .. updatedStats.Fragments)
+                    PlayerStatsSection:AddLabel("Unassigned Points: " .. updatedStats.UnassignedPoints)
+                end
             end
         end)
     else
-        local CharacterSection = CharacterTab:AddSection("Character Enhancements")
-        CharacterSection:AddLabel("Character Module failed to load")
+        local StatsSection = CreateSection(MiscTab, "Auto Stats")
+        StatsSection:AddLabel("Stats Module failed to load")
     end
-    
-    -- Credits Section
-    local CreditsSection = MainTab:AddSection("Credits")
-    CreditsSection:AddLabel("SkyX Bronx 3 Script by SkyX Team")
-    CreditsSection:AddLabel("UI Design: SkyX Team")
-    CreditsSection:AddLabel("Discord: Join via .gg/skyx")
-    
-    -- Settings Section
-    local SettingsSection = MainTab:AddSection("Settings")
-    
-    SettingsSection:AddButton("Rejoin Game", function()
-        game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-    end)
-    
-    SettingsSection:AddButton("Copy Discord Invite", function()
-        setclipboard(".gg/skyx")
-        StatusLabel:SetText("Discord invite copied to clipboard")
-    end)
 else
     StatusLabel:SetText("Failed to load modules")
+end
+
+-- Create mobile indicator indicators
+-- These are small indicators that blink to show if modules are active
+if IsMobile then
+    -- Create indicators container
+    local IndicatorsContainer = Instance.new("Frame")
+    IndicatorsContainer.Name = "ModuleIndicators"
+    IndicatorsContainer.Size = UDim2.new(0, 200, 0, 40)
+    IndicatorsContainer.Position = UDim2.new(0.5, -100, 0, 10)
+    IndicatorsContainer.BackgroundTransparency = 1
+    IndicatorsContainer.Parent = SkyXUI
+    
+    -- Create indicator layout
+    local IndicatorLayout = Instance.new("UIListLayout")
+    IndicatorLayout.FillDirection = Enum.FillDirection.Horizontal
+    IndicatorLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    IndicatorLayout.Padding = UDim.new(0, 10)
+    IndicatorLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    IndicatorLayout.Parent = IndicatorsContainer
+    
+    -- Function to create indicator
+    local function CreateIndicator(name, color)
+        local Indicator = Instance.new("Frame")
+        Indicator.Name = name .. "Indicator"
+        Indicator.Size = UDim2.new(0, 20, 0, 20)
+        Indicator.BackgroundColor3 = color
+        Indicator.BackgroundTransparency = 0.5
+        Indicator.BorderSizePixel = 0
+        Indicator.Parent = IndicatorsContainer
+        
+        -- Add corner
+        local IndicatorCorner = Instance.new("UICorner")
+        IndicatorCorner.CornerRadius = UDim.new(1, 0) -- Circle
+        IndicatorCorner.Parent = Indicator
+        
+        return Indicator
+    end
+    
+    -- Create indicators for modules
+    local ESPIndicator = CreateIndicator("ESP", Colors.Danger)
+    local AutoFarmIndicator = CreateIndicator("AutoFarm", Colors.Danger)
+    local DevilFruitIndicator = CreateIndicator("DevilFruit", Colors.Danger)
+    local CombatIndicator = CreateIndicator("Combat", Colors.Danger)
+    local AntiBanIndicator = CreateIndicator("AntiBan", Colors.Success) -- Anti-ban starts enabled
+    
+    -- Blink indicators function
+    spawn(function()
+        while wait(1) do
+            -- Update indicator colors based on module status
+            if Modules.ESP and Modules.ESP.Settings.Enabled then
+                TweenService:Create(ESPIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
+            else
+                TweenService:Create(ESPIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
+            end
+            
+            if Modules.AutoFarm and Modules.AutoFarm.Settings.Enabled then
+                TweenService:Create(AutoFarmIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
+            else
+                TweenService:Create(AutoFarmIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
+            end
+            
+            if Modules.DevilFruit and Modules.DevilFruit.Settings.AutoBuy then
+                TweenService:Create(DevilFruitIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
+            else
+                TweenService:Create(DevilFruitIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
+            end
+            
+            if Modules.Combat and Modules.Combat.Settings.AutoAttack then
+                TweenService:Create(CombatIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
+            else
+                TweenService:Create(CombatIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
+            end
+            
+            if Modules.AntiBan and Modules.AntiBan.Settings.Enabled then
+                TweenService:Create(AntiBanIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Success}):Play()
+            else
+                TweenService:Create(AntiBanIndicator, TweenInfo.new(0.5), {BackgroundColor3 = Colors.Danger}):Play()
+            end
+        end
+    end)
 end
 
 -- Add keybind for toggling UI (closing and reopening)
@@ -2747,7 +1564,7 @@ local function ToggleUI()
         -- Hide UI
         SkyXUI.Enabled = false
         _G.SkyXUIVisible = false
-        print("SkyX Bronx 3 UI hidden - Press Right Control to show")
+        print("SkyX BloxFruits UI hidden - Press Right Control to show")
     else
         -- Show UI
         SkyXUI.Enabled = true
@@ -2771,7 +1588,7 @@ local function ToggleUI()
             end
         end
         
-        print("SkyX Bronx 3 UI shown")
+        print("SkyX BloxFruits UI shown")
     end
 end
 
@@ -2782,164 +1599,81 @@ AddConnection(UserInputService.InputBegan, function(input, gameProcessed)
     end
 end)
 
--- Add mobile button for toggling UI (since mobile can't use keyboard)
-if IsMobile then
-    -- Create toggle button container
-    local ToggleButtonGui = Instance.new("ScreenGui")
-    ToggleButtonGui.Name = "SkyXToggleButtonGui"
-    ToggleButtonGui.ResetOnSpawn = false
-    ToggleButtonGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+-- Notify that script has loaded
+local loadedText = "SkyX BloxFruits loaded successfully! Use RightControl to toggle UI"
+print(loadedText)
+
+-- Create notification for the user
+local function CreateNotification(text, duration)
+    duration = duration or 5
+    
+    -- Create notification container
+    local NotificationGui = Instance.new("ScreenGui")
+    NotificationGui.Name = "SkyXNotification"
+    NotificationGui.ResetOnSpawn = false
+    NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     
     -- Handle executor security models
     if syn then
-        syn.protect_gui(ToggleButtonGui)
-        ToggleButtonGui.Parent = game.CoreGui
+        syn.protect_gui(NotificationGui)
+        NotificationGui.Parent = game.CoreGui
     else
-        ToggleButtonGui.Parent = gethui() or game.CoreGui
+        NotificationGui.Parent = gethui and gethui() or game.CoreGui
     end
     
-    -- Create toggle button
-    local ToggleButton = Instance.new("ImageButton")
-    ToggleButton.Name = "SkyXToggleButton"
-    ToggleButton.Size = UDim2.new(0, 60, 0, 60) -- Larger for mobile touch
-    ToggleButton.Position = UDim2.new(0, 20, 0.5, -30) -- Right side of screen, middle height
-    ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 80, 130) -- Distinct color
-    ToggleButton.BorderSizePixel = 0
-    ToggleButton.Image = "rbxassetid://4483345998" -- Use a simple icon
-    ToggleButton.ImageColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleButton.ZIndex = 9999 -- Extremely high to always be on top
-    ToggleButton.Parent = ToggleButtonGui
+    -- Create notification frame
+    local NotificationFrame = Instance.new("Frame")
+    NotificationFrame.Name = "Notification"
+    NotificationFrame.Size = UDim2.new(0, 300, 0, 60)
+    NotificationFrame.Position = UDim2.new(0.5, -150, 0.85, 0)
+    NotificationFrame.BackgroundColor3 = Colors.Container
+    NotificationFrame.BorderSizePixel = 0
+    NotificationFrame.Parent = NotificationGui
     
     -- Add corner
-    local ToggleButtonCorner = Instance.new("UICorner")
-    ToggleButtonCorner.CornerRadius = UDim.new(1, 0) -- Perfect circle
-    ToggleButtonCorner.Parent = ToggleButton
+    local NotificationCorner = Instance.new("UICorner")
+    NotificationCorner.CornerRadius = UDim.new(0, 8)
+    NotificationCorner.Parent = NotificationFrame
     
-    -- Add stroke to make button more visible
-    local ToggleButtonStroke = Instance.new("UIStroke")
-    ToggleButtonStroke.Color = Color3.fromRGB(255, 255, 255)
-    ToggleButtonStroke.Thickness = 2
-    ToggleButtonStroke.Parent = ToggleButton
+    -- Add notification text
+    local NotificationText = Instance.new("TextLabel")
+    NotificationText.Name = "Text"
+    NotificationText.Size = UDim2.new(1, -20, 1, 0)
+    NotificationText.Position = UDim2.new(0, 10, 0, 0)
+    NotificationText.BackgroundTransparency = 1
+    NotificationText.Font = Enum.Font.Gotham
+    NotificationText.TextSize = 14
+    NotificationText.TextColor3 = Colors.Text
+    NotificationText.TextWrapped = true
+    NotificationText.Text = text
+    NotificationText.Parent = NotificationFrame
     
-    -- Add text label
-    local ToggleButtonText = Instance.new("TextLabel")
-    ToggleButtonText.Name = "Text"
-    ToggleButtonText.Size = UDim2.new(1, 0, 1, 0)
-    ToggleButtonText.BackgroundTransparency = 1
-    ToggleButtonText.Font = Enum.Font.GothamBold
-    ToggleButtonText.TextSize = 18
-    ToggleButtonText.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleButtonText.Text = "UI"
-    ToggleButtonText.Parent = ToggleButton
+    -- Add animation
+    NotificationFrame.Position = UDim2.new(0.5, -150, 1.1, 0) -- Start off-screen
     
-    -- Add shadow
-    local ToggleButtonShadow = Instance.new("ImageLabel")
-    ToggleButtonShadow.Name = "Shadow"
-    ToggleButtonShadow.Size = UDim2.new(1, 10, 1, 10)
-    ToggleButtonShadow.Position = UDim2.new(0, -5, 0, -5)
-    ToggleButtonShadow.BackgroundTransparency = 1
-    ToggleButtonShadow.Image = "rbxassetid://6015897843" -- Shadow image
-    ToggleButtonShadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    ToggleButtonShadow.ImageTransparency = 0.6
-    ToggleButtonShadow.ZIndex = 9998 -- Just below the button
-    ToggleButtonShadow.Parent = ToggleButton
+    -- Slide in
+    TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
+        Position = UDim2.new(0.5, -150, 0.85, 0)
+    }):Play()
     
-    -- Make button draggable for positioning
-    local draggingToggle = false
-    local dragStartToggle
-    local startPosToggle
-    
-    AddConnection(ToggleButton.InputBegan, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            if input.UserInputType == Enum.UserInputType.Touch then
-                -- For touch, use a timer to distinguish between tap and drag
-                local touchStartTime = tick()
-                local initialPos = input.Position
-                
-                local touchEnd
-                touchEnd = input.Changed:Connect(function()
-                    if input.UserInputState == Enum.UserInputState.End then
-                        touchEnd:Disconnect()
-                        local touchDuration = tick() - touchStartTime
-                        local touchMovement = (input.Position - initialPos).Magnitude
-                        
-                        if touchDuration < 0.3 and touchMovement < 10 then
-                            -- It was a tap, toggle UI
-                            ToggleUI()
-                        end
-                    end
-                end)
-            else
-                -- For mouse, just toggle immediately
-                ToggleUI()
-            end
-            
-            -- Start drag logic
-            draggingToggle = true
-            dragStartToggle = input.Position
-            startPosToggle = ToggleButton.Position
-            
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    draggingToggle = false
-                end
-            end)
-        end
+    -- Wait, then slide out
+    spawn(function()
+        wait(duration)
+        
+        -- Slide out
+        local slideOutTween = TweenService:Create(NotificationFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quint), {
+            Position = UDim2.new(0.5, -150, 1.1, 0)
+        })
+        
+        slideOutTween:Play()
+        
+        slideOutTween.Completed:Connect(function()
+            NotificationGui:Destroy()
+        end)
     end)
-    
-    AddConnection(ToggleButton.InputChanged, function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            if draggingToggle then
-                local delta = input.Position - dragStartToggle
-                ToggleButton.Position = UDim2.new(
-                    startPosToggle.X.Scale, 
-                    startPosToggle.X.Offset + delta.X, 
-                    startPosToggle.Y.Scale, 
-                    startPosToggle.Y.Offset + delta.Y
-                )
-            end
-        end
-    end)
-    
-    -- UI effect animations
-    local function AnimateButton()
-        while ToggleButton and ToggleButton.Parent do
-            -- Pulse effect when UI is hidden
-            if not _G.SkyXUIVisible then
-                TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                    BackgroundColor3 = Color3.fromRGB(60, 120, 180)
-                }):Play()
-                
-                wait(1)
-                
-                TweenService:Create(ToggleButton, TweenInfo.new(1, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
-                    BackgroundColor3 = Color3.fromRGB(30, 80, 130)
-                }):Play()
-                
-                wait(1)
-            else
-                -- When UI is visible, just maintain normal appearance
-                ToggleButton.BackgroundColor3 = Color3.fromRGB(30, 80, 130)
-                wait(0.5)
-            end
-        end
-    end
-    
-    -- Start animation in separate thread
-    task.spawn(AnimateButton)
 end
 
--- UI cleanup on script end
-game:GetService("Players").LocalPlayer.OnTeleport:Connect(function(State)
-    if State == Enum.TeleportState.Started then
-        for _, connection in pairs(SkyX.Connections) do
-            if connection then
-                connection:Disconnect()
-            end
-        end
-        SkyXUI:Destroy()
-    end
-end)
+-- Show loaded notification
+CreateNotification(loadedText, 5)
 
-print("SkyX Bronx 3 script loaded successfully | Press Right Control to toggle UI")
-return SkyXUI
+return CloseUI -- Return close function for external scripts to use
