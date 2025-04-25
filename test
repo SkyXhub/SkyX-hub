@@ -7,7 +7,7 @@
 ]]
 
 -- Load the basic UI library
-local SkyXBasic = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/SkyX-hub/main/SkyX_Basic_UI.lua"))()
+local SkyXBasic = loadstring(game:HttpGet(""https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua"))()
 
 -- Create the main window
 local Window = SkyXBasic:CreateWindow("SkyX Hub - Basic Demo")
