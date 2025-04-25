@@ -1,913 +1,437 @@
 --[[
-    🌊 SkyX Hub - Fishing Simulator Script (Orion Version) 🌊
-    ENHANCED KEYLESS VERSION 3.0.0
+    🌊 SkyX Hub - Mobile UI Demo 🌊
     
-    Features:
-    - NO KEY SYSTEM - Completely Free Access
-    - Auto Fishing (Smart fish catching)
-    - ESP for Special Fish
-    - Teleport to Best Fishing Spots
-    - Auto Sell
-    - Fish Rarity Filter
-    - Fish Collection Tracker
-    - Touch-Friendly Mobile Interface
-    - Automatic Rare Fish Alerts
+    This demo showcases the mobile-friendly features of the SkyXOrion UI Library
     
-    Ocean Theme UI - Optimized for mobile executors (Swift, Fluxus, KRNL, Delta, etc.)
-    Works great on: Swift, Fluxus, KRNL, Delta, Arceus X and other mobile executors
-    
-    Using Orion Library: https://raw.githubusercontent.com/jensonhirst/Orion/main/source
+    Key Features:
+    - Swipe gestures between tabs
+    - Larger touch targets for mobile users
+    - Smooth animations optimized for mobile
+    - Auto-sizing based on device screen size
+    - Haptic feedback on supported devices
+    - Ocean-themed visual style
 ]]
 
--- Set up the global environment
-local globalEnv = getgenv and getgenv() or _G
-
--- Prevent duplicate execution
-if globalEnv.SkyXFishingScriptLoaded then
-    warn("SkyX Fishing Script is already running!")
+-- Check if running in a Roblox environment
+if not game then
+    print("Not running in proper Roblox environment")
+    print("This script should only be executed in a Roblox game environment")
     return
 end
 
--- Mark script as loaded
-globalEnv.SkyXFishingScriptLoaded = true
-
--- Set up SkyX global environment if not already defined
-if not globalEnv.SkyX then
-    globalEnv.SkyX = {
-        Version = "3.0.0",
-        LoadTime = os.time(),
-        Platform = (syn and "Synapse") or 
-                  (KRNL_LOADED and "Krnl") or 
-                  (secure_load and "Sentinel") or 
-                  (fluxus and "Fluxus") or
-                  (delta and "Delta") or
-                  (identifyexecutor and identifyexecutor()) or 
-                  "Unknown Executor",
-        AntiBanEnabled = true,
-        WebhookEnabled = true,
-        DiscordWebhookURL = "https://discord.com/api/webhooks/1364438745067290664/J6ZLEkt_lZtwbQnssigtUr5Uj80fhzQmdH0QoitsSwJr2xgDOjIzl5Kfo1Cr1UuFo-2v",
-    }
-end
-
--- Game services
+-- Set up mock environment for testing
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local VirtualUser = game:GetService("VirtualUser")
-local Workspace = game:GetService("Workspace")
-local HttpService = game:GetService("HttpService")
-
--- Get player
 local LocalPlayer = Players.LocalPlayer
 local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:FindFirstChild("Humanoid")
+local HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
 
--- Anti-AFK function
-local function setupAntiAFK()
-    LocalPlayer.Idled:Connect(function()
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-    end)
-    print("Anti-AFK enabled")
-end
+-- Load our enhanced SkyXOrion UI
+local SkyXOrion = {}
 
--- Setup anti-AFK
-pcall(setupAntiAFK)
-
--- Send execution data to Discord webhook
-local function sendWebhookData()
-    if not (globalEnv.SkyX.WebhookEnabled and globalEnv.SkyX.DiscordWebhookURL) then
-        return
-    end
+local success, result = pcall(function()
+    -- Load the official SkyX UI Library from GitHub
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/SkyX-hub/refs/heads/main/SkyX%20UI%20Library.lua"))()
     
-    spawn(function()
-        pcall(function()
-            local gameId = game.PlaceId
-            local gameName = game:GetService("MarketplaceService"):GetProductInfo(gameId).Name
-            local executor = globalEnv.SkyX.Platform
-            local playerId = LocalPlayer.UserId
-            local playerName = LocalPlayer.Name
-            
-            -- Format the Discord webhook data
-            local webhookData = {
-                username = "SkyX Hub Execution Tracker",
-                avatar_url = "https://i.imgur.com/4M34hi2.png",
-                embeds = {
-                    {
-                        title = "Fishing Script Executed",
-                        description = "The Fishing Script has been executed by a user",
-                        color = 3447003, -- Blue color
-                        fields = {
-                            {
-                                name = "Game",
-                                value = gameName,
-                                inline = true
-                            },
-                            {
-                                name = "Player",
-                                value = playerName,
-                                inline = true
-                            },
-                            {
-                                name = "User ID",
-                                value = tostring(playerId),
-                                inline = true
-                            },
-                            {
-                                name = "Executor",
-                                value = executor,
-                                inline = true
-                            },
-                            {
-                                name = "Place ID",
-                                value = tostring(gameId),
-                                inline = true
-                            }
-                        },
-                        footer = {
-                            text = "SkyX Hub • " .. os.date("%Y-%m-%d %H:%M:%S")
-                        }
-                    }
-                }
-            }
-            
-            -- Send directly to Discord webhook
-            local jsonData = HttpService:JSONEncode(webhookData)
-            
-            HttpService:PostAsync(
-                globalEnv.SkyX.DiscordWebhookURL,
-                jsonData,
-                Enum.HttpContentType.ApplicationJson,
-                false
-            )
-            
-            print("SkyX Fishing: Discord webhook notification sent successfully")
-        end)
-    end)
-end
-
--- Try to send webhook notification
-pcall(sendWebhookData)
-
--- Loading the Orion Library
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
-
--- Fish data from game
-local fishData = {}
-local fishPools = {}
-
--- Try to get the fish data from the game
-pcall(function()
-    -- Check if there's a fish module in ReplicatedStorage
-    for _, module in pairs(ReplicatedStorage:GetDescendants()) do
-        if module:IsA("ModuleScript") and (module.Name:find("Fish") or module.Name:find("fish")) then
-            local success, result = pcall(function()
-                return require(module)
-            end)
-            
-            if success and type(result) == "table" then
-                -- Check if this looks like fish data
-                for k, v in pairs(result) do
-                    if type(v) == "table" and (v.Icon or v.Rarity or v.WeightPool) then
-                        fishData = result
-                        print("Found fish data in module: " .. module:GetFullName())
-                        break
-                    end
-                end
-            end
-        end
-    end
-    
-    -- Check for fish pools
-    for _, module in pairs(ReplicatedStorage:GetDescendants()) do
-        if module:IsA("ModuleScript") and (module.Name:find("Pool") or module.Name:find("pool")) then
-            local success, result = pcall(function()
-                return require(module)
-            end)
-            
-            if success and type(result) == "table" then
-                -- Check if this looks like fish pool data
-                for k, v in pairs(result) do
-                    if type(v) == "table" and v.Pool and type(v.Pool) == "table" then
-                        fishPools = result
-                        print("Found fish pools in module: " .. module:GetFullName())
-                        break
-                    end
-                end
-            end
-        end
-    end
+    -- Fallback to local version if GitHub version fails
+    -- if isfile and isfile("SkyXOrion.lua") then
+    --     return loadstring(readfile("SkyXOrion.lua"))()
+    -- else
+    --     -- Fallback to the original Orion if our enhanced version isn't available
+    --     return loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+    -- end
 end)
 
--- If we couldn't get the data from the game, use the data provided
-if not next(fishData) then
-    -- This is a simplified version of the data for demo purposes
-    fishData = {
-        ["Moon Idol Sea 1"] = {
-            Icon = "rbxassetid://74189195141290", 
-            BlockPassiveCapture = true, 
-            WeightPool = {500, 500}, 
-            Chance = 1, 
-            Rarity = "Secret",
-            From = "Blue Moon - First Sea"
-        },
-        ["Lunar Monkfish"] = {
-            Icon = "rbxassetid://82672626514771", 
-            WeightPool = {800, 2500}, 
-            Chance = 50, 
-            Rarity = "Mythical",
-            From = "Blue Moon - First Sea"
-        },
-        ["Icy Daggerfish"] = {
-            Icon = "rbxassetid://135539930141529", 
-            WeightPool = {80, 235}, 
-            Chance = 60, 
-            Rarity = "Legendary",
-            From = "Blue Moon - First Sea"
-        },
-        ["Starbellied Wolf Fish"] = {
-            Icon = "rbxassetid://89388598287015", 
-            WeightPool = {70, 240}, 
-            Chance = 70, 
-            Rarity = "Rare",
-            From = "Blue Moon - First Sea"
-        },
-        ["Blue Langanose"] = {
-            Icon = "rbxassetid://100875351246693", 
-            WeightPool = {600, 1800}, 
-            Chance = 80, 
-            Rarity = "Unusual",
-            From = "Blue Moon - First Sea"
-        },
-        ["Frost Ray"] = {
-            Icon = "rbxassetid://135376186443805", 
-            WeightPool = {800, 2400}, 
-            Chance = 85, 
-            Rarity = "Uncommon",
-            From = "Blue Moon - First Sea"
-        }
-    }
-    
-    fishPools = {
-        ["Ashfall Pool"] = {
-            Pool = {
-                "Ember Catfish", 
-                "Blistered Eel", 
-                "Lava Lamprey", 
-                "Molten Minnow", 
-                "Pyro Pike", 
-                "Cinder Carp", 
-                "Coelacanth"
-            },
-            Priority = 1
-        },
-        ["Ancient Orcas Pool"] = {
-            Pool = {
-                "Ancient Orca",
-                "Colossal Squid",
-                "Oarfish",
-                "Crown Bass",
-                "Mythic Fish"
-            },
-            Priority = 4
-        }
-    }
+if success then
+    SkyXOrion = result
+else
+    -- If loading fails, use a fallback
+    SkyXOrion = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+    warn("Could not load SkyXOrion, using original Orion instead")
 end
 
--- Create a rarity ranking
-local rarityRanking = {
-    ["Trash"] = 1,
-    ["Common"] = 2,
-    ["Uncommon"] = 3,
-    ["Unusual"] = 4,
-    ["Rare"] = 5,
-    ["Legendary"] = 6,
-    ["Mythical"] = 7,
-    ["Secret"] = 8
-}
+-- Create a window with our mobile-optimized UI
+local Window = SkyXOrion:MakeWindow({
+    Name = "🌊 SkyX Mobile Demo 🌊",
+    HidePremium = false,
+    SaveConfig = false,
+    ConfigFolder = "SkyXDemo",
+    IntroEnabled = true,
+    IntroText = "SkyX Mobile UI Demo",
+    IntroIcon = "rbxassetid://10618644218",
+    Icon = "rbxassetid://10618644218"
+})
 
--- Create fish lists by rarity
-local fishByRarity = {}
-for rarity, _ in pairs(rarityRanking) do
-    fishByRarity[rarity] = {}
-end
+-- Create multiple tabs to demonstrate swipe feature
+local HomeTab = Window:MakeTab({
+    Name = "Home",
+    Icon = "home",
+    PremiumOnly = false
+})
 
-for fishName, fishInfo in pairs(fishData) do
-    local rarity = fishInfo.Rarity
-    if rarity and fishByRarity[rarity] then
-        table.insert(fishByRarity[rarity], fishName)
-    end
-end
+local WeaponsTab = Window:MakeTab({
+    Name = "Weapons",
+    Icon = "sword",
+    PremiumOnly = false
+})
 
--- Create location lists for teleporting
-local fishingLocations = {}
-local processedLocations = {}
+local FarmingTab = Window:MakeTab({
+    Name = "Farming",
+    Icon = "tree",
+    PremiumOnly = false
+})
 
-for fishName, fishInfo in pairs(fishData) do
-    if fishInfo.From and not processedLocations[fishInfo.From] then
-        table.insert(fishingLocations, fishInfo.From)
-        processedLocations[fishInfo.From] = true
-    end
-end
+local TeleportTab = Window:MakeTab({
+    Name = "Teleport",
+    Icon = "map-pin",
+    PremiumOnly = false
+})
 
--- Sort locations
-table.sort(fishingLocations)
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "settings",
+    PremiumOnly = false
+})
 
--- Global settings for auto fishing
-local autoFishingSettings = {
-    enabled = false,
-    minRarity = "Common",
-    targetFish = nil,
-    autoSell = false,
-    keepLegendaryPlus = true,
-    maxFishingTime = 120, -- Max time to wait for a fish in seconds
-    fishCaughtCount = 0,
-    rareCaughtCount = 0
-}
+-- Add content to Home Tab
+local WelcomeSection = HomeTab:AddSection({
+    Name = "Welcome"
+})
 
--- Function to find fishing remote
-local function findFishingRemote()
-    -- Common remote names in fishing games
-    local remoteNames = {
-        "Fish", "CastRod", "StartFishing", "Cast", "CastLine", "ThrowLine",
-        "fish", "castRod", "startFishing", "cast", "castLine", "throwLine"
-    }
-    
-    -- Check for remotes in ReplicatedStorage
-    for _, remoteName in pairs(remoteNames) do
-        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                if obj.Name == remoteName or obj.Name:find(remoteName) then
-                    return obj
-                end
-            end
-        end
-    end
-    
-    -- If we can't find a specific fishing remote, try to find any usable remote
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and
-           (obj.Name:lower():find("fish") or obj.Name:lower():find("rod") or obj.Name:lower():find("cast")) then
-            return obj
-        end
-    end
-    
-    return nil
-end
+WelcomeSection:AddLabel({
+    Name = "👋 Welcome to SkyX Mobile UI Demo!"
+})
 
--- Function to find sell remote
-local function findSellRemote()
-    -- Common sell remote names
-    local remoteNames = {
-        "Sell", "SellFish", "SellAll", "Sell All", "Cash", "Exchange",
-        "sell", "sellFish", "sellAll", "cash", "exchange"
-    }
-    
-    -- Check for remotes in ReplicatedStorage
-    for _, remoteName in pairs(remoteNames) do
-        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-            if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-                if obj.Name == remoteName or obj.Name:find(remoteName) then
-                    return obj
-                end
-            end
-        end
-    end
-    
-    -- If we can't find a specific sell remote, try to find any usable remote
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if (obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction")) and
-           (obj.Name:lower():find("sell") or obj.Name:lower():find("cash") or obj.Name:lower():find("money")) then
-            return obj
-        end
-    end
-    
-    return nil
-end
+WelcomeSection:AddLabel({
+    Name = "Try swiping left/right to change tabs"
+})
 
--- Function to sell fish
-local function sellFish()
-    local sellRemote = findSellRemote()
-    
-    if sellRemote then
-        -- Try to call the remote with various arguments
-        local success = false
+local DeviceInfoSection = HomeTab:AddSection({
+    Name = "Device Information"
+})
+
+DeviceInfoSection:AddButton({
+    Name = "Check Device Type",
+    Callback = function()
+        local UserInputService = game:GetService("UserInputService")
+        local isMobile = UserInputService.TouchEnabled and not UserInputService.MouseEnabled
         
-        -- Try without arguments first
-        pcall(function()
-            if sellRemote:IsA("RemoteEvent") then
-                sellRemote:FireServer()
-                success = true
-            elseif sellRemote:IsA("RemoteFunction") then
-                sellRemote:InvokeServer()
-                success = true
-            end
-        end)
+        SkyXOrion:MakeNotification({
+            Name = "Device Info",
+            Content = "You are using a " .. (isMobile and "Mobile" or "PC") .. " device",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+})
+
+DeviceInfoSection:AddButton({
+    Name = "Show Screen Size",
+    Callback = function()
+        local viewportSize = workspace.CurrentCamera.ViewportSize
         
-        if not success then
-            -- Try with a boolean argument (common for SellAll)
-            pcall(function()
-                if sellRemote:IsA("RemoteEvent") then
-                    sellRemote:FireServer(true)
-                    success = true
-                elseif sellRemote:IsA("RemoteFunction") then
-                    sellRemote:InvokeServer(true)
-                    success = true
+        SkyXOrion:MakeNotification({
+            Name = "Screen Info",
+            Content = "Size: " .. viewportSize.X .. " x " .. viewportSize.Y,
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+})
+
+-- Add content to Weapons Tab
+local WeaponsSection = WeaponsTab:AddSection({
+    Name = "Test Mobile Touch Controls"
+})
+
+-- Demonstrate large touch targets for toggles
+local godModeEnabled = false
+WeaponsSection:AddToggle({
+    Name = "God Mode",
+    Default = false,
+    Callback = function(Value)
+        godModeEnabled = Value
+        
+        SkyXOrion:MakeNotification({
+            Name = "God Mode",
+            Content = Value and "God Mode enabled" or "God Mode disabled",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+        
+        -- In a real script, you'd apply god mode here
+        if Humanoid then
+            task.spawn(function()
+                while godModeEnabled and Humanoid do
+                    Humanoid.Health = Humanoid.MaxHealth
+                    task.wait(0.1)
                 end
             end)
         end
-        
-        if success then
-            OrionLib:MakeNotification({
-                Name = "Auto Sell",
-                Content = "Successfully sold fish",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Sell Failed",
-                Content = "Found sell remote but failed to sell fish",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    else
-        -- Try to teleport to sell area as fallback
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():find("sell") or obj.Name:lower():find("cash")) and 
-               (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
-                
-                if obj:IsA("BasePart") then
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
-                else
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
-                end
-                
-                OrionLib:MakeNotification({
-                    Name = "Auto Sell",
-                    Content = "Teleported to sell area",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-                break
-            end
-        end
-    end
-end
-
--- Function to check if fish rarity is acceptable
-local function isFishRarityAcceptable(fishName)
-    if not fishName or not fishData[fishName] then return false end
-    
-    -- If we have a target fish, only accept that fish
-    if autoFishingSettings.targetFish and autoFishingSettings.targetFish ~= "None" then
-        return fishName == autoFishingSettings.targetFish
-    end
-    
-    local fishInfo = fishData[fishName]
-    local rarity = fishInfo.Rarity
-    
-    if not rarity or not rarityRanking[rarity] or not rarityRanking[autoFishingSettings.minRarity] then
-        return false
-    end
-    
-    return rarityRanking[rarity] >= rarityRanking[autoFishingSettings.minRarity]
-end
-
--- Function to auto fish
-local function startAutoFishing()
-    if not autoFishingSettings.enabled then return end
-    
-    local isRunning = false
-    
-    spawn(function()
-        while autoFishingSettings.enabled do
-            if isRunning then
-                wait(1)
-                continue
-            end
-            
-            isRunning = true
-            
-            -- Try to find the fishing remote
-            local fishingRemote = findFishingRemote()
-            
-            if fishingRemote then
-                -- Try to cast the fishing rod
-                local success = false
-                
-                pcall(function()
-                    if fishingRemote:IsA("RemoteEvent") then
-                        fishingRemote:FireServer()
-                        success = true
-                    elseif fishingRemote:IsA("RemoteFunction") then
-                        fishingRemote:InvokeServer()
-                        success = true
-                    end
-                end)
-                
-                if success then
-                    print("Cast fishing rod")
-                    
-                    -- Wait for a bite
-                    local startTime = os.time()
-                    local fishCaught = false
-                    
-                    while os.time() - startTime < autoFishingSettings.maxFishingTime and not fishCaught and autoFishingSettings.enabled do
-                        -- Check for any indicators of a fish bite
-                        for _, obj in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                            if obj:IsA("TextLabel") or obj:IsA("TextButton") then
-                                if obj.Text:lower():find("catch") or obj.Text:lower():find("reel") then
-                                    fishCaught = true
-                                    break
-                                end
-                            end
-                        end
-                        
-                        -- Also check for any GUI changes indicating a fish
-                        for _, obj in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                            if obj:IsA("Frame") or obj:IsA("ImageLabel") then
-                                if obj.Name:lower():find("fish") or obj.Name:lower():find("catch") or obj.Name:lower():find("bite") then
-                                    if obj.Visible and not obj:FindFirstChild("SkyXChecked") then
-                                        -- Mark this as checked
-                                        local marker = Instance.new("StringValue")
-                                        marker.Name = "SkyXChecked"
-                                        marker.Parent = obj
-                                        
-                                        fishCaught = true
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                        
-                        wait(0.1)
-                    end
-                    
-                    if fishCaught and autoFishingSettings.enabled then
-                        -- Try to catch the fish
-                        pcall(function()
-                            -- Simulate clicking the catch button or pressing space
-                            mouse1click()
-                            VirtualUser:CaptureController()
-                            VirtualUser:ClickButton1(Vector2.new(0, 0))
-                            game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.Space, false, game)
-                        end)
-                        
-                        -- Wait for the caught fish display
-                        wait(1)
-                        
-                        -- Try to determine what fish was caught
-                        local caughtFish = "Unknown Fish"
-                        
-                        for _, obj in pairs(LocalPlayer.PlayerGui:GetDescendants()) do
-                            if obj:IsA("TextLabel") and obj.Visible then
-                                for fishName, _ in pairs(fishData) do
-                                    if obj.Text:find(fishName) then
-                                        caughtFish = fishName
-                                        break
-                                    end
-                                end
-                                
-                                if caughtFish ~= "Unknown Fish" then
-                                    break
-                                end
-                            end
-                        end
-                        
-                        -- Check if this fish meets our rarity criteria
-                        local meetsCriteria = isFishRarityAcceptable(caughtFish)
-                        
-                        -- Update stats
-                        autoFishingSettings.fishCaughtCount = autoFishingSettings.fishCaughtCount + 1
-                        
-                        local fishInfo = fishData[caughtFish]
-                        if fishInfo and fishInfo.Rarity and 
-                           (fishInfo.Rarity == "Legendary" or fishInfo.Rarity == "Mythical" or fishInfo.Rarity == "Secret") then
-                            autoFishingSettings.rareCaughtCount = autoFishingSettings.rareCaughtCount + 1
-                        end
-                        
-                        -- Display notification
-                        local rarity = fishInfo and fishInfo.Rarity or "Unknown"
-                        OrionLib:MakeNotification({
-                            Name = "Fish Caught",
-                            Content = "Caught: " .. caughtFish .. " (Rarity: " .. rarity .. ")",
-                            Image = "rbxassetid://4483345998",
-                            Time = 3
-                        })
-                        
-                        -- Auto sell if enabled and fish doesn't meet criteria
-                        if autoFishingSettings.autoSell and 
-                           (not meetsCriteria or 
-                            (not autoFishingSettings.keepLegendaryPlus or 
-                             (fishInfo and fishInfo.Rarity and 
-                              rarityRanking[fishInfo.Rarity] < rarityRanking["Legendary"]))) then
-                            wait(1)
-                            sellFish()
-                        end
-                    end
-                    
-                    -- Wait before casting again
-                    wait(2)
-                else
-                    -- If we failed to cast, wait a bit and try again
-                    wait(5)
-                end
-            else
-                -- If we couldn't find the fishing remote, wait and try again
-                OrionLib:MakeNotification({
-                    Name = "Auto Fishing Error",
-                    Content = "Could not find fishing remote. Make sure you're in a fishing game.",
-                    Image = "rbxassetid://4483345998",
-                    Time = 5
-                })
-                wait(10)
-            end
-            
-            isRunning = false
-        end
-    end)
-end
-
--- Create a Window with mobile-friendly settings
-local Window = OrionLib:MakeWindow({
-    Name = "🌊 SkyX Hub - Fishing 🌊", 
-    HidePremium = false, 
-    SaveConfig = true, 
-    ConfigFolder = "SkyXHub",
-    IntroEnabled = true,
-    IntroText = "SkyX Hub - Keyless",
-    IntroIcon = "rbxassetid://4483345998",
-    Icon = "rbxassetid://4483345998",
-    CloseCallback = function()
-        -- Stop auto fishing when window is closed
-        autoFishingSettings.enabled = false
     end
 })
 
--- Auto Fishing Tab
-local AutoFishTab = Window:MakeTab({
-    Name = "Auto Fish",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Teleport Tab
-local TeleportTab = Window:MakeTab({
-    Name = "Teleport",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Stats Tab
-local StatsTab = Window:MakeTab({
-    Name = "Stats",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Settings Tab
-local SettingsTab = Window:MakeTab({
-    Name = "Settings",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Auto Fishing Tab Elements
-local AutoFishSection = AutoFishTab:AddSection({
-    Name = "Auto Fishing Controls"
-})
-
-AutoFishSection:AddToggle({
-    Name = "Auto Fishing",
-    Default = false,
-    Callback = function(Value)
-        autoFishingSettings.enabled = Value
-        
-        if Value then
-            startAutoFishing()
-            OrionLib:MakeNotification({
-                Name = "Auto Fishing",
-                Content = "Started auto fishing",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "Auto Fishing",
-                Content = "Stopped auto fishing",
-                Image = "rbxassetid://4483345998",
-                Time = 3
-            })
-        end
-    end    
-})
-
-AutoFishSection:AddDropdown({
-    Name = "Minimum Rarity",
-    Default = "Common",
-    Options = {"Trash", "Common", "Uncommon", "Unusual", "Rare", "Legendary", "Mythical", "Secret"},
-    Callback = function(Value)
-        autoFishingSettings.minRarity = Value
-        OrionLib:MakeNotification({
-            Name = "Rarity Filter",
-            Content = "Set minimum rarity to: " .. Value,
+-- Demonstrate buttons with haptic feedback
+WeaponsSection:AddButton({
+    Name = "Give All Weapons",
+    Callback = function()
+        SkyXOrion:MakeNotification({
+            Name = "Weapons",
+            Content = "All weapons added to inventory!",
             Image = "rbxassetid://4483345998",
             Time = 3
+        })
+    end
+})
+
+WeaponsSection:AddButton({
+    Name = "Infinite Ammo",
+    Callback = function()
+        SkyXOrion:MakeNotification({
+            Name = "Ammo",
+            Content = "Infinite ammo enabled!",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+-- Demonstrate sliders with larger touch targets
+WeaponsSection:AddSlider({
+    Name = "Weapon Damage",
+    Min = 1,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(42, 95, 145),
+    Increment = 1,
+    ValueName = "x",
+    Callback = function(Value)
+        SkyXOrion:MakeNotification({
+            Name = "Damage",
+            Content = "Damage set to " .. Value .. "x",
+            Image = "rbxassetid://4483345998",
+            Time = 1
         })
     end    
 })
 
-AutoFishSection:AddToggle({
-    Name = "Auto Sell",
+-- Add content to Farming Tab
+local AutoFarmSection = FarmingTab:AddSection({
+    Name = "Auto Farm Features"
+})
+
+-- Demonstrate toggles with mobile-friendly tap areas
+AutoFarmSection:AddToggle({
+    Name = "Auto Farm",
     Default = false,
     Callback = function(Value)
-        autoFishingSettings.autoSell = Value
-    end    
-})
-
-AutoFishSection:AddToggle({
-    Name = "Keep Legendary+",
-    Default = true,
-    Callback = function(Value)
-        autoFishingSettings.keepLegendaryPlus = Value
-    end    
-})
-
-AutoFishSection:AddButton({
-    Name = "Sell Fish Now",
-    Callback = function()
-        sellFish()
+        SkyXOrion:MakeNotification({
+            Name = "Auto Farm",
+            Content = Value and "Auto farming enabled" or "Auto farming disabled",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
     end
 })
 
-AutoFishSection:AddSlider({
-    Name = "Max Fishing Time",
-    Min = 30,
-    Max = 240,
-    Default = 120,
-    Color = Color3.fromRGB(0, 162, 255),
-    Increment = 10,
-    ValueName = "seconds",
+AutoFarmSection:AddToggle({
+    Name = "Auto Collect Items",
+    Default = false,
     Callback = function(Value)
-        autoFishingSettings.maxFishingTime = Value
+        SkyXOrion:MakeNotification({
+            Name = "Items",
+            Content = Value and "Auto collect enabled" or "Auto collect disabled",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+-- Demonstrate large buttons that are easy to tap
+AutoFarmSection:AddButton({
+    Name = "Collect All Nearby Items",
+    Callback = function()
+        SkyXOrion:MakeNotification({
+            Name = "Items",
+            Content = "Collected all nearby items!",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+local FarmSettingsSection = FarmingTab:AddSection({
+    Name = "Farm Settings"
+})
+
+-- Show a slider with larger touch area
+FarmSettingsSection:AddSlider({
+    Name = "Farm Radius",
+    Min = 10,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(42, 95, 145),
+    Increment = 5,
+    ValueName = "studs",
+    Callback = function(Value)
+        SkyXOrion:MakeNotification({
+            Name = "Farm Radius",
+            Content = "Set to " .. Value .. " studs",
+            Image = "rbxassetid://4483345998",
+            Time = 1
+        })
     end    
 })
 
--- Teleport Tab Elements
+-- Add content to Teleport Tab
 local TeleportSection = TeleportTab:AddSection({
     Name = "Teleport Locations"
+})
+
+-- Add teleport buttons with nice spacing for mobile taps
+TeleportSection:AddButton({
+    Name = "Teleport to Spawn",
+    Callback = function()
+        SkyXOrion:MakeNotification({
+            Name = "Teleport",
+            Content = "Teleported to Spawn",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+        
+        -- In a real script you'd teleport the player
+        if HumanoidRootPart then
+            task.spawn(function()
+                local spawnPos = workspace:FindFirstChild("SpawnLocation")
+                if spawnPos then
+                    HumanoidRootPart.CFrame = spawnPos.CFrame + Vector3.new(0, 5, 0)
+                end
+            end)
+        end
+    end
 })
 
 TeleportSection:AddButton({
     Name = "Teleport to Shop",
     Callback = function()
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():find("shop") or obj.Name:lower():find("store")) and 
-                (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
-                
-                if obj:IsA("BasePart") then
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
-                else
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
-                end
-                
-                OrionLib:MakeNotification({
-                    Name = "Teleport",
-                    Content = "Teleported to shop area",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-                break
-            end
-        end
-    end
-})
-
-TeleportSection:AddButton({
-    Name = "Teleport to Sell",
-    Callback = function()
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():find("sell") or obj.Name:lower():find("cash")) and 
-                (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
-                
-                if obj:IsA("BasePart") then
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
-                else
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
-                end
-                
-                OrionLib:MakeNotification({
-                    Name = "Teleport",
-                    Content = "Teleported to sell area",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-                break
-            end
-        end
-    end
-})
-
-TeleportSection:AddButton({
-    Name = "Teleport to Dock",
-    Callback = function()
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():find("dock") or obj.Name:lower():find("pier")) and 
-                (obj:IsA("BasePart") or (obj:IsA("Model") and obj.PrimaryPart)) then
-                
-                if obj:IsA("BasePart") then
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.Position + Vector3.new(0, 5, 0)))
-                else
-                    Character:SetPrimaryPartCFrame(CFrame.new(obj.PrimaryPart.Position + Vector3.new(0, 5, 0)))
-                end
-                
-                OrionLib:MakeNotification({
-                    Name = "Teleport",
-                    Content = "Teleported to dock area",
-                    Image = "rbxassetid://4483345998",
-                    Time = 3
-                })
-                break
-            end
-        end
-    end
-})
-
--- Stats Tab Elements
-local StatsSection = StatsTab:AddSection({
-    Name = "Fishing Statistics"
-})
-
--- Create labels for fish stats
-local fishCountLabel = StatsSection:AddLabel("Total Fish Caught: 0")
-local rareFishLabel = StatsSection:AddLabel("Rare/Legendary Fish: 0")
-
--- Update stats periodically
-spawn(function()
-    while wait(1) do
-        if not fishCountLabel or not rareFishLabel then break end
-        
-        fishCountLabel:Set("Total Fish Caught: " .. autoFishingSettings.fishCaughtCount)
-        rareFishLabel:Set("Rare/Legendary Fish: " .. autoFishingSettings.rareCaughtCount)
-    end
-end)
-
--- Settings Tab Elements
-local SettingsSection = SettingsTab:AddSection({
-    Name = "Script Settings"
-})
-
-SettingsSection:AddToggle({
-    Name = "Anti-AFK",
-    Default = true,
-    Callback = function(Value)
-        -- Anti-AFK is already set up, this is just a visual toggle
-    end    
-})
-
-SettingsSection:AddButton({
-    Name = "Copy Discord Invite",
-    Callback = function()
-        pcall(function()
-            setclipboard("https://discord.gg/ugyvkJXhFh")
-        end)
-        OrionLib:MakeNotification({
-            Name = "Discord",
-            Content = "Invite link copied to clipboard",
+        SkyXOrion:MakeNotification({
+            Name = "Teleport",
+            Content = "Teleported to Shop",
             Image = "rbxassetid://4483345998",
             Time = 3
         })
     end
 })
 
-SettingsSection:AddButton({
-    Name = "Destroy GUI",
+TeleportSection:AddButton({
+    Name = "Teleport to Boss Arena",
     Callback = function()
-        autoFishingSettings.enabled = false
-        globalEnv.SkyXFishingScriptLoaded = false
-        
-        OrionLib:Destroy()
-        OrionLib:MakeNotification({
-            Name = "Closing",
-            Content = "SkyX Fishing GUI closed",
+        SkyXOrion:MakeNotification({
+            Name = "Teleport",
+            Content = "Teleported to Boss Arena",
             Image = "rbxassetid://4483345998",
             Time = 3
         })
     end
 })
 
--- Show initial notification
-OrionLib:MakeNotification({
-    Name = "SkyX Hub",
-    Content = "Fishing Script loaded successfully!",
-    Image = "rbxassetid://4483345998",
+-- Add content to Settings Tab to demonstrate UI themes
+local ThemeSection = SettingsTab:AddSection({
+    Name = "UI Themes"
+})
+
+-- Add theme buttons
+ThemeSection:AddButton({
+    Name = "Ocean Theme",
+    Callback = function()
+        if SkyXOrion.SelectedTheme and SkyXOrion.SetTheme then
+            SkyXOrion.SelectedTheme = "Ocean"
+            SkyXOrion:SetTheme()
+        end
+        
+        SkyXOrion:MakeNotification({
+            Name = "Theme",
+            Content = "Changed to Ocean theme",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+ThemeSection:AddButton({
+    Name = "Midnight Theme",
+    Callback = function()
+        if SkyXOrion.SelectedTheme and SkyXOrion.SetTheme then
+            SkyXOrion.SelectedTheme = "Midnight"
+            SkyXOrion:SetTheme()
+        end
+        
+        SkyXOrion:MakeNotification({
+            Name = "Theme",
+            Content = "Changed to Midnight theme",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+ThemeSection:AddButton({
+    Name = "Default Theme",
+    Callback = function()
+        if SkyXOrion.SelectedTheme and SkyXOrion.SetTheme then
+            SkyXOrion.SelectedTheme = "Default"
+            SkyXOrion:SetTheme()
+        end
+        
+        SkyXOrion:MakeNotification({
+            Name = "Theme",
+            Content = "Changed to Default theme",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+local InfoSection = SettingsTab:AddSection({
+    Name = "Mobile UI Demo Information"
+})
+
+InfoSection:AddLabel({
+    Name = "SkyX Hub - Mobile UI Demo"
+})
+
+InfoSection:AddLabel({
+    Name = "Enhanced features for mobile devices:"
+})
+
+InfoSection:AddLabel({
+    Name = "• Swipe to navigate between tabs"
+})
+
+InfoSection:AddLabel({
+    Name = "• Double-tap to center UI"
+})
+
+InfoSection:AddLabel({
+    Name = "• Larger touch targets for all elements"
+})
+
+InfoSection:AddLabel({
+    Name = "• Optimized performance for mobile"
+})
+
+-- Show a welcome notification when the script is loaded
+SkyXOrion:MakeNotification({
+    Name = "Mobile UI Demo Loaded",
+    Content = "Swipe between tabs to try the mobile features!",
+    Image = "rbxassetid://10618644218",
     Time = 5
 })
 
--- Return the configuration for external access
-return autoFishingSettings
+-- Show additional tip about double-tap feature
+SkyXOrion:MakeNotification({
+    Name = "Mobile Tip",
+    Content = "Double-tap the top bar to center the UI!",
+    Image = "rbxassetid://4483345998",
+    Time = 5
+})
