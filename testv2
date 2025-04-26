@@ -1,1310 +1,847 @@
 --[[
-    SkyX Hub - Blox Fruits
-    Direct implementation of Fluent script wimmmmmmmmmmmmmmmmmmmmmmmmth SkyX MM2 UI
+    🌊 SkyX Hub - Blox Fruits (Fluent UI Version) 🌊
+    
+    Auto Farm with quest automation using Fluent UI
+    Mobile-compatible with optimized performance
 ]]
 
--- Check if correct game
+-- Detect if we're in Blox Fruits
 if game.PlaceId ~= 2753915549 and game.PlaceId ~= 4442272183 and game.PlaceId ~= 7449423635 then
-    game.StarterGui:SetCore("SendNotification", {
+    -- Wrong game notification
+    game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "SkyX Hub",
-        Text = "This script is designed for Blox Fruits. Please use our universal script instead.",
+        Text = "This script is designed for Blox Fruits!",
         Duration = 5
     })
     return
 end
 
--- SkyX UI Library
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
-local LocalPlayer = game:GetService("Players").LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-
--- UI Settings
-local SkyXUI = {}
-SkyXUI.Settings = {
-    Theme = {
-        BackgroundColor = Color3.fromRGB(25, 25, 35),
-        SidebarColor = Color3.fromRGB(30, 30, 45),
-        PrimaryColor = Color3.fromRGB(90, 120, 240),
-        DangerColor = Color3.fromRGB(240, 70, 90),
-        SuccessColor = Color3.fromRGB(70, 200, 120),
-        WarningColor = Color3.fromRGB(240, 180, 60),
-        FontColor = Color3.fromRGB(255, 255, 255)
-    },
-    KeyBindEnabled = true,
-    KeyBind = Enum.KeyCode.RightControl
-}
-
--- Core UI Elements
-local MainUI = Instance.new("ScreenGui")
-MainUI.Name = "SkyXHub"
-MainUI.Parent = game.CoreGui
-MainUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-MainUI.ResetOnSpawn = false
-
-local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Parent = MainUI
-MainFrame.BackgroundColor3 = SkyXUI.Settings.Theme.BackgroundColor
-MainFrame.BorderSizePixel = 0
-MainFrame.Position = UDim2.new(0.5, -300, 0.5, -175)
-MainFrame.Size = UDim2.new(0, 600, 0, 350)
-MainFrame.ClipsDescendants = true
-MainFrame.Active = true
-MainFrame.Draggable = true
-
-local TopBar = Instance.new("Frame")
-TopBar.Name = "TopBar"
-TopBar.Parent = MainFrame
-TopBar.BackgroundColor3 = SkyXUI.Settings.Theme.PrimaryColor
-TopBar.BorderSizePixel = 0
-TopBar.Position = UDim2.new(0, 0, 0, 0)
-TopBar.Size = UDim2.new(1, 0, 0, 30)
-
-local TopBarTitle = Instance.new("TextLabel")
-TopBarTitle.Name = "Title"
-TopBarTitle.Parent = TopBar
-TopBarTitle.BackgroundTransparency = 1
-TopBarTitle.Position = UDim2.new(0, 10, 0, 0)
-TopBarTitle.Size = UDim2.new(1, -20, 1, 0)
-TopBarTitle.Font = Enum.Font.GothamSemibold
-TopBarTitle.Text = "🌊 SkyX Hub - Blox Fruits 🌊"
-TopBarTitle.TextColor3 = SkyXUI.Settings.Theme.FontColor
-TopBarTitle.TextSize = 16
-TopBarTitle.TextXAlignment = Enum.TextXAlignment.Left
-
-local CloseButton = Instance.new("TextButton")
-CloseButton.Name = "CloseButton"
-CloseButton.Parent = TopBar
-CloseButton.BackgroundTransparency = 1
-CloseButton.Position = UDim2.new(1, -25, 0, 5)
-CloseButton.Size = UDim2.new(0, 20, 0, 20)
-CloseButton.Font = Enum.Font.GothamBold
-CloseButton.Text = "X"
-CloseButton.TextColor3 = SkyXUI.Settings.Theme.FontColor
-CloseButton.TextSize = 14
-CloseButton.MouseButton1Click:Connect(function()
-    MainUI:Destroy()
-end)
-
-local TabHolder = Instance.new("Frame")
-TabHolder.Name = "TabHolder"
-TabHolder.Parent = MainFrame
-TabHolder.BackgroundColor3 = SkyXUI.Settings.Theme.SidebarColor
-TabHolder.BorderSizePixel = 0
-TabHolder.Position = UDim2.new(0, 0, 0, 30)
-TabHolder.Size = UDim2.new(0, 150, 1, -30)
-
-local TabList = Instance.new("ScrollingFrame")
-TabList.Name = "TabList"
-TabList.Parent = TabHolder
-TabList.Active = true
-TabList.BackgroundTransparency = 1
-TabList.BorderSizePixel = 0
-TabList.Position = UDim2.new(0, 0, 0, 10)
-TabList.Size = UDim2.new(1, 0, 1, -20)
-TabList.CanvasSize = UDim2.new(0, 0, 0, 0)
-TabList.ScrollBarThickness = 0
-TabList.AutomaticCanvasSize = Enum.AutomaticSize.Y
-
-local TabListLayout = Instance.new("UIListLayout")
-TabListLayout.Parent = TabList
-TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-TabListLayout.Padding = UDim.new(0, 5)
-
-local ContentFrame = Instance.new("Frame")
-ContentFrame.Name = "ContentFrame"
-ContentFrame.Parent = MainFrame
-ContentFrame.BackgroundTransparency = 1
-ContentFrame.BorderSizePixel = 0
-ContentFrame.Position = UDim2.new(0, 150, 0, 30)
-ContentFrame.Size = UDim2.new(1, -150, 1, -30)
-
--- UI Functions
-local tabs = {}
-local currentTab = nil
-
-function SkyXUI:CreateTab(name)
-    local tabButton = Instance.new("TextButton")
-    tabButton.Name = name.."Tab"
-    tabButton.Parent = TabList
-    tabButton.BackgroundColor3 = SkyXUI.Settings.Theme.SidebarColor
-    tabButton.BorderSizePixel = 0
-    tabButton.Size = UDim2.new(1, -10, 0, 30)
-    tabButton.Position = UDim2.new(0, 5, 0, 0)
-    tabButton.Font = Enum.Font.GothamSemibold
-    tabButton.Text = name
-    tabButton.TextColor3 = SkyXUI.Settings.Theme.FontColor
-    tabButton.TextSize = 14
-    tabButton.AutoButtonColor = false
-    
-    local tabButtonCorner = Instance.new("UICorner")
-    tabButtonCorner.CornerRadius = UDim.new(0, 4)
-    tabButtonCorner.Parent = tabButton
-    
-    local tabPage = Instance.new("ScrollingFrame")
-    tabPage.Name = name.."Page"
-    tabPage.Parent = ContentFrame
-    tabPage.Active = true
-    tabPage.BackgroundTransparency = 1
-    tabPage.BorderSizePixel = 0
-    tabPage.Position = UDim2.new(0, 0, 0, 0)
-    tabPage.Size = UDim2.new(1, 0, 1, 0)
-    tabPage.ScrollBarThickness = 4
-    tabPage.ScrollBarImageColor3 = SkyXUI.Settings.Theme.PrimaryColor
-    tabPage.CanvasSize = UDim2.new(0, 0, 0, 0)
-    tabPage.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    tabPage.Visible = false
-    
-    local tabPagePadding = Instance.new("UIPadding")
-    tabPagePadding.Parent = tabPage
-    tabPagePadding.PaddingLeft = UDim.new(0, 10)
-    tabPagePadding.PaddingRight = UDim.new(0, 10)
-    tabPagePadding.PaddingTop = UDim.new(0, 10)
-    
-    local tabPageLayout = Instance.new("UIListLayout")
-    tabPageLayout.Parent = tabPage
-    tabPageLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabPageLayout.Padding = UDim.new(0, 10)
-    
-    -- Tab button click handler
-    tabButton.MouseButton1Click:Connect(function()
-        -- Hide all tabs
-        for _, tab in pairs(tabs) do
-            tab.Page.Visible = false
-            tab.Button.BackgroundColor3 = SkyXUI.Settings.Theme.SidebarColor
-        end
-        
-        -- Show selected tab
-        tabPage.Visible = true
-        tabButton.BackgroundColor3 = SkyXUI.Settings.Theme.PrimaryColor
-        currentTab = name
-    end)
-    
-    -- Store tab info
-    table.insert(tabs, {
-        Name = name,
-        Button = tabButton,
-        Page = tabPage
-    })
-    
-    -- Auto-select first tab
-    if #tabs == 1 then
-        tabPage.Visible = true
-        tabButton.BackgroundColor3 = SkyXUI.Settings.Theme.PrimaryColor
-        currentTab = name
-    end
-    
-    -- Tab object with methods for adding elements
-    local tab = {}
-    
-    function tab:CreateSection(sectionName)
-        local section = Instance.new("Frame")
-        section.Name = sectionName.."Section"
-        section.Parent = tabPage
-        section.BackgroundColor3 = SkyXUI.Settings.Theme.SidebarColor
-        section.BorderSizePixel = 0
-        section.Size = UDim2.new(1, 0, 0, 30)
-        section.AutomaticSize = Enum.AutomaticSize.Y
-        
-        local sectionCorner = Instance.new("UICorner")
-        sectionCorner.CornerRadius = UDim.new(0, 4)
-        sectionCorner.Parent = section
-        
-        local sectionTitle = Instance.new("TextLabel")
-        sectionTitle.Name = "Title"
-        sectionTitle.Parent = section
-        sectionTitle.BackgroundTransparency = 1
-        sectionTitle.Position = UDim2.new(0, 10, 0, 0)
-        sectionTitle.Size = UDim2.new(1, -20, 0, 30)
-        sectionTitle.Font = Enum.Font.GothamSemibold
-        sectionTitle.Text = sectionName
-        sectionTitle.TextColor3 = SkyXUI.Settings.Theme.FontColor
-        sectionTitle.TextSize = 14
-        sectionTitle.TextXAlignment = Enum.TextXAlignment.Left
-        
-        local sectionContent = Instance.new("Frame")
-        sectionContent.Name = "Content"
-        sectionContent.Parent = section
-        sectionContent.BackgroundTransparency = 1
-        sectionContent.BorderSizePixel = 0
-        sectionContent.Position = UDim2.new(0, 0, 0, 30)
-        sectionContent.Size = UDim2.new(1, 0, 0, 0)
-        sectionContent.AutomaticSize = Enum.AutomaticSize.Y
-        
-        local sectionPadding = Instance.new("UIPadding")
-        sectionPadding.Parent = sectionContent
-        sectionPadding.PaddingLeft = UDim.new(0, 10)
-        sectionPadding.PaddingRight = UDim.new(0, 10)
-        sectionPadding.PaddingBottom = UDim.new(0, 10)
-        
-        local sectionLayout = Instance.new("UIListLayout")
-        sectionLayout.Parent = sectionContent
-        sectionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        sectionLayout.Padding = UDim.new(0, 8)
-        
-        -- Section object with methods for adding elements
-        local sectionObj = {}
-        
-        -- Add Toggle
-        function sectionObj:AddToggle(toggleConfig)
-            toggleConfig = toggleConfig or {}
-            toggleConfig.Name = toggleConfig.Name or "Toggle"
-            toggleConfig.Default = toggleConfig.Default or false
-            toggleConfig.Callback = toggleConfig.Callback or function() end
-            toggleConfig.Flag = toggleConfig.Flag or nil
-            
-            local toggleValue = toggleConfig.Default
-            
-            local toggle = Instance.new("Frame")
-            toggle.Name = toggleConfig.Name.."Toggle"
-            toggle.Parent = sectionContent
-            toggle.BackgroundTransparency = 1
-            toggle.Size = UDim2.new(1, 0, 0, 25)
-            
-            local toggleButton = Instance.new("TextButton")
-            toggleButton.Name = "Button"
-            toggleButton.Parent = toggle
-            toggleButton.BackgroundColor3 = SkyXUI.Settings.Theme.BackgroundColor
-            toggleButton.BorderSizePixel = 0
-            toggleButton.Position = UDim2.new(1, -50, 0, 0)
-            toggleButton.Size = UDim2.new(0, 40, 0, 20)
-            toggleButton.Font = Enum.Font.SourceSans
-            toggleButton.Text = ""
-            toggleButton.AutoButtonColor = false
-            
-            local toggleCorner = Instance.new("UICorner")
-            toggleCorner.CornerRadius = UDim.new(0, 10)
-            toggleCorner.Parent = toggleButton
-            
-            local toggleCircle = Instance.new("Frame")
-            toggleCircle.Name = "Circle"
-            toggleCircle.Parent = toggleButton
-            toggleCircle.BackgroundColor3 = SkyXUI.Settings.Theme.FontColor
-            toggleCircle.BorderSizePixel = 0
-            toggleCircle.Position = UDim2.new(0, 2, 0.5, -8)
-            toggleCircle.Size = UDim2.new(0, 16, 0, 16)
-            
-            local toggleCircleCorner = Instance.new("UICorner")
-            toggleCircleCorner.CornerRadius = UDim.new(1, 0)
-            toggleCircleCorner.Parent = toggleCircle
-            
-            local toggleLabel = Instance.new("TextLabel")
-            toggleLabel.Name = "Label"
-            toggleLabel.Parent = toggle
-            toggleLabel.BackgroundTransparency = 1
-            toggleLabel.Position = UDim2.new(0, 5, 0, 0)
-            toggleLabel.Size = UDim2.new(1, -60, 1, 0)
-            toggleLabel.Font = Enum.Font.Gotham
-            toggleLabel.Text = toggleConfig.Name
-            toggleLabel.TextColor3 = SkyXUI.Settings.Theme.FontColor
-            toggleLabel.TextSize = 14
-            toggleLabel.TextXAlignment = Enum.TextXAlignment.Left
-            
-            -- Toggle functionality
-            local function updateToggle()
-                if toggleValue then
-                    TweenService:Create(toggleButton, TweenInfo.new(0.2), {BackgroundColor3 = SkyXUI.Settings.Theme.SuccessColor}):Play()
-                    TweenService:Create(toggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(1, -18, 0.5, -8)}):Play()
-                else
-                    TweenService:Create(toggleButton, TweenInfo.new(0.2), {BackgroundColor3 = SkyXUI.Settings.Theme.BackgroundColor}):Play()
-                    TweenService:Create(toggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8)}):Play()
-                end
-                toggleConfig.Callback(toggleValue)
-            end
-            
-            toggleButton.MouseButton1Click:Connect(function()
-                toggleValue = not toggleValue
-                updateToggle()
-            end)
-            
-            -- Initialize with default value
-            if toggleValue then
-                TweenService:Create(toggleButton, TweenInfo.new(0), {BackgroundColor3 = SkyXUI.Settings.Theme.SuccessColor}):Play()
-                TweenService:Create(toggleCircle, TweenInfo.new(0), {Position = UDim2.new(1, -18, 0.5, -8)}):Play()
-            end
-            
-            -- Toggle object with methods
-            local toggleObj = {}
-            
-            function toggleObj:SetValue(value)
-                toggleValue = value
-                updateToggle()
-            end
-            
-            function toggleObj:GetValue()
-                return toggleValue
-            end
-            
-            return toggleObj
-        end
-        
-        -- Add Button
-        function sectionObj:AddButton(buttonConfig)
-            buttonConfig = buttonConfig or {}
-            buttonConfig.Name = buttonConfig.Name or "Button"
-            buttonConfig.Callback = buttonConfig.Callback or function() end
-            
-            local button = Instance.new("TextButton")
-            button.Name = buttonConfig.Name.."Button"
-            button.Parent = sectionContent
-            button.BackgroundColor3 = SkyXUI.Settings.Theme.PrimaryColor
-            button.BorderSizePixel = 0
-            button.Size = UDim2.new(1, 0, 0, 30)
-            button.Font = Enum.Font.Gotham
-            button.Text = buttonConfig.Name
-            button.TextColor3 = SkyXUI.Settings.Theme.FontColor
-            button.TextSize = 14
-            button.AutoButtonColor = false
-            
-            local buttonCorner = Instance.new("UICorner")
-            buttonCorner.CornerRadius = UDim.new(0, 4)
-            buttonCorner.Parent = button
-            
-            button.MouseButton1Click:Connect(function()
-                buttonConfig.Callback()
-            end)
-            
-            -- Button hover effect
-            button.MouseEnter:Connect(function()
-                TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(
-                    SkyXUI.Settings.Theme.PrimaryColor.R * 0.9,
-                    SkyXUI.Settings.Theme.PrimaryColor.G * 0.9,
-                    SkyXUI.Settings.Theme.PrimaryColor.B * 0.9
-                )}):Play()
-            end)
-            
-            button.MouseLeave:Connect(function()
-                TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = SkyXUI.Settings.Theme.PrimaryColor}):Play()
-            end)
-            
-            -- Button object with methods
-            local buttonObj = {}
-            
-            function buttonObj:SetText(text)
-                button.Text = text
-            end
-            
-            return buttonObj
-        end
-        
-        -- Add Dropdown
-        function sectionObj:AddDropdown(dropdownConfig)
-            dropdownConfig = dropdownConfig or {}
-            dropdownConfig.Name = dropdownConfig.Name or "Dropdown"
-            dropdownConfig.Options = dropdownConfig.Options or {}
-            dropdownConfig.Default = dropdownConfig.Default or dropdownConfig.Options[1] or ""
-            dropdownConfig.Callback = dropdownConfig.Callback or function() end
-            
-            local selectedOption = dropdownConfig.Default
-            local isOpen = false
-            
-            local dropdown = Instance.new("Frame")
-            dropdown.Name = dropdownConfig.Name.."Dropdown"
-            dropdown.Parent = sectionContent
-            dropdown.BackgroundTransparency = 1
-            dropdown.Size = UDim2.new(1, 0, 0, 30)
-            dropdown.ClipsDescendants = true
-            
-            local dropdownButton = Instance.new("TextButton")
-            dropdownButton.Name = "Button"
-            dropdownButton.Parent = dropdown
-            dropdownButton.BackgroundColor3 = SkyXUI.Settings.Theme.BackgroundColor
-            dropdownButton.BorderSizePixel = 0
-            dropdownButton.Size = UDim2.new(1, 0, 0, 30)
-            dropdownButton.Font = Enum.Font.Gotham
-            dropdownButton.Text = ""
-            dropdownButton.TextColor3 = SkyXUI.Settings.Theme.FontColor
-            dropdownButton.TextSize = 14
-            dropdownButton.AutoButtonColor = false
-            
-            local dropdownCorner = Instance.new("UICorner")
-            dropdownCorner.CornerRadius = UDim.new(0, 4)
-            dropdownCorner.Parent = dropdownButton
-            
-            local dropdownLabel = Instance.new("TextLabel")
-            dropdownLabel.Name = "Label"
-            dropdownLabel.Parent = dropdownButton
-            dropdownLabel.BackgroundTransparency = 1
-            dropdownLabel.Position = UDim2.new(0, 10, 0, 0)
-            dropdownLabel.Size = UDim2.new(0, 200, 1, 0)
-            dropdownLabel.Font = Enum.Font.Gotham
-            dropdownLabel.Text = dropdownConfig.Name .. ": " .. selectedOption
-            dropdownLabel.TextColor3 = SkyXUI.Settings.Theme.FontColor
-            dropdownLabel.TextSize = 14
-            dropdownLabel.TextXAlignment = Enum.TextXAlignment.Left
-            
-            local dropdownArrow = Instance.new("ImageLabel")
-            dropdownArrow.Name = "Arrow"
-            dropdownArrow.Parent = dropdownButton
-            dropdownArrow.BackgroundTransparency = 1
-            dropdownArrow.Position = UDim2.new(1, -25, 0.5, -8)
-            dropdownArrow.Size = UDim2.new(0, 16, 0, 16)
-            dropdownArrow.Image = "rbxassetid://6031091004"
-            dropdownArrow.ImageColor3 = SkyXUI.Settings.Theme.FontColor
-            
-            local optionContainer = Instance.new("Frame")
-            optionContainer.Name = "OptionContainer"
-            optionContainer.Parent = dropdown
-            optionContainer.BackgroundColor3 = SkyXUI.Settings.Theme.BackgroundColor
-            optionContainer.BorderSizePixel = 0
-            optionContainer.Position = UDim2.new(0, 0, 0, 35)
-            optionContainer.Size = UDim2.new(1, 0, 0, 0)
-            optionContainer.AutomaticSize = Enum.AutomaticSize.Y
-            optionContainer.Visible = false
-            
-            local optionLayout = Instance.new("UIListLayout")
-            optionLayout.Parent = optionContainer
-            optionLayout.SortOrder = Enum.SortOrder.LayoutOrder
-            
-            -- Create options
-            local function createOptions()
-                -- Clear existing options
-                for _, child in pairs(optionContainer:GetChildren()) do
-                    if child:IsA("TextButton") then
-                        child:Destroy()
-                    end
-                end
-                
-                -- Create new options
-                for i, optionText in pairs(dropdownConfig.Options) do
-                    local option = Instance.new("TextButton")
-                    option.Name = "Option"
-                    option.Parent = optionContainer
-                    option.BackgroundTransparency = 1
-                    option.Size = UDim2.new(1, 0, 0, 25)
-                    option.Font = Enum.Font.Gotham
-                    option.Text = optionText
-                    option.TextColor3 = SkyXUI.Settings.Theme.FontColor
-                    option.TextSize = 14
-                    
-                    option.MouseButton1Click:Connect(function()
-                        selectedOption = optionText
-                        dropdownLabel.Text = dropdownConfig.Name .. ": " .. selectedOption
-                        isOpen = false
-                        TweenService:Create(dropdown, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 30)}):Play()
-                        optionContainer.Visible = false
-                        TweenService:Create(dropdownArrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
-                        dropdownConfig.Callback(selectedOption)
-                    end)
-                    
-                    option.MouseEnter:Connect(function()
-                        TweenService:Create(option, TweenInfo.new(0.1), {BackgroundTransparency = 0.9}):Play()
-                    end)
-                    
-                    option.MouseLeave:Connect(function()
-                        TweenService:Create(option, TweenInfo.new(0.1), {BackgroundTransparency = 1}):Play()
-                    end)
-                end
-            end
-            
-            createOptions()
-            
-            -- Toggle dropdown
-            dropdownButton.MouseButton1Click:Connect(function()
-                isOpen = not isOpen
-                
-                if isOpen then
-                    optionContainer.Visible = true
-                    TweenService:Create(dropdown, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 30 + optionLayout.AbsoluteContentSize.Y)}):Play()
-                    TweenService:Create(dropdownArrow, TweenInfo.new(0.2), {Rotation = 180}):Play()
-                else
-                    TweenService:Create(dropdown, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 30)}):Play()
-                    TweenService:Create(dropdownArrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
-                    wait(0.2)
-                    optionContainer.Visible = false
-                end
-            end)
-            
-            -- Dropdown object with methods
-            local dropdownObj = {}
-            
-            function dropdownObj:SetOptions(options)
-                dropdownConfig.Options = options
-                createOptions()
-            end
-            
-            function dropdownObj:SetValue(value)
-                if table.find(dropdownConfig.Options, value) then
-                    selectedOption = value
-                    dropdownLabel.Text = dropdownConfig.Name .. ": " .. selectedOption
-                    dropdownConfig.Callback(selectedOption)
-                end
-            end
-            
-            function dropdownObj:GetValue()
-                return selectedOption
-            end
-            
-            return dropdownObj
-        end
-        
-        -- Add Slider
-        function sectionObj:AddSlider(sliderConfig)
-            sliderConfig = sliderConfig or {}
-            sliderConfig.Name = sliderConfig.Name or "Slider"
-            sliderConfig.Min = sliderConfig.Min or 0
-            sliderConfig.Max = sliderConfig.Max or 100
-            sliderConfig.Default = sliderConfig.Default or sliderConfig.Min
-            sliderConfig.Increment = sliderConfig.Increment or 1
-            sliderConfig.Callback = sliderConfig.Callback or function() end
-            
-            local sliderValue = sliderConfig.Default
-            
-            local slider = Instance.new("Frame")
-            slider.Name = sliderConfig.Name.."Slider"
-            slider.Parent = sectionContent
-            slider.BackgroundTransparency = 1
-            slider.Size = UDim2.new(1, 0, 0, 50)
-            
-            local sliderLabel = Instance.new("TextLabel")
-            sliderLabel.Name = "Label"
-            sliderLabel.Parent = slider
-            sliderLabel.BackgroundTransparency = 1
-            sliderLabel.Position = UDim2.new(0, 0, 0, 0)
-            sliderLabel.Size = UDim2.new(1, 0, 0, 20)
-            sliderLabel.Font = Enum.Font.Gotham
-            sliderLabel.Text = sliderConfig.Name .. ": " .. sliderValue
-            sliderLabel.TextColor3 = SkyXUI.Settings.Theme.FontColor
-            sliderLabel.TextSize = 14
-            sliderLabel.TextXAlignment = Enum.TextXAlignment.Left
-            
-            local sliderBackground = Instance.new("Frame")
-            sliderBackground.Name = "Background"
-            sliderBackground.Parent = slider
-            sliderBackground.BackgroundColor3 = SkyXUI.Settings.Theme.BackgroundColor
-            sliderBackground.BorderSizePixel = 0
-            sliderBackground.Position = UDim2.new(0, 0, 0, 25)
-            sliderBackground.Size = UDim2.new(1, 0, 0, 10)
-            
-            local sliderBackgroundCorner = Instance.new("UICorner")
-            sliderBackgroundCorner.CornerRadius = UDim.new(0, 5)
-            sliderBackgroundCorner.Parent = sliderBackground
-            
-            local sliderFill = Instance.new("Frame")
-            sliderFill.Name = "Fill"
-            sliderFill.Parent = sliderBackground
-            sliderFill.BackgroundColor3 = SkyXUI.Settings.Theme.PrimaryColor
-            sliderFill.BorderSizePixel = 0
-            sliderFill.Size = UDim2.new((sliderValue - sliderConfig.Min) / (sliderConfig.Max - sliderConfig.Min), 0, 1, 0)
-            
-            local sliderFillCorner = Instance.new("UICorner")
-            sliderFillCorner.CornerRadius = UDim.new(0, 5)
-            sliderFillCorner.Parent = sliderFill
-            
-            local sliderGrab = Instance.new("TextButton")
-            sliderGrab.Name = "Grab"
-            sliderGrab.Parent = sliderFill
-            sliderGrab.AnchorPoint = Vector2.new(1, 0.5)
-            sliderGrab.BackgroundColor3 = SkyXUI.Settings.Theme.FontColor
-            sliderGrab.BorderSizePixel = 0
-            sliderGrab.Position = UDim2.new(1, 0, 0.5, 0)
-            sliderGrab.Size = UDim2.new(0, 12, 0, 12)
-            sliderGrab.Text = ""
-            sliderGrab.AutoButtonColor = false
-            
-            local sliderGrabCorner = Instance.new("UICorner")
-            sliderGrabCorner.CornerRadius = UDim.new(1, 0)
-            sliderGrabCorner.Parent = sliderGrab
-            
-            -- Slider functionality
-            local function updateSlider(input)
-                local sizeX = math.clamp((input.Position.X - sliderBackground.AbsolutePosition.X) / sliderBackground.AbsoluteSize.X, 0, 1)
-                TweenService:Create(sliderFill, TweenInfo.new(0.1), {Size = UDim2.new(sizeX, 0, 1, 0)}):Play()
-                
-                -- Calculate value based on position with increment
-                local rawValue = sliderConfig.Min + (sliderConfig.Max - sliderConfig.Min) * sizeX
-                sliderValue = math.floor(rawValue / sliderConfig.Increment + 0.5) * sliderConfig.Increment
-                sliderValue = math.clamp(sliderValue, sliderConfig.Min, sliderConfig.Max)
-                
-                sliderLabel.Text = sliderConfig.Name .. ": " .. sliderValue
-                sliderConfig.Callback(sliderValue)
-            end
-            
-            local sliding = false
-            
-            sliderGrab.MouseButton1Down:Connect(function()
-                sliding = true
-            end)
-            
-            UserInputService.InputEnded:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    sliding = false
-                end
-            end)
-            
-            UserInputService.InputChanged:Connect(function(input)
-                if sliding and input.UserInputType == Enum.UserInputType.MouseMovement then
-                    updateSlider(input)
-                end
-            end)
-            
-            sliderBackground.InputBegan:Connect(function(input)
-                if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                    updateSlider(input)
-                    sliding = true
-                end
-            end)
-            
-            -- Slider object with methods
-            local sliderObj = {}
-            
-            function sliderObj:SetValue(value)
-                value = math.clamp(value, sliderConfig.Min, sliderConfig.Max)
-                sliderValue = value
-                sliderLabel.Text = sliderConfig.Name .. ": " .. sliderValue
-                TweenService:Create(sliderFill, TweenInfo.new(0.1), {Size = UDim2.new((sliderValue - sliderConfig.Min) / (sliderConfig.Max - sliderConfig.Min), 0, 1, 0)}):Play()
-                sliderConfig.Callback(sliderValue)
-            end
-            
-            function sliderObj:GetValue()
-                return sliderValue
-            end
-            
-            return sliderObj
-        end
-        
-        return sectionObj
-    end
-    
-    return tab
-end
-
--- Set up key toggle
-if SkyXUI.Settings.KeyBindEnabled then
-    UserInputService.InputBegan:Connect(function(input, processed)
-        if not processed and input.KeyCode == SkyXUI.Settings.KeyBind then
-            MainUI.Enabled = not MainUI.Enabled
-        end
-    end)
-end
-
--- Direct Fluent Code (Core Functionality) -------------------------
------ Beginning of Fluent Script Core -----
-
--- Variables and services
-local player = game.Players.LocalPlayer
+-- Services
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualUser = game:GetService("VirtualUser")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
--- Global variables
-local _G = _G
-_G.AutoLevel = false
-_G.AutoFarm = false
-_G.AutoCandy = false
-_G.AutoNear = false
-_G.AutoRaid = false
-_G.SelectedWeapon = "Melee"
-_G.FastAttack = true
-_G.Fast_Delay = 0.1
-_G.Settings = {
-    MinimumDistance = 5,
-    MaximumDistance = 300
+-- Player references
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Important remote events
+local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+
+-- Global settings
+local Settings = {
+    AutoFarm = false,
+    FastAttack = true,
+    AutoHaki = true,
+    AutoQuest = true,
+    MobAura = false,
+    FarmDistance = 7,
+    FarmMethod = "Behind", -- Behind, Above, Below, Front
+    SelectedWeapon = "Combat",
+    SkillsEnabled = {
+        Z = true,
+        X = true,
+        C = false,
+        V = false
+    },
+    LevelFarm = true, -- Farm based on level
+    NearestFarm = false, -- Farm nearest mobs
+    BossFarm = false, -- Farm bosses
+    ChestFarm = false
 }
 
--- Position
-local posX = 0
-local posY = 30
-local posZ = 0
-
--- Fast Attack Variables
-local CbFw = debug.getupvalues(require(player.PlayerScripts.CombatFramework))
-local CbFw2 = CbFw[2]
-
--- Get current weapon
-function GetCurrentBlade() 
-    local p13 = CbFw2.activeController
-    local ret = p13.blades[1]
-    if not ret then return end
-    while ret.Parent~=game.Players.LocalPlayer.Character do ret=ret.Parent end
-    return ret
-end
-
--- Attack with no cooldown
-function AttackNoCoolDown() 
-    local AC = CbFw2.activeController
-    for i = 1, 1 do 
-        local bladehit = require(game.ReplicatedStorage.CombatFramework.RigLib).getBladeHits(
-            player.Character,
-            {player.Character.HumanoidRootPart},
-            60
-        )
-        local cac = {}
-        local hash = {}
-        for k, v in pairs(bladehit) do
-            if v.Parent:FindFirstChild("HumanoidRootPart") and not hash[v.Parent] then
-                table.insert(cac, v.Parent.HumanoidRootPart)
-                hash[v.Parent] = true
-            end
-        end
-        bladehit = cac
-        if #bladehit > 0 then
-            local u8 = debug.getupvalue(AC.attack, 5)
-            local u9 = debug.getupvalue(AC.attack, 6)
-            local u7 = debug.getupvalue(AC.attack, 4)
-            local u10 = debug.getupvalue(AC.attack, 7)
-            local u12 = debug.getupvalue(AC.attack, 10)
-            local u13 = debug.getupvalue(AC.attack, 11)
-            local u14 = debug.getupvalue(AC.attack, 12)
-            
-            debug.setupvalue(AC.attack, 5, u8)
-            debug.setupvalue(AC.attack, 6, u9)
-            debug.setupvalue(AC.attack, 4, u7)
-            debug.setupvalue(AC.attack, 7, u10)
-            debug.setupvalue(AC.attack, 10, u12)
-            debug.setupvalue(AC.attack, 11, u13)
-            debug.setupvalue(AC.attack, 12, u14)
-            
-            AC.attack(unpack(bladehit))
-        end
-    end
-end
-
--- Automatically activate Buso Haki
-function AutoHaki()
-    if not player.Character:FindFirstChild("HasBuso") then
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Buso")
-    end
-end
-
--- Equip a weapon
-function EquipTool(toolName)
-    if toolName == "Melee" then
-        for i, v in pairs(player.Backpack:GetChildren()) do
-            if v.ToolTip == "Melee" then
-                if player.Backpack:FindFirstChild(tostring(v.Name)) then
-                    local ToolHit = player.Backpack:FindFirstChild(tostring(v.Name))
-                    player.Character.Humanoid:EquipTool(ToolHit)
-                end
-            end
-        end
-    elseif toolName == "Sword" then
-        for i, v in pairs(player.Backpack:GetChildren()) do
-            if v.ToolTip == "Sword" then
-                if player.Backpack:FindFirstChild(tostring(v.Name)) then
-                    local ToolHit = player.Backpack:FindFirstChild(tostring(v.Name))
-                    player.Character.Humanoid:EquipTool(ToolHit)
-                end
-            end
-        end
-    elseif toolName == "Blox Fruit" then
-        for i, v in pairs(player.Backpack:GetChildren()) do
-            if v.ToolTip == "Blox Fruit" then
-                if player.Backpack:FindFirstChild(tostring(v.Name)) then
-                    local ToolHit = player.Backpack:FindFirstChild(tostring(v.Name))
-                    player.Character.Humanoid:EquipTool(ToolHit)
-                end
-            end
-        end
-    end
-end
-
--- Find Mob based on list
-local bringMob = false
-function CheckMonsterName(mob)
-    for i, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
-        if string.find(v.Name, mob) then
-            return true
-        end
-    end
-    return false
-end
-
--- Tween movement
-function Tween(Pos)
-    Distance = (Pos.Position - player.Character.HumanoidRootPart.Position).Magnitude
-    if player.Character.Humanoid.Sit == true then player.Character.Humanoid.Sit = false end
-    pcall(function() tween = game:GetService("TweenService"):Create(player.Character.HumanoidRootPart,TweenInfo.new(Distance/300, Enum.EasingStyle.Linear),{CFrame = Pos}) end)
-    tween:Play()
-    if Distance <= 300 then
-        tween:Cancel()
-        player.Character.HumanoidRootPart.CFrame = Pos
-    end
-    if Distance >= 2000 then
-        tween:Cancel()
-        local CFrame = Pos
-        local tween_d = game:GetService('TweenService'):Create(
-            game.Players.LocalPlayer.Character:WaitForChild('HumanoidRootPart'),
-            TweenInfo.new(0),
-            {CFrame = CFrame}
-        )
-        tween_d:Play()
-    end
-end
-
--- Quest Data
-local MOB_DATA = {
-    -- First Sea
-    ["Bandit"] = {
-        QuestName = "BanditQuest1",
-        QuestLevel = 1,
-        Mon = "Bandit",
-        CFrameQuest = CFrame.new(1060.0158691406, 16.424287796021, 1547.9769287109),
-        CFrameMon = CFrame.new(1038.2711181641, 41.296249389648, 1576.4318847656),
-        MinLevel = 1,
-        MaxLevel = 9
-    },
-    ["Monkey"] = {
-        QuestName = "JungleQuest",
-        QuestLevel = 1,
-        Mon = "Monkey",
-        CFrameQuest = CFrame.new(-1599.8240966797, 36.852081298828, 153.23837280273),
-        CFrameMon = CFrame.new(-1612.3438720703, 55.998806762695, 149.48698425293),
-        MinLevel = 10,
-        MaxLevel = 14
-    },
-    ["Gorilla"] = {
-        QuestName = "JungleQuest",
-        QuestLevel = 2,
-        Mon = "Gorilla",
-        CFrameQuest = CFrame.new(-1599.8240966797, 36.852081298828, 153.23837280273),
-        CFrameMon = CFrame.new(-1301.3186035156, 18.621969604492, -392.54873657227),
-        MinLevel = 15,
-        MaxLevel = 29
-    },
-    -- Second Sea (add others as needed)
-    
-    -- Third Sea (add others as needed)
-}
-
--- Get appropriate quest based on level
-function GetQuestData()
-    local Level = player.Data.Level.Value
-    
-    for mobName, questData in pairs(MOB_DATA) do
-        if Level >= questData.MinLevel and Level <= questData.MaxLevel then
-            return questData
-        end
-    end
-    
-    -- Fallback to a default quest if level doesn't match any range
-    return MOB_DATA["Bandit"]
-end
-
--- Auto Farm System
+-- Connection storage for cleanup
+local Connections = {}
+local ActiveTween = nil
+local CurrentQuest = nil
+local CurrentMob = nil
 local Target = nil
-local FarmConnection = nil
+local Farming = false
+local LastHealth = 0
 
--- Auto Farm Start
-function StartAutoFarm()
-    if _G.AutoFarm or _G.AutoLevel then
-        spawn(function()
-            while _G.AutoFarm or _G.AutoLevel do
-                pcall(function()
-                    local QuestData = GetQuestData()
+-- Sea check
+local CurrentSea = 0
+if game.PlaceId == 2753915549 then
+    CurrentSea = 1
+elseif game.PlaceId == 4442272183 then
+    CurrentSea = 2
+elseif game.PlaceId == 7449423635 then
+    CurrentSea = 3
+end
+
+-- Islands data - Used for quest and mob targeting
+local Islands = {
+    [1] = { -- First Sea
+        {Name = "Pirate Starter Island", Center = Vector3.new(1071.2832, 16.3085976, 1426.86792), 
+         Mobs = {"Bandit", "Pirate"}, QuestNPC = "Pirate Quest Giver", MinLevel = 1},
+        
+        {Name = "Marine Starter Island", Center = Vector3.new(-2573.3374, 6.88881969, 2046.99817), 
+         Mobs = {"Marine Recruit", "Marine Squad Leader"}, QuestNPC = "Marine Quest Giver", MinLevel = 1},
+        
+        {Name = "Middle Town", Center = Vector3.new(-655.824158, 7.88708115, 1436.67908), 
+         Mobs = {"Thug", "Pirate Thug"}, QuestNPC = "Middle Town Quest Giver", MinLevel = 10},
+        
+        {Name = "Jungle", Center = Vector3.new(-1249.77222, 11.8870859, 341.356476),
+         Mobs = {"Monkey", "Gorilla"}, QuestNPC = "Jungle Quest Giver", MinLevel = 15},
+        
+        {Name = "Pirate Village", Center = Vector3.new(-1122.34998, 4.78708982, 3855.91992),
+         Mobs = {"Desert Pirate", "Desert Officer"}, QuestNPC = "Pirate Village Quest Giver", MinLevel = 30},
+         
+        {Name = "Desert", Center = Vector3.new(1094.14587, 6.5, 4192.88721),
+         Mobs = {"Desert Bandit", "Desert Officer"}, QuestNPC = "Desert Quest Giver", MinLevel = 60},
+         
+        {Name = "Snow Island", Center = Vector3.new(1198.00928, 27.0074959, -1211.73376),
+         Mobs = {"Snow Bandit", "Snowman"}, QuestNPC = "Snow Quest Giver", MinLevel = 90},
+         
+        {Name = "Marine Fort", Center = Vector3.new(-4505.375, 20.687294, 4260.55908),
+         Mobs = {"Marine Captain", "Marine Lieutenant"}, QuestNPC = "Marine Quest Giver 2", MinLevel = 120},
+         
+        {Name = "Sky Island", Center = Vector3.new(-4970.21875, 717.707275, -2622.35449),
+         Mobs = {"Sky Bandit", "Dark Master"}, QuestNPC = "Sky Quest Giver", MinLevel = 150},
+         
+        {Name = "Prison", Center = Vector3.new(4875.330078125, 5.6519818305969, 734.85021972656),
+         Mobs = {"Prisoner", "Dangerous Prisoner"}, QuestNPC = "Prison Quest Giver", MinLevel = 190},
+         
+        {Name = "Colosseum", Center = Vector3.new(-1428.35474, 7.38933945, -3014.37305),
+         Mobs = {"Warrior", "Gladiator"}, QuestNPC = "Colosseum Quest Giver", MinLevel = 250}
+    },
+    
+    [2] = { -- Second Sea
+        {Name = "Kingdom of Rose", Center = Vector3.new(-336.519836, 66.1259766, 6207.2998),
+         Mobs = {"Swan Pirate", "Royal Squad"}, QuestNPC = "Rose Kingdom Quest Giver", MinLevel = 700},
+         
+        {Name = "Green Zone", Center = Vector3.new(-2448.5708, 73.0455933, -3210.23047),
+         Mobs = {"Forest Pirate", "Jungle Pirate"}, QuestNPC = "Green Zone Quest Giver", MinLevel = 750},
+         
+        {Name = "Cafe", Center = Vector3.new(-384.01791, 73.0455933, 297.999573),
+         Mobs = {"Cafe Staff", "Chef Pirate"}, QuestNPC = "Cafe Quest Giver", MinLevel = 775},
+         
+        {Name = "Cursed Ship", Center = Vector3.new(923.21252441406, 125.05710601807, 32885.875),
+         Mobs = {"Ship Officer", "Ship Deckhand"}, QuestNPC = "Ship Quest Giver", MinLevel = 850},
+         
+        {Name = "Ice Castle", Center = Vector3.new(6148.4765625, 294.38446044922, -6741.1166992188),
+         Mobs = {"Arctic Warrior", "Snow Lurker"}, QuestNPC = "Ice Quest Giver", MinLevel = 1250},
+         
+        {Name = "Forgotten Island", Center = Vector3.new(-3032.7360839844, 317.89465332031, -10075.373046875),
+         Mobs = {"Island Tiki", "Island Jungle Pirate"}, QuestNPC = "Forgotten Quest Giver", MinLevel = 1350}
+    },
+    
+    [3] = { -- Third Sea
+        {Name = "Port Town", Center = Vector3.new(-279.688, 6.764, 5343.129),
+         Mobs = {"Pirate Millionaire", "Pistol Billionaire"}, QuestNPC = "Port Quest Giver", MinLevel = 1500},
+         
+        {Name = "Hydra Island", Center = Vector3.new(5229.99561, 603.916565, 345.154022),
+         Mobs = {"Hydra Pirate", "Giant Islander"}, QuestNPC = "Hydra Quest Giver", MinLevel = 1600},
+         
+        {Name = "Great Tree", Center = Vector3.new(2174.94873, 28.7312393, -6728.83154),
+         Mobs = {"Forest Pirate", "Mythological Pirate"}, QuestNPC = "Tree Quest Giver", MinLevel = 1700},
+         
+        {Name = "Castle on the Sea", Center = Vector3.new(-5477.62842, 313.794739, -2808.4585),
+         Mobs = {"Castle Guard", "Castle Raider"}, QuestNPC = "Castle Quest Giver", MinLevel = 1800},
+         
+        {Name = "Haunted Castle", Center = Vector3.new(-9506.11035, 142.104858, 5526.82178),
+         Mobs = {"Haunted Spirit", "Revenge Boss"}, QuestNPC = "Haunted Quest Giver", MinLevel = 1900}
+    }
+}
+
+-- Helper function to add connections and track them
+local function AddConnection(signal, callback)
+    local connection = signal:Connect(callback)
+    table.insert(Connections, connection)
+    return connection
+end
+
+-- Function to find the best mob based on player level
+local function FindBestMobForLevel()
+    local playerLevel = LocalPlayer.Data.Level.Value
+    local bestIsland = nil
+    local bestLevelDiff = math.huge
+    
+    for _, island in pairs(Islands[CurrentSea]) do
+        if island.MinLevel <= playerLevel then
+            local levelDiff = playerLevel - island.MinLevel
+            
+            if levelDiff < bestLevelDiff then
+                bestLevelDiff = levelDiff
+                bestIsland = island
+            end
+        end
+    end
+    
+    -- If no appropriate island found, use the lowest level island
+    if not bestIsland then
+        bestIsland = Islands[CurrentSea][1]
+    end
+    
+    return bestIsland.Mobs, bestIsland.QuestNPC, bestIsland.MinLevel, bestIsland.Name
+end
+
+-- Function to get the current quest
+local function GetQuest()
+    if not Settings.AutoQuest then return end
+    
+    local playerLevel = LocalPlayer.Data.Level.Value
+    local targetMobs, questNPC, questLevel, islandName = FindBestMobForLevel()
+    
+    -- Find the quest NPC
+    local npcModel = nil
+    for _, model in pairs(workspace.NPCs:GetChildren()) do
+        if model.Name == questNPC then
+            npcModel = model
+            break
+        end
+    end
+    
+    if npcModel then
+        -- Store the current position
+        local oldPosition = HumanoidRootPart.CFrame
+        
+        -- Teleport to NPC
+        HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
+        
+        -- Wait a bit and get the quest
+        wait(0.5)
+        CommF:InvokeServer("StartQuest", questNPC, questLevel)
+        
+        -- Return to the original position
+        HumanoidRootPart.CFrame = oldPosition
+        
+        -- Set current quest
+        CurrentQuest = {
+            NPC = questNPC,
+            Level = questLevel,
+            Mobs = targetMobs,
+            Island = islandName
+        }
+        
+        return CurrentQuest
+    end
+    
+    return nil
+end
+
+-- Function to find target mob
+local function FindTarget()
+    local nearestDistance = math.huge
+    local nearestMob = nil
+    
+    -- Get target mobs based on quest or level
+    local targetMobs = {}
+    
+    if CurrentQuest and Settings.AutoQuest then
+        targetMobs = CurrentQuest.Mobs
+    else
+        targetMobs = FindBestMobForLevel()
+    end
+    
+    -- Find nearest mob from target list
+    for _, mob in pairs(workspace.Enemies:GetChildren()) do
+        if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
+            for _, targetName in pairs(targetMobs) do
+                if mob.Name:find(targetName) then
+                    local distance = (HumanoidRootPart.Position - mob.HumanoidRootPart.Position).Magnitude
                     
-                    if not player.PlayerGui.Main.Quest.Visible then
-                        -- Get quest if not already
-                        Tween(QuestData.CFrameQuest)
-                        wait(1)
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", QuestData.QuestName, QuestData.QuestLevel)
-                    else
-                        -- Check if quest is valid
-                        if CheckMonsterName(QuestData.Mon) then
-                            for i, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
-                                if string.find(v.Name, QuestData.Mon) and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-                                    repeat wait(_G.Fast_Delay)
-                                        if _G.FastAttack then
-                                            AttackNoCoolDown()
-                                        end
-                                        bringMob = true
-                                        AutoHaki()
-                                        EquipTool(_G.SelectedWeapon)
-                                        Tween(v.HumanoidRootPart.CFrame * CFrame.new(posX, posY, posZ))
-                                        v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                                        v.HumanoidRootPart.Transparency = 1
-                                        v.Humanoid.JumpPower = 0
-                                        v.Humanoid.WalkSpeed = 0
-                                        v.HumanoidRootPart.CanCollide = false
-                                        Target = v
-                                        
-                                        if _G.NoClip then
-                                            setfflag("HumanoidParallelRemoveNoPhysics", "False")
-                                            setfflag("HumanoidParallelRemoveNoPhysicsNoSimulate2", "False")
-                                            game:GetService("Players").LocalPlayer.Character.Humanoid:ChangeState(11)
-                                        end
-                                    until not _G.AutoFarm and not _G.AutoLevel or not v.Parent or v.Humanoid.Health <= 0 or not player.PlayerGui.Main.Quest.Visible
-                                    bringMob = false
-                                end
-                            end
-                        else
-                            -- Teleport to monster spawn
-                            Tween(QuestData.CFrameMon)
-                        end
+                    if distance < nearestDistance then
+                        nearestDistance = distance
+                        nearestMob = mob
                     end
-                end)
-                wait()
-            end
-        end)
-    end
-end
-
--- Bring Mob System (collect enemies)
-spawn(function()
-    while task.wait() do
-        if bringMob and Target then
-            pcall(function()
-                for i, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
-                    if v.Name == Target.Name and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 and (v.HumanoidRootPart.Position - Target.HumanoidRootPart.Position).Magnitude <= 350 then
-                        v.HumanoidRootPart.CFrame = Target.HumanoidRootPart.CFrame
-                        v.HumanoidRootPart.CanCollide = false
-                        v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-                        v.Humanoid.WalkSpeed = 0
-                        v.Humanoid.JumpPower = 0
-                        if v.Humanoid:FindFirstChild("Animator") then
-                            v.Humanoid.Animator:Destroy()
-                        end
-                        sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", math.huge)
-                    end
-                end
-            end)
-        end
-    end
-end)
-
--- Enhanced Targeting System
-function FindNearestMonster(QuestMob)
-    local Closest = nil
-    local ClosestDistance = math.huge
-    
-    for i, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
-        if string.find(v.Name, QuestMob) and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-            local Distance = (v.HumanoidRootPart.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
-            
-            if Distance < ClosestDistance then
-                Closest = v
-                ClosestDistance = Distance
-            end
-        end
-    end
-    
-    return Closest
-end
-
--- Advanced Quest System
-function AutoQuest(QuestData)
-    if not player.PlayerGui.Main.Quest.Visible then
-        repeat
-            Tween(QuestData.CFrameQuest)
-            wait(1)
-            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", QuestData.QuestName, QuestData.QuestLevel)
-        until player.PlayerGui.Main.Quest.Visible or not (_G.AutoFarm or _G.AutoLevel)
-    end
-end
-
--- Fast Farming Enhancements
-function OptimizeCharacter()
-    if _G.NoClip then
-        setfflag("HumanoidParallelRemoveNoPhysics", "False")
-        setfflag("HumanoidParallelRemoveNoPhysicsNoSimulate2", "False")
-        game:GetService("Players").LocalPlayer.Character.Humanoid:ChangeState(11)
-    end
-    
-    for _, v in pairs(player.Character:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.CanCollide = false
-        end
-    end
-end
-
--- Enhanced Bring Mob System with hitbox manipulation
-function EnhanceBringMob()
-    if not Target then return end
-    
-    for i, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
-        if (v.Name == Target.Name or string.find(v.Name, Target.Name:split(" ")[1])) and 
-           v:FindFirstChild("Humanoid") and 
-           v:FindFirstChild("HumanoidRootPart") and 
-           v.Humanoid.Health > 0 and 
-           (v.HumanoidRootPart.Position - Target.HumanoidRootPart.Position).Magnitude <= 350 then
-            
-            v.HumanoidRootPart.CFrame = Target.HumanoidRootPart.CFrame
-            v.HumanoidRootPart.CanCollide = false
-            v.HumanoidRootPart.Size = Vector3.new(60, 60, 60)
-            v.Humanoid.WalkSpeed = 0
-            v.Humanoid.JumpPower = 0
-            
-            -- Advanced mob control
-            if v.Humanoid:FindFirstChild("Animator") then
-                v.Humanoid.Animator:Destroy()
-            end
-            
-            -- Remove special abilities
-            for _, x in pairs(v:GetChildren()) do
-                if x:IsA("Script") and (x.Name == "Ability" or x.Name == "SpecialAttack") then
-                    x:Destroy()
+                    
+                    break
                 end
             end
-            
-            sethiddenproperty(game.Players.LocalPlayer, "SimulationRadius", math.huge)
         end
+    end
+    
+    return nearestMob, nearestDistance
+end
+
+-- Function to get farming position based on method
+local function GetFarmingPosition(targetHRP)
+    local targetCFrame = targetHRP.CFrame
+    local farmDistance = Settings.FarmDistance
+    
+    if Settings.FarmMethod == "Behind" then
+        return targetCFrame * CFrame.new(0, 0, farmDistance)
+    elseif Settings.FarmMethod == "Above" then
+        return targetCFrame * CFrame.new(0, farmDistance, 0)
+    elseif Settings.FarmMethod == "Below" then
+        return targetCFrame * CFrame.new(0, -farmDistance, 0)
+    elseif Settings.FarmMethod == "Front" then
+        return targetCFrame * CFrame.new(0, 0, -farmDistance)
+    else
+        -- Default to behind
+        return targetCFrame * CFrame.new(0, 0, farmDistance)
     end
 end
 
--- Start an enhanced bring mob system
-spawn(function()
-    while wait(0.1) do
-        if bringMob and Target then
-            pcall(function()
-                EnhanceBringMob()
-            end)
+-- Function to activate Buso Haki
+local function ActivateBusoHaki()
+    if not Settings.AutoHaki then return end
+    
+    local hasHaki = LocalPlayer:FindFirstChild("HasBuso")
+    
+    if hasHaki and not hasHaki.Value then
+        CommF:InvokeServer("Buso")
+    end
+end
+
+-- Function to equip the weapon
+local function EquipWeapon(weapon)
+    if not weapon then weapon = Settings.SelectedWeapon end
+    
+    local success = false
+    
+    for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if v.Name:find(weapon) then
+            Humanoid:EquipTool(v)
+            success = true
+            break
         end
     end
-end)
+    
+    return success
+end
 
--- Auto Raid System
-function StartAutoRaid()
+-- Function to attack
+local function Attack()
+    local equipped = Character:FindFirstChildOfClass("Tool")
+    
+    if not equipped then
+        EquipWeapon()
+        wait(0.1)
+        equipped = Character:FindFirstChildOfClass("Tool")
+    end
+    
+    if equipped and equipped:FindFirstChild("Attack") then
+        equipped.Attack:FireServer()
+    end
+    
+    if Settings.FastAttack then
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton1(Vector2.new(50, 50))
+    end
+    
+    -- Use skills
+    if Settings.SkillsEnabled.Z then
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+        keypress(0x5A) -- Z key
+        wait(0.1)
+        keyrelease(0x5A)
+        VirtualUser:Button1Up(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+    end
+    
+    if Settings.SkillsEnabled.X then
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+        keypress(0x58) -- X key
+        wait(0.1)
+        keyrelease(0x58)
+        VirtualUser:Button1Up(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+    end
+    
+    if Settings.SkillsEnabled.C then
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+        keypress(0x43) -- C key
+        wait(0.1)
+        keyrelease(0x43)
+        VirtualUser:Button1Up(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+    end
+    
+    if Settings.SkillsEnabled.V then
+        VirtualUser:CaptureController()
+        VirtualUser:Button1Down(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+        keypress(0x56) -- V key
+        wait(0.1)
+        keyrelease(0x56)
+        VirtualUser:Button1Up(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+    end
+end
+
+-- Main farming loop
+local function StartFarming()
+    if Farming then return end
+    Farming = true
+    
+    -- Initial quest getting
+    if Settings.AutoQuest and not CurrentQuest then
+        GetQuest()
+    end
+    
+    -- Farming loop
     spawn(function()
-        while _G.AutoRaid do
-            if game:GetService("Players")["LocalPlayer"].PlayerGui.Main.Timer.Visible == true then
-                for i,v in pairs(game:GetService("Workspace").Enemies:GetDescendants()) do
-                    if v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and v.Humanoid.Health > 0 then
-                        repeat task.wait(_G.Fast_Delay)
-                            AttackNoCoolDown()
-                            AutoHaki()
-                            EquipTool(_G.SelectedWeapon)
-                            v.HumanoidRootPart.CanCollide = false
-                            v.Humanoid.WalkSpeed = 0
-                            v.HumanoidRootPart.Size = Vector3.new(80, 80, 80)
-                            Tween(v.HumanoidRootPart.CFrame * CFrame.new(posX, posY, posZ))
-                        until not _G.AutoRaid or not v.Parent or v.Humanoid.Health <= 0
-                    end
+        while Farming and Settings.AutoFarm do
+            -- Check for Buso Haki
+            ActivateBusoHaki()
+            
+            -- Get quest if needed
+            if Settings.AutoQuest and not CurrentQuest then
+                GetQuest()
+            end
+            
+            -- Find target
+            local mob, distance = FindTarget()
+            
+            -- If we found a target
+            if mob and mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
+                Target = mob
+                
+                -- Move to target
+                if distance > 150 then
+                    -- Far away, use tween for faster movement
+                    local targetPos = mob.HumanoidRootPart.Position
+                    ActiveTween = TweenService:Create(
+                        HumanoidRootPart,
+                        TweenInfo.new(distance / 200, Enum.EasingStyle.Linear),
+                        {CFrame = CFrame.new(targetPos)}
+                    )
+                    ActiveTween:Play()
+                    
+                    -- Wait for tween to complete
+                    wait(distance / 200)
+                end
+                
+                -- Cancel any active tween
+                if ActiveTween then
+                    ActiveTween:Cancel()
+                    ActiveTween = nil
+                end
+                
+                -- Position for farming
+                local farmingPos = GetFarmingPosition(mob.HumanoidRootPart)
+                HumanoidRootPart.CFrame = farmingPos
+                
+                -- Attack
+                Attack()
+                
+                -- Check if target is dead
+                if mob.Humanoid.Health <= 0 or not mob.Parent then
+                    Target = nil
                 end
             else
-                -- If raid not active, try to buy microchip
-                if not game:GetService("Workspace")["_WorldOrigin"].Locations:FindFirstChild("Island 1") then
-                    game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Select", "Flame")
-                end
-                if game:GetService("Players")["LocalPlayer"].PlayerGui.Main.Timer.Visible == false then
-                    if game:GetService("Players").LocalPlayer.Backpack:FindFirstChild("Special Microchip") or game:GetService("Players").LocalPlayer.Character:FindFirstChild("Special Microchip") then
-                        for i,v in pairs(game:GetService("Workspace")["_WorldOrigin"].Locations:GetChildren()) do
-                            if v.Name == "Island 1" then -- Start with Island 1
-                                Tween(v.CFrame * CFrame.new(0, 60, 0))
+                -- No target found, move to island center
+                if CurrentQuest then
+                    for _, island in pairs(Islands[CurrentSea]) do
+                        if island.Name == CurrentQuest.Island then
+                            local targetPos = island.Center
+                            
+                            -- Cancel any active tween
+                            if ActiveTween then
+                                ActiveTween:Cancel()
+                                ActiveTween = nil
                             end
+                            
+                            -- Tween to island center
+                            local distance = (HumanoidRootPart.Position - targetPos).Magnitude
+                            ActiveTween = TweenService:Create(
+                                HumanoidRootPart,
+                                TweenInfo.new(distance / 200, Enum.EasingStyle.Linear),
+                                {CFrame = CFrame.new(targetPos)}
+                            )
+                            ActiveTween:Play()
+                            
+                            break
                         end
-                        wait(1)
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Raid")
-                    else
-                        -- Buy Chip
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Select", "Flame")
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Buy")
                     end
                 end
+                
+                Target = nil
             end
-            wait()
+            
+            wait(0.1)
         end
+        
+        Farming = false
     end)
 end
 
--- Function to redeem all codes
-function RedeemAllCodes()
-    local codes = {
-        "Sub2UncleKizaru",
-        "SUB2NOOBMASTER123",
-        "StrawHatMaine",
-        "Sub2OfficialNoobie",
-        "SUB2GAMERROBOT_EXP1",
-        "THEGREATACE",
-        "BIGNEWS",
-        "FUDD10",
-        "FUDD10_V2",
-        "TYRELLIOSAMA",
-        "SUB2CAPTAINMAUI",
-        "kittgaming",
-        "DEVSCOOKING",
-        "ADMINGIVEAWAY",
-        "SUB2DAIGROCK",
-        "JCWK",
-        "Starcodeheo",
-        "Bluxxy",
-        "Axiore",
-        "TANTAIGAMING",
-        "STRAWHATMAINE",
-    }
+-- Function to stop farming
+local function StopFarming()
+    Farming = false
     
-    for _, code in pairs(codes) do
-        game:GetService("ReplicatedStorage").Remotes.Redeem:InvokeServer(code)
-        wait(0.5)
+    if ActiveTween then
+        ActiveTween:Cancel()
+        ActiveTween = nil
     end
     
-    game.StarterGui:SetCore("SendNotification", {
-        Title = "SkyX Hub",
-        Text = "All codes redeemed!",
-        Duration = 3
+    Target = nil
+end
+
+-- Clean up all connections
+local function CleanUp()
+    for _, connection in pairs(Connections) do
+        if connection.Connected then
+            connection:Disconnect()
+        end
+    end
+    
+    Connections = {}
+    StopFarming()
+end
+
+-- Load the Fluent UI Library
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- Create the window
+local Window = Fluent:CreateWindow({
+    Title = "🌊 SkyX Hub - Blox Fruits 🌊",
+    SubTitle = "by SkyX Team",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(580, 460),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.RightControl
+})
+
+-- Create tabs
+local Tabs = {
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    Combat = Window:AddTab({ Title = "Combat", Icon = "swords" }),
+    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
+    Misc = Window:AddTab({ Title = "Misc", Icon = "settings" })
+}
+
+-- Setup options
+local Options = Fluent.Options
+
+-- Player info
+local playerLevel = LocalPlayer.Data.Level.Value
+local playerBeli = LocalPlayer.Data.Beli.Value
+local playerFragments = LocalPlayer.Data.Fragments.Value
+
+Tabs.Main:AddParagraph({
+    Title = "Player Information",
+    Content = "Level: " .. playerLevel .. 
+              "\nBeli: " .. playerBeli .. 
+              "\nFragments: " .. playerFragments
+})
+
+-- Auto Farm toggle
+Tabs.Main:AddToggle("AutoFarm", {
+    Title = "Auto Farm",
+    Default = Settings.AutoFarm,
+    Callback = function(Value)
+        Settings.AutoFarm = Value
+        
+        if Value then
+            StartFarming()
+            Fluent:Notify({
+                Title = "Auto Farm",
+                Content = "Started Auto Farm",
+                Duration = 3
+            })
+        else
+            StopFarming()
+            Fluent:Notify({
+                Title = "Auto Farm",
+                Content = "Stopped Auto Farm",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Auto Quest toggle
+Tabs.Main:AddToggle("AutoQuest", {
+    Title = "Auto Quest",
+    Default = Settings.AutoQuest,
+    Callback = function(Value)
+        Settings.AutoQuest = Value
+        
+        if Value and not CurrentQuest then
+            GetQuest()
+        end
+    end
+})
+
+-- Fast Attack toggle
+Tabs.Main:AddToggle("FastAttack", {
+    Title = "Fast Attack",
+    Default = Settings.FastAttack,
+    Callback = function(Value)
+        Settings.FastAttack = Value
+    end
+})
+
+-- Auto Haki toggle
+Tabs.Main:AddToggle("AutoHaki", {
+    Title = "Auto Buso Haki",
+    Default = Settings.AutoHaki,
+    Callback = function(Value)
+        Settings.AutoHaki = Value
+        
+        if Value then
+            ActivateBusoHaki()
+        end
+    end
+})
+
+-- Weapon selection
+local WeaponsList = {"Combat"}
+for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+    if tool:IsA("Tool") then
+        table.insert(WeaponsList, tool.Name)
+    end
+end
+
+for _, tool in pairs(Character:GetChildren()) do
+    if tool:IsA("Tool") then
+        table.insert(WeaponsList, tool.Name)
+    end
+end
+
+Tabs.Main:AddDropdown("WeaponSelect", {
+    Title = "Select Weapon",
+    Values = WeaponsList,
+    Multi = false,
+    Default = Settings.SelectedWeapon,
+    Callback = function(Value)
+        Settings.SelectedWeapon = Value
+        EquipWeapon(Value)
+    end
+})
+
+-- Combat tab settings
+Tabs.Combat:AddDropdown("FarmMethod", {
+    Title = "Farm Position",
+    Values = {"Behind", "Above", "Below", "Front"},
+    Multi = false,
+    Default = Settings.FarmMethod,
+    Callback = function(Value)
+        Settings.FarmMethod = Value
+    end
+})
+
+Tabs.Combat:AddSlider("FarmDistance", {
+    Title = "Farm Distance",
+    Description = "Distance from the target mob",
+    Default = Settings.FarmDistance,
+    Min = 3,
+    Max = 15,
+    Rounding = 1,
+    Callback = function(Value)
+        Settings.FarmDistance = Value
+    end
+})
+
+-- Skills section
+Tabs.Combat:AddParagraph({
+    Title = "Auto Skills",
+    Content = "Enable/disable automatic skills usage"
+})
+
+Tabs.Combat:AddToggle("SkillZ", {
+    Title = "Use Skill Z",
+    Default = Settings.SkillsEnabled.Z,
+    Callback = function(Value)
+        Settings.SkillsEnabled.Z = Value
+    end
+})
+
+Tabs.Combat:AddToggle("SkillX", {
+    Title = "Use Skill X",
+    Default = Settings.SkillsEnabled.X,
+    Callback = function(Value)
+        Settings.SkillsEnabled.X = Value
+    end
+})
+
+Tabs.Combat:AddToggle("SkillC", {
+    Title = "Use Skill C",
+    Default = Settings.SkillsEnabled.C,
+    Callback = function(Value)
+        Settings.SkillsEnabled.C = Value
+    end
+})
+
+Tabs.Combat:AddToggle("SkillV", {
+    Title = "Use Skill V",
+    Default = Settings.SkillsEnabled.V,
+    Callback = function(Value)
+        Settings.SkillsEnabled.V = Value
+    end
+})
+
+-- Teleport tab
+Tabs.Teleport:AddParagraph({
+    Title = "Islands Teleport",
+    Content = "Click to teleport to specific islands"
+})
+
+-- Add island buttons based on current sea
+for _, island in pairs(Islands[CurrentSea]) do
+    Tabs.Teleport:AddButton({
+        Title = island.Name,
+        Callback = function()
+            local targetPos = island.Center
+            
+            -- Cancel any active tween
+            if ActiveTween then
+                ActiveTween:Cancel()
+                ActiveTween = nil
+            end
+            
+            -- Tween to island
+            local distance = (HumanoidRootPart.Position - targetPos).Magnitude
+            ActiveTween = TweenService:Create(
+                HumanoidRootPart,
+                TweenInfo.new(distance / 200, Enum.EasingStyle.Linear),
+                {CFrame = CFrame.new(targetPos)}
+            )
+            ActiveTween:Play()
+            
+            Fluent:Notify({
+                Title = "Teleport",
+                Content = "Teleporting to " .. island.Name,
+                Duration = 3
+            })
+        end
     })
 end
 
------- End of Fluent Script Core ------
+-- Sea teleport options
+Tabs.Teleport:AddParagraph({
+    Title = "Sea Teleport",
+    Content = "Teleport between different seas"
+})
 
--- Create SkyX Hub UI with Fluent functions
--- Main Tab
-local MainTab = SkyXUI:CreateTab("Main")
+Tabs.Teleport:AddButton({
+    Title = "First Sea",
+    Callback = function()
+        CommF:InvokeServer("TravelMain")
+    end
+})
 
-local FarmingSection = MainTab:CreateSection("Auto Farm")
+Tabs.Teleport:AddButton({
+    Title = "Second Sea",
+    Callback = function()
+        CommF:InvokeServer("TravelDressrosa")
+    end
+})
 
-FarmingSection:AddToggle({
-    Name = "Auto Farm",
-    Default = false,
+Tabs.Teleport:AddButton({
+    Title = "Third Sea",
+    Callback = function()
+        CommF:InvokeServer("TravelZou")
+    end
+})
+
+-- Misc tab features
+Tabs.Misc:AddParagraph({
+    Title = "Misc Features",
+    Content = "Additional utility features"
+})
+
+Tabs.Misc:AddToggle("ChestFarm", {
+    Title = "Auto Collect Chests",
+    Default = Settings.ChestFarm,
     Callback = function(Value)
-        _G.AutoFarm = Value
+        Settings.ChestFarm = Value
+        
         if Value then
-            StartAutoFarm()
+            spawn(function()
+                while Settings.ChestFarm do
+                    for _, chest in pairs(workspace:GetChildren()) do
+                        if chest.Name == "Chest1" or chest.Name == "Chest2" or chest.Name == "Chest3" then
+                            if chest:FindFirstChild("Mesh") or chest:FindFirstChild("SpecialMesh") then
+                                local distance = (HumanoidRootPart.Position - chest.Position).Magnitude
+                                
+                                if distance < 200 then
+                                    HumanoidRootPart.CFrame = chest.CFrame
+                                    wait(1)
+                                end
+                            end
+                        end
+                    end
+                    wait(1)
+                end
+            end)
         end
     end
 })
 
-FarmingSection:AddToggle({
-    Name = "Auto Level",
-    Default = false,
-    Callback = function(Value)
-        _G.AutoLevel = Value
-        if Value then
-            StartAutoFarm()
+Tabs.Misc:AddButton({
+    Title = "Redeem All Codes",
+    Callback = function()
+        local codes = {
+            "Sub2UncleKizaru",
+            "SUB2NOOBMASTER123",
+            "Sub2Daigrock",
+            "Axiore",
+            "TantaiGaming",
+            "STRAWHATMAINE",
+            "SUB2GAMERROBOT_EXP1",
+            "Sub2OfficialNoobie",
+            "Magicbus",
+            "JCWK",
+            "Starcodeheo",
+            "Bluxxy",
+            "fudd10_v2",
+            "FUDD10",
+            "SUB2GAMERROBOT_RESET1",
+            "kittgaming",
+            "Sub2Fer999",
+            "Enyu_is_Pro",
+            "THEGREATACE",
+            "BIGNEWS",
+            "TheGreatAce"
+        }
+        
+        for _, code in pairs(codes) do
+            CommF:InvokeServer("RedeemCode", code)
+            wait(0.5)
         end
-    end
-})
-
-local AttackSection = MainTab:CreateSection("Attack Settings")
-
-AttackSection:AddToggle({
-    Name = "Fast Attack",
-    Default = true,
-    Callback = function(Value)
-        _G.FastAttack = Value
-    end
-})
-
-local weaponTypes = {"Melee", "Sword", "Blox Fruit"}
-AttackSection:AddDropdown({
-    Name = "Select Weapon Type",
-    Options = weaponTypes,
-    Default = "Melee",
-    Callback = function(Value)
-        _G.SelectedWeapon = Value
-    end
-})
-
-AttackSection:AddDropdown({
-    Name = "Attack Speed",
-    Options = {"Normal Attack", "Fast Attack", "Super Fast Attack"},
-    Default = "Fast Attack",
-    Callback = function(Value)
-        if Value == "Fast Attack" then
-            _G.Fast_Delay = 0.1
-        elseif Value == "Normal Attack" then
-            _G.Fast_Delay = 0.15
-        elseif Value == "Super Fast Attack" then
-            _G.Fast_Delay = 0
-        end
-    end
-})
-
--- Raid Tab
-local RaidTab = SkyXUI:CreateTab("Raid")
-
-local RaidSection = RaidTab:CreateSection("Raid Settings")
-
-RaidSection:AddToggle({
-    Name = "Auto Raid",
-    Default = false,
-    Callback = function(Value)
-        _G.AutoRaid = Value
-        if Value then
-            StartAutoRaid()
-        end
-    end
-})
-
-local raidOptions = {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Sand", "Bird: Phoenix", "Dough"}
-RaidSection:AddDropdown({
-    Name = "Select Raid",
-    Options = raidOptions,
-    Default = "Flame",
-    Callback = function(Value)
-        _G.SelectedRaid = Value
-        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("RaidsNpc", "Select", Value)
-    end
-})
-
--- Teleport Tab
-local TeleportTab = SkyXUI:CreateTab("Teleport")
-
-local IslandSection = TeleportTab:CreateSection("Islands")
-
--- First Sea Islands
-if game.PlaceId == 2753915549 then
-    local FirstSeaIslands = {
-        ["Starter Island"] = CFrame.new(1071.2832031.25, 16.3.54874992371, 1426.8630371094),
-        ["Marine Base"] = CFrame.new(-4968.9143066406, 20.6.52530670166, 4245.6489257813),
-        ["Middle Town"] = CFrame.new(-654.77362060547, 7.8522434234619, 1436.567260.5469),
-        ["Jungle"] = CFrame.new(-1342.3.18359375, 11.8521.0063477, 500.25341796875),
-        ["Pirate Village"] = CFrame.new(-1188.6.28515625, 4.752050399780.4, 3881.5966796875),
-        ["Desert"] = CFrame.new(1094.14453125, 6.4980626106262, 4192.88671875),
-        ["Frozen Village"] = CFrame.new(1198.0073242188, 27.19756.5765381, -1211.4983.69141)
-    }
-    
-    for name, cframe in pairs(FirstSeaIslands) do
-        IslandSection:AddButton({
-            Name = name,
-            Callback = function()
-                Tween(cframe)
-                game.StarterGui:SetCore("SendNotification", {
-                    Title = "SkyX Hub",
-                    Text = "Teleporting to " .. name,
-                    Duration = 3
-                })
-            end
+        
+        Fluent:Notify({
+            Title = "Codes",
+            Content = "All codes redeemed!",
+            Duration = 3
         })
     end
-end
+})
 
--- Stats Tab
-local StatsTab = SkyXUI:CreateTab("Stats")
-
-local StatSection = StatsTab:CreateSection("Auto Stats")
-
-local statTypes = {"Melee", "Defense", "Sword", "Gun", "Demon Fruit"}
-for _, statType in pairs(statTypes) do
-    StatSection:AddToggle({
-        Name = "Auto " .. statType,
-        Default = false,
-        Callback = function(Value)
-            _G["Auto" .. statType] = Value
-            
-            if Value then
-                spawn(function()
-                    while _G["Auto" .. statType] do
-                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", statType, 1)
-                        wait(0.1)
-                    end
-                end)
-            end
-        end
-    })
-end
-
--- Misc Tab
-local MiscTab = SkyXUI:CreateTab("Misc")
-
-local CodeSection = MiscTab:CreateSection("Codes")
-
-CodeSection:AddButton({
-    Name = "Redeem All Codes",
+Tabs.Misc:AddButton({
+    Title = "Script Info",
     Callback = function()
-        RedeemAllCodes()
+        Fluent:Notify({
+            Title = "SkyX Hub Info",
+            Content = "Blox Fruits Auto Farm with Fluent UI\nMobile Compatible\nCreated by SkyX Team",
+            Duration = 5
+        })
     end
 })
 
-local AutoChestSection = MiscTab:CreateSection("Auto Chest")
+-- Setup managers
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:SetFolder("SkyXHub")
+SaveManager:SetFolder("SkyXHub/BloxFruits")
+InterfaceManager:BuildInterfaceSection(Tabs.Misc)
+SaveManager:BuildConfigSection(Tabs.Misc)
 
-AutoChestSection:AddButton({
-    Name = "Auto Chest (Pirates Team)",
-    Callback = function()
-        _G.JoinTeam = "Pirates"
-        _G.Stop_If_Has_Items = true
-        loadstring(game:HttpGet("https://github.com/PNguyen0199/Script/raw/main/Trash_Auto_Chest.lua"))()
+-- Select first tab
+Window:SelectTab(1)
+
+-- Cleanup when script stops
+AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
+    if child.Name == "Fluent_1" then
+        CleanUp()
     end
-})
+end)
 
--- Print loaded message
-print("SkyX Hub - Blox Fruits loaded successfully!")
+-- Welcome notification
+Fluent:Notify({
+    Title = "SkyX Hub",
+    Content = "Blox Fruits script loaded!",
+    Duration = 5
+})
