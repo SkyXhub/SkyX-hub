@@ -1,148 +1,13 @@
 --[[
     🌊 SkyX Hub - Blox Fruits (Improved Auto Farm) 🌊
-    aaaaaaaaaaaaa
+    
     Auto Farm with quest automation using Fluent UI
     Fixed implementation with ReworkX features added
-    Mobile-compatible with optimized performance
+eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee    Mobile-compatible with optimized performance
 ]]
 
--- Detect if we're in a Roblox environment
-local isRoblox = pcall(function() return game:GetService("Players") end)
-
--- Create mock environment for standalone testing
-if not isRoblox then
-    print("Running in standalone mode - creating mock Roblox environment")
-    
-    -- Mock game object
-    game = {
-        PlaceId = 2753915549 -- Blox Fruits place ID
-    }
-    
-    game.GetService = function(self, service)
-        -- Mock services
-        local services = {
-            Players = {
-                LocalPlayer = {
-                    Name = "Player",
-                    Character = {
-                        HumanoidRootPart = {
-                            Position = Vector3.new(0, 0, 0),
-                            CFrame = {
-                                Position = Vector3.new(0, 0, 0)
-                            }
-                        },
-                        Humanoid = {
-                            Health = 100,
-                            MaxHealth = 100
-                        }
-                    },
-                    Data = {
-                        Level = {
-                            Value = 50
-                        },
-                        Beli = {
-                            Value = 10000
-                        },
-                        Fragments = {
-                            Value = 500
-                        }
-                    },
-                    Backpack = {
-                        GetChildren = function()
-                            return {}
-                        end
-                    }
-                }
-            },
-            ReplicatedStorage = {
-                Remotes = {
-                    CommF_ = {
-                        InvokeServer = function(self, ...) 
-                            print("CommF_ InvokeServer called with:", ...) 
-                            return true
-                        end
-                    }
-                }
-            },
-            VirtualUser = {
-                CaptureController = function() end,
-                Button1Down = function(self, position, camera) end
-            },
-            RunService = {
-                Heartbeat = {
-                    Connect = function(func) 
-                        return {
-                            Disconnect = function() end
-                        }
-                    end
-                }
-            },
-            TweenService = {
-                Create = function(self, instance, info, properties)
-                    return {
-                        Play = function() end,
-                        Completed = {
-                            Wait = function() return true end
-                        }
-                    }
-                end
-            },
-            UserInputService = {
-                TouchEnabled = true,
-                MouseEnabled = false,
-                InputBegan = {
-                    Connect = function() return { Disconnect = function() end } end
-                }
-            },
-            StarterGui = {
-                SetCore = function(self, core, params) print(params.Title..": "..params.Text) end
-            }
-        }
-        return services[service] or {}
-    end
-    
-    -- Mock TweenInfo
-    TweenInfo = {
-        new = function(duration, easingStyle, easingDirection, repeatCount, reverses, delayTime)
-            return {
-                Duration = duration or 1,
-                EasingStyle = easingStyle or "Quad",
-                EasingDirection = easingDirection or "Out",
-                RepeatCount = repeatCount or 0,
-                Reverses = reverses or false,
-                DelayTime = delayTime or 0
-            }
-        end
-    }
-    
-    -- Mock Vector3 and CFrame
-    Vector3 = {
-        new = function(x, y, z)
-            return {x = x or 0, y = y or 0, z = z or 0}
-        end
-    }
-    
-    CFrame = {
-        new = function(x, y, z)
-            if type(x) == "table" then
-                return {Position = x}
-            else
-                return {Position = {x = x or 0, y = y or 0, z = z or 0}}
-            end
-        end
-    }
-    
-    -- Mock other functions used in script
-    wait = function(s) return s or 0.01 end
-    spawn = function(f) f() end
-    
-    -- Mouse/keyboard simulation
-    keypress = function() end
-    keyrelease = function() end
-end
-
 -- Check if we're in Blox Fruits
-if isRoblox and game.PlaceId ~= 2753915549 and game.PlaceId ~= 4442272183 and game.PlaceId ~= 7449423635 then
+if game.PlaceId ~= 2753915549 and game.PlaceId ~= 4442272183 and game.PlaceId ~= 7449423635 then
     -- Wrong game notification
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "SkyX Hub",
@@ -983,19 +848,7 @@ spawn(function()
     end
 end)
 
-if not isRoblox then
-    -- Simulate button click for demonstration
-    print("Toggling Auto Farm ON...")
-    FarmSettings.Enabled = true
-    print("Auto Farm: true")
-    StartFarming()
-    
-    wait(10)
-    
-    print("Toggling Auto Farm OFF...")
-    FarmSettings.Enabled = false
-    print("Auto Farm: false")
-    
-    print("SkyX Hub - Blox Fruits Basic demo complete!")
-    print("This is a simplified standalone version that simulates the core functionality.")
-end
+-- Script end
+print("SkyX Hub - BloxFruits Auto Farm script loaded!")
+print("Version: 2.1.0")
+print("⭐ Thanks for using SkyX Hub! ⭐")
