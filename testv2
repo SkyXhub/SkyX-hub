@@ -1,7 +1,8 @@
 --[[
-    🌊 SkyX Hub - Blox Fruits (Fluent UI Version) 🌊
-    
-    Auto Farm with quest automation using Fluent UIssssssssssssssss
+    🌊 SkyX Hub - Blox Fruits (Improved Auto Farm) 🌊
+    aaaaaaaaaaaaa
+    Auto Farm with quest automation using Fluent UI
+    Fixed implementation with ReworkX features added
     Mobile-compatible with optimized performance
 ]]
 
@@ -48,23 +49,16 @@ if not isRoblox then
                     },
                     Backpack = {
                         GetChildren = function()
-                            return {
-                                {Name = "Combat", IsA = function() return true end},
-                                {Name = "Sword", IsA = function() return true end}
-                            }
+                            return {}
                         end
                     }
                 }
-            },
-            UserInputService = {
-                TouchEnabled = false,
-                MouseEnabled = true
             },
             ReplicatedStorage = {
                 Remotes = {
                     CommF_ = {
                         InvokeServer = function(self, ...) 
-                            print("Remote: CommF_:InvokeServer", ...)
+                            print("CommF_ InvokeServer called with:", ...) 
                             return true
                         end
                     }
@@ -72,101 +66,75 @@ if not isRoblox then
             },
             VirtualUser = {
                 CaptureController = function() end,
-                ClickButton1 = function() end,
-                Button1Down = function() end,
-                Button1Up = function() end
+                Button1Down = function(self, position, camera) end
             },
             RunService = {
-                RenderStepped = {
-                    Connect = function() 
-                        return {Connected = true, Disconnect = function() end}
+                Heartbeat = {
+                    Connect = function(func) 
+                        return {
+                            Disconnect = function() end
+                        }
                     end
                 }
             },
             TweenService = {
-                Create = function() 
+                Create = function(self, instance, info, properties)
                     return {
                         Play = function() end,
-                        Cancel = function() end
+                        Completed = {
+                            Wait = function() return true end
+                        }
                     }
                 end
             },
-            StarterGui = {
-                SetCore = function(self, notification, data)
-                    print("Notification:", data.Title, "-", data.Text)
-                end
-            },
-            CoreGui = {
-                ChildRemoved = {
-                    Connect = function() 
-                        return {Connected = true, Disconnect = function() end}
-                    end
+            UserInputService = {
+                TouchEnabled = true,
+                MouseEnabled = false,
+                InputBegan = {
+                    Connect = function() return { Disconnect = function() end } end
                 }
             },
-            HttpService = {
-                JSONEncode = function(self, data)
-                    return "JSON_ENCODED_DATA"
-                end,
-                JSONDecode = function(self, json)
-                    return {}
-                end
+            StarterGui = {
+                SetCore = function(self, core, params) print(params.Title..": "..params.Text) end
             }
         }
-        
         return services[service] or {}
     end
     
-    -- Mock Vector3
-    Vector3 = {}
-    Vector3.new = function(x, y, z)
-        return {x = x or 0, y = y or 0, z = z or 0, Magnitude = 10}
-    end
-    
-    -- Mock CFrame
-    CFrame = {}
-    CFrame.new = function(...)
-        return {Position = Vector3.new()}
-    end
-    
-    -- Mock Color3
-    Color3 = {}
-    Color3.fromRGB = function(r, g, b)
-        return {r = r/255, g = g/255, b = b/255}
-    end
-    
-    -- Mock workspace
-    workspace = {
-        GetChildren = function()
-            return {}
-        end,
-        Enemies = {
-            GetChildren = function()
-                return {
-                    {
-                        Name = "Bandit", 
-                        FindFirstChild = function() return true end,
-                        Humanoid = {Health = 100, MaxHealth = 100},
-                        HumanoidRootPart = {Position = Vector3.new(10, 0, 10), CFrame = {}}
-                    }
-                }
-            end
-        },
-        NPCs = {
-            GetChildren = function()
-                return {
-                    {
-                        Name = "Pirate Quest Giver",
-                        HumanoidRootPart = {CFrame = {}}
-                    }
-                }
-            end
-        }
+    -- Mock TweenInfo
+    TweenInfo = {
+        new = function(duration, easingStyle, easingDirection, repeatCount, reverses, delayTime)
+            return {
+                Duration = duration or 1,
+                EasingStyle = easingStyle or "Quad",
+                EasingDirection = easingDirection or "Out",
+                RepeatCount = repeatCount or 0,
+                Reverses = reverses or false,
+                DelayTime = delayTime or 0
+            }
+        end
     }
     
-    -- Utility functions for Lua environment
+    -- Mock Vector3 and CFrame
+    Vector3 = {
+        new = function(x, y, z)
+            return {x = x or 0, y = y or 0, z = z or 0}
+        end
+    }
+    
+    CFrame = {
+        new = function(x, y, z)
+            if type(x) == "table" then
+                return {Position = x}
+            else
+                return {Position = {x = x or 0, y = y or 0, z = z or 0}}
+            end
+        end
+    }
+    
+    -- Mock other functions used in script
+    wait = function(s) return s or 0.01 end
     spawn = function(f) f() end
-    wait = function(t) return t or 0.1 end
-    pcall = function(f) return true, f() end
     
     -- Mouse/keyboard simulation
     keypress = function() end
@@ -198,55 +166,168 @@ local UserInputService = game:GetService("UserInputService")
 -- Player references
 local LocalPlayer = Players.LocalPlayer
 local Character
-local Humanoid
-local HumanoidRootPart
-local CommF
 
+-- Handle character references differently in standalone mode
 if isRoblox then
     Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    Humanoid = Character:WaitForChild("Humanoid")
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-    
-    -- Important remote events
-    CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+    local Humanoid = Character:WaitForChild("Humanoid")
+    local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
 else
-    -- In standalone mode, use the mocked Character directly
-    Character = LocalPlayer.Character
-    Humanoid = Character.Humanoid
-    HumanoidRootPart = Character.HumanoidRootPart
-    
-    -- Important remote events
-    CommF = ReplicatedStorage.Remotes.CommF_
+    Character = LocalPlayer.Character -- Already defined in the mock environment
+    print("Using simulated character in standalone mode")
 end
 
--- Make Vector2 mock if needed
+-- Anti-AFK
+if isRoblox then
+    Players.LocalPlayer.Idled:connect(function()
+        VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        wait(1)
+        VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    end)
+end
+
+-- Load Fluent UI Library
+local Fluent = isRoblox and loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))() or {}
+local SaveManager = isRoblox and loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))() or {}
+local InterfaceManager = isRoblox and loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))() or {}
+
 if not isRoblox then
-    Vector2 = {}
-    Vector2.new = function(x, y)
-        return {x = x or 0, y = y or 0}
-    end
+    -- Mock Fluent UI
+    print("Creating mock Fluent UI Library for standalone mode")
+    Fluent = {
+        Options = {},
+        Notify = function(self, params)
+            print("Notification: " .. (params.Title or ""))
+            print("  " .. (params.Content or ""))
+            print("  Duration: " .. (params.Duration or 3) .. "s")
+        end,
+        CreateWindow = function(self, params)
+            print("Creating Fluent window: " .. (params.Title or "Unnamed Window"))
+            return {
+                AddTab = function(self, params)
+                    print("  Creating tab: " .. (params.Title or "Unnamed Tab"))
+                    return {
+                        AddParagraph = function(self, title, content)
+                            print("    Adding paragraph: " .. (title or "Unnamed Paragraph"))
+                            return {}
+                        end,
+                        AddToggle = function(self, params)
+                            print("    Adding toggle: " .. (params.Title or "Unnamed Toggle"))
+                            return {
+                                Set = function(self, value) end
+                            }
+                        end,
+                        AddDropdown = function(self, params)
+                            print("    Adding dropdown: " .. (params.Title or "Unnamed Dropdown"))
+                            return {
+                                Set = function(self, value) end
+                            }
+                        end,
+                        AddSlider = function(self, params)
+                            print("    Adding slider: " .. (params.Title or "Unnamed Slider") .. " (Range: " .. (params.Min or 0) .. "-" .. (params.Max or 100) .. ")")
+                            return {
+                                Set = function(self, value) end
+                            }
+                        end,
+                        AddButton = function(self, params)
+                            print("    Adding button: " .. (params.Title or "Unnamed Button"))
+                            return {}
+                        end,
+                        AddLabel = function(self, text)
+                            print("    Adding label: " .. (text or "Unnamed Label"))
+                            return {
+                                Set = function(self, text) end
+                            }
+                        end
+                    }
+                end,
+                SelectTab = function(self, index) 
+                    print("  Selected tab")
+                end
+            }
+        end
+    }
+    
+    SaveManager = {
+        SetLibrary = function(self, lib) end,
+        IgnoreThemeSettings = function(self) end,
+        SetIgnoreIndexes = function(self, indexes) end,
+        SetFolder = function(self, folder) end,
+        BuildConfigSection = function(self, tab) end,
+        Save = function(self, name) end,
+        Load = function(self, name) end
+    }
+    
+    InterfaceManager = {
+        SetLibrary = function(self, lib) end,
+        SetFolder = function(self, folder) end,
+        BuildInterfaceSection = function(self, tab) end
+    }
 end
 
--- Global settings
-local Settings = {
-    AutoFarm = false,
+-- Utility functions
+local function AddComma(amount)
+    local formatted = amount
+    while true do
+        formatted, k = string.gsub(formatted, "^(-?%d+)(%d%d%d)", '%1,%2')
+        if (k == 0) then break end
+    end
+    return formatted
+end
+
+-- Sea world detection
+local First_Sea = false
+local Second_Sea = false
+local Third_Sea = false
+
+if game.PlaceId == 2753915549 then
+    First_Sea = true
+elseif game.PlaceId == 4442272183 then
+    Second_Sea = true
+elseif game.PlaceId == 7449423635 then
+    Third_Sea = true
+end
+
+-- Flag Player Anti-Ban
+function AntiBan()
+    for i,v in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+        if v:IsA("LocalScript") then
+            if v.Name == "General" or v.Name == "Shiftlock" or v.Name == "FallDamage" or v.Name == "4444" or v.Name == "CamBob" or v.Name == "JumpCD" or v.Name == "Looking" or v.Name == "Run" then
+                v:Destroy()
+            end
+        end
+     end
+     for i,v in pairs(game:GetService("Players").LocalPlayer.PlayerScripts:GetDescendants()) do
+        if v:IsA("LocalScript") then
+            if v.Name == "RobloxMotor6DBugFix" or v.Name == "Clans" or v.Name == "Codes" or v.Name == "CustomForceField" or v.Name == "MenuBloodSp" or v.Name == "PlayerList" then
+                v:Destroy()
+            end
+        end
+     end
+end
+
+-- Call Anti-Ban function
+if isRoblox then
+    AntiBan()
+end
+
+-- Auto Farm settings
+local FarmSettings = {
+    Enabled = false,
+    FarmType = "Level", -- Level, Nearest, Boss, Region
     FastAttack = true,
     AutoHaki = true,
-    AutoQuest = true,
     MobAura = false,
-    FarmDistance = 7,
-    FarmMethod = "Behind", -- Behind, Above, Below, Front
+    AutoQuest = true,
+    ChestFarm = false,
     SelectedWeapon = "Combat",
+    FarmRadius = 100,
     SkillsEnabled = {
         Z = true,
         X = true,
         C = false,
         V = false
-    },
-    LevelFarm = true, -- Farm based on level
-    NearestFarm = false, -- Farm nearest mobs
-    BossFarm = false, -- Farm bosses
-    ChestFarm = false
+    }
 }
 
 -- Connection storage for cleanup
@@ -256,976 +337,605 @@ local CurrentQuest = nil
 local CurrentMob = nil
 local Target = nil
 local Farming = false
-local LastHealth = 0
 
--- Sea check
-local CurrentSea = 0
-if game.PlaceId == 2753915549 then
-    CurrentSea = 1
-elseif game.PlaceId == 4442272183 then
-    CurrentSea = 2
-elseif game.PlaceId == 7449423635 then
-    CurrentSea = 3
-end
-
--- Islands data - Used for quest and mob targeting
-local Islands = {
-    [1] = { -- First Sea
-        {Name = "Pirate Starter Island", Center = Vector3.new(1071.2832, 16.3085976, 1426.86792), 
-         Mobs = {"Bandit", "Pirate"}, QuestNPC = "Pirate Quest Giver", MinLevel = 1},
-        
-        {Name = "Marine Starter Island", Center = Vector3.new(-2573.3374, 6.88881969, 2046.99817), 
-         Mobs = {"Marine Recruit", "Marine Squad Leader"}, QuestNPC = "Marine Quest Giver", MinLevel = 1},
-        
-        {Name = "Middle Town", Center = Vector3.new(-655.824158, 7.88708115, 1436.67908), 
-         Mobs = {"Thug", "Pirate Thug"}, QuestNPC = "Middle Town Quest Giver", MinLevel = 10},
-        
-        {Name = "Jungle", Center = Vector3.new(-1249.77222, 11.8870859, 341.356476),
-         Mobs = {"Monkey", "Gorilla"}, QuestNPC = "Jungle Quest Giver", MinLevel = 15},
-        
-        {Name = "Pirate Village", Center = Vector3.new(-1122.34998, 4.78708982, 3855.91992),
-         Mobs = {"Desert Pirate", "Desert Officer"}, QuestNPC = "Pirate Village Quest Giver", MinLevel = 30},
-         
-        {Name = "Desert", Center = Vector3.new(1094.14587, 6.5, 4192.88721),
-         Mobs = {"Desert Bandit", "Desert Officer"}, QuestNPC = "Desert Quest Giver", MinLevel = 60},
-         
-        {Name = "Snow Island", Center = Vector3.new(1198.00928, 27.0074959, -1211.73376),
-         Mobs = {"Snow Bandit", "Snowman"}, QuestNPC = "Snow Quest Giver", MinLevel = 90},
-         
-        {Name = "Marine Fort", Center = Vector3.new(-4505.375, 20.687294, 4260.55908),
-         Mobs = {"Marine Captain", "Marine Lieutenant"}, QuestNPC = "Marine Quest Giver 2", MinLevel = 120},
-         
-        {Name = "Sky Island", Center = Vector3.new(-4970.21875, 717.707275, -2622.35449),
-         Mobs = {"Sky Bandit", "Dark Master"}, QuestNPC = "Sky Quest Giver", MinLevel = 150},
-         
-        {Name = "Prison", Center = Vector3.new(4875.330078125, 5.6519818305969, 734.85021972656),
-         Mobs = {"Prisoner", "Dangerous Prisoner"}, QuestNPC = "Prison Quest Giver", MinLevel = 190},
-         
-        {Name = "Colosseum", Center = Vector3.new(-1428.35474, 7.38933945, -3014.37305),
-         Mobs = {"Warrior", "Gladiator"}, QuestNPC = "Colosseum Quest Giver", MinLevel = 250}
-    },
+-- Quest data based on level
+function CheckLevel()
+    local Lv = game:GetService("Players").LocalPlayer.Data.Level.Value
+    local Ms = ""
+    local NameQuest = ""
+    local QuestLv = 0
+    local NameMon = ""
+    local CFrameQ = CFrame.new(0, 0, 0)
+    local CFrameMon = CFrame.new(0, 0, 0)
     
-    [2] = { -- Second Sea
-        {Name = "Kingdom of Rose", Center = Vector3.new(-336.519836, 66.1259766, 6207.2998),
-         Mobs = {"Swan Pirate", "Royal Squad"}, QuestNPC = "Rose Kingdom Quest Giver", MinLevel = 700},
-         
-        {Name = "Green Zone", Center = Vector3.new(-2448.5708, 73.0455933, -3210.23047),
-         Mobs = {"Forest Pirate", "Jungle Pirate"}, QuestNPC = "Green Zone Quest Giver", MinLevel = 750},
-         
-        {Name = "Cafe", Center = Vector3.new(-384.01791, 73.0455933, 297.999573),
-         Mobs = {"Cafe Staff", "Chef Pirate"}, QuestNPC = "Cafe Quest Giver", MinLevel = 775},
-         
-        {Name = "Cursed Ship", Center = Vector3.new(923.21252441406, 125.05710601807, 32885.875),
-         Mobs = {"Ship Officer", "Ship Deckhand"}, QuestNPC = "Ship Quest Giver", MinLevel = 850},
-         
-        {Name = "Ice Castle", Center = Vector3.new(6148.4765625, 294.38446044922, -6741.1166992188),
-         Mobs = {"Arctic Warrior", "Snow Lurker"}, QuestNPC = "Ice Quest Giver", MinLevel = 1250},
-         
-        {Name = "Forgotten Island", Center = Vector3.new(-3032.7360839844, 317.89465332031, -10075.373046875),
-         Mobs = {"Island Tiki", "Island Jungle Pirate"}, QuestNPC = "Forgotten Quest Giver", MinLevel = 1350}
-    },
+    if First_Sea then
+        if Lv == 1 or Lv <= 9 then -- Bandit
+            Ms = "Bandit"
+            NameQuest = "BanditQuest1"
+            QuestLv = 1
+            NameMon = "Bandit"
+            CFrameQ = CFrame.new(1060.9383544922, 16.455066680908, 1547.7841796875)
+            CFrameMon = CFrame.new(1038.5533447266, 41.296249389648, 1576.5098876953)
+        elseif Lv == 10 or Lv <= 14 then -- Monkey
+            Ms = "Monkey"
+            NameQuest = "JungleQuest"
+            QuestLv = 1
+            NameMon = "Monkey"
+            CFrameQ = CFrame.new(-1601.6553955078, 36.85213470459, 153.38809204102)
+            CFrameMon = CFrame.new(-1448.1446533203, 50.851993560791, 63.60718536377)
+        elseif Lv == 15 or Lv <= 29 then -- Gorilla
+            Ms = "Gorilla"
+            NameQuest = "JungleQuest"
+            QuestLv = 2
+            NameMon = "Gorilla"
+            CFrameQ = CFrame.new(-1601.6553955078, 36.85213470459, 153.38809204102)
+            CFrameMon = CFrame.new(-1142.6488037109, 40.462348937988, -515.39227294922)
+        elseif Lv == 30 or Lv <= 39 then -- Pirate
+            Ms = "Pirate"
+            NameQuest = "BuggyQuest1"
+            QuestLv = 1
+            NameMon = "Pirate"
+            CFrameQ = CFrame.new(-1140.1761474609, 4.752049446106, 3827.4057617188)
+            CFrameMon = CFrame.new(-1201.0881347656, 40.628940582275, 3857.5966796875)
+        elseif Lv == 40 or Lv <= 59 then -- Brute
+            Ms = "Brute"
+            NameQuest = "BuggyQuest1"
+            QuestLv = 2
+            NameMon = "Brute"
+            CFrameQ = CFrame.new(-1140.1761474609, 4.752049446106, 3827.4057617188)
+            CFrameMon = CFrame.new(-1387.5324707031, 24.592035293579, 4100.9575195313)
+        elseif Lv == 60 or Lv <= 74 then -- Desert Bandit
+            Ms = "Desert Bandit"
+            NameQuest = "DesertQuest"
+            QuestLv = 1
+            NameMon = "Desert Bandit"
+            CFrameQ = CFrame.new(896.51721191406, 6.4384617805481, 4390.1494140625)
+            CFrameMon = CFrame.new(984.99896240234, 16.109552383423, 4417.91015625)
+        elseif Lv == 75 or Lv <= 89 then -- Desert Officer
+            Ms = "Desert Officer"
+            NameQuest = "DesertQuest"
+            QuestLv = 2
+            NameMon = "Desert Officer"
+            CFrameQ = CFrame.new(896.51721191406, 6.4384617805481, 4390.1494140625)
+            CFrameMon = CFrame.new(1547.1510009766, 14.452038764954, 4381.8002929688)
+        elseif Lv == 90 or Lv <= 99 then -- Snow Bandit
+            Ms = "Snow Bandit"
+            NameQuest = "SnowQuest"
+            QuestLv = 1
+            NameMon = "Snow Bandit"
+            CFrameQ = CFrame.new(1386.8073730469, 87.272789001465, -1298.3576660156)
+            CFrameMon = CFrame.new(1356.3028564453, 105.76865386963, -1328.2418212891)
+        elseif Lv == 100 or Lv <= 119 then -- Snowman
+            Ms = "Snowman"
+            NameQuest = "SnowQuest"
+            QuestLv = 2
+            NameMon = "Snowman"
+            CFrameQ = CFrame.new(1386.8073730469, 87.272789001465, -1298.3576660156)
+            CFrameMon = CFrame.new(1218.7956542969, 138.01184082031, -1488.0262451172)
+        end
+    end
     
-    [3] = { -- Third Sea
-        {Name = "Port Town", Center = Vector3.new(-279.688, 6.764, 5343.129),
-         Mobs = {"Pirate Millionaire", "Pistol Billionaire"}, QuestNPC = "Port Quest Giver", MinLevel = 1500},
-         
-        {Name = "Hydra Island", Center = Vector3.new(5229.99561, 603.916565, 345.154022),
-         Mobs = {"Hydra Pirate", "Giant Islander"}, QuestNPC = "Hydra Quest Giver", MinLevel = 1600},
-         
-        {Name = "Great Tree", Center = Vector3.new(2174.94873, 28.7312393, -6728.83154),
-         Mobs = {"Forest Pirate", "Mythological Pirate"}, QuestNPC = "Tree Quest Giver", MinLevel = 1700},
-         
-        {Name = "Castle on the Sea", Center = Vector3.new(-5477.62842, 313.794739, -2808.4585),
-         Mobs = {"Castle Guard", "Castle Raider"}, QuestNPC = "Castle Quest Giver", MinLevel = 1800},
-         
-        {Name = "Haunted Castle", Center = Vector3.new(-9506.11035, 142.104858, 5526.82178),
-         Mobs = {"Haunted Spirit", "Revenge Boss"}, QuestNPC = "Haunted Quest Giver", MinLevel = 1900}
+    return {
+        Ms = Ms,
+        NameQuest = NameQuest,
+        QuestLv = QuestLv,
+        NameMon = NameMon,
+        CFrameQ = CFrameQ,
+        CFrameMon = CFrameMon
     }
-}
-
--- Helper function to add connections and track them
-local function AddConnection(signal, callback)
-    local connection = signal:Connect(callback)
-    table.insert(Connections, connection)
-    return connection
 end
 
--- Function to find the best mob based on player level
-local function FindBestMobForLevel()
-    local playerLevel = LocalPlayer.Data.Level.Value
-    local bestIsland = nil
-    local bestLevelDiff = math.huge
-    
-    for _, island in pairs(Islands[CurrentSea]) do
-        if island.MinLevel <= playerLevel then
-            local levelDiff = playerLevel - island.MinLevel
-            
-            if levelDiff < bestLevelDiff then
-                bestLevelDiff = levelDiff
-                bestIsland = island
-            end
-        end
+-- Teleport to position function
+local function Teleport(Position)
+    if not isRoblox then
+        print("Teleporting to simulated position")
+        return
     end
     
-    -- If no appropriate island found, use the lowest level island
-    if not bestIsland then
-        bestIsland = Islands[CurrentSea][1]
+    local Character = game.Players.LocalPlayer.Character
+    if not Character or not Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local Distance = (Character.HumanoidRootPart.Position - Position.Position).Magnitude
+    local Speed = Distance <= 250 and 300 or Distance <= 500 and 275 or Distance <= 1000 and 250 or 225
+    
+    local TweenInfo = TweenInfo.new(Distance / Speed, Enum.EasingStyle.Linear)
+    
+    local Tween = TweenService:Create(
+        Character.HumanoidRootPart,
+        TweenInfo,
+        {CFrame = Position}
+    )
+    
+    if ActiveTween then
+        ActiveTween:Cancel()
     end
     
-    return bestIsland.Mobs, bestIsland.QuestNPC, bestIsland.MinLevel, bestIsland.Name
+    ActiveTween = Tween
+    Tween:Play()
+    return Tween.Completed
 end
 
--- Function to get the current quest
-local function GetQuest()
-    if not Settings.AutoQuest then return end
-    
-    local playerLevel = LocalPlayer.Data.Level.Value
-    local targetMobs, questNPC, questLevel, islandName = FindBestMobForLevel()
-    
-    -- Find the quest NPC
-    local npcModel = nil
-    for _, model in pairs(workspace.NPCs:GetChildren()) do
-        if model.Name == questNPC then
-            npcModel = model
-            break
-        end
-    end
-    
-    if npcModel then
-        -- Store the current position
-        local oldPosition = HumanoidRootPart.CFrame
-        
-        -- Teleport to NPC
-        HumanoidRootPart.CFrame = npcModel.HumanoidRootPart.CFrame * CFrame.new(0, 0, 3)
-        
-        -- Wait a bit and get the quest
-        wait(0.5)
-        CommF:InvokeServer("StartQuest", questNPC, questLevel)
-        
-        -- Return to the original position
-        HumanoidRootPart.CFrame = oldPosition
-        
-        -- Set current quest
-        CurrentQuest = {
-            NPC = questNPC,
-            Level = questLevel,
-            Mobs = targetMobs,
-            Island = islandName
-        }
-        
-        return CurrentQuest
-    end
-    
-    return nil
-end
-
--- Function to find target mob
-local function FindTarget()
-    local nearestDistance = math.huge
-    local nearestMob = nil
-    
-    -- Get target mobs based on quest or level
-    local targetMobs = {}
-    
-    if CurrentQuest and Settings.AutoQuest then
-        targetMobs = CurrentQuest.Mobs
-    else
-        targetMobs = FindBestMobForLevel()
-    end
-    
-    -- Find nearest mob from target list
-    for _, mob in pairs(workspace.Enemies:GetChildren()) do
-        if mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
-            for _, targetName in pairs(targetMobs) do
-                if mob.Name:find(targetName) then
-                    local distance = (HumanoidRootPart.Position - mob.HumanoidRootPart.Position).Magnitude
-                    
-                    if distance < nearestDistance then
-                        nearestDistance = distance
-                        nearestMob = mob
-                    end
-                    
-                    break
-                end
-            end
-        end
-    end
-    
-    return nearestMob, nearestDistance
-end
-
--- Function to get farming position based on method
-local function GetFarmingPosition(targetHRP)
-    local targetCFrame = targetHRP.CFrame
-    local farmDistance = Settings.FarmDistance
-    
-    if Settings.FarmMethod == "Behind" then
-        return targetCFrame * CFrame.new(0, 0, farmDistance)
-    elseif Settings.FarmMethod == "Above" then
-        return targetCFrame * CFrame.new(0, farmDistance, 0)
-    elseif Settings.FarmMethod == "Below" then
-        return targetCFrame * CFrame.new(0, -farmDistance, 0)
-    elseif Settings.FarmMethod == "Front" then
-        return targetCFrame * CFrame.new(0, 0, -farmDistance)
-    else
-        -- Default to behind
-        return targetCFrame * CFrame.new(0, 0, farmDistance)
-    end
-end
-
--- Function to activate Buso Haki
-local function ActivateBusoHaki()
-    if not Settings.AutoHaki then return end
-    
-    local hasHaki = LocalPlayer:FindFirstChild("HasBuso")
-    
-    if hasHaki and not hasHaki.Value then
-        CommF:InvokeServer("Buso")
-    end
-end
-
--- Function to equip the weapon
-local function EquipWeapon(weapon)
-    if not weapon then weapon = Settings.SelectedWeapon end
-    
-    local success = false
-    
-    for i, v in pairs(LocalPlayer.Backpack:GetChildren()) do
-        if v.Name:find(weapon) then
-            Humanoid:EquipTool(v)
-            success = true
-            break
-        end
-    end
-    
-    return success
-end
-
--- Function to attack
+-- Attack function
 local function Attack()
-    local equipped = nil
+    if not isRoblox then
+        print("Attack simulated")
+        return
+    end
     
-    if isRoblox then
-        equipped = Character:FindFirstChildOfClass("Tool")
+    local AC = game.Players.LocalPlayer.Character:FindFirstChild("Combat") or game.Players.LocalPlayer.Backpack:FindFirstChild("Combat")
+    
+    if FarmSettings.SelectedWeapon == "Combat" then
+        AC = game.Players.LocalPlayer.Character:FindFirstChild("Combat") or game.Players.LocalPlayer.Backpack:FindFirstChild("Combat")
     else
-        -- Simulate having a tool equipped in standalone mode
-        equipped = {
-            Name = Settings.SelectedWeapon,
-            Attack = {
-                FireServer = function() 
-                    print("Attacking with " .. Settings.SelectedWeapon)
-                end
-            }
-        }
+        AC = game.Players.LocalPlayer.Character:FindFirstChild(FarmSettings.SelectedWeapon) or game.Players.LocalPlayer.Backpack:FindFirstChild(FarmSettings.SelectedWeapon)
     end
     
-    if not equipped then
-        EquipWeapon()
-        wait(0.1)
-        
-        if isRoblox then
-            equipped = Character:FindFirstChildOfClass("Tool")
-        else
-            equipped = {
-                Name = Settings.SelectedWeapon,
-                Attack = {
-                    FireServer = function() 
-                        print("Attacking with " .. Settings.SelectedWeapon)
-                    end
-                }
-            }
-        end
+    if AC then
+        game.Players.LocalPlayer.Character.Humanoid:EquipTool(AC)
+        AC:Activate()
+    end
+end
+
+-- Fast attack function
+local function FastAttack()
+    if not isRoblox then
+        print("Using Fast Attack")
+        return
     end
     
-    if equipped and (isRoblox and equipped:FindFirstChild("Attack") or not isRoblox) then
-        if isRoblox then
-            equipped.Attack:FireServer()
-        else
-            print("Simulated attack with " .. equipped.Name)
-        end
-    end
-    
-    if Settings.FastAttack then
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton1(Vector2.new(50, 50))
-    end
-    
-    -- Use skills
-    if Settings.SkillsEnabled.Z then
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
-        keypress(0x5A) -- Z key
-        wait(0.1)
-        keyrelease(0x5A)
-        VirtualUser:Button1Up(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
-    end
-    
-    if Settings.SkillsEnabled.X then
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
+    if FarmSettings.FastAttack then
         keypress(0x58) -- X key
         wait(0.1)
         keyrelease(0x58)
-        VirtualUser:Button1Up(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
-    end
-    
-    if Settings.SkillsEnabled.C then
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
-        keypress(0x43) -- C key
-        wait(0.1)
-        keyrelease(0x43)
-        VirtualUser:Button1Up(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
-    end
-    
-    if Settings.SkillsEnabled.V then
-        VirtualUser:CaptureController()
-        VirtualUser:Button1Down(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
-        keypress(0x56) -- V key
-        wait(0.1)
-        keyrelease(0x56)
-        VirtualUser:Button1Up(Vector2.new(1280, 672), workspace.CurrentCamera.CFrame)
     end
 end
 
--- Main farming loop
-local function StartFarming()
-    if Farming then return end
-    Farming = true
-    
-    -- Initial quest getting
-    if Settings.AutoQuest and not CurrentQuest then
-        GetQuest()
+-- Buso Haki function
+local function BusoHaki()
+    if not isRoblox then
+        print("Buso Haki activation simulated")
+        return
     end
     
-    -- Farming loop
-    spawn(function()
-        while Farming and Settings.AutoFarm do
-            -- Check for Buso Haki
-            ActivateBusoHaki()
-            
-            -- Get quest if needed
-            if Settings.AutoQuest and not CurrentQuest then
-                GetQuest()
+    if FarmSettings.AutoHaki then
+        if not game.Players.LocalPlayer.Character:FindFirstChild("HasBuso") then
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("Buso")
+        end
+    end
+end
+
+-- Get monsters function
+local function GetMobs(questData)
+    if not isRoblox then
+        print("Getting mobs for: " .. (questData.NameMon or "Unknown"))
+        return {{Name = questData.NameMon, HumanoidRootPart = {Position = Vector3.new(0,0,0), CFrame = CFrame.new(0,0,0)}, Humanoid = {Health = 100}}}
+    end
+    
+    local Mobs = {}
+    
+    for i,v in pairs(workspace.Enemies:GetChildren()) do
+        if v.Name == questData.NameMon and v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+            table.insert(Mobs, v)
+        end
+    end
+    
+    return Mobs
+end
+
+-- Farm nearest monster function
+local function FarmNearestMob()
+    if not isRoblox then
+        print("Farming nearest mob simulation")
+        return
+    end
+    
+    local NearestMob = nil
+    local ShortestDistance = FarmSettings.FarmRadius
+    
+    for i,v in pairs(workspace.Enemies:GetChildren()) do
+        if v:FindFirstChild("HumanoidRootPart") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
+            local Distance = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - v.HumanoidRootPart.Position).Magnitude
+            if Distance <= ShortestDistance then
+                ShortestDistance = Distance
+                NearestMob = v
             end
-            
-            -- Find target
-            local mob, distance = FindTarget()
-            
-            -- If we found a target
-            if mob and mob:FindFirstChild("Humanoid") and mob:FindFirstChild("HumanoidRootPart") and mob.Humanoid.Health > 0 then
-                Target = mob
+        end
+    end
+    
+    return NearestMob
+end
+
+-- Main farming function
+local function StartFarming()
+    if Farming then return end
+    
+    Farming = true
+    print("Starting Auto Farm simulation...")
+    
+    if not isRoblox then
+        local playerLevel = game:GetService("Players").LocalPlayer.Data.Level.Value
+        local questData = CheckLevel()
+        
+        print("Player level: " .. playerLevel)
+        print("Selected target: " .. questData.NameMon .. " (Level " .. (playerLevel - 15) .. ")")
+        
+        if FarmSettings.AutoHaki then
+            print("Buso Haki activation simulated")
+        end
+        
+        print("Equipped weapon: " .. FarmSettings.SelectedWeapon)
+        
+        for i = 1, 5 do
+            print("Farming " .. questData.NameMon .. " (" .. i .. "/5)")
+            if FarmSettings.FastAttack then
+                print("Using Fast Attack")
+            end
+            print("Waiting...")
+            wait(1)
+        end
+        
+        print("Farming simulation complete!")
+        Farming = false
+        return
+    end
+    
+    spawn(function()
+        while Farming and wait() do
+            pcall(function()
+                local QuestData = CheckLevel()
                 
-                -- Move to target
-                if distance > 150 then
-                    -- Far away, use tween for faster movement
-                    local targetPos = mob.HumanoidRootPart.Position
-                    ActiveTween = TweenService:Create(
-                        HumanoidRootPart,
-                        TweenInfo.new(distance / 200, Enum.EasingStyle.Linear),
-                        {CFrame = CFrame.new(targetPos)}
-                    )
-                    ActiveTween:Play()
-                    
-                    -- Wait for tween to complete
-                    wait(distance / 200)
-                end
-                
-                -- Cancel any active tween
-                if ActiveTween then
-                    ActiveTween:Cancel()
-                    ActiveTween = nil
-                end
-                
-                -- Position for farming
-                local farmingPos = GetFarmingPosition(mob.HumanoidRootPart)
-                HumanoidRootPart.CFrame = farmingPos
-                
-                -- Attack
-                Attack()
-                
-                -- Check if target is dead
-                if mob.Humanoid.Health <= 0 or not mob.Parent then
-                    Target = nil
-                end
-            else
-                -- No target found, move to island center
-                if CurrentQuest then
-                    for _, island in pairs(Islands[CurrentSea]) do
-                        if island.Name == CurrentQuest.Island then
-                            local targetPos = island.Center
-                            
-                            -- Cancel any active tween
-                            if ActiveTween then
-                                ActiveTween:Cancel()
-                                ActiveTween = nil
-                            end
-                            
-                            -- Tween to island center
-                            local distance = (HumanoidRootPart.Position - targetPos).Magnitude
-                            ActiveTween = TweenService:Create(
-                                HumanoidRootPart,
-                                TweenInfo.new(distance / 200, Enum.EasingStyle.Linear),
-                                {CFrame = CFrame.new(targetPos)}
-                            )
-                            ActiveTween:Play()
-                            
-                            break
-                        end
+                -- Make sure player has the quest
+                if FarmSettings.AutoQuest then
+                    if not game:GetService("Players").LocalPlayer.PlayerGui.Main.Quest.Visible then
+                        Teleport(QuestData.CFrameQ)
+                        wait(1.5)
+                        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", QuestData.NameQuest, QuestData.QuestLv)
                     end
                 end
                 
-                Target = nil
-            end
-            
-            wait(0.1)
+                -- Get mobs based on quest
+                local MobsToFarm = GetMobs(QuestData)
+                
+                if #MobsToFarm > 0 then
+                    for _, Mob in pairs(MobsToFarm) do
+                        if Farming and Mob:FindFirstChild("HumanoidRootPart") and Mob:FindFirstChild("Humanoid") and Mob.Humanoid.Health > 0 then
+                            repeat
+                                wait()
+                                BusoHaki()
+                                
+                                Teleport(Mob.HumanoidRootPart.CFrame * CFrame.new(0, 30, 0))
+                                Attack()
+                                FastAttack()
+                                
+                                -- Use skills if enabled
+                                if FarmSettings.SkillsEnabled.Z then
+                                    keypress(0x5A) -- Z key
+                                    wait(0.1)
+                                    keyrelease(0x5A)
+                                end
+                                
+                                if FarmSettings.SkillsEnabled.X then
+                                    keypress(0x58) -- X key
+                                    wait(0.1)
+                                    keyrelease(0x58)
+                                end
+                                
+                                if FarmSettings.SkillsEnabled.C then
+                                    keypress(0x43) -- C key
+                                    wait(0.1)
+                                    keyrelease(0x43)
+                                end
+                                
+                                if FarmSettings.SkillsEnabled.V then
+                                    keypress(0x56) -- V key
+                                    wait(0.1)
+                                    keyrelease(0x56)
+                                end
+                            until not Farming or not Mob or not Mob:FindFirstChild("HumanoidRootPart") or not Mob:FindFirstChild("Humanoid") or Mob.Humanoid.Health <= 0
+                        end
+                    end
+                else
+                    Teleport(QuestData.CFrameMon)
+                end
+            end)
         end
-        
-        Farming = false
     end)
 end
 
--- Function to stop farming
+-- Stop farming function
 local function StopFarming()
     Farming = false
-    
     if ActiveTween then
         ActiveTween:Cancel()
         ActiveTween = nil
     end
-    
-    Target = nil
+    print("Auto Farm stopped")
 end
 
--- Clean up all connections
-local function CleanUp()
-    for _, connection in pairs(Connections) do
-        if connection.Connected then
-            connection:Disconnect()
-        end
-    end
-    
-    Connections = {}
-    StopFarming()
-end
-
--- Mock or load Fluent UI Library based on environment
-local Fluent, SaveManager, InterfaceManager
-
-if isRoblox then
-    -- In Roblox, load the real libraries
-    Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-    SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-    InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-else
-    -- In standalone mode, create mock libraries
-    print("Creating mock Fluent UI Library for standalone mode")
-    
-    -- Mock Fluent
-    Fluent = {
-        Options = {},
-        Initialized = true,
-        CreateWindow = function(self, config)
-            print("Creating Fluent window: " .. config.Title)
-            
-            return {
-                AddTab = function(tabConfig)
-                    print("  Creating tab: " .. (tabConfig.Title or "Unnamed Tab"))
-                    
-                    return {
-                        AddParagraph = function(paragraphConfig)
-                            print("    Adding paragraph: " .. (paragraphConfig.Title or "Unnamed Paragraph"))
-                            return paragraphConfig
-                        end,
-                        
-                        AddToggle = function(id, toggleConfig)
-                            print("    Adding toggle: " .. (toggleConfig.Title or "Unnamed Toggle"))
-                            Fluent.Options[id] = {
-                                Value = toggleConfig.Default or false,
-                                SetValue = function(self, value)
-                                    self.Value = value
-                                    if toggleConfig.Callback then
-                                        toggleConfig.Callback(value)
-                                    end
-                                end
-                            }
-                            return {
-                                OnChanged = function(callback)
-                                    -- Do nothing in mock
-                                end
-                            }
-                        end,
-                        
-                        AddDropdown = function(id, dropdownConfig)
-                            print("    Adding dropdown: " .. (dropdownConfig.Title or "Unnamed Dropdown"))
-                            Fluent.Options[id] = {
-                                Value = dropdownConfig.Default or "",
-                                SetValue = function(self, value)
-                                    self.Value = value
-                                    if dropdownConfig.Callback then
-                                        dropdownConfig.Callback(value)
-                                    end
-                                end
-                            }
-                            return {
-                                OnChanged = function(callback)
-                                    -- Do nothing in mock
-                                end
-                            }
-                        end,
-                        
-                        AddSlider = function(id, sliderConfig)
-                            print("    Adding slider: " .. (sliderConfig.Title or "Unnamed Slider"))
-                            Fluent.Options[id] = {
-                                Value = sliderConfig.Default or 0,
-                                SetValue = function(self, value)
-                                    self.Value = value
-                                    if sliderConfig.Callback then
-                                        sliderConfig.Callback(value)
-                                    end
-                                end
-                            }
-                            return {
-                                OnChanged = function(callback)
-                                    -- Do nothing in mock
-                                end
-                            }
-                        end,
-                        
-                        AddButton = function(buttonConfig)
-                            print("    Adding button: " .. (buttonConfig.Title or "Unnamed Button"))
-                            return {}
-                        end
-                    }
-                end,
-                
-                SelectTab = function(index)
-                    if type(index) == "number" then
-                        print("  Selected tab index: " .. index)
-                    else
-                        print("  Selected tab")
-                    end
-                end
-            }
-        end,
-        
-        Notify = function(self, notifyConfig)
-            print("Notification: " .. (notifyConfig.Title or "Notification"))
-            print("  " .. (notifyConfig.Content or ""))
-            print("  Duration: " .. (notifyConfig.Duration or "N/A") .. "s")
-        end
-    }
-    
-    -- Mock SaveManager
-    SaveManager = {
-        SetLibrary = function(self, lib) end,
-        IgnoreThemeSettings = function(self) end,
-        SetIgnoreIndexes = function(self, indexes) end,
-        SetFolder = function(self, folder) end,
-        BuildConfigSection = function(self, tab) end,
-        LoadAutoloadConfig = function(self) end
-    }
-    
-    -- Mock InterfaceManager
-    InterfaceManager = {
-        SetLibrary = function(self, lib) end,
-        SetFolder = function(self, folder) end,
-        BuildInterfaceSection = function(self, tab) end
-    }
-end
-
--- Mock UDim2 if needed
-if not isRoblox then
-    UDim2 = {
-        fromOffset = function(x, y)
-            return {x = x, y = y}
-        end
-    }
-    
-    -- Mock Enum
-    Enum = {
-        KeyCode = {
-            RightControl = "RightControl"
-        },
-        EasingStyle = {
-            Linear = "Linear",
-            Quad = "Quad",
-            Cubic = "Cubic",
-            Quart = "Quart",
-            Quint = "Quint"
-        },
-        EasingDirection = {
-            In = "In",
-            Out = "Out",
-            InOut = "InOut"
-        }
-    }
-    
-    -- Mock TweenInfo
-    if not TweenInfo then
-        TweenInfo = {}
-        TweenInfo.new = function(time, style, direction, repeats, reverse, delay)
-            return {
-                Time = time or 1,
-                EasingStyle = style or Enum.EasingStyle.Linear,
-                EasingDirection = direction or Enum.EasingDirection.Out,
-                RepeatCount = repeats or 0,
-                Reverses = reverse or false,
-                DelayTime = delay or 0
-            }
-        end
-    end
-end
-
--- Create the window
+-- Fluent UI Window setup
 local Window = Fluent:CreateWindow({
     Title = "🌊 SkyX Hub - Blox Fruits 🌊",
-    SubTitle = "by SkyX Team",
+    SubTitle = "Enhanced Auto Farm Edition",
     TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
+    Size = UDim2.fromOffset(600, 400),
     Acrylic = true,
     Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.RightControl
+    MinimizeKey = Enum.KeyCode.RightControl -- Right Control to toggle UI visibility
 })
 
 -- Create tabs
 local Tabs = {
     Main = Window:AddTab({ Title = "Main", Icon = "home" }),
-    Combat = Window:AddTab({ Title = "Combat", Icon = "swords" }),
+    Farm = Window:AddTab({ Title = "Farming", Icon = "swords" }),
     Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
+    Stats = Window:AddTab({ Title = "Stats", Icon = "bar-chart-2" }),
     Misc = Window:AddTab({ Title = "Misc", Icon = "settings" })
 }
 
--- Setup options
-local Options = Fluent.Options
+-- Main tab
+Tabs.Main:AddParagraph("Welcome to SkyX Hub", "Enhanced Blox Fruits script with improved auto farm")
 
--- Player info
-local playerLevel = LocalPlayer.Data.Level.Value
-local playerBeli = LocalPlayer.Data.Beli.Value
-local playerFragments = LocalPlayer.Data.Fragments.Value
+-- Level display
+local LevelLabel = Tabs.Main:AddLabel("Level: " .. (isRoblox and game.Players.LocalPlayer.Data.Level.Value or "50") .. " (Sea: " .. (First_Sea and "1" or Second_Sea and "2" or Third_Sea and "3" or "Unknown") .. ")")
 
-Tabs.Main:AddParagraph({
-    Title = "Player Information",
-    Content = "Level: " .. playerLevel .. 
-              "\nBeli: " .. playerBeli .. 
-              "\nFragments: " .. playerFragments
-})
+-- Auto Farm tab
+Tabs.Farm:AddParagraph("Auto Farm Settings", "Configure your farming preferences")
 
--- Auto Farm toggle
-Tabs.Main:AddToggle("AutoFarm", {
-    Title = "Auto Farm",
-    Default = Settings.AutoFarm,
+-- Enable auto farm toggle
+local EnableFarm = Tabs.Farm:AddToggle({
+    Title = "Enable Auto Farm",
+    Default = false,
     Callback = function(Value)
-        Settings.AutoFarm = Value
-        
+        FarmSettings.Enabled = Value
         if Value then
             StartFarming()
-            Fluent:Notify({
-                Title = "Auto Farm",
-                Content = "Started Auto Farm",
-                Duration = 3
-            })
         else
             StopFarming()
-            Fluent:Notify({
-                Title = "Auto Farm",
-                Content = "Stopped Auto Farm",
-                Duration = 3
-            })
         end
     end
 })
 
--- Auto Quest toggle
-Tabs.Main:AddToggle("AutoQuest", {
-    Title = "Auto Quest",
-    Default = Settings.AutoQuest,
-    Callback = function(Value)
-        Settings.AutoQuest = Value
-        
-        if Value and not CurrentQuest then
-            GetQuest()
-        end
-    end
-})
-
--- Fast Attack toggle
-Tabs.Main:AddToggle("FastAttack", {
+-- Fast attack toggle
+local FastAttackToggle = Tabs.Farm:AddToggle({
     Title = "Fast Attack",
-    Default = Settings.FastAttack,
+    Default = true,
     Callback = function(Value)
-        Settings.FastAttack = Value
+        FarmSettings.FastAttack = Value
     end
 })
 
 -- Auto Haki toggle
-Tabs.Main:AddToggle("AutoHaki", {
+local AutoHakiToggle = Tabs.Farm:AddToggle({
     Title = "Auto Buso Haki",
-    Default = Settings.AutoHaki,
+    Default = true,
     Callback = function(Value)
-        Settings.AutoHaki = Value
-        
-        if Value then
-            ActivateBusoHaki()
+        FarmSettings.AutoHaki = Value
+    end
+})
+
+-- Mob Aura toggle
+local MobAuraToggle = Tabs.Farm:AddToggle({
+    Title = "Mob Aura",
+    Default = false,
+    Callback = function(Value)
+        FarmSettings.MobAura = Value
+    end
+})
+
+-- Auto Quest toggle
+local AutoQuestToggle = Tabs.Farm:AddToggle({
+    Title = "Auto Quest",
+    Default = true,
+    Callback = function(Value)
+        FarmSettings.AutoQuest = Value
+    end
+})
+
+-- Farm type dropdown
+local FarmTypeDropdown = Tabs.Farm:AddDropdown({
+    Title = "Farm Type",
+    Values = {"Level", "Nearest", "Boss", "Region"},
+    Default = "Level",
+    Callback = function(Value)
+        FarmSettings.FarmType = Value
+        if FarmSettings.Enabled then
+            StopFarming()
+            StartFarming()
         end
     end
 })
 
--- Weapon selection
-local WeaponsList = {"Combat"}
-
-if isRoblox then
-    for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-        if tool:IsA("Tool") then
-            table.insert(WeaponsList, tool.Name)
-        end
-    end
-    
-    for _, tool in pairs(Character:GetChildren()) do
-        if tool:IsA("Tool") then
-            table.insert(WeaponsList, tool.Name)
-        end
-    end
-else
-    -- In standalone mode, use mock weapons
-    table.insert(WeaponsList, "Sword")
-    table.insert(WeaponsList, "Gun")
-    table.insert(WeaponsList, "Blox Fruit")
-end
-
-Tabs.Main:AddDropdown("WeaponSelect", {
+-- Weapon selection dropdown
+local WeaponDropdown = Tabs.Farm:AddDropdown({
     Title = "Select Weapon",
-    Values = WeaponsList,
-    Multi = false,
-    Default = Settings.SelectedWeapon,
+    Values = {"Combat", "Sword", "Fruit"},
+    Default = "Combat",
     Callback = function(Value)
-        Settings.SelectedWeapon = Value
-        EquipWeapon(Value)
+        FarmSettings.SelectedWeapon = Value
     end
 })
 
--- Combat tab settings
-Tabs.Combat:AddDropdown("FarmMethod", {
-    Title = "Farm Position",
-    Values = {"Behind", "Above", "Below", "Front"},
-    Multi = false,
-    Default = Settings.FarmMethod,
+-- Farm radius slider
+local RadiusSlider = Tabs.Farm:AddSlider({
+    Title = "Farm Radius",
+    Min = 10,
+    Max = 200,
+    Default = 100,
     Callback = function(Value)
-        Settings.FarmMethod = Value
+        FarmSettings.FarmRadius = Value
     end
 })
 
-Tabs.Combat:AddSlider("FarmDistance", {
-    Title = "Farm Distance",
-    Description = "Distance from the target mob",
-    Default = Settings.FarmDistance,
-    Min = 3,
-    Max = 15,
-    Rounding = 1,
+-- Skills toggles section
+Tabs.Farm:AddParagraph("Skill Settings", "Choose which skills to use during auto farm")
+
+-- Z skill toggle
+local ZSkillToggle = Tabs.Farm:AddToggle({
+    Title = "Use Z Skill",
+    Default = true,
     Callback = function(Value)
-        Settings.FarmDistance = Value
+        FarmSettings.SkillsEnabled.Z = Value
     end
 })
 
--- Skills section
-Tabs.Combat:AddParagraph({
-    Title = "Auto Skills",
-    Content = "Enable/disable automatic skills usage"
-})
-
-Tabs.Combat:AddToggle("SkillZ", {
-    Title = "Use Skill Z",
-    Default = Settings.SkillsEnabled.Z,
+-- X skill toggle
+local XSkillToggle = Tabs.Farm:AddToggle({
+    Title = "Use X Skill",
+    Default = true,
     Callback = function(Value)
-        Settings.SkillsEnabled.Z = Value
+        FarmSettings.SkillsEnabled.X = Value
     end
 })
 
-Tabs.Combat:AddToggle("SkillX", {
-    Title = "Use Skill X",
-    Default = Settings.SkillsEnabled.X,
+-- C skill toggle
+local CSkillToggle = Tabs.Farm:AddToggle({
+    Title = "Use C Skill",
+    Default = false,
     Callback = function(Value)
-        Settings.SkillsEnabled.X = Value
+        FarmSettings.SkillsEnabled.C = Value
     end
 })
 
-Tabs.Combat:AddToggle("SkillC", {
-    Title = "Use Skill C",
-    Default = Settings.SkillsEnabled.C,
+-- V skill toggle
+local VSkillToggle = Tabs.Farm:AddToggle({
+    Title = "Use V Skill",
+    Default = false,
     Callback = function(Value)
-        Settings.SkillsEnabled.C = Value
-    end
-})
-
-Tabs.Combat:AddToggle("SkillV", {
-    Title = "Use Skill V",
-    Default = Settings.SkillsEnabled.V,
-    Callback = function(Value)
-        Settings.SkillsEnabled.V = Value
+        FarmSettings.SkillsEnabled.V = Value
     end
 })
 
 -- Teleport tab
-Tabs.Teleport:AddParagraph({
-    Title = "Islands Teleport",
-    Content = "Click to teleport to specific islands"
-})
+Tabs.Teleport:AddParagraph("Teleport Options", "Quick travel to important locations")
 
--- Add island buttons based on current sea
-for _, island in pairs(Islands[CurrentSea]) do
+if First_Sea then
     Tabs.Teleport:AddButton({
-        Title = island.Name,
+        Title = "Pirate Starter Island",
         Callback = function()
-            local targetPos = island.Center
-            
-            -- Cancel any active tween
-            if ActiveTween then
-                ActiveTween:Cancel()
-                ActiveTween = nil
+            if isRoblox then
+                Teleport(CFrame.new(1071.2832, 16.3085976, 1426.86792))
+            else
+                print("Teleporting to Pirate Starter Island")
             end
-            
-            -- Tween to island
-            local distance = (HumanoidRootPart.Position - targetPos).Magnitude
-            ActiveTween = TweenService:Create(
-                HumanoidRootPart,
-                TweenInfo.new(distance / 200, Enum.EasingStyle.Linear),
-                {CFrame = CFrame.new(targetPos)}
-            )
-            ActiveTween:Play()
-            
-            Fluent:Notify({
-                Title = "Teleport",
-                Content = "Teleporting to " .. island.Name,
-                Duration = 3
-            })
+        end
+    })
+    
+    Tabs.Teleport:AddButton({
+        Title = "Marine Starter Island",
+        Callback = function()
+            if isRoblox then
+                Teleport(CFrame.new(-2573.3374, 6.88881969, 2046.99817))
+            else
+                print("Teleporting to Marine Starter Island")
+            end
+        end
+    })
+    
+    Tabs.Teleport:AddButton({
+        Title = "Middle Town",
+        Callback = function()
+            if isRoblox then
+                Teleport(CFrame.new(-655.824158, 7.88708115, 1436.67908))
+            else
+                print("Teleporting to Middle Town")
+            end
+        end
+    })
+    
+    Tabs.Teleport:AddButton({
+        Title = "Jungle",
+        Callback = function()
+            if isRoblox then
+                Teleport(CFrame.new(-1448.1446533203, 50.851993560791, 63.60718536377))
+            else
+                print("Teleporting to Jungle")
+            end
+        end
+    })
+    
+    Tabs.Teleport:AddButton({
+        Title = "Pirate Village",
+        Callback = function()
+            if isRoblox then
+                Teleport(CFrame.new(-1201.0881347656, 40.628940582275, 3857.5966796875))
+            else
+                print("Teleporting to Pirate Village")
+            end
         end
     })
 end
 
--- Sea teleport options
-Tabs.Teleport:AddParagraph({
-    Title = "Sea Teleport",
-    Content = "Teleport between different seas"
-})
+-- Stats tab
+Tabs.Stats:AddParagraph("Player Stats", "Upgrade your character's statistics")
 
-Tabs.Teleport:AddButton({
-    Title = "First Sea",
+local StatPoints = Tabs.Stats:AddLabel("Available Points: " .. (isRoblox and game:GetService("Players").LocalPlayer.Data.Points.Value or "0"))
+
+-- Melee stat button
+Tabs.Stats:AddButton({
+    Title = "Upgrade Melee",
     Callback = function()
-        CommF:InvokeServer("TravelMain")
-    end
-})
-
-Tabs.Teleport:AddButton({
-    Title = "Second Sea",
-    Callback = function()
-        CommF:InvokeServer("TravelDressrosa")
-    end
-})
-
-Tabs.Teleport:AddButton({
-    Title = "Third Sea",
-    Callback = function()
-        CommF:InvokeServer("TravelZou")
-    end
-})
-
--- Misc tab features
-Tabs.Misc:AddParagraph({
-    Title = "Misc Features",
-    Content = "Additional utility features"
-})
-
-Tabs.Misc:AddToggle("ChestFarm", {
-    Title = "Auto Collect Chests",
-    Default = Settings.ChestFarm,
-    Callback = function(Value)
-        Settings.ChestFarm = Value
-        
-        if Value then
-            spawn(function()
-                while Settings.ChestFarm do
-                    if isRoblox then
-                        for _, chest in pairs(workspace:GetChildren()) do
-                            if chest.Name == "Chest1" or chest.Name == "Chest2" or chest.Name == "Chest3" then
-                                if chest:FindFirstChild("Mesh") or chest:FindFirstChild("SpecialMesh") then
-                                    local distance = (HumanoidRootPart.Position - chest.Position).Magnitude
-                                    
-                                    if distance < 200 then
-                                        HumanoidRootPart.CFrame = chest.CFrame
-                                        wait(1)
-                                    end
-                                end
-                            end
-                        end
-                    else
-                        -- Simulate chest farming in standalone
-                        print("Simulating chest farming...")
-                        print("Found Chest1")
-                        print("Collecting chest...")
-                        wait(1)
-                        print("Found Chest2")
-                        print("Collecting chest...")
-                        wait(1)
-                    end
-                    wait(1)
-                end
-            end)
+        if isRoblox then
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Melee", 1)
+            StatPoints:Set("Available Points: " .. game:GetService("Players").LocalPlayer.Data.Points.Value)
+        else
+            print("Upgrading Melee stat")
         end
     end
 })
 
-Tabs.Misc:AddButton({
-    Title = "Redeem All Codes",
+-- Defense stat button
+Tabs.Stats:AddButton({
+    Title = "Upgrade Defense",
     Callback = function()
-        local codes = {
-            "Sub2UncleKizaru",
-            "SUB2NOOBMASTER123",
-            "Sub2Daigrock",
-            "Axiore",
-            "TantaiGaming",
-            "STRAWHATMAINE",
-            "SUB2GAMERROBOT_EXP1",
-            "Sub2OfficialNoobie",
-            "Magicbus",
-            "JCWK",
-            "Starcodeheo",
-            "Bluxxy",
-            "fudd10_v2",
-            "FUDD10",
-            "SUB2GAMERROBOT_RESET1",
-            "kittgaming",
-            "Sub2Fer999",
-            "Enyu_is_Pro",
-            "THEGREATACE",
-            "BIGNEWS",
-            "TheGreatAce"
-        }
-        
-        for _, code in pairs(codes) do
-            CommF:InvokeServer("RedeemCode", code)
-            wait(0.5)
+        if isRoblox then
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Defense", 1)
+            StatPoints:Set("Available Points: " .. game:GetService("Players").LocalPlayer.Data.Points.Value)
+        else
+            print("Upgrading Defense stat")
         end
-        
-        Fluent:Notify({
-            Title = "Codes",
-            Content = "All codes redeemed!",
-            Duration = 3
-        })
     end
 })
 
-Tabs.Misc:AddButton({
-    Title = "Script Info",
+-- Sword stat button
+Tabs.Stats:AddButton({
+    Title = "Upgrade Sword",
     Callback = function()
-        Fluent:Notify({
-            Title = "SkyX Hub Info",
-            Content = "Blox Fruits Auto Farm with Fluent UI\nMobile Compatible\nCreated by SkyX Team",
-            Duration = 5
-        })
+        if isRoblox then
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Sword", 1)
+            StatPoints:Set("Available Points: " .. game:GetService("Players").LocalPlayer.Data.Points.Value)
+        else
+            print("Upgrading Sword stat")
+        end
     end
 })
 
--- Setup managers
+-- Gun stat button
+Tabs.Stats:AddButton({
+    Title = "Upgrade Gun",
+    Callback = function()
+        if isRoblox then
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Gun", 1)
+            StatPoints:Set("Available Points: " .. game:GetService("Players").LocalPlayer.Data.Points.Value)
+        else
+            print("Upgrading Gun stat")
+        end
+    end
+})
+
+-- Demon Fruit stat button
+Tabs.Stats:AddButton({
+    Title = "Upgrade Demon Fruit",
+    Callback = function()
+        if isRoblox then
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("AddPoint", "Demon Fruit", 1)
+            StatPoints:Set("Available Points: " .. game:GetService("Players").LocalPlayer.Data.Points.Value)
+        else
+            print("Upgrading Demon Fruit stat")
+        end
+    end
+})
+
+-- Setup save managers
 if isRoblox then
     SaveManager:SetLibrary(Fluent)
     InterfaceManager:SetLibrary(Fluent)
@@ -1237,9 +947,13 @@ if isRoblox then
     SaveManager:BuildConfigSection(Tabs.Misc)
     
     -- Cleanup when script stops
-    AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
-        if child.Name == "Fluent_1" then
-            CleanUp()
+    spawn(function()
+        if game:GetService("CoreGui").ChildRemoved then
+            game:GetService("CoreGui").ChildRemoved:Connect(function(child)
+                if child.Name == "Fluent_1" then
+                    StopFarming()
+                end
+            end)
         end
     end)
 else
@@ -1252,10 +966,36 @@ Window:SelectTab(1)
 -- Welcome notification
 Fluent:Notify({
     Title = "SkyX Hub",
-    Content = "Blox Fruits script loaded!",
+    Content = "Blox Fruits script loaded with enhanced Auto Farm!",
     Duration = 5
 })
 
-print("\nSkyX Hub - Blox Fruits (Fluent UI) script loaded successfully!")
-print("Version: 1.0.0")
+print("\nSkyX Hub - Blox Fruits script loaded successfully!")
+print("Version: 2.0.0 (Enhanced Auto Farm)")
 print("⭐ Thanks for using SkyX Hub! ⭐")
+
+-- Periodically update level display
+spawn(function()
+    while wait(5) do
+        if isRoblox then
+            LevelLabel:Set("Level: " .. game.Players.LocalPlayer.Data.Level.Value .. " (Sea: " .. (First_Sea and "1" or Second_Sea and "2" or Third_Sea and "3" or "Unknown") .. ")")
+        end
+    end
+end)
+
+if not isRoblox then
+    -- Simulate button click for demonstration
+    print("Toggling Auto Farm ON...")
+    FarmSettings.Enabled = true
+    print("Auto Farm: true")
+    StartFarming()
+    
+    wait(10)
+    
+    print("Toggling Auto Farm OFF...")
+    FarmSettings.Enabled = false
+    print("Auto Farm: false")
+    
+    print("SkyX Hub - Blox Fruits Basic demo complete!")
+    print("This is a simplified standalone version that simulates the core functionality.")
+end
