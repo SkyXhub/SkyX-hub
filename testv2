@@ -1,9 +1,6 @@
 -- SkyX MM2 Advanced Script with Rayfield UI
 -- Features: Aimbot, Auto Grab Sheriff Gun, Auto Collect Coins
 
--- Load Rayfield UI Library
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -11,23 +8,51 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
+local TeleportService = game:GetService("TeleportService")
 
 -- Variables
 local LocalPlayer = Players.LocalPlayer
 local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
+-- Loading message in console
+print("Loading SkyX MM2 Advanced Rayfield...")
+
+-- Load Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
 -- Create main window
 local Window = Rayfield:CreateWindow({
     Name = "SkyX MM2 Advanced",
-    Icon = "knife",  -- Using Lucide icon
+    Icon = "rbxassetid://10483855823", -- Knife icon
     LoadingTitle = "SkyX MM2 Advanced",
     LoadingSubtitle = "by SkyX Team",
-    Theme = "Darker",
+    Theme = "Bloom", -- Using Bloom theme as requested
+    
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = true, -- Prevent version mismatch warnings
+    
     ConfigurationSaving = {
         Enabled = true,
-        FolderName = "SkyX",
+        FolderName = "SkyX", -- Custom folder for SkyX scripts
         FileName = "MM2Advanced"
+    },
+    
+    Discord = {
+        Enabled = true, -- Prompt the user to join Discord
+        Invite = "skyx-hub", -- Placeholder Discord invite code
+        RememberJoins = true -- Don't ask to join again after first time
+    },
+    
+    KeySystem = false, -- No key system for this script
+    KeySettings = {
+        Title = "SkyX MM2 Premium",
+        Subtitle = "Key Verification",
+        Note = "Join our Discord for the key (discord.gg/skyx-hub)",
+        FileName = "SkyXKey",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"SkyXMM2Premium"} -- Example key
     }
 })
 
@@ -1337,10 +1362,20 @@ SettingsTab:CreateButton({
 -- Load saved configuration
 Rayfield:LoadConfiguration()
 
--- Display welcome message
+-- First welcome message
+Rayfield:Notify({
+    Title = "SkyX MM2 Advanced Loading",
+    Content = "Setting up aimbot, auto gun grab & coin collection features...",
+    Duration = 2,
+    Image = "sync"
+})
+
+task.wait(0.5)
+
+-- Display final success message
 Rayfield:Notify({
     Title = "SkyX MM2 Advanced Loaded",
-    Content = "Aimbot, Auto Gun Grab, & Coin Collection",
+    Content = "All features ready to use! Enjoy exploiting!",
     Duration = 5,
     Image = "check-circle",
     Actions = {
@@ -1353,3 +1388,5 @@ Rayfield:Notify({
         },
     }
 })
+
+print("SkyX MM2 Advanced Script loaded successfully!")
