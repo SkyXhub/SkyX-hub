@@ -1,627 +1,138 @@
---[[
-    SkyX Hub - Muscle Legends Script
-    Created for mobile and PC compatibility
-    Using Fluent UI Library for a modern interface
-]]
-
--- Detect if we're in a Roblox environment
-local isRoblox = pcall(function() return game:GetService("Players") end)
-
--- Create mock environment for standalone testing
-if not isRoblox then
-    print("Running in standalone mode - creating mock Roblox environment")
-    
-    -- Mock Vector3 first to ensure it's available for other objects
-    Vector3 = {}
-    Vector3.new = function(x, y, z)
-        return {
-            x = x or 0, 
-            y = y or 0, 
-            z = z or 0,
-            Magnitude = function(self, other)
-                if other then
-                    local dx = self.x - other.x
-                    local dy = self.y - other.y
-                    local dz = self.z - other.z
-                    return math.sqrt(dx*dx + dy*dy + dz*dz)
-                else
-                    return math.sqrt(self.x*self.x + self.y*self.y + self.z*self.z)
-                end
-            end
-        }
+loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Settings.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Main/main/Library/V3.lua"))()
+local Window = Library:MakeWindow({
+    Title = "Speed Hub X | " .. Version,
+    SaveFolder = "Speed Hub X"
+});Window:AddMinimizeButton({
+    Button = {Image = "rbxassetid://16022917595"},
+    Corner = {CornerRadius = UDim.new(0, 5)}
+})
+local Home = Window:MakeTab({"Home", "scan-face"})
+Home:AddDiscordInvite({
+    Name = "Speed Hub X | Official Server",
+    Logo = "rbxassetid://16022917595",
+    Invite = Discord
+})
+task.spawn(function()
+    if game.Workspace:FindFirstChild("RobloxForwardPortals") then
+        game.Workspace.RobloxForwardPortals:Destroy()
     end
-    
-    -- Mock CFrame 
-    CFrame = {}
-    CFrame.new = function(x, y, z)
-        if type(x) == "table" then
-            return {Position = x}
-        else
-            return {Position = {x = x or 0, y = y or 0, z = z or 0}}
-        end
-    end
-    
-    -- Mock UDim2
-    UDim2 = {}
-    UDim2.fromOffset = function(x, y)
-        return {X = {Offset = x}, Y = {Offset = y}}
-    end
-    
-    -- Mock Enum
-    Enum = {
-        KeyCode = {
-            End = "End",
-            LeftControl = "LeftControl"
-        }
-    }
-    
-    -- Mock game object and services
-    game = {
-        PlaceId = 3623096087, -- Muscle Legends place ID
-        HttpGet = function(self, url)
-            print("Mock HttpGet called with URL: " .. url)
-            -- Return a simple mock Fluent library for testing
-            return [[
-                return {
-                    CreateWindow = function(config) 
-                        print("Creating window: " .. (config.Title or "Unnamed Window"))
-                        return {
-                            AddTab = function(config)
-                                print("Creating tab: " .. (config.Title or "Unnamed Tab"))
-                                return {
-                                    AddToggle = function(id, config) 
-                                        print("Adding toggle: " .. (config.Title or "Unnamed Toggle") .. " (Default: " .. tostring(config.Default or false) .. ")") 
-                                        if config.Callback then config.Callback(config.Default or false) end
-                                        return {
-                                            OnChanged = function() end,
-                                            SetValue = function() end
-                                        }
-                                    end,
-                                    AddButton = function(config) 
-                                        print("Adding button: " .. (config.Title or "Unnamed Button")) 
-                                        if config.Callback then config.Callback() end
-                                    end,
-                                    AddSlider = function(id, config) 
-                                        print("Adding slider: " .. (config.Title or "Unnamed Slider") .. " (Range: " .. (config.Min or 0) .. "-" .. (config.Max or 100) .. ")") 
-                                        if config.Callback then config.Callback(config.Default or 0) end
-                                        return {
-                                            OnChanged = function() end,
-                                            SetValue = function() end
-                                        }
-                                    end,
-                                    AddDropdown = function(id, config) 
-                                        print("Adding dropdown: " .. (config.Title or "Unnamed Dropdown")) 
-                                        if config.Callback then config.Callback(config.Default or "") end
-                                        return {
-                                            OnChanged = function() end,
-                                            SetValue = function() end
-                                        }
-                                    end,
-                                    AddLabel = function(config)
-                                        print("Adding label: " .. (config.Text or "Unnamed Label"))
-                                    end,
-                                    AddParagraph = function(config)
-                                        print("Adding paragraph: " .. (config.Title or "Unnamed Paragraph"))
-                                    end
-                                }
-                            end,
-                            SelectTab = function() end
-                        }
-                    end,
-                    Notify = function(config)
-                        print("Notification: " .. (config.Title or "No Title") .. " - " .. (config.Content or "No Content"))
-                    end,
-                    Options = {}
-                }
-            ]]
-        end
-    }
-    
-    -- Mock IsA function
-    function IsA(obj, className)
-        return false  -- Default implementation, override as needed
-    end
-    
-    -- Create Players service
-    local Players = {
-        LocalPlayer = {
-            Name = "Player1",
-            Character = {
-                Name = "Character",
-                HumanoidRootPart = {
-                    Position = Vector3.new(0, 0, 0),
-                    CFrame = CFrame.new(0, 0, 0),
-                    Anchored = false
-                },
-                Humanoid = {
-                    WalkSpeed = 16,
-                    JumpPower = 50
-                },
-                FindFirstChild = function(self, name) return self[name] end,
-                GetChildren = function() return {} end,
-                WaitForChild = function(self, name) return self[name] end
-            },
-            Backpack = {
-                FindFirstChild = function() return nil end,
-                GetChildren = function() return {} end
-            },
-            FindFirstChild = function() return {Value = 1000} end,
-            CharacterAdded = {
-                Connect = function() return {Connected = true, Disconnect = function() end} end
-            },
-            Idled = {
-                Connect = function(_, func) return {Connected = true, Disconnect = function() end} end
-            }
-        }
-    }
-    
-    -- Setup mock services
-    local RunService = {
-        RenderStepped = {
-            Connect = function(_, func) 
-                -- In standalone mode, we'll call the function once for testing
-                func(0.1)
-                return {Connected = true, Disconnect = function() end}
-            end
-        },
-        Heartbeat = {
-            Connect = function(_, func) 
-                func(0.1)
-                return {Connected = true, Disconnect = function() end}
-            end
-        }
-    }
-    
-    local TeleportService = {}
-    local VirtualUser = {
-        CaptureController = function() end,
-        ClickButton2 = function() end
-    }
-    local UserInputService = {
-        InputBegan = {
-            Connect = function() return {Connected = true, Disconnect = function() end} end
-        }
-    }
-    local CoreGui = {
-        FindFirstChild = function() return nil end
-    }
-    local ReplicatedStorage = {
-        RemoteEvent = {
-            FireServer = function(...) 
-                local args = {...}
-                print("Fired RemoteEvent with args:", table.unpack(args))
-            end
-        },
-        RemoteFunction = {
-            InvokeServer = function(...) 
-                local args = {...}
-                print("Invoked RemoteFunction with args:", table.unpack(args))
-                return true
-            end
-        }
-    }
-    
-    -- Set up GetService function
-    game.GetService = function(self, serviceName)
-        if serviceName == "Players" then
-            return Players
-        elseif serviceName == "RunService" then
-            return RunService
-        elseif serviceName == "TeleportService" then
-            return TeleportService
-        elseif serviceName == "VirtualUser" then
-            return VirtualUser
-        elseif serviceName == "UserInputService" then
-            return UserInputService
-        elseif serviceName == "CoreGui" then
-            return CoreGui
-        elseif serviceName == "ReplicatedStorage" then
-            return ReplicatedStorage
-        else
-            return {}
-        end
-    end
-    
-    -- Mock Color3
-    Color3 = {}
-    Color3.fromRGB = function(r, g, b)
-        return {r = r/255, g = g/255, b = b/255}
-    end
-    
-    -- Mock Vector2
-    Vector2 = {}
-    Vector2.new = function(x, y)
-        return {X = x or 0, Y = y or 0}
-    end
-    
-    -- Mock functions
-    function wait(t) return t or 0 end
-    function spawn(f) f() end
-    
-    -- Mock task library
-    task = {
-        spawn = function(f) f() end,
-        wait = function(t) return t or 0 end
-    }
-    
-    -- Mock workspace
-    workspace = {
-        FindFirstChild = function() return nil end,
-        GetChildren = function() return {} end
-    }
-    
-    -- Mock firetouchinterest
-    function firetouchinterest(part1, part2, state)
-        print("Fired touch interest between parts")
-    end
+end)
+local SpeedHubX = {}
+local function Toggle(Tab, Name, Desc, Default)
+  local Ver = Tab:AddToggle({
+    Name = Name,Description = Desc or "",Default = Default,
+    Callback = function(Value)
+      SpeedHubX[Name] = Value
+    end})
+    return Ver
 end
-
--- Detect if we're in the correct game
-local gameIds = {
-    3623096087 -- Muscle Legends ID
-}
-
-local isCorrectGame = false
-for _, id in pairs(gameIds) do
-    if game.PlaceId == id then
-        isCorrectGame = true
-        break
-    end
+local function Dropdown(Tab, Name, Desc, Option, Default)
+  local Ver = Tab:AddDropdown({
+    Name = Name,Description = Desc or "",Options = Option,Default = Default,
+    Callback = function(Value)
+      SpeedHubX[Name] = Value
+    end})
+    return Ver
 end
-
-if not isCorrectGame and isRoblox then
-    -- Wrong game notification
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "SkyX Hub",
-        Text = "This script is designed for Muscle Legends!",
-        Duration = 5
-    })
-    return
+local function Silder(Tab, Name, Min, Max, Default)
+  local Ver = Tab:AddSlider({
+    Name = Name,Min = Min,Max = Max,Default = Default,
+    Callback = function(Value)
+      SpeedHubX[Name] = Value
+    end})
+    return Ver
 end
-
--- Anti AFK for Roblox environments
-if isRoblox then
-    local VirtualUser = game:GetService("VirtualUser")
-    game:GetService("Players").LocalPlayer.Idled:Connect(function()
-        VirtualUser:CaptureController()
-        VirtualUser:ClickButton2(Vector2.new())
-        print("Anti-AFK triggered")
+Home:AddSection({"Local Player"})
+Silder(Home, "Set WalkSpeed", 0, 100000, 1000)
+Silder(Home, "Set JumpPower", 0, 100000, 1000)
+Silder(Home, "Set Size", 0, 100, 2)
+Toggle(Home, "Enable WalkSpeed", "This Can Set Walk Speed!", false)
+Toggle(Home, "Enable JumpPower", "This Can Set JumpPower!", false)
+Toggle(Home, "Enable Size", "This Can Set Size!", false)
+local Main = Window:MakeTab({"Main", "home"})
+Main:AddSection({"Farming Gym"})
+Dropdown(Main, "Select City Gym", "", {"Frost","Mystical","Eternal","Legends","Muscle King"}, "Frost")
+local UpdateGym = Dropdown(Main, "Select Gym", "", {""}, "")
+task.spawn(function()
+  while task.wait(1) do
+    pcall(function()
+      if SpeedHubX["Select City Gym"] == "Frost" then
+        UpdateGym:Set({"Lift", "Press", "Squat", "Punch"})
+      elseif SpeedHubX["Select City Gym"] == "Mystical" then
+        UpdateGym:Set({"Pullup", "Throw", "Press", "Punch"})
+      elseif SpeedHubX["Select City Gym"] == "Eternal" then
+        UpdateGym:Set({"Press", "Punch"})
+      elseif SpeedHubX["Select City Gym"] == "Legends" then
+        UpdateGym:Set({"Pullup", "Squat", "Lift", "Punch"})
+      elseif SpeedHubX["Select City Gym"] == "Muscle King" then
+        UpdateGym:Set({"Lift", "Squat", "Bench", "Punch"})
+      end
     end)
+  end
+end)
+Toggle(Main, "Auto Farm On Select Gym", "", false)
+Main:AddSection({"Farming General"})
+Toggle(Main, "Auto Weight", "", false)
+Toggle(Main, "Auto Pushups", "", false)
+Toggle(Main, "Auto Situps", "", false)
+Toggle(Main, "Auto Punch", "", false)
+Main:AddSection({"Misc"})
+Toggle(Main, "Unlock Fast Punch", "", false)
+Toggle(Main, "Lock Position", "", false)
+if game.Players.LocalPlayer.UserId == 2608992754 or game.Players.LocalPlayer.UserId == 1724621193 then
+  Toggle(Main, "Anti-Knockback", "", false)
 end
-
--- Load the Fluent UI Library
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-
--- Auto-collect gains
-local function autoCollectGains()
-    local player = game:GetService("Players").LocalPlayer
-    local gainParts = workspace:FindFirstChild("GainParts")
-    
-    if not gainParts then
-        return
-    end
-    
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if not hrp then
-        return
-    end
-    
-    for _, part in pairs(gainParts:GetChildren()) do
-        if part:IsA("Part") then
-            firetouchinterest(hrp, part, 0)
-            task.wait()
-            firetouchinterest(hrp, part, 1)
-        end
-    end
-end
-
--- Auto strength function
-local function autoStrength()
-    local player = game:GetService("Players").LocalPlayer
-    local args = {
-        [1] = "Rep"
-    }
-    
-    if isRoblox then
-        game:GetService("ReplicatedStorage").RemoteEvent:FireServer(unpack(args))
-    else
-        print("Auto Strength activated")
-    end
-end
-
--- Auto rebirth function
-local function autoRebirth()
-    local player = game:GetService("Players").LocalPlayer
-    local args = {
-        [1] = "Rebirth"
-    }
-    
-    if isRoblox then
-        game:GetService("ReplicatedStorage").RemoteEvent:FireServer(unpack(args))
-    else
-        print("Auto Rebirth activated")
-    end
-end
-
--- Farm chests function
-local function farmChests()
-    local player = game:GetService("Players").LocalPlayer
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    
-    if not hrp then
-        return
-    end
-    
-    local chests = {
-        ["Daily Chest"] = CFrame.new(-42, 3, 101),
-        ["Group Chest"] = CFrame.new(12, 3, 122),
-        ["Better Daily Chest"] = CFrame.new(69, 3, 101)
-    }
-    
-    for chestName, chestCFrame in pairs(chests) do
-        hrp.CFrame = chestCFrame
-        task.wait(1)
-        
-        if isRoblox then
-            local args = {
-                [1] = "Chest",
-                [2] = chestName
-            }
-            game:GetService("ReplicatedStorage").RemoteFunction:InvokeServer(unpack(args))
-        else
-            print("Opening chest: " .. chestName)
-        end
-        
-        task.wait(1)
-    end
-end
-
--- Teleport to areas function
-local function teleportToArea(areaName)
-    local player = game:GetService("Players").LocalPlayer
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    
-    if not hrp then
-        return
-    end
-    
-    local areas = {
-        ["Main Island"] = CFrame.new(85, 13, 110),
-        ["Mythical Island"] = CFrame.new(1738, 38, -100),
-        ["Eternal Island"] = CFrame.new(739, 39, -397),
-        ["Legend Island"] = CFrame.new(2543, 35, 410),
-        ["Muscle Island"] = CFrame.new(-2137, 37, 339),
-        ["Strength Island"] = CFrame.new(-4064, 37, -181),
-        ["Training Area"] = CFrame.new(110, 55, 273)
-    }
-    
-    if areas[areaName] then
-        hrp.CFrame = areas[areaName]
-        if not isRoblox then
-            print("Teleported to: " .. areaName)
-        end
-    end
-end
-
--- Create the UI Window
-local Window = Fluent:CreateWindow({
-    Title = "SkyX Hub | Muscle Legends",
-    SubTitle = "by SkyX Team",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(580, 460),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.LeftControl
-})
-
--- Create Tabs
-local Tabs = {
-    AutoFarm = Window:AddTab({ Title = "Auto Farm", Icon = "activity" }),
-    Teleport = Window:AddTab({ Title = "Teleport", Icon = "map-pin" }),
-    Player = Window:AddTab({ Title = "Player", Icon = "user" }),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
-}
-
--- Store options
-local Options = Fluent.Options
-
--- Notification on load
-Fluent:Notify({
-    Title = "SkyX Hub",
-    Content = "Muscle Legends script has been loaded!",
-    Duration = 5
-})
-
--- Auto Farm Tab
-Tabs.AutoFarm:AddToggle("AutoStrength", {
-    Title = "Auto Strength",
-    Default = false,
-    Callback = function(Value)
-        if Value then
-            task.spawn(function()
-                while Options.AutoStrength.Value do
-                    autoStrength()
-                    task.wait(0.01)
-                end
-            end)
-        end
-    end
-})
-
-Tabs.AutoFarm:AddToggle("AutoCollectGains", {
-    Title = "Auto Collect Gains",
-    Default = false,
-    Callback = function(Value)
-        if Value then
-            task.spawn(function()
-                while Options.AutoCollectGains.Value do
-                    autoCollectGains()
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-Tabs.AutoFarm:AddToggle("AutoRebirth", {
-    Title = "Auto Rebirth",
-    Default = false,
-    Callback = function(Value)
-        if Value then
-            task.spawn(function()
-                while Options.AutoRebirth.Value do
-                    autoRebirth()
-                    task.wait(1)
-                end
-            end)
-        end
-    end
-})
-
-Tabs.AutoFarm:AddButton({
-    Title = "Farm All Chests",
-    Description = "Collects all available chests",
-    Callback = function()
-        farmChests()
-    end
-})
-
--- Teleport Tab
-Tabs.Teleport:AddButton({
-    Title = "Main Island",
-    Callback = function()
-        teleportToArea("Main Island")
-    end
-})
-
-Tabs.Teleport:AddButton({
-    Title = "Training Area",
-    Callback = function()
-        teleportToArea("Training Area")
-    end
-})
-
-Tabs.Teleport:AddButton({
-    Title = "Mythical Island",
-    Callback = function()
-        teleportToArea("Mythical Island")
-    end
-})
-
-Tabs.Teleport:AddButton({
-    Title = "Eternal Island",
-    Callback = function()
-        teleportToArea("Eternal Island")
-    end
-})
-
-Tabs.Teleport:AddButton({
-    Title = "Legend Island",
-    Callback = function()
-        teleportToArea("Legend Island")
-    end
-})
-
-Tabs.Teleport:AddButton({
-    Title = "Muscle Island",
-    Callback = function()
-        teleportToArea("Muscle Island")
-    end
-})
-
-Tabs.Teleport:AddButton({
-    Title = "Strength Island",
-    Callback = function()
-        teleportToArea("Strength Island")
-    end
-})
-
--- Player Tab
-Tabs.Player:AddSlider("WalkSpeed", {
-    Title = "Walk Speed",
-    Description = "Adjust your character's movement speed",
-    Default = 16,
-    Min = 16,
-    Max = 250,
-    Rounding = 0,
-    Callback = function(Value)
-        local player = game:GetService("Players").LocalPlayer
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.WalkSpeed = Value
-        end
-    end
-})
-
-Tabs.Player:AddSlider("JumpPower", {
-    Title = "Jump Power",
-    Description = "Adjust your character's jump height",
-    Default = 50,
-    Min = 50,
-    Max = 300,
-    Rounding = 0,
-    Callback = function(Value)
-        local player = game:GetService("Players").LocalPlayer
-        if player.Character and player.Character:FindFirstChild("Humanoid") then
-            player.Character.Humanoid.JumpPower = Value
-        end
-    end
-})
-
--- Settings Tab (managed by SaveManager and InterfaceManager)
-Tabs.Settings:AddToggle("AntiAFK", {
-    Title = "Anti-AFK",
-    Default = true,
-    Callback = function(Value)
-        -- Anti-AFK is already implemented globally
-        if not isRoblox then
-            print("Anti-AFK toggled: " .. tostring(Value))
-        end
-    end
-})
-
-Tabs.Settings:AddButton({
-    Title = "Destroy UI",
-    Description = "Completely removes the interface",
-    Callback = function()
-        if game:GetService("CoreGui"):FindFirstChild("Fluent") then
-            Fluent:Destroy()
-        end
-    end
-})
-
-Tabs.Settings:AddParagraph({
-    Title = "SkyX Hub",
-    Content = "Developed by the SkyX Team.\n\nThank you for using our script!"
-})
-
--- In standalone mode, we need to handle SaveManager and InterfaceManager differently
-if not isRoblox then
-    print("Mock SaveManager and InterfaceManager used in standalone mode")
-else
-    -- Save Manager & Interface Manager Setup (Only in Roblox mode)
-    SaveManager:SetLibrary(Fluent)
-    InterfaceManager:SetLibrary(Fluent)
-
-    -- Ignore keys that are used by ThemeManager
-    SaveManager:IgnoreThemeSettings()
-
-    -- Set folders
-    InterfaceManager:SetFolder("SkyXHub")
-    SaveManager:SetFolder("SkyXHub/MuscleLegendsScript")
-
-    -- Build settings sections
-    InterfaceManager:BuildInterfaceSection(Tabs.Settings) 
-    SaveManager:BuildConfigSection(Tabs.Settings)
-end
-
--- Select default tab
-Window:SelectTab(1)
-
--- Load auto-save config (only in Roblox mode)
-if isRoblox then
-    SaveManager:LoadAutoloadConfig()
-end
-
-print("SkyX Hub - Muscle Legends Script loaded!")
+Toggle(Main, "Anti-Rebirths", "", false)
+Toggle(Main, "Anti-Stun", "BETA", false)
+Toggle(Main, "Anti-Busy", "BETA", false)
+Toggle(Main, "Walk On Water", "", false)
+Toggle(Main, "Disable Punch Animation", "", false)
+Main:AddSection({"Brawl"})
+Toggle(Main, "Auto Join Brawl", "", false)
+Toggle(Main, "Auto Win Brawl", "", false)
+local Rebirths = Window:MakeTab({"Rebirths", "refresh"})
+AddTextFunc(Rebirths)
+Dropdown(Rebirths, "Choose At Stopping Rebirths Number", "", {"Leave", "Crash", "Kick", "Rejoin", "Off [Loading Fix]"}, "Kick")
+Toggle(Rebirths, "Auto Rebirths [Stopping Rebirths Number]", "", false)
+Toggle(Rebirths, "Auto Rebirths", "This Auto Rebirths Without Stopping Rebirths Number", false)
+local Killer = Window:MakeTab({"Killer", "rbxassetid://16279627995"})
+Dropdown(Killer, "Choose Kills Mode", "", {"Bring Player And Teleport Part", "Bring Player", "No Bring Player And Teleport Part", "No Bring"}, "Bring Player And Teleport Part")
+local update1 = Dropdown(Killer, "Select Whitelist Player", "This Mean Won't Kill Player ", getgenv().TablePlayer, "")
+Toggle(Killer, "Auto Kills", "", false)
+Killer:AddSection({"Player"})
+local update = Dropdown(Killer, "Select Player", "", getgenv().TablePlayer, "")
+Killer:AddButton({Name = "Refersh Player", Description = "", Callback = function()
+  update:Set(getgenv().TablePlayerR)
+  update1:Set(getgenv().TablePlayerR)
+end})
+Toggle(Killer, "Auto Kill Player", "", false)
+Toggle(Killer, "Teleport Player", "", false)
+Toggle(Killer, "Spectate Player", "", false)
+local Crystal = Window:MakeTab({"Crystal", "gem"})
+Dropdown(Crystal, "Select Crystal", "", {"Blue Crystal", "Green Crystal", "Frost Crystal", "Mythical Crystal", "Inferno Crystal", "Legends Crystal", "Dark Nebula Crystal", "Muscle Elite Crystal", "Galaxy Oracle Crystal", "Battle Legends Crystal", "Sky Eclipse Crystal"}, "")
+Toggle(Crystal, "Auto Open Crystal", "", false)
+local Stats = Window:MakeTab({"Stats", "plus-circle"})
+AddStatusMain(Stats)
+local Glitcher = Window:MakeTab({"Glitcher", "rbxassetid://15623956340"})
+Glitcher:AddSection({"Config Pets"})
+Dropdown(Glitcher, "Choose Pets (Only Unique)", "", {"Darkstar Hunter", "Gold Warrior", "Cybernetic Showdown Dragon", "Flaming Hedgehog"}, "Flaming Hedgehog")
+Dropdown(Glitcher, "How Many Pets do You Carry", "", {"1", "2", "3", "4", "5"}, "2")
+Glitcher:AddSection({"Config Stopping Strength Number"})
+AddTextFunc1(Glitcher)
+Dropdown(Glitcher, "Choose At Stopping Strength Number", "", {"Go To Farm Select Gym", "Go To Farm Rebirths On Stopping"}, "Go To Farm Select Gym")
+Glitcher:AddSection({"Config Farm"})
+Dropdown(Glitcher, "Choose Rock Map", "", {"Frost","Mystical","Eternal","Legends","Muscle King"}, "Muscle King")
+Toggle(Glitcher, "Auto Farm On Choose Rock Map", "", false)
+local Misc = Window:MakeTab({"Misc", "rbxassetid://15877464662"})
+Misc:AddSection({"Server"})
+Misc:AddButton({Name = "Server Hop",Callback = function()getgenv().Server("Hop")end})
+Misc:AddButton({Name = "Server Hop [Low Player]",Callback = function()getgenv().Server("Hop1")end})
+Misc:AddButton({Name = "Rejoin",Callback = function()getgenv().Server("Rejoin")end})
+Misc:AddSection("Misc")
+Toggle(Misc, "Infinits Jump", "", false)
+Toggle(Misc, "No Clip", "", false)
+Misc:AddSection("ESP")
+Toggle(Misc, "ESP Player", "", false)
+Window:SelectTab(2)
+return SpeedHubX
