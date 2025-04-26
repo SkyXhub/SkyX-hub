@@ -1,12 +1,180 @@
 --[[
     🌊 SkyX Hub - Blox Fruits (Fluent UI Version) 🌊
     
-    Auto Farm with quest automation using Fluent UI
+    Auto Farm with quest automation using Fluent UIssssssssssssssss
     Mobile-compatible with optimized performance
 ]]
 
--- Detect if we're in Blox Fruits
-if game.PlaceId ~= 2753915549 and game.PlaceId ~= 4442272183 and game.PlaceId ~= 7449423635 then
+-- Detect if we're in a Roblox environment
+local isRoblox = pcall(function() return game:GetService("Players") end)
+
+-- Create mock environment for standalone testing
+if not isRoblox then
+    print("Running in standalone mode - creating mock Roblox environment")
+    
+    -- Mock game object
+    game = {
+        PlaceId = 2753915549 -- Blox Fruits place ID
+    }
+    
+    game.GetService = function(self, service)
+        -- Mock services
+        local services = {
+            Players = {
+                LocalPlayer = {
+                    Name = "Player",
+                    Character = {
+                        HumanoidRootPart = {
+                            Position = Vector3.new(0, 0, 0),
+                            CFrame = {
+                                Position = Vector3.new(0, 0, 0)
+                            }
+                        },
+                        Humanoid = {
+                            Health = 100,
+                            MaxHealth = 100
+                        }
+                    },
+                    Data = {
+                        Level = {
+                            Value = 50
+                        },
+                        Beli = {
+                            Value = 10000
+                        },
+                        Fragments = {
+                            Value = 500
+                        }
+                    },
+                    Backpack = {
+                        GetChildren = function()
+                            return {
+                                {Name = "Combat", IsA = function() return true end},
+                                {Name = "Sword", IsA = function() return true end}
+                            }
+                        end
+                    }
+                }
+            },
+            UserInputService = {
+                TouchEnabled = false,
+                MouseEnabled = true
+            },
+            ReplicatedStorage = {
+                Remotes = {
+                    CommF_ = {
+                        InvokeServer = function(self, ...) 
+                            print("Remote: CommF_:InvokeServer", ...)
+                            return true
+                        end
+                    }
+                }
+            },
+            VirtualUser = {
+                CaptureController = function() end,
+                ClickButton1 = function() end,
+                Button1Down = function() end,
+                Button1Up = function() end
+            },
+            RunService = {
+                RenderStepped = {
+                    Connect = function() 
+                        return {Connected = true, Disconnect = function() end}
+                    end
+                }
+            },
+            TweenService = {
+                Create = function() 
+                    return {
+                        Play = function() end,
+                        Cancel = function() end
+                    }
+                end
+            },
+            StarterGui = {
+                SetCore = function(self, notification, data)
+                    print("Notification:", data.Title, "-", data.Text)
+                end
+            },
+            CoreGui = {
+                ChildRemoved = {
+                    Connect = function() 
+                        return {Connected = true, Disconnect = function() end}
+                    end
+                }
+            },
+            HttpService = {
+                JSONEncode = function(self, data)
+                    return "JSON_ENCODED_DATA"
+                end,
+                JSONDecode = function(self, json)
+                    return {}
+                end
+            }
+        }
+        
+        return services[service] or {}
+    end
+    
+    -- Mock Vector3
+    Vector3 = {}
+    Vector3.new = function(x, y, z)
+        return {x = x or 0, y = y or 0, z = z or 0, Magnitude = 10}
+    end
+    
+    -- Mock CFrame
+    CFrame = {}
+    CFrame.new = function(...)
+        return {Position = Vector3.new()}
+    end
+    
+    -- Mock Color3
+    Color3 = {}
+    Color3.fromRGB = function(r, g, b)
+        return {r = r/255, g = g/255, b = b/255}
+    end
+    
+    -- Mock workspace
+    workspace = {
+        GetChildren = function()
+            return {}
+        end,
+        Enemies = {
+            GetChildren = function()
+                return {
+                    {
+                        Name = "Bandit", 
+                        FindFirstChild = function() return true end,
+                        Humanoid = {Health = 100, MaxHealth = 100},
+                        HumanoidRootPart = {Position = Vector3.new(10, 0, 10), CFrame = {}}
+                    }
+                }
+            end
+        },
+        NPCs = {
+            GetChildren = function()
+                return {
+                    {
+                        Name = "Pirate Quest Giver",
+                        HumanoidRootPart = {CFrame = {}}
+                    }
+                }
+            end
+        }
+    }
+    
+    -- Utility functions for Lua environment
+    spawn = function(f) f() end
+    wait = function(t) return t or 0.1 end
+    pcall = function(f) return true, f() end
+    
+    -- Mouse/keyboard simulation
+    keypress = function() end
+    keyrelease = function() end
+end
+
+-- Check if we're in Blox Fruits
+if isRoblox and game.PlaceId ~= 2753915549 and game.PlaceId ~= 4442272183 and game.PlaceId ~= 7449423635 then
     -- Wrong game notification
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "SkyX Hub",
@@ -15,6 +183,9 @@ if game.PlaceId ~= 2753915549 and game.PlaceId ~= 4442272183 and game.PlaceId ~=
     })
     return
 end
+
+print("=== SkyX Hub - Blox Fruits (Fluent UI) ===")
+print("Starting script...")
 
 -- Services
 local Players = game:GetService("Players")
@@ -26,12 +197,35 @@ local UserInputService = game:GetService("UserInputService")
 
 -- Player references
 local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Character
+local Humanoid
+local HumanoidRootPart
+local CommF
 
--- Important remote events
-local CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+if isRoblox then
+    Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    Humanoid = Character:WaitForChild("Humanoid")
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    
+    -- Important remote events
+    CommF = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("CommF_")
+else
+    -- In standalone mode, use the mocked Character directly
+    Character = LocalPlayer.Character
+    Humanoid = Character.Humanoid
+    HumanoidRootPart = Character.HumanoidRootPart
+    
+    -- Important remote events
+    CommF = ReplicatedStorage.Remotes.CommF_
+end
+
+-- Make Vector2 mock if needed
+if not isRoblox then
+    Vector2 = {}
+    Vector2.new = function(x, y)
+        return {x = x or 0, y = y or 0}
+    end
+end
 
 -- Global settings
 local Settings = {
@@ -309,16 +503,46 @@ end
 
 -- Function to attack
 local function Attack()
-    local equipped = Character:FindFirstChildOfClass("Tool")
+    local equipped = nil
+    
+    if isRoblox then
+        equipped = Character:FindFirstChildOfClass("Tool")
+    else
+        -- Simulate having a tool equipped in standalone mode
+        equipped = {
+            Name = Settings.SelectedWeapon,
+            Attack = {
+                FireServer = function() 
+                    print("Attacking with " .. Settings.SelectedWeapon)
+                end
+            }
+        }
+    end
     
     if not equipped then
         EquipWeapon()
         wait(0.1)
-        equipped = Character:FindFirstChildOfClass("Tool")
+        
+        if isRoblox then
+            equipped = Character:FindFirstChildOfClass("Tool")
+        else
+            equipped = {
+                Name = Settings.SelectedWeapon,
+                Attack = {
+                    FireServer = function() 
+                        print("Attacking with " .. Settings.SelectedWeapon)
+                    end
+                }
+            }
+        end
     end
     
-    if equipped and equipped:FindFirstChild("Attack") then
-        equipped.Attack:FireServer()
+    if equipped and (isRoblox and equipped:FindFirstChild("Attack") or not isRoblox) then
+        if isRoblox then
+            equipped.Attack:FireServer()
+        else
+            print("Simulated attack with " .. equipped.Name)
+        end
     end
     
     if Settings.FastAttack then
@@ -485,10 +709,173 @@ local function CleanUp()
     StopFarming()
 end
 
--- Load the Fluent UI Library
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+-- Mock or load Fluent UI Library based on environment
+local Fluent, SaveManager, InterfaceManager
+
+if isRoblox then
+    -- In Roblox, load the real libraries
+    Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+    SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+    InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+else
+    -- In standalone mode, create mock libraries
+    print("Creating mock Fluent UI Library for standalone mode")
+    
+    -- Mock Fluent
+    Fluent = {
+        Options = {},
+        Initialized = true,
+        CreateWindow = function(self, config)
+            print("Creating Fluent window: " .. config.Title)
+            
+            return {
+                AddTab = function(tabConfig)
+                    print("  Creating tab: " .. (tabConfig.Title or "Unnamed Tab"))
+                    
+                    return {
+                        AddParagraph = function(paragraphConfig)
+                            print("    Adding paragraph: " .. (paragraphConfig.Title or "Unnamed Paragraph"))
+                            return paragraphConfig
+                        end,
+                        
+                        AddToggle = function(id, toggleConfig)
+                            print("    Adding toggle: " .. (toggleConfig.Title or "Unnamed Toggle"))
+                            Fluent.Options[id] = {
+                                Value = toggleConfig.Default or false,
+                                SetValue = function(self, value)
+                                    self.Value = value
+                                    if toggleConfig.Callback then
+                                        toggleConfig.Callback(value)
+                                    end
+                                end
+                            }
+                            return {
+                                OnChanged = function(callback)
+                                    -- Do nothing in mock
+                                end
+                            }
+                        end,
+                        
+                        AddDropdown = function(id, dropdownConfig)
+                            print("    Adding dropdown: " .. (dropdownConfig.Title or "Unnamed Dropdown"))
+                            Fluent.Options[id] = {
+                                Value = dropdownConfig.Default or "",
+                                SetValue = function(self, value)
+                                    self.Value = value
+                                    if dropdownConfig.Callback then
+                                        dropdownConfig.Callback(value)
+                                    end
+                                end
+                            }
+                            return {
+                                OnChanged = function(callback)
+                                    -- Do nothing in mock
+                                end
+                            }
+                        end,
+                        
+                        AddSlider = function(id, sliderConfig)
+                            print("    Adding slider: " .. (sliderConfig.Title or "Unnamed Slider"))
+                            Fluent.Options[id] = {
+                                Value = sliderConfig.Default or 0,
+                                SetValue = function(self, value)
+                                    self.Value = value
+                                    if sliderConfig.Callback then
+                                        sliderConfig.Callback(value)
+                                    end
+                                end
+                            }
+                            return {
+                                OnChanged = function(callback)
+                                    -- Do nothing in mock
+                                end
+                            }
+                        end,
+                        
+                        AddButton = function(buttonConfig)
+                            print("    Adding button: " .. (buttonConfig.Title or "Unnamed Button"))
+                            return {}
+                        end
+                    }
+                end,
+                
+                SelectTab = function(index)
+                    if type(index) == "number" then
+                        print("  Selected tab index: " .. index)
+                    else
+                        print("  Selected tab")
+                    end
+                end
+            }
+        end,
+        
+        Notify = function(self, notifyConfig)
+            print("Notification: " .. (notifyConfig.Title or "Notification"))
+            print("  " .. (notifyConfig.Content or ""))
+            print("  Duration: " .. (notifyConfig.Duration or "N/A") .. "s")
+        end
+    }
+    
+    -- Mock SaveManager
+    SaveManager = {
+        SetLibrary = function(self, lib) end,
+        IgnoreThemeSettings = function(self) end,
+        SetIgnoreIndexes = function(self, indexes) end,
+        SetFolder = function(self, folder) end,
+        BuildConfigSection = function(self, tab) end,
+        LoadAutoloadConfig = function(self) end
+    }
+    
+    -- Mock InterfaceManager
+    InterfaceManager = {
+        SetLibrary = function(self, lib) end,
+        SetFolder = function(self, folder) end,
+        BuildInterfaceSection = function(self, tab) end
+    }
+end
+
+-- Mock UDim2 if needed
+if not isRoblox then
+    UDim2 = {
+        fromOffset = function(x, y)
+            return {x = x, y = y}
+        end
+    }
+    
+    -- Mock Enum
+    Enum = {
+        KeyCode = {
+            RightControl = "RightControl"
+        },
+        EasingStyle = {
+            Linear = "Linear",
+            Quad = "Quad",
+            Cubic = "Cubic",
+            Quart = "Quart",
+            Quint = "Quint"
+        },
+        EasingDirection = {
+            In = "In",
+            Out = "Out",
+            InOut = "InOut"
+        }
+    }
+    
+    -- Mock TweenInfo
+    if not TweenInfo then
+        TweenInfo = {}
+        TweenInfo.new = function(time, style, direction, repeats, reverse, delay)
+            return {
+                Time = time or 1,
+                EasingStyle = style or Enum.EasingStyle.Linear,
+                EasingDirection = direction or Enum.EasingDirection.Out,
+                RepeatCount = repeats or 0,
+                Reverses = reverse or false,
+                DelayTime = delay or 0
+            }
+        end
+    end
+end
 
 -- Create the window
 local Window = Fluent:CreateWindow({
@@ -586,16 +973,24 @@ Tabs.Main:AddToggle("AutoHaki", {
 
 -- Weapon selection
 local WeaponsList = {"Combat"}
-for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
-    if tool:IsA("Tool") then
-        table.insert(WeaponsList, tool.Name)
-    end
-end
 
-for _, tool in pairs(Character:GetChildren()) do
-    if tool:IsA("Tool") then
-        table.insert(WeaponsList, tool.Name)
+if isRoblox then
+    for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if tool:IsA("Tool") then
+            table.insert(WeaponsList, tool.Name)
+        end
     end
+    
+    for _, tool in pairs(Character:GetChildren()) do
+        if tool:IsA("Tool") then
+            table.insert(WeaponsList, tool.Name)
+        end
+    end
+else
+    -- In standalone mode, use mock weapons
+    table.insert(WeaponsList, "Sword")
+    table.insert(WeaponsList, "Gun")
+    table.insert(WeaponsList, "Blox Fruit")
 end
 
 Tabs.Main:AddDropdown("WeaponSelect", {
@@ -749,17 +1144,28 @@ Tabs.Misc:AddToggle("ChestFarm", {
         if Value then
             spawn(function()
                 while Settings.ChestFarm do
-                    for _, chest in pairs(workspace:GetChildren()) do
-                        if chest.Name == "Chest1" or chest.Name == "Chest2" or chest.Name == "Chest3" then
-                            if chest:FindFirstChild("Mesh") or chest:FindFirstChild("SpecialMesh") then
-                                local distance = (HumanoidRootPart.Position - chest.Position).Magnitude
-                                
-                                if distance < 200 then
-                                    HumanoidRootPart.CFrame = chest.CFrame
-                                    wait(1)
+                    if isRoblox then
+                        for _, chest in pairs(workspace:GetChildren()) do
+                            if chest.Name == "Chest1" or chest.Name == "Chest2" or chest.Name == "Chest3" then
+                                if chest:FindFirstChild("Mesh") or chest:FindFirstChild("SpecialMesh") then
+                                    local distance = (HumanoidRootPart.Position - chest.Position).Magnitude
+                                    
+                                    if distance < 200 then
+                                        HumanoidRootPart.CFrame = chest.CFrame
+                                        wait(1)
+                                    end
                                 end
                             end
                         end
+                    else
+                        -- Simulate chest farming in standalone
+                        print("Simulating chest farming...")
+                        print("Found Chest1")
+                        print("Collecting chest...")
+                        wait(1)
+                        print("Found Chest2")
+                        print("Collecting chest...")
+                        wait(1)
                     end
                     wait(1)
                 end
@@ -820,24 +1226,28 @@ Tabs.Misc:AddButton({
 })
 
 -- Setup managers
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("SkyXHub")
-SaveManager:SetFolder("SkyXHub/BloxFruits")
-InterfaceManager:BuildInterfaceSection(Tabs.Misc)
-SaveManager:BuildConfigSection(Tabs.Misc)
+if isRoblox then
+    SaveManager:SetLibrary(Fluent)
+    InterfaceManager:SetLibrary(Fluent)
+    SaveManager:IgnoreThemeSettings()
+    SaveManager:SetIgnoreIndexes({})
+    InterfaceManager:SetFolder("SkyXHub")
+    SaveManager:SetFolder("SkyXHub/BloxFruits")
+    InterfaceManager:BuildInterfaceSection(Tabs.Misc)
+    SaveManager:BuildConfigSection(Tabs.Misc)
+    
+    -- Cleanup when script stops
+    AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
+        if child.Name == "Fluent_1" then
+            CleanUp()
+        end
+    end)
+else
+    print("Skipping SaveManager setup in standalone mode")
+end
 
 -- Select first tab
 Window:SelectTab(1)
-
--- Cleanup when script stops
-AddConnection(game:GetService("CoreGui").ChildRemoved, function(child)
-    if child.Name == "Fluent_1" then
-        CleanUp()
-    end
-end)
 
 -- Welcome notification
 Fluent:Notify({
@@ -845,3 +1255,7 @@ Fluent:Notify({
     Content = "Blox Fruits script loaded!",
     Duration = 5
 })
+
+print("\nSkyX Hub - Blox Fruits (Fluent UI) script loaded successfully!")
+print("Version: 1.0.0")
+print("⭐ Thanks for using SkyX Hub! ⭐")
