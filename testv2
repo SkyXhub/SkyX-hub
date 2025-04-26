@@ -1,5 +1,5 @@
--- SkyX MM2 Advanced Script with Rayfield UI
--- Features: Aimbot, Auto Grab Sheriff Gun, Auto Collect Coins
+-- SkyX MM2 Advanced Script with Custom UI
+-- Features: Aimbot, Auto Grab Sheriff Gun, Auto Collect Coins, ESP
 
 -- Services
 local Players = game:GetService("Players")
@@ -8,7 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local CoreGui = game:GetService("CoreGui")
 local Workspace = game:GetService("Workspace")
-local TeleportService = game:GetService("TeleportService")
+local TweenService = game:GetService("TweenService")
 
 -- Variables
 local LocalPlayer = Players.LocalPlayer
@@ -16,48 +16,1113 @@ local Camera = Workspace.CurrentCamera
 local Mouse = LocalPlayer:GetMouse()
 
 -- Loading message in console
-print("Loading SkyX MM2 Advanced Rayfield...")
+print("Loading SkyX MM2 Custom UI...")
 
--- Load Rayfield UI Library
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- Destroy existing GUI with same name
+for _, gui in pairs(CoreGui:GetChildren()) do
+    if gui.Name == "SkyXMM2UI" then
+        gui:Destroy()
+    end
+end
 
--- Create main window
-local Window = Rayfield:CreateWindow({
-    Name = "SkyX MM2 Advanced",
-    Icon = "rbxassetid://10483855823", -- Knife icon
-    LoadingTitle = "SkyX MM2 Advanced",
-    LoadingSubtitle = "by SkyX Team",
-    Theme = "Bloom", -- Using Bloom theme as requested
+-- Create main GUI
+local SkyXUI = Instance.new("ScreenGui")
+SkyXUI.Name = "SkyXMM2UI"
+SkyXUI.ResetOnSpawn = false
+SkyXUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Try-catch for Synapse compatibility
+pcall(function()
+    syn.protect_gui(SkyXUI)
+    SkyXUI.Parent = CoreGui
+end)
+
+if not SkyXUI.Parent then
+    SkyXUI.Parent = CoreGui
+end
+
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 550, 0, 350)
+MainFrame.Position = UDim2.new(0.5, -275, 0.5, -175)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = SkyXUI
+
+-- Make frame rounded
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 6)
+UICorner.Parent = MainFrame
+
+-- Title Bar
+local TitleBar = Instance.new("Frame")
+TitleBar.Name = "TitleBar"
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+TitleBar.BorderSizePixel = 0
+TitleBar.Parent = MainFrame
+
+-- Make title bar rounded at top
+local TitleUICorner = Instance.new("UICorner")
+TitleUICorner.CornerRadius = UDim.new(0, 6)
+TitleUICorner.Parent = TitleBar
+
+-- Fix bottom corners of title bar
+local CornerFix = Instance.new("Frame")
+CornerFix.Name = "CornerFix"
+CornerFix.Size = UDim2.new(1, 0, 0, 10)
+CornerFix.Position = UDim2.new(0, 0, 1, -10)
+CornerFix.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+CornerFix.BorderSizePixel = 0
+CornerFix.Parent = TitleBar
+
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Name = "Title"
+Title.Size = UDim2.new(0, 200, 1, 0)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.BackgroundTransparency = 1
+Title.Font = Enum.Font.GothamBold
+Title.Text = "SkyX MM2 Advanced"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = TitleBar
+
+-- Close Button
+local CloseButton = Instance.new("TextButton")
+CloseButton.Name = "CloseButton"
+CloseButton.Size = UDim2.new(0, 30, 0, 30)
+CloseButton.Position = UDim2.new(1, -30, 0, 0)
+CloseButton.BackgroundTransparency = 1
+CloseButton.Font = Enum.Font.GothamBold
+CloseButton.Text = "X"
+CloseButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+CloseButton.TextSize = 18
+CloseButton.Parent = TitleBar
+
+-- Close button functionality
+CloseButton.MouseButton1Click:Connect(function()
+    SkyXUI:Destroy()
+end)
+
+-- Tab buttons container
+local TabButtonsFrame = Instance.new("Frame")
+TabButtonsFrame.Name = "TabButtonsFrame"
+TabButtonsFrame.Size = UDim2.new(0, 100, 1, -30)
+TabButtonsFrame.Position = UDim2.new(0, 0, 0, 30)
+TabButtonsFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+TabButtonsFrame.BorderSizePixel = 0
+TabButtonsFrame.Parent = MainFrame
+
+-- Make tab buttons frame rounded on right
+local TabFrameUICorner = Instance.new("UICorner")
+TabFrameUICorner.CornerRadius = UDim.new(0, 6)
+TabFrameUICorner.Parent = TabButtonsFrame
+
+-- Fix left corners of tab buttons frame
+local TabCornerFix = Instance.new("Frame")
+TabCornerFix.Name = "TabCornerFix"
+TabCornerFix.Size = UDim2.new(0, 10, 1, 0)
+TabCornerFix.Position = UDim2.new(0, 0, 0, 0)
+TabCornerFix.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+TabCornerFix.BorderSizePixel = 0
+TabCornerFix.Parent = TabButtonsFrame
+
+-- Content Frame
+local ContentFrame = Instance.new("Frame")
+ContentFrame.Name = "ContentFrame"
+ContentFrame.Size = UDim2.new(1, -110, 1, -40)
+ContentFrame.Position = UDim2.new(0, 105, 0, 35)
+ContentFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+ContentFrame.BorderSizePixel = 0
+ContentFrame.Parent = MainFrame
+
+-- Tabs Container
+local TabsContainer = Instance.new("Folder")
+TabsContainer.Name = "Tabs"
+TabsContainer.Parent = ContentFrame
+
+-- UI Library Functions
+local UILibrary = {}
+UILibrary.Tabs = {}
+UILibrary.CurrentTab = nil
+
+-- Create Tab Function
+function UILibrary.CreateTab(name)
+    -- Create Tab Button
+    local TabButton = Instance.new("TextButton")
+    TabButton.Name = name.."Button"
+    TabButton.Size = UDim2.new(1, 0, 0, 35)
+    TabButton.Position = UDim2.new(0, 0, 0, (#UILibrary.Tabs * 40))
+    TabButton.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+    TabButton.BorderSizePixel = 0
+    TabButton.Font = Enum.Font.GothamSemibold
+    TabButton.Text = name
+    TabButton.TextColor3 = Color3.fromRGB(200, 200, 200)
+    TabButton.TextSize = 14
+    TabButton.Parent = TabButtonsFrame
     
-    DisableRayfieldPrompts = false,
-    DisableBuildWarnings = true, -- Prevent version mismatch warnings
+    -- Button Corner
+    local TabButtonCorner = Instance.new("UICorner")
+    TabButtonCorner.CornerRadius = UDim.new(0, 6)
+    TabButtonCorner.Parent = TabButton
     
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "SkyX", -- Custom folder for SkyX scripts
-        FileName = "MM2Advanced"
-    },
+    -- Create Tab Content
+    local TabContent = Instance.new("ScrollingFrame")
+    TabContent.Name = name.."Tab"
+    TabContent.Size = UDim2.new(1, 0, 1, 0)
+    TabContent.BackgroundTransparency = 1
+    TabContent.BorderSizePixel = 0
+    TabContent.ScrollBarThickness = 4
+    TabContent.Visible = false
+    TabContent.ScrollingDirection = Enum.ScrollingDirection.Y
+    TabContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    TabContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+    TabContent.Parent = TabsContainer
     
-    Discord = {
-        Enabled = true, -- Prompt the user to join Discord
-        Invite = "skyx-hub", -- Placeholder Discord invite code
-        RememberJoins = true -- Don't ask to join again after first time
-    },
+    -- Tab Layout
+    local TabListLayout = Instance.new("UIListLayout")
+    TabListLayout.Padding = UDim.new(0, 10)
+    TabListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    TabListLayout.Parent = TabContent
     
-    KeySystem = false, -- No key system for this script
-    KeySettings = {
-        Title = "SkyX MM2 Premium",
-        Subtitle = "Key Verification",
-        Note = "Join our Discord for the key (discord.gg/skyx-hub)",
-        FileName = "SkyXKey",
-        SaveKey = true,
-        GrabKeyFromSite = false,
-        Key = {"SkyXMM2Premium"} -- Example key
+    -- Tab Padding
+    local TabPadding = Instance.new("UIPadding")
+    TabPadding.PaddingLeft = UDim.new(0, 10)
+    TabPadding.PaddingRight = UDim.new(0, 10)
+    TabPadding.PaddingTop = UDim.new(0, 10)
+    TabPadding.PaddingBottom = UDim.new(0, 10)
+    TabPadding.Parent = TabContent
+    
+    -- Tab Button Click Event
+    TabButton.MouseButton1Click:Connect(function()
+        -- Hide all tabs
+        for _, tab in pairs(UILibrary.Tabs) do
+            tab.Content.Visible = false
+            tab.Button.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            tab.Button.TextColor3 = Color3.fromRGB(200, 200, 200)
+        end
+        
+        -- Show current tab
+        TabContent.Visible = true
+        TabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
+        TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        
+        UILibrary.CurrentTab = name
+    end)
+    
+    -- Add to tabs list
+    table.insert(UILibrary.Tabs, {
+        Name = name,
+        Button = TabButton,
+        Content = TabContent
+    })
+    
+    -- If first tab, select it
+    if #UILibrary.Tabs == 1 then
+        TabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 120)
+        TabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        TabContent.Visible = true
+        UILibrary.CurrentTab = name
+    end
+    
+    -- Tab Functions
+    local TabFunctions = {}
+    
+    -- Create Section
+    function TabFunctions.CreateSection(sectionName)
+        local Section = Instance.new("Frame")
+        Section.Name = sectionName.."Section"
+        Section.Size = UDim2.new(1, 0, 0, 30)
+        Section.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+        Section.BorderSizePixel = 0
+        Section.AutomaticSize = Enum.AutomaticSize.Y
+        Section.Parent = TabContent
+        
+        -- Section Corner
+        local SectionCorner = Instance.new("UICorner")
+        SectionCorner.CornerRadius = UDim.new(0, 6)
+        SectionCorner.Parent = Section
+        
+        -- Section Title
+        local SectionTitle = Instance.new("TextLabel")
+        SectionTitle.Name = "Title"
+        SectionTitle.Size = UDim2.new(1, 0, 0, 30)
+        SectionTitle.BackgroundTransparency = 1
+        SectionTitle.Font = Enum.Font.GothamSemibold
+        SectionTitle.Text = sectionName
+        SectionTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+        SectionTitle.TextSize = 14
+        SectionTitle.Parent = Section
+        
+        -- Section Content
+        local SectionContent = Instance.new("Frame")
+        SectionContent.Name = "Content"
+        SectionContent.Size = UDim2.new(1, 0, 0, 0)
+        SectionContent.Position = UDim2.new(0, 0, 0, 30)
+        SectionContent.BackgroundTransparency = 1
+        SectionContent.BorderSizePixel = 0
+        SectionContent.AutomaticSize = Enum.AutomaticSize.Y
+        SectionContent.Parent = Section
+        
+        -- Section Layout
+        local SectionListLayout = Instance.new("UIListLayout")
+        SectionListLayout.Padding = UDim.new(0, 8)
+        SectionListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        SectionListLayout.Parent = SectionContent
+        
+        -- Section Padding
+        local SectionPadding = Instance.new("UIPadding")
+        SectionPadding.PaddingLeft = UDim.new(0, 10)
+        SectionPadding.PaddingRight = UDim.new(0, 10)
+        SectionPadding.PaddingBottom = UDim.new(0, 10)
+        SectionPadding.Parent = SectionContent
+        
+        -- Section Functions
+        local SectionFunctions = {}
+        
+        -- Create Toggle
+        function SectionFunctions.CreateToggle(options)
+            local toggleOptions = {
+                Name = options.Name or "Toggle",
+                Default = options.Default or false,
+                Flag = options.Flag or options.Name,
+                Callback = options.Callback or function() end
+            }
+            
+            local Toggle = Instance.new("Frame")
+            Toggle.Name = toggleOptions.Name.."Toggle"
+            Toggle.Size = UDim2.new(1, 0, 0, 30)
+            Toggle.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            Toggle.BorderSizePixel = 0
+            Toggle.Parent = SectionContent
+            
+            -- Toggle Corner
+            local ToggleCorner = Instance.new("UICorner")
+            ToggleCorner.CornerRadius = UDim.new(0, 4)
+            ToggleCorner.Parent = Toggle
+            
+            -- Toggle Title
+            local ToggleTitle = Instance.new("TextLabel")
+            ToggleTitle.Name = "Title"
+            ToggleTitle.Size = UDim2.new(1, -50, 1, 0)
+            ToggleTitle.BackgroundTransparency = 1
+            ToggleTitle.Font = Enum.Font.Gotham
+            ToggleTitle.Text = toggleOptions.Name
+            ToggleTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            ToggleTitle.TextSize = 14
+            ToggleTitle.TextXAlignment = Enum.TextXAlignment.Left
+            ToggleTitle.Parent = Toggle
+            
+            -- Toggle Button
+            local ToggleButton = Instance.new("Frame")
+            ToggleButton.Name = "ToggleButton"
+            ToggleButton.Size = UDim2.new(0, 40, 0, 20)
+            ToggleButton.Position = UDim2.new(1, -45, 0.5, -10)
+            ToggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+            ToggleButton.BorderSizePixel = 0
+            ToggleButton.Parent = Toggle
+            
+            -- Toggle Button Corner
+            local ToggleButtonCorner = Instance.new("UICorner")
+            ToggleButtonCorner.CornerRadius = UDim.new(1, 0)
+            ToggleButtonCorner.Parent = ToggleButton
+            
+            -- Toggle Circle
+            local ToggleCircle = Instance.new("Frame")
+            ToggleCircle.Name = "Circle"
+            ToggleCircle.Size = UDim2.new(0, 16, 0, 16)
+            ToggleCircle.Position = UDim2.new(0, 2, 0.5, -8)
+            ToggleCircle.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+            ToggleCircle.BorderSizePixel = 0
+            ToggleCircle.Parent = ToggleButton
+            
+            -- Toggle Circle Corner
+            local ToggleCircleCorner = Instance.new("UICorner")
+            ToggleCircleCorner.CornerRadius = UDim.new(1, 0)
+            ToggleCircleCorner.Parent = ToggleCircle
+            
+            -- Toggle Functionality
+            local toggled = toggleOptions.Default
+            
+            local function updateToggle()
+                if toggled then
+                    TweenService:Create(ToggleButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(60, 120, 255)}):Play()
+                    TweenService:Create(ToggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(1, -18, 0.5, -8), BackgroundColor3 = Color3.fromRGB(255, 255, 255)}):Play()
+                else
+                    TweenService:Create(ToggleButton, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50, 50, 60)}):Play()
+                    TweenService:Create(ToggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8), BackgroundColor3 = Color3.fromRGB(200, 200, 200)}):Play()
+                end
+                
+                toggleOptions.Callback(toggled)
+            end
+            
+            -- Initialize toggle state
+            updateToggle()
+            
+            -- Toggle click event
+            Toggle.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    toggled = not toggled
+                    updateToggle()
+                end
+            end)
+            
+            -- Toggle Functions
+            local ToggleFunctions = {}
+            
+            function ToggleFunctions.Set(value)
+                toggled = value
+                updateToggle()
+            end
+            
+            return ToggleFunctions
+        end
+        
+        -- Create Slider
+        function SectionFunctions.CreateSlider(options)
+            local sliderOptions = {
+                Name = options.Name or "Slider",
+                Min = options.Min or 0,
+                Max = options.Max or 100,
+                Default = options.Default or 50,
+                Increment = options.Increment or 1,
+                Suffix = options.Suffix or "",
+                Flag = options.Flag or options.Name,
+                Callback = options.Callback or function() end
+            }
+            
+            -- Clamp default value
+            sliderOptions.Default = math.clamp(sliderOptions.Default, sliderOptions.Min, sliderOptions.Max)
+            
+            local Slider = Instance.new("Frame")
+            Slider.Name = sliderOptions.Name.."Slider"
+            Slider.Size = UDim2.new(1, 0, 0, 45)
+            Slider.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            Slider.BorderSizePixel = 0
+            Slider.Parent = SectionContent
+            
+            -- Slider Corner
+            local SliderCorner = Instance.new("UICorner")
+            SliderCorner.CornerRadius = UDim.new(0, 4)
+            SliderCorner.Parent = Slider
+            
+            -- Slider Title
+            local SliderTitle = Instance.new("TextLabel")
+            SliderTitle.Name = "Title"
+            SliderTitle.Size = UDim2.new(1, 0, 0, 20)
+            SliderTitle.BackgroundTransparency = 1
+            SliderTitle.Font = Enum.Font.Gotham
+            SliderTitle.Text = sliderOptions.Name
+            SliderTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            SliderTitle.TextSize = 14
+            SliderTitle.TextXAlignment = Enum.TextXAlignment.Left
+            SliderTitle.Parent = Slider
+            
+            -- Value Display
+            local ValueDisplay = Instance.new("TextLabel")
+            ValueDisplay.Name = "Value"
+            ValueDisplay.Size = UDim2.new(0, 50, 0, 20)
+            ValueDisplay.Position = UDim2.new(1, -55, 0, 0)
+            ValueDisplay.BackgroundTransparency = 1
+            ValueDisplay.Font = Enum.Font.Gotham
+            ValueDisplay.Text = tostring(sliderOptions.Default)..sliderOptions.Suffix
+            ValueDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
+            ValueDisplay.TextSize = 14
+            ValueDisplay.TextXAlignment = Enum.TextXAlignment.Right
+            ValueDisplay.Parent = Slider
+            
+            -- Slider Bar Background
+            local SliderBar = Instance.new("Frame")
+            SliderBar.Name = "SliderBar"
+            SliderBar.Size = UDim2.new(1, -20, 0, 6)
+            SliderBar.Position = UDim2.new(0, 10, 0, 30)
+            SliderBar.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+            SliderBar.BorderSizePixel = 0
+            SliderBar.Parent = Slider
+            
+            -- Slider Bar Corner
+            local SliderBarCorner = Instance.new("UICorner")
+            SliderBarCorner.CornerRadius = UDim.new(1, 0)
+            SliderBarCorner.Parent = SliderBar
+            
+            -- Slider Fill
+            local SliderFill = Instance.new("Frame")
+            SliderFill.Name = "Fill"
+            SliderFill.BackgroundColor3 = Color3.fromRGB(60, 120, 255)
+            SliderFill.BorderSizePixel = 0
+            SliderFill.Parent = SliderBar
+            
+            -- Slider Fill Corner
+            local SliderFillCorner = Instance.new("UICorner")
+            SliderFillCorner.CornerRadius = UDim.new(1, 0)
+            SliderFillCorner.Parent = SliderFill
+            
+            -- Slider Knob
+            local SliderKnob = Instance.new("Frame")
+            SliderKnob.Name = "Knob"
+            SliderKnob.Size = UDim2.new(0, 12, 0, 12)
+            SliderKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+            SliderKnob.BorderSizePixel = 0
+            SliderKnob.ZIndex = 2
+            SliderKnob.Parent = SliderBar
+            
+            -- Slider Knob Corner
+            local SliderKnobCorner = Instance.new("UICorner")
+            SliderKnobCorner.CornerRadius = UDim.new(1, 0)
+            SliderKnobCorner.Parent = SliderKnob
+            
+            -- Slider functionality variables
+            local value = sliderOptions.Default
+            local isDragging = false
+            
+            -- Update slider visuals
+            local function updateSlider(newValue)
+                -- Increment by step
+                local stepped = math.floor(newValue / sliderOptions.Increment + 0.5) * sliderOptions.Increment
+                
+                -- Clamp value to min/max
+                value = math.clamp(stepped, sliderOptions.Min, sliderOptions.Max)
+                
+                -- Calculate how far along slider (0-1)
+                local percent = (value - sliderOptions.Min) / (sliderOptions.Max - sliderOptions.Min)
+                
+                -- Update visuals
+                SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                SliderKnob.Position = UDim2.new(percent, -6, 0, -3)
+                ValueDisplay.Text = tostring(value)..sliderOptions.Suffix
+                
+                -- Fire callback
+                sliderOptions.Callback(value)
+            end
+            
+            -- Set initial value
+            updateSlider(sliderOptions.Default)
+            
+            -- Slider dragging functionality
+            SliderBar.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    isDragging = true
+                    
+                    -- Calculate new value from mouse position
+                    local mousePos = input.Position.X
+                    local sliderPos = SliderBar.AbsolutePosition.X
+                    local sliderWidth = SliderBar.AbsoluteSize.X
+                    local percent = math.clamp((mousePos - sliderPos) / sliderWidth, 0, 1)
+                    local newValue = sliderOptions.Min + (percent * (sliderOptions.Max - sliderOptions.Min))
+                    
+                    updateSlider(newValue)
+                end
+            end)
+            
+            SliderBar.InputEnded:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    isDragging = false
+                end
+            end)
+            
+            UserInputService.InputChanged:Connect(function(input)
+                if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                    -- Calculate new value from mouse position
+                    local mousePos = input.Position.X
+                    local sliderPos = SliderBar.AbsolutePosition.X
+                    local sliderWidth = SliderBar.AbsoluteSize.X
+                    local percent = math.clamp((mousePos - sliderPos) / sliderWidth, 0, 1)
+                    local newValue = sliderOptions.Min + (percent * (sliderOptions.Max - sliderOptions.Min))
+                    
+                    updateSlider(newValue)
+                end
+            end)
+            
+            -- Slider Functions
+            local SliderFunctions = {}
+            
+            function SliderFunctions.Set(newValue)
+                updateSlider(newValue)
+            end
+            
+            return SliderFunctions
+        end
+        
+        -- Create button
+        function SectionFunctions.CreateButton(options)
+            local buttonOptions = {
+                Name = options.Name or "Button",
+                Callback = options.Callback or function() end
+            }
+            
+            local Button = Instance.new("Frame")
+            Button.Name = buttonOptions.Name.."Button"
+            Button.Size = UDim2.new(1, 0, 0, 30)
+            Button.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            Button.BorderSizePixel = 0
+            Button.Parent = SectionContent
+            
+            -- Button Corner
+            local ButtonCorner = Instance.new("UICorner")
+            ButtonCorner.CornerRadius = UDim.new(0, 4)
+            ButtonCorner.Parent = Button
+            
+            -- Button Title
+            local ButtonTitle = Instance.new("TextLabel")
+            ButtonTitle.Name = "Title"
+            ButtonTitle.Size = UDim2.new(1, 0, 1, 0)
+            ButtonTitle.BackgroundTransparency = 1
+            ButtonTitle.Font = Enum.Font.Gotham
+            ButtonTitle.Text = buttonOptions.Name
+            ButtonTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            ButtonTitle.TextSize = 14
+            ButtonTitle.Parent = Button
+            
+            -- Button Functionality
+            Button.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    -- Visual feedback
+                    TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(60, 120, 255)}):Play()
+                    
+                    -- Execute callback
+                    buttonOptions.Callback()
+                    
+                    -- Reset visual
+                    task.delay(0.1, function()
+                        TweenService:Create(Button, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(40, 40, 50)}):Play()
+                    end)
+                end
+            end)
+            
+            local ButtonFunctions = {}
+            return ButtonFunctions
+        end
+        
+        -- Create dropdown
+        function SectionFunctions.CreateDropdown(options)
+            local dropdownOptions = {
+                Name = options.Name or "Dropdown",
+                Options = options.Options or {},
+                Default = options.Default or nil,
+                Flag = options.Flag or options.Name,
+                Callback = options.Callback or function() end
+            }
+            
+            local Dropdown = Instance.new("Frame")
+            Dropdown.Name = dropdownOptions.Name.."Dropdown"
+            Dropdown.Size = UDim2.new(1, 0, 0, 30)
+            Dropdown.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            Dropdown.BorderSizePixel = 0
+            Dropdown.ClipsDescendants = true
+            Dropdown.Parent = SectionContent
+            
+            -- Dropdown Corner
+            local DropdownCorner = Instance.new("UICorner")
+            DropdownCorner.CornerRadius = UDim.new(0, 4)
+            DropdownCorner.Parent = Dropdown
+            
+            -- Dropdown Title
+            local DropdownTitle = Instance.new("TextLabel")
+            DropdownTitle.Name = "Title"
+            DropdownTitle.Size = UDim2.new(1, -30, 0, 30)
+            DropdownTitle.BackgroundTransparency = 1
+            DropdownTitle.Font = Enum.Font.Gotham
+            DropdownTitle.Text = dropdownOptions.Name
+            DropdownTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            DropdownTitle.TextSize = 14
+            DropdownTitle.TextXAlignment = Enum.TextXAlignment.Left
+            DropdownTitle.Parent = Dropdown
+            
+            -- Dropdown Selected
+            local DropdownSelected = Instance.new("TextLabel")
+            DropdownSelected.Name = "Selected"
+            DropdownSelected.Size = UDim2.new(0, 150, 0, 30)
+            DropdownSelected.Position = UDim2.new(1, -155, 0, 0)
+            DropdownSelected.BackgroundTransparency = 1
+            DropdownSelected.Font = Enum.Font.Gotham
+            DropdownSelected.Text = dropdownOptions.Default or "Select..."
+            DropdownSelected.TextColor3 = Color3.fromRGB(180, 180, 180)
+            DropdownSelected.TextSize = 14
+            DropdownSelected.TextXAlignment = Enum.TextXAlignment.Right
+            DropdownSelected.Parent = Dropdown
+            
+            -- Dropdown Arrow
+            local DropdownArrow = Instance.new("TextLabel")
+            DropdownArrow.Name = "Arrow"
+            DropdownArrow.Size = UDim2.new(0, 20, 0, 30)
+            DropdownArrow.Position = UDim2.new(1, -20, 0, 0)
+            DropdownArrow.BackgroundTransparency = 1
+            DropdownArrow.Font = Enum.Font.Gotham
+            DropdownArrow.Text = "▼"
+            DropdownArrow.TextColor3 = Color3.fromRGB(180, 180, 180)
+            DropdownArrow.TextSize = 14
+            DropdownArrow.Parent = Dropdown
+            
+            -- Dropdown Content
+            local DropdownContent = Instance.new("Frame")
+            DropdownContent.Name = "Content"
+            DropdownContent.Size = UDim2.new(1, -20, 0, 0)
+            DropdownContent.Position = UDim2.new(0, 10, 0, 30)
+            DropdownContent.BackgroundTransparency = 1
+            DropdownContent.BorderSizePixel = 0
+            DropdownContent.Parent = Dropdown
+            
+            -- Dropdown Options
+            local DropdownOptionsList = Instance.new("UIListLayout")
+            DropdownOptionsList.Padding = UDim.new(0, 5)
+            DropdownOptionsList.SortOrder = Enum.SortOrder.LayoutOrder
+            DropdownOptionsList.Parent = DropdownContent
+            
+            -- Dropdown Functionality
+            local isOpen = false
+            local selectedOption = dropdownOptions.Default
+            
+            -- Calculate dropdown height when open
+            local contentHeight = #dropdownOptions.Options * 25 + (#dropdownOptions.Options - 1) * 5
+            
+            -- Update selection
+            local function updateSelection(option)
+                selectedOption = option
+                DropdownSelected.Text = option
+                dropdownOptions.Callback(option)
+            end
+            
+            -- Toggle dropdown state
+            local function toggleDropdown()
+                isOpen = not isOpen
+                
+                if isOpen then
+                    TweenService:Create(Dropdown, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 40 + contentHeight)}):Play()
+                    TweenService:Create(DropdownArrow, TweenInfo.new(0.2), {Rotation = 180}):Play()
+                else
+                    TweenService:Create(Dropdown, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 30)}):Play()
+                    TweenService:Create(DropdownArrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
+                end
+            end
+            
+            -- Create option buttons
+            for i, option in ipairs(dropdownOptions.Options) do
+                local OptionButton = Instance.new("TextButton")
+                OptionButton.Name = option.."Option"
+                OptionButton.Size = UDim2.new(1, 0, 0, 25)
+                OptionButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+                OptionButton.BorderSizePixel = 0
+                OptionButton.Font = Enum.Font.Gotham
+                OptionButton.Text = option
+                OptionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+                OptionButton.TextSize = 14
+                OptionButton.Parent = DropdownContent
+                
+                -- Option Corner
+                local OptionCorner = Instance.new("UICorner")
+                OptionCorner.CornerRadius = UDim.new(0, 4)
+                OptionCorner.Parent = OptionButton
+                
+                -- Option Selection
+                OptionButton.MouseButton1Click:Connect(function()
+                    updateSelection(option)
+                    toggleDropdown()
+                end)
+            end
+            
+            -- Make dropdown clickable
+            Dropdown.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    toggleDropdown()
+                end
+            end)
+            
+            -- If default option is set, select it
+            if dropdownOptions.Default then
+                updateSelection(dropdownOptions.Default)
+            end
+            
+            -- Dropdown Functions
+            local DropdownFunctions = {}
+            
+            function DropdownFunctions.Set(option)
+                if table.find(dropdownOptions.Options, option) then
+                    updateSelection(option)
+                end
+            end
+            
+            function DropdownFunctions.SetOptions(newOptions)
+                -- Clear existing options
+                for _, child in pairs(DropdownContent:GetChildren()) do
+                    if child:IsA("TextButton") then
+                        child:Destroy()
+                    end
+                end
+                
+                -- Set new options
+                dropdownOptions.Options = newOptions
+                
+                -- Recalculate height
+                contentHeight = #newOptions * 25 + (#newOptions - 1) * 5
+                
+                -- Create new option buttons
+                for i, option in ipairs(newOptions) do
+                    local OptionButton = Instance.new("TextButton")
+                    OptionButton.Name = option.."Option"
+                    OptionButton.Size = UDim2.new(1, 0, 0, 25)
+                    OptionButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+                    OptionButton.BorderSizePixel = 0
+                    OptionButton.Font = Enum.Font.Gotham
+                    OptionButton.Text = option
+                    OptionButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    OptionButton.TextSize = 14
+                    OptionButton.Parent = DropdownContent
+                    
+                    -- Option Corner
+                    local OptionCorner = Instance.new("UICorner")
+                    OptionCorner.CornerRadius = UDim.new(0, 4)
+                    OptionCorner.Parent = OptionButton
+                    
+                    -- Option Selection
+                    OptionButton.MouseButton1Click:Connect(function()
+                        updateSelection(option)
+                        toggleDropdown()
+                    end)
+                end
+                
+                -- Reset selected option if it's no longer valid
+                if not table.find(newOptions, selectedOption) then
+                    DropdownSelected.Text = "Select..."
+                    selectedOption = nil
+                end
+            end
+            
+            return DropdownFunctions
+        end
+        
+        -- Create color picker
+        function SectionFunctions.CreateColorPicker(options)
+            local colorOptions = {
+                Name = options.Name or "Color Picker",
+                Default = options.Default or Color3.fromRGB(255, 255, 255),
+                Flag = options.Flag or options.Name,
+                Callback = options.Callback or function() end
+            }
+            
+            local ColorPicker = Instance.new("Frame")
+            ColorPicker.Name = colorOptions.Name.."ColorPicker"
+            ColorPicker.Size = UDim2.new(1, 0, 0, 30)
+            ColorPicker.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            ColorPicker.BorderSizePixel = 0
+            ColorPicker.Parent = SectionContent
+            
+            -- ColorPicker Corner
+            local ColorPickerCorner = Instance.new("UICorner")
+            ColorPickerCorner.CornerRadius = UDim.new(0, 4)
+            ColorPickerCorner.Parent = ColorPicker
+            
+            -- ColorPicker Title
+            local ColorPickerTitle = Instance.new("TextLabel")
+            ColorPickerTitle.Name = "Title"
+            ColorPickerTitle.Size = UDim2.new(1, -60, 1, 0)
+            ColorPickerTitle.BackgroundTransparency = 1
+            ColorPickerTitle.Font = Enum.Font.Gotham
+            ColorPickerTitle.Text = colorOptions.Name
+            ColorPickerTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            ColorPickerTitle.TextSize = 14
+            ColorPickerTitle.TextXAlignment = Enum.TextXAlignment.Left
+            ColorPickerTitle.Parent = ColorPicker
+            
+            -- ColorPicker Preview
+            local ColorPreview = Instance.new("Frame")
+            ColorPreview.Name = "Preview"
+            ColorPreview.Size = UDim2.new(0, 30, 0, 20)
+            ColorPreview.Position = UDim2.new(1, -40, 0.5, -10)
+            ColorPreview.BackgroundColor3 = colorOptions.Default
+            ColorPreview.BorderSizePixel = 0
+            ColorPreview.Parent = ColorPicker
+            
+            -- Preview Corner
+            local PreviewCorner = Instance.new("UICorner")
+            PreviewCorner.CornerRadius = UDim.new(0, 4)
+            PreviewCorner.Parent = ColorPreview
+            
+            -- Simplified color picker implementation
+            -- In an actual script you'd implement a full color picker UI,
+            -- but for this example we'll just cycle through some preset colors
+            
+            local colors = {
+                Color3.fromRGB(255, 0, 0), -- Red
+                Color3.fromRGB(255, 165, 0), -- Orange
+                Color3.fromRGB(255, 255, 0), -- Yellow
+                Color3.fromRGB(0, 255, 0), -- Green
+                Color3.fromRGB(0, 0, 255), -- Blue
+                Color3.fromRGB(128, 0, 128), -- Purple
+                Color3.fromRGB(255, 0, 255), -- Magenta
+                Color3.fromRGB(255, 255, 255), -- White
+            }
+            
+            local colorIndex = 1
+            
+            -- Find the closest matching color
+            for i, color in ipairs(colors) do
+                if (color - colorOptions.Default).Magnitude < (colors[colorIndex] - colorOptions.Default).Magnitude then
+                    colorIndex = i
+                end
+            end
+            
+            -- Update the color
+            local function updateColor()
+                local selectedColor = colors[colorIndex]
+                ColorPreview.BackgroundColor3 = selectedColor
+                colorOptions.Callback(selectedColor)
+            end
+            
+            -- Make color picker clickable
+            ColorPicker.InputBegan:Connect(function(input)
+                if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                    colorIndex = (colorIndex % #colors) + 1
+                    updateColor()
+                end
+            end)
+            
+            -- Initialize with default color
+            updateColor()
+            
+            -- Color Picker Functions
+            local ColorPickerFunctions = {}
+            
+            function ColorPickerFunctions.Set(color)
+                -- Find closest matching color
+                local closestIndex = 1
+                local closestDistance = math.huge
+                
+                for i, preset in ipairs(colors) do
+                    local distance = (preset - color).Magnitude
+                    if distance < closestDistance then
+                        closestDistance = distance
+                        closestIndex = i
+                    end
+                end
+                
+                colorIndex = closestIndex
+                updateColor()
+            end
+            
+            return ColorPickerFunctions
+        end
+        
+        -- Create label
+        function SectionFunctions.CreateLabel(options)
+            local labelOptions = {
+                Text = options.Text or "Label"
+            }
+            
+            local Label = Instance.new("Frame")
+            Label.Name = "Label"
+            Label.Size = UDim2.new(1, 0, 0, 25)
+            Label.BackgroundTransparency = 1
+            Label.BorderSizePixel = 0
+            Label.Parent = SectionContent
+            
+            -- Label Text
+            local LabelText = Instance.new("TextLabel")
+            LabelText.Size = UDim2.new(1, 0, 1, 0)
+            LabelText.BackgroundTransparency = 1
+            LabelText.Font = Enum.Font.Gotham
+            LabelText.Text = labelOptions.Text
+            LabelText.TextColor3 = Color3.fromRGB(200, 200, 200)
+            LabelText.TextSize = 14
+            LabelText.Parent = Label
+            
+            -- Label Functions
+            local LabelFunctions = {}
+            
+            function LabelFunctions.SetText(text)
+                LabelText.Text = text
+            end
+            
+            return LabelFunctions
+        end
+        
+        -- Create keybind
+        function SectionFunctions.CreateKeybind(options)
+            local keybindOptions = {
+                Name = options.Name or "Keybind",
+                Default = options.Default or Enum.KeyCode.F,
+                Callback = options.Callback or function() end
+            }
+            
+            local Keybind = Instance.new("Frame")
+            Keybind.Name = keybindOptions.Name.."Keybind"
+            Keybind.Size = UDim2.new(1, 0, 0, 30)
+            Keybind.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+            Keybind.BorderSizePixel = 0
+            Keybind.Parent = SectionContent
+            
+            -- Keybind Corner
+            local KeybindCorner = Instance.new("UICorner")
+            KeybindCorner.CornerRadius = UDim.new(0, 4)
+            KeybindCorner.Parent = Keybind
+            
+            -- Keybind Title
+            local KeybindTitle = Instance.new("TextLabel")
+            KeybindTitle.Name = "Title"
+            KeybindTitle.Size = UDim2.new(1, -90, 1, 0)
+            KeybindTitle.BackgroundTransparency = 1
+            KeybindTitle.Font = Enum.Font.Gotham
+            KeybindTitle.Text = keybindOptions.Name
+            KeybindTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+            KeybindTitle.TextSize = 14
+            KeybindTitle.TextXAlignment = Enum.TextXAlignment.Left
+            KeybindTitle.Parent = Keybind
+            
+            -- Keybind Button
+            local KeybindButton = Instance.new("TextButton")
+            KeybindButton.Name = "Button"
+            KeybindButton.Size = UDim2.new(0, 80, 0, 24)
+            KeybindButton.Position = UDim2.new(1, -85, 0.5, -12)
+            KeybindButton.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
+            KeybindButton.BorderSizePixel = 0
+            KeybindButton.Font = Enum.Font.Gotham
+            KeybindButton.Text = keybindOptions.Default.Name
+            KeybindButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+            KeybindButton.TextSize = 14
+            KeybindButton.Parent = Keybind
+            
+            -- Button Corner
+            local ButtonCorner = Instance.new("UICorner")
+            ButtonCorner.CornerRadius = UDim.new(0, 4)
+            ButtonCorner.Parent = KeybindButton
+            
+            -- Keybind Variables
+            local currentKey = keybindOptions.Default
+            local isListening = false
+            
+            -- Update the button text
+            local function updateButton()
+                KeybindButton.Text = currentKey.Name
+            end
+            
+            -- Keybind functionality
+            KeybindButton.MouseButton1Click:Connect(function()
+                isListening = true
+                KeybindButton.Text = "..."
+            end)
+            
+            UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                -- If we're listening for a key
+                if isListening and input.UserInputType == Enum.UserInputType.Keyboard then
+                    currentKey = input.KeyCode
+                    updateButton()
+                    isListening = false
+                    return
+                end
+                
+                -- Otherwise check if the pressed key matches our keybind
+                if not isListening and not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
+                    if input.KeyCode == currentKey then
+                        keybindOptions.Callback()
+                    end
+                end
+            end)
+            
+            -- Keybind Functions
+            local KeybindFunctions = {}
+            
+            function KeybindFunctions.Set(key)
+                currentKey = key
+                updateButton()
+            end
+            
+            return KeybindFunctions
+        end
+        
+        return SectionFunctions
+    end
+    
+    return TabFunctions
+end
+
+-- Create Notification Function
+function UILibrary.CreateNotification(options)
+    local notificationOptions = {
+        Title = options.Title or "Notification",
+        Content = options.Content or "",
+        Duration = options.Duration or 3,
+        Type = options.Type or "Info" -- Info, Success, Error
     }
-})
+    
+    -- Remove old notifications with same title
+    for _, child in pairs(SkyXUI:GetChildren()) do
+        if child:IsA("Frame") and child:FindFirstChild("Title") and child.Title.Text == notificationOptions.Title then
+            child:Destroy()
+        end
+    end
+    
+    -- Create notification frame
+    local Notification = Instance.new("Frame")
+    Notification.Name = "Notification"
+    Notification.Size = UDim2.new(0, 250, 0, 80)
+    Notification.Position = UDim2.new(1, -260, 1, -90)
+    
+    -- Set color based on type
+    if notificationOptions.Type == "Success" then
+        Notification.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+    elseif notificationOptions.Type == "Error" then
+        Notification.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
+    else -- Info
+        Notification.BackgroundColor3 = Color3.fromRGB(40, 40, 120)
+    end
+    
+    Notification.BorderSizePixel = 0
+    Notification.Parent = SkyXUI
+    
+    -- Notification corner
+    local NotificationCorner = Instance.new("UICorner")
+    NotificationCorner.CornerRadius = UDim.new(0, 6)
+    NotificationCorner.Parent = Notification
+    
+    -- Notification title
+    local Title = Instance.new("TextLabel")
+    Title.Name = "Title"
+    Title.Size = UDim2.new(1, -10, 0, 24)
+    Title.Position = UDim2.new(0, 5, 0, 5)
+    Title.BackgroundTransparency = 1
+    Title.Font = Enum.Font.GothamBold
+    Title.Text = notificationOptions.Title
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 16
+    Title.TextXAlignment = Enum.TextXAlignment.Left
+    Title.Parent = Notification
+    
+    -- Notification content
+    local Content = Instance.new("TextLabel")
+    Content.Name = "Content"
+    Content.Size = UDim2.new(1, -10, 0, 46)
+    Content.Position = UDim2.new(0, 5, 0, 29)
+    Content.BackgroundTransparency = 1
+    Content.Font = Enum.Font.Gotham
+    Content.Text = notificationOptions.Content
+    Content.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Content.TextSize = 14
+    Content.TextXAlignment = Enum.TextXAlignment.Left
+    Content.TextYAlignment = Enum.TextYAlignment.Top
+    Content.TextWrapped = true
+    Content.Parent = Notification
+    
+    -- Animate in
+    Notification.Position = UDim2.new(1, 20, 1, -90)
+    TweenService:Create(Notification, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = UDim2.new(1, -260, 1, -90)}):Play()
+    
+    -- Auto remove after duration
+    task.delay(notificationOptions.Duration, function()
+        -- Animate out
+        local tween = TweenService:Create(Notification, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Position = UDim2.new(1, 20, 1, -90)})
+        tween:Play()
+        tween.Completed:Wait()
+        Notification:Destroy()
+    end)
+end
 
--- Main Features Tab
-local MainTab = Window:CreateTab("Main Features", "settings")
+------------------------------------------------------------------
+-- MAIN IMPLEMENTATION
+------------------------------------------------------------------
 
 -- Identify roles in MM2
 local function GetPlayerRole(player)
@@ -79,11 +1144,15 @@ local function GetPlayerRole(player)
     return "Unknown"
 end
 
-------------------------------------------------------------------
--- AIMBOT IMPLEMENTATION
-------------------------------------------------------------------
+-- Create tabs
+local MainTab = UILibrary.CreateTab("Main")
+local ESPTab = UILibrary.CreateTab("Player ESP")
+local SettingsTab = UILibrary.CreateTab("Settings")
 
-local AimbotSection = MainTab:CreateSection("Aimbot")
+-- Create sections
+local AimbotSection = MainTab.CreateSection("Aimbot")
+local GunGrabSection = MainTab.CreateSection("Gun Grab")
+local CoinSection = MainTab.CreateSection("Coin Collection")
 
 -- Aimbot Settings
 local AimbotSettings = {
@@ -176,14 +1245,6 @@ UserInputService.InputEnded:Connect(function(Input)
     end
 end)
 
--- Toggle keybind
-UserInputService.InputBegan:Connect(function(Input)
-    if Input.KeyCode == AimbotSettings.ToggleKey then
-        AimbotSettings.Enabled = not AimbotSettings.Enabled
-        AimbotToggle:Set(AimbotSettings.Enabled)
-    end
-end)
-
 -- Main aimbot loop
 RunService.RenderStepped:Connect(function()
     if AimbotSettings.Enabled and IsAiming then
@@ -203,110 +1264,99 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- Aimbot UI Elements
-local AimbotToggle = MainTab:CreateToggle({
+local AimbotToggle = AimbotSection.CreateToggle({
     Name = "Enable Aimbot",
-    CurrentValue = AimbotSettings.Enabled,
-    Flag = "AimbotEnabled",
+    Default = AimbotSettings.Enabled,
     Callback = function(Value)
         AimbotSettings.Enabled = Value
     end
 })
 
-MainTab:CreateToggle({
+AimbotSection.CreateToggle({
     Name = "Target Murderer",
-    CurrentValue = AimbotSettings.TargetMurderer,
-    Flag = "TargetMurderer",
+    Default = AimbotSettings.TargetMurderer,
     Callback = function(Value)
         AimbotSettings.TargetMurderer = Value
     end
 })
 
-MainTab:CreateToggle({
+AimbotSection.CreateToggle({
     Name = "Target Sheriff",
-    CurrentValue = AimbotSettings.TargetSheriff,
-    Flag = "TargetSheriff",
+    Default = AimbotSettings.TargetSheriff,
     Callback = function(Value)
         AimbotSettings.TargetSheriff = Value
     end
 })
 
-MainTab:CreateToggle({
+AimbotSection.CreateToggle({
     Name = "Target Innocent",
-    CurrentValue = AimbotSettings.TargetInnocent,
-    Flag = "TargetInnocent",
+    Default = AimbotSettings.TargetInnocent,
     Callback = function(Value)
         AimbotSettings.TargetInnocent = Value
     end
 })
 
-MainTab:CreateDropdown({
+AimbotSection.CreateDropdown({
     Name = "Target Part",
     Options = {"Head", "HumanoidRootPart", "Torso"},
-    CurrentOption = AimbotSettings.TargetPart,
-    Flag = "TargetPart", 
+    Default = AimbotSettings.TargetPart,
     Callback = function(Option)
         AimbotSettings.TargetPart = Option
-    end,
+    end
 })
 
-MainTab:CreateSlider({
+AimbotSection.CreateSlider({
     Name = "Aimbot Sensitivity",
-    Range = {0.01, 1},
+    Min = 0.01,
+    Max = 1,
+    Default = AimbotSettings.Sensitivity,
     Increment = 0.01,
     Suffix = "x",
-    CurrentValue = AimbotSettings.Sensitivity,
-    Flag = "AimbotSensitivity",
     Callback = function(Value)
         AimbotSettings.Sensitivity = Value
-    end,
+    end
 })
 
-MainTab:CreateSlider({
+AimbotSection.CreateSlider({
     Name = "FOV Radius",
-    Range = {50, 800},
+    Min = 50,
+    Max = 800,
+    Default = AimbotSettings.FOV,
     Increment = 10,
     Suffix = "px",
-    CurrentValue = AimbotSettings.FOV,
-    Flag = "FOVRadius",
     Callback = function(Value)
         AimbotSettings.FOV = Value
-    end,
+    end
 })
 
-MainTab:CreateToggle({
+AimbotSection.CreateToggle({
     Name = "Show FOV Circle",
-    CurrentValue = AimbotSettings.ShowFOV,
-    Flag = "ShowFOV",
+    Default = AimbotSettings.ShowFOV,
     Callback = function(Value)
         AimbotSettings.ShowFOV = Value
-    end,
+    end
 })
 
-MainTab:CreateColorPicker({
+AimbotSection.CreateColorPicker({
     Name = "FOV Circle Color",
-    Color = AimbotSettings.FOVColor,
-    Flag = "FOVColor",
+    Default = AimbotSettings.FOVColor,
     Callback = function(Value)
         AimbotSettings.FOVColor = Value
-    end,
+    end
 })
 
-MainTab:CreateKeybind({
+AimbotSection.CreateKeybind({
     Name = "Toggle Aimbot Key",
-    CurrentKeybind = "Q",
-    HoldToInteract = false,
-    Flag = "AimbotKeybind",
+    Default = AimbotSettings.ToggleKey,
     Callback = function()
         AimbotSettings.Enabled = not AimbotSettings.Enabled
-        AimbotToggle:Set(AimbotSettings.Enabled)
-    end,
+        AimbotToggle.Set(AimbotSettings.Enabled)
+    end
 })
 
 ------------------------------------------------------------------
 -- AUTO GRAB SHERIFF GUN IMPLEMENTATION
 ------------------------------------------------------------------
-
-local GunGrabSection = MainTab:CreateSection("Auto Gun Grab")
 
 -- Gun grab settings
 local GunGrabSettings = {
@@ -319,46 +1369,41 @@ local GunGrabSettings = {
 }
 
 -- Gun grab UI elements
-MainTab:CreateToggle({
+GunGrabSection.CreateToggle({
     Name = "Auto Grab Sheriff Gun",
-    CurrentValue = GunGrabSettings.Enabled,
-    Flag = "AutoGrabGun",
+    Default = GunGrabSettings.Enabled,
     Callback = function(Value)
         GunGrabSettings.Enabled = Value
     end
 })
 
-MainTab:CreateToggle({
+GunGrabSection.CreateToggle({
     Name = "Auto Equip Gun",
-    CurrentValue = GunGrabSettings.AutoEquip,
-    Flag = "AutoEquipGun",
+    Default = GunGrabSettings.AutoEquip,
     Callback = function(Value)
         GunGrabSettings.AutoEquip = Value
     end
 })
 
-MainTab:CreateToggle({
+GunGrabSection.CreateToggle({
     Name = "Don't Grab If Murderer",
-    CurrentValue = GunGrabSettings.IgnoreIfMurderer,
-    Flag = "IgnoreIfMurderer",
+    Default = GunGrabSettings.IgnoreIfMurderer,
     Callback = function(Value)
         GunGrabSettings.IgnoreIfMurderer = Value
     end
 })
 
-MainTab:CreateToggle({
+GunGrabSection.CreateToggle({
     Name = "Highlight Gun Only (No Grab)",
-    CurrentValue = GunGrabSettings.VisualOnly,
-    Flag = "VisualOnly",
+    Default = GunGrabSettings.VisualOnly,
     Callback = function(Value)
         GunGrabSettings.VisualOnly = Value
     end
 })
 
-MainTab:CreateToggle({
+GunGrabSection.CreateToggle({
     Name = "Highlight Gun",
-    CurrentValue = GunGrabSettings.GunHighlight,
-    Flag = "GunHighlight",
+    Default = GunGrabSettings.GunHighlight,
     Callback = function(Value)
         GunGrabSettings.GunHighlight = Value
         
@@ -374,10 +1419,9 @@ MainTab:CreateToggle({
     end
 })
 
-MainTab:CreateColorPicker({
+GunGrabSection.CreateColorPicker({
     Name = "Gun Highlight Color",
-    Color = GunGrabSettings.GunHighlightColor,
-    Flag = "GunHighlightColor",
+    Default = GunGrabSettings.GunHighlightColor,
     Callback = function(Value)
         GunGrabSettings.GunHighlightColor = Value
         
@@ -391,7 +1435,7 @@ MainTab:CreateColorPicker({
                 end
             end
         end
-    end,
+    end
 })
 
 -- Gun grab implementation
@@ -418,409 +1462,188 @@ local function GrabGun(gun)
         return
     end
     
-    -- Check if we're murderer and should ignore
+    -- Skip if player is murderer and IgnoreIfMurderer is enabled
     if GunGrabSettings.IgnoreIfMurderer and GetPlayerRole(LocalPlayer) == "Murderer" then
         return
     end
     
-    if gun and gun:IsA("Tool") and gun.Parent and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        -- Save original position
-        local originalPos = LocalPlayer.Character.HumanoidRootPart.CFrame
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and gun:FindFirstChild("Handle") then
+        local oldPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
         
         -- Teleport to gun
-        LocalPlayer.Character.HumanoidRootPart.CFrame = gun.Parent.CFrame
+        LocalPlayer.Character.HumanoidRootPart.CFrame = gun.Handle.CFrame
         
-        -- Try to pick up the gun
-        wait(0.1)
+        -- Wait a tick to let the teleport register
+        task.wait(0.1)
         
-        -- Use ProximityPrompt if available
-        local prompt = gun:FindFirstChildOfClass("ProximityPrompt")
-        if prompt then
-            fireproximityprompt(prompt)
-        else
-            -- Otherwise try to use game-specific pickup method
-            -- Method 1: FireServer GunDrop remote
-            local gunPickupRemote = ReplicatedStorage:FindFirstChild("GunDrop", true)
-            if gunPickupRemote and gunPickupRemote:IsA("RemoteEvent") then
-                gunPickupRemote:FireServer(gun)
-            end
-            
-            -- Method 2: Click the gun
-            local clickDetector = gun:FindFirstChildOfClass("ClickDetector")
-            if clickDetector then
-                fireclickdetector(clickDetector)
-            end
-        end
-        
-        -- Wait for pickup to register
-        wait(0.2)
+        -- Teleport back
+        LocalPlayer.Character.HumanoidRootPart.CFrame = oldPosition
         
         -- Auto equip if enabled
-        if GunGrabSettings.AutoEquip and LocalPlayer.Backpack:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Revolver") then
-            local gunItem = LocalPlayer.Backpack:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Revolver")
-            LocalPlayer.Character.Humanoid:EquipTool(gunItem)
+        if GunGrabSettings.AutoEquip and LocalPlayer.Backpack:FindFirstChild("Gun") then
+            LocalPlayer.Character.Humanoid:EquipTool(LocalPlayer.Backpack.Gun)
+        elseif GunGrabSettings.AutoEquip and LocalPlayer.Backpack:FindFirstChild("Revolver") then
+            LocalPlayer.Character.Humanoid:EquipTool(LocalPlayer.Backpack.Revolver)
         end
         
-        -- Return to original position
-        LocalPlayer.Character.HumanoidRootPart.CFrame = originalPos
-        
-        Rayfield:Notify({
+        -- Show notification
+        UILibrary.CreateNotification({
             Title = "Gun Grabbed",
-            Content = "Successfully grabbed sheriff's gun!",
-            Duration = 3
+            Content = "Successfully grabbed the sheriff's gun!",
+            Duration = 3,
+            Type = "Success"
         })
     end
 end
 
--- Monitor for dropped guns in the workspace
-local function MonitorForDroppedGuns()
-    -- Check for initially present guns
+-- Watch for sheriff's gun in the workspace
+Workspace.ChildAdded:Connect(function(child)
+    task.wait() -- Wait a tick to make sure the gun is fully loaded
+    
+    if GunGrabSettings.Enabled and (child.Name == "Gun" or child.Name == "Revolver") and child:IsA("Tool") then
+        HighlightGun(child)
+        task.wait(0.2) -- Small delay before attempting to grab
+        GrabGun(child)
+    end
+end)
+
+-- Scan existing items on load
+task.spawn(function()
     for _, item in pairs(Workspace:GetDescendants()) do
-        if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") and not item.Parent:IsA("Backpack") and not item.Parent:IsA("Player") then
+        if (item.Name == "Gun" or item.Name == "Revolver") and item:IsA("Tool") then
             HighlightGun(item)
             
             if GunGrabSettings.Enabled then
+                task.wait(1) -- Initial delay to make sure the character is loaded
                 GrabGun(item)
             end
         end
     end
-    
-    -- Listen for new guns being added to workspace
-    Workspace.DescendantAdded:Connect(function(descendant)
-        if descendant:IsA("Tool") and (descendant.Name == "Gun" or descendant.Name == "Revolver") then
-            -- Check if gun is dropped (not in someone's backpack or character)
-            if not descendant.Parent:IsA("Backpack") and not descendant.Parent:IsA("Player") then
-                HighlightGun(descendant)
-                
-                if GunGrabSettings.Enabled then
-                    GrabGun(descendant)
-                end
-            end
-        end
-    end)
-    
-    -- Monitor players for death (sheriff dropping gun)
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character then
-            player.Character:WaitForChild("Humanoid").Died:Connect(function()
-                -- Check if this was the sheriff
-                if GetPlayerRole(player) == "Sheriff" then
-                    -- Wait a brief moment for the gun to drop
-                    wait(0.5)
-                    
-                    -- Look for the dropped gun
-                    for _, item in pairs(Workspace:GetDescendants()) do
-                        if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") and not item.Parent:IsA("Backpack") and not item.Parent:IsA("Player") then
-                            HighlightGun(item)
-                            
-                            if GunGrabSettings.Enabled then
-                                GrabGun(item)
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end
-    
-    -- Watch for new players joining
-    Players.PlayerAdded:Connect(function(player)
-        if player ~= LocalPlayer and player.Character then
-            player.Character:WaitForChild("Humanoid").Died:Connect(function()
-                if GetPlayerRole(player) == "Sheriff" then
-                    wait(0.5)
-                    
-                    for _, item in pairs(Workspace:GetDescendants()) do
-                        if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") and not item.Parent:IsA("Backpack") and not item.Parent:IsA("Player") then
-                            HighlightGun(item)
-                            
-                            if GunGrabSettings.Enabled then
-                                GrabGun(item)
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-    end)
-end
-
--- Start monitoring for guns
-MonitorForDroppedGuns()
+end)
 
 ------------------------------------------------------------------
 -- AUTO COLLECT COINS IMPLEMENTATION
 ------------------------------------------------------------------
 
-local CoinSection = MainTab:CreateSection("Auto Coin Collection")
-
 -- Coin collection settings
 local CoinSettings = {
     Enabled = false,
-    CollectDistance = 40,
-    IgnoreIfMurderer = true,
-    VisualOnly = false, -- If true, just highlights coins but doesn't collect
-    CoinHighlight = true,
-    CoinHighlightColor = Color3.fromRGB(255, 215, 0),
-    TeleportSpeed = 80, -- Higher = faster collection but more visible
-    CollectInterval = 0.1 -- Time between collecting multiple coins
+    Distance = 20, -- Max distance to collect coins from
+    Interval = 0.1, -- Time between coin collections
+    CollectAll = false -- If true, collect all coins regardless of distance
 }
 
--- UI Elements for coin collection
-MainTab:CreateToggle({
+-- Coin collection UI
+CoinSection.CreateToggle({
     Name = "Auto Collect Coins",
-    CurrentValue = CoinSettings.Enabled,
-    Flag = "AutoCollectCoins",
+    Default = CoinSettings.Enabled,
     Callback = function(Value)
         CoinSettings.Enabled = Value
+        
+        -- Show status notification
+        UILibrary.CreateNotification({
+            Title = "Coin Collection",
+            Content = Value and "Started collecting coins" or "Stopped collecting coins",
+            Duration = 3,
+            Type = Value and "Success" or "Info"
+        })
     end
 })
 
-MainTab:CreateSlider({
+CoinSection.CreateSlider({
     Name = "Collection Distance",
-    Range = {10, 200},
+    Min = 5,
+    Max = 100,
+    Default = CoinSettings.Distance,
     Increment = 5,
-    Suffix = "studs",
-    CurrentValue = CoinSettings.CollectDistance,
-    Flag = "CoinCollectDistance",
+    Suffix = " studs",
     Callback = function(Value)
-        CoinSettings.CollectDistance = Value
-    end,
-})
-
-MainTab:CreateToggle({
-    Name = "Don't Collect If Murderer",
-    CurrentValue = CoinSettings.IgnoreIfMurderer,
-    Flag = "IgnoreIfMurdererCoins",
-    Callback = function(Value)
-        CoinSettings.IgnoreIfMurderer = Value
+        CoinSettings.Distance = Value
     end
 })
 
-MainTab:CreateToggle({
-    Name = "Highlight Coins Only (No Collect)",
-    CurrentValue = CoinSettings.VisualOnly,
-    Flag = "VisualOnlyCoins",
+CoinSection.CreateSlider({
+    Name = "Collection Interval",
+    Min = 0.01,
+    Max = 1,
+    Default = CoinSettings.Interval,
+    Increment = 0.01,
+    Suffix = "s",
     Callback = function(Value)
-        CoinSettings.VisualOnly = Value
+        CoinSettings.Interval = Value
     end
 })
 
-MainTab:CreateToggle({
-    Name = "Highlight Coins",
-    CurrentValue = CoinSettings.CoinHighlight,
-    Flag = "CoinHighlight",
+CoinSection.CreateToggle({
+    Name = "Collect All Coins",
+    Default = CoinSettings.CollectAll,
     Callback = function(Value)
-        CoinSettings.CoinHighlight = Value
-        
-        -- Update all existing coin highlights
-        for _, coin in pairs(Workspace:GetDescendants()) do
-            if coin.Name == "Coin" or coin.Name == "Coin_Server" then
-                local highlight = coin:FindFirstChild("CoinHighlight")
-                if highlight then
-                    highlight.Enabled = Value
-                end
-            end
-        end
+        CoinSettings.CollectAll = Value
     end
 })
 
-MainTab:CreateColorPicker({
-    Name = "Coin Highlight Color",
-    Color = CoinSettings.CoinHighlightColor,
-    Flag = "CoinHighlightColor",
-    Callback = function(Value)
-        CoinSettings.CoinHighlightColor = Value
-        
-        -- Update all existing coin highlights
-        for _, coin in pairs(Workspace:GetDescendants()) do
-            if coin.Name == "Coin" or coin.Name == "Coin_Server" then
-                local highlight = coin:FindFirstChild("CoinHighlight")
-                if highlight then
-                    highlight.FillColor = Value
-                    highlight.OutlineColor = Value
-                end
-            end
-        end
-    end,
+-- Counter for coins collected
+local coinsCollected = 0
+
+-- Label to show coins collected
+local CoinsCollectedLabel = CoinSection.CreateLabel({
+    Text = "Coins Collected: 0"
 })
 
-MainTab:CreateSlider({
-    Name = "Collect Speed",
-    Range = {20, 150},
-    Increment = 5,
-    Suffix = "",
-    CurrentValue = CoinSettings.TeleportSpeed,
-    Flag = "TeleportSpeed",
-    Callback = function(Value)
-        CoinSettings.TeleportSpeed = Value
-    end,
-})
-
-MainTab:CreateSlider({
-    Name = "Collect Interval",
-    Range = {0.05, 0.5},
-    Increment = 0.05,
-    Suffix = "sec",
-    CurrentValue = CoinSettings.CollectInterval,
-    Flag = "CollectInterval",
-    Callback = function(Value)
-        CoinSettings.CollectInterval = Value
-    end,
-})
-
--- Coin highlighting function
-local function HighlightCoin(coin)
-    if not coin or (coin.Name ~= "Coin" and coin.Name ~= "Coin_Server") then return end
+-- Function to collect coins
+local function CollectCoins()
+    if not CoinSettings.Enabled or not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return
+    end
     
-    -- Don't add duplicate highlights
-    if coin:FindFirstChild("CoinHighlight") then return end
+    local hrp = LocalPlayer.Character.HumanoidRootPart
+    local coinsThisRound = 0
     
-    -- Create highlight
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "CoinHighlight"
-    highlight.FillColor = CoinSettings.CoinHighlightColor
-    highlight.OutlineColor = CoinSettings.CoinHighlightColor
-    highlight.FillTransparency = 0.3
-    highlight.OutlineTransparency = 0
-    highlight.Enabled = CoinSettings.CoinHighlight
-    highlight.Parent = coin
-end
-
--- Main coin collection coroutine
-local CoinCollectionActive = false
-local function StartCoinCollection()
-    if CoinCollectionActive then return end
-    CoinCollectionActive = true
-    
-    coroutine.wrap(function()
-        while CoinSettings.Enabled do
-            -- Get player state
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and not CoinSettings.VisualOnly then
-                -- Check if we're murderer and should ignore
-                if CoinSettings.IgnoreIfMurderer and GetPlayerRole(LocalPlayer) == "Murderer" then
-                    wait(1)
-                    goto continue_coin_loop
-                end
-                
-                local originalPos = LocalPlayer.Character.HumanoidRootPart.CFrame
-                local hrp = LocalPlayer.Character.HumanoidRootPart
-                
-                -- Find nearby coins
-                local coins = {}
-                for _, coin in pairs(Workspace:GetDescendants()) do
-                    if (coin.Name == "Coin" or coin.Name == "Coin_Server") and coin:IsA("BasePart") then
-                        local distance = (coin.Position - hrp.Position).Magnitude
-                        if distance <= CoinSettings.CollectDistance then
-                            table.insert(coins, {coin = coin, distance = distance})
-                        end
-                    end
-                end
-                
-                -- Sort coins by distance
-                table.sort(coins, function(a, b)
-                    return a.distance < b.distance
-                end)
-                
-                -- Collect coins
-                if #coins > 0 then
-                    for _, coinData in ipairs(coins) do
-                        local coin = coinData.coin
-                        
-                        -- Check if coin still exists
-                        if coin and coin:IsA("BasePart") then
-                            -- Try to collect the coin
-                            -- Method 1: Teleport to coin
-                            local targetPosition = coin.Position
-                            
-                            -- Lerp to coin position for smoother movement
-                            for i = 0, 1, 0.1 do
-                                if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or not coin or not coin.Parent then
-                                    break
-                                end
-                                
-                                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
-                                    hrp.Position:Lerp(targetPosition, i)
-                                )
-                                
-                                wait(1 / CoinSettings.TeleportSpeed) -- Adjust speed
-                            end
-                            
-                            -- Final position
-                            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and coin and coin.Parent then
-                                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(coin.Position)
-                                
-                                -- Method 2: Try to use proximity prompt if available
-                                local prompt = coin:FindFirstChildOfClass("ProximityPrompt")
-                                if prompt then
-                                    fireproximityprompt(prompt)
-                                end
-                                
-                                -- Method 3: Try to use coin pickup remote
-                                local coinPickupRemote = ReplicatedStorage:FindFirstChild("CollectCoin", true)
-                                if coinPickupRemote and coinPickupRemote:IsA("RemoteEvent") then
-                                    coinPickupRemote:FireServer(coin)
-                                end
-                                
-                                -- Wait for server to register collection
-                                wait(CoinSettings.CollectInterval)
-                            end
-                        end
-                    end
-                    
-                    -- Return to original position
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                        LocalPlayer.Character.HumanoidRootPart.CFrame = originalPos
-                    end
-                end
-            end
+    for _, coin in pairs(Workspace:GetChildren()) do
+        if coin.Name == "Coin" and coin:IsA("BasePart") then
+            local distance = (coin.Position - hrp.Position).Magnitude
             
-            -- Wait before next collection cycle
-            wait(0.5)
-            ::continue_coin_loop::
-        end
-        
-        CoinCollectionActive = false
-    end)()
-end
-
--- Monitor for new coins in the workspace
-local function MonitorForCoins()
-    -- Check for initially present coins
-    for _, coin in pairs(Workspace:GetDescendants()) do
-        if coin.Name == "Coin" or coin.Name == "Coin_Server" then
-            HighlightCoin(coin)
+            if CoinSettings.CollectAll or distance <= CoinSettings.Distance then
+                -- Try to collect using Coin.CoinPickup remote
+                if coin:FindFirstChild("CoinPickup") and coin.CoinPickup:IsA("RemoteEvent") then
+                    coin.CoinPickup:FireServer()
+                    coinsCollected = coinsCollected + 1
+                    coinsThisRound = coinsThisRound + 1
+                    
+                    -- Update the counter
+                    CoinsCollectedLabel.SetText("Coins Collected: " .. coinsCollected)
+                    
+                    -- Small delay to prevent lag
+                    task.wait(CoinSettings.Interval)
+                end
+            end
         end
     end
     
-    -- Listen for new coins being added to workspace
-    Workspace.DescendantAdded:Connect(function(descendant)
-        if descendant.Name == "Coin" or descendant.Name == "Coin_Server" then
-            HighlightCoin(descendant)
-        end
-    end)
-    
-    -- Start coin collection when enabled
-    CoinSettings.EnabledChanged = function(newValue)
-        if newValue and not CoinCollectionActive then
-            StartCoinCollection()
-        end
+    -- Show notification if coins were collected
+    if coinsThisRound > 0 then
+        UILibrary.CreateNotification({
+            Title = "Coins Collected",
+            Content = "Collected " .. coinsThisRound .. " coins this round",
+            Duration = 2,
+            Type = "Success"
+        })
     end
 end
 
--- Start monitoring for coins
-MonitorForCoins()
-
--- Start coin collection if enabled
-if CoinSettings.Enabled then
-    StartCoinCollection()
-end
+-- Start the coin collection loop
+task.spawn(function()
+    while true do
+        task.wait(1) -- Check every second
+        if CoinSettings.Enabled then
+            CollectCoins()
+        end
+    end
+end)
 
 ------------------------------------------------------------------
--- PLAYER ESP IMPLEMENTATION
+-- ESP IMPLEMENTATION
 ------------------------------------------------------------------
-
-local ESPTab = Window:CreateTab("Player ESP", "eye")
 
 -- ESP Settings
 local ESPSettings = {
@@ -828,565 +1651,633 @@ local ESPSettings = {
     ShowMurderer = true,
     ShowSheriff = true,
     ShowInnocent = true,
-    ShowName = true,
+    ShowBoxes = true,
+    ShowNames = true,
     ShowDistance = true,
-    ShowBox = true,
+    ShowRole = true,
     MurdererColor = Color3.fromRGB(255, 0, 0),
     SheriffColor = Color3.fromRGB(0, 0, 255),
-    InnocentColor = Color3.fromRGB(0, 255, 0)
+    InnocentColor = Color3.fromRGB(0, 255, 0),
+    TextSize = 14,
+    TextFont = Enum.Font.Gotham,
+    MaxDistance = 1000
 }
 
--- Store ESP objects for each player
-local playerESP = {}
-
--- Create ESP for a player
-local function CreateESP(player)
-    if playerESP[player] then return end
-    
-    local esp = {}
-    
-    -- Box ESP
-    esp.Box = Drawing.new("Square")
-    esp.Box.Visible = false
-    esp.Box.Color = Color3.fromRGB(255, 255, 255)
-    esp.Box.Thickness = 1
-    esp.Box.Transparency = 1
-    esp.Box.Filled = false
-    
-    -- Name ESP
-    esp.Name = Drawing.new("Text")
-    esp.Name.Visible = false
-    esp.Name.Color = Color3.fromRGB(255, 255, 255)
-    esp.Name.Size = 14
-    esp.Name.Center = true
-    esp.Name.Outline = true
-    
-    -- Distance ESP
-    esp.Distance = Drawing.new("Text")
-    esp.Distance.Visible = false
-    esp.Distance.Color = Color3.fromRGB(255, 255, 255)
-    esp.Distance.Size = 12
-    esp.Distance.Center = true
-    esp.Distance.Outline = true
-    
-    playerESP[player] = esp
-end
-
--- Remove ESP when player leaves
-local function RemoveESP(player)
-    if playerESP[player] then
-        for _, obj in pairs(playerESP[player]) do
-            obj:Remove()
-        end
-        playerESP[player] = nil
-    end
-end
-
--- Create ESP for all players
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        CreateESP(player)
-    end
-end
-
--- Create ESP for new players
-Players.PlayerAdded:Connect(function(player)
-    CreateESP(player)
-end)
-
--- Remove ESP for players who leave
-Players.PlayerRemoving:Connect(function(player)
-    RemoveESP(player)
-end)
-
 -- ESP UI Elements
-local ESPToggleSection = ESPTab:CreateSection("ESP Toggles")
+local ESPSection = ESPTab.CreateSection("ESP Settings")
 
-ESPTab:CreateToggle({
+ESPSection.CreateToggle({
     Name = "Enable ESP",
-    CurrentValue = ESPSettings.Enabled,
-    Flag = "ESPEnabled",
+    Default = ESPSettings.Enabled,
     Callback = function(Value)
         ESPSettings.Enabled = Value
         
-        -- Show/hide all existing ESP
-        for player, esp in pairs(playerESP) do
-            if esp and esp.Box then
-                esp.Box.Visible = Value and ESPSettings.ShowBox
-                esp.Name.Visible = Value and ESPSettings.ShowName
-                esp.Distance.Visible = Value and ESPSettings.ShowDistance
+        -- Update all existing ESP elements
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    local esp = character:FindFirstChild("ESPHighlight")
+                    if esp and esp:IsA("Highlight") then
+                        esp.Enabled = Value
+                    end
+                    
+                    local billboard = character:FindFirstChild("ESPBillboard")
+                    if billboard and billboard:IsA("BillboardGui") then
+                        billboard.Enabled = Value
+                    end
+                end
             end
         end
     end
 })
 
-ESPTab:CreateToggle({
+ESPSection.CreateToggle({
     Name = "Show Murderer",
-    CurrentValue = ESPSettings.ShowMurderer,
-    Flag = "ShowMurderer",
+    Default = ESPSettings.ShowMurderer,
     Callback = function(Value)
         ESPSettings.ShowMurderer = Value
+        
+        -- Update visuals
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local role = GetPlayerRole(player)
+                if role == "Murderer" then
+                    local character = player.Character
+                    if character then
+                        local esp = character:FindFirstChild("ESPHighlight")
+                        if esp and esp:IsA("Highlight") then
+                            esp.Enabled = Value and ESPSettings.Enabled
+                        end
+                        
+                        local billboard = character:FindFirstChild("ESPBillboard")
+                        if billboard and billboard:IsA("BillboardGui") then
+                            billboard.Enabled = Value and ESPSettings.Enabled
+                        end
+                    end
+                end
+            end
+        end
     end
 })
 
-ESPTab:CreateToggle({
+ESPSection.CreateToggle({
     Name = "Show Sheriff",
-    CurrentValue = ESPSettings.ShowSheriff,
-    Flag = "ShowSheriff",
+    Default = ESPSettings.ShowSheriff,
     Callback = function(Value)
         ESPSettings.ShowSheriff = Value
+        
+        -- Update visuals
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local role = GetPlayerRole(player)
+                if role == "Sheriff" then
+                    local character = player.Character
+                    if character then
+                        local esp = character:FindFirstChild("ESPHighlight")
+                        if esp and esp:IsA("Highlight") then
+                            esp.Enabled = Value and ESPSettings.Enabled
+                        end
+                        
+                        local billboard = character:FindFirstChild("ESPBillboard")
+                        if billboard and billboard:IsA("BillboardGui") then
+                            billboard.Enabled = Value and ESPSettings.Enabled
+                        end
+                    end
+                end
+            end
+        end
     end
 })
 
-ESPTab:CreateToggle({
+ESPSection.CreateToggle({
     Name = "Show Innocent",
-    CurrentValue = ESPSettings.ShowInnocent,
-    Flag = "ShowInnocent",
+    Default = ESPSettings.ShowInnocent,
     Callback = function(Value)
         ESPSettings.ShowInnocent = Value
-    end
-})
-
-local ESPOptionsSection = ESPTab:CreateSection("ESP Options")
-
-ESPTab:CreateToggle({
-    Name = "Show Box",
-    CurrentValue = ESPSettings.ShowBox,
-    Flag = "ShowBox",
-    Callback = function(Value)
-        ESPSettings.ShowBox = Value
         
-        for player, esp in pairs(playerESP) do
-            if esp and esp.Box then
-                esp.Box.Visible = ESPSettings.Enabled and Value
+        -- Update visuals
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local role = GetPlayerRole(player)
+                if role == "Innocent" then
+                    local character = player.Character
+                    if character then
+                        local esp = character:FindFirstChild("ESPHighlight")
+                        if esp and esp:IsA("Highlight") then
+                            esp.Enabled = Value and ESPSettings.Enabled
+                        end
+                        
+                        local billboard = character:FindFirstChild("ESPBillboard")
+                        if billboard and billboard:IsA("BillboardGui") then
+                            billboard.Enabled = Value and ESPSettings.Enabled
+                        end
+                    end
+                end
             end
         end
     end
 })
 
-ESPTab:CreateToggle({
-    Name = "Show Name",
-    CurrentValue = ESPSettings.ShowName,
-    Flag = "ShowName",
+-- ESP Display options
+local ESPDisplaySection = ESPTab.CreateSection("ESP Display Options")
+
+ESPDisplaySection.CreateToggle({
+    Name = "Show Boxes",
+    Default = ESPSettings.ShowBoxes,
     Callback = function(Value)
-        ESPSettings.ShowName = Value
+        ESPSettings.ShowBoxes = Value
         
-        for player, esp in pairs(playerESP) do
-            if esp and esp.Name then
-                esp.Name.Visible = ESPSettings.Enabled and Value
+        -- Update all existing ESP elements
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    local esp = character:FindFirstChild("ESPHighlight")
+                    if esp and esp:IsA("Highlight") then
+                        esp.Enabled = Value and ESPSettings.Enabled
+                    end
+                end
             end
         end
     end
 })
 
-ESPTab:CreateToggle({
+ESPDisplaySection.CreateToggle({
+    Name = "Show Names",
+    Default = ESPSettings.ShowNames,
+    Callback = function(Value)
+        ESPSettings.ShowNames = Value
+        
+        -- Update billboards
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    local billboard = character:FindFirstChild("ESPBillboard")
+                    if billboard and billboard:IsA("BillboardGui") then
+                        local nameLabel = billboard:FindFirstChild("Name")
+                        if nameLabel then
+                            nameLabel.Visible = Value
+                        end
+                    end
+                end
+            end
+        end
+    end
+})
+
+ESPDisplaySection.CreateToggle({
     Name = "Show Distance",
-    CurrentValue = ESPSettings.ShowDistance,
-    Flag = "ShowDistance",
+    Default = ESPSettings.ShowDistance,
     Callback = function(Value)
         ESPSettings.ShowDistance = Value
         
-        for player, esp in pairs(playerESP) do
-            if esp and esp.Distance then
-                esp.Distance.Visible = ESPSettings.Enabled and Value
+        -- Update billboards
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    local billboard = character:FindFirstChild("ESPBillboard")
+                    if billboard and billboard:IsA("BillboardGui") then
+                        local distanceLabel = billboard:FindFirstChild("Distance")
+                        if distanceLabel then
+                            distanceLabel.Visible = Value
+                        end
+                    end
+                end
             end
         end
     end
 })
 
-local ESPColorSection = ESPTab:CreateSection("ESP Colors")
+ESPDisplaySection.CreateToggle({
+    Name = "Show Role",
+    Default = ESPSettings.ShowRole,
+    Callback = function(Value)
+        ESPSettings.ShowRole = Value
+        
+        -- Update billboards
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local character = player.Character
+                if character then
+                    local billboard = character:FindFirstChild("ESPBillboard")
+                    if billboard and billboard:IsA("BillboardGui") then
+                        local roleLabel = billboard:FindFirstChild("Role")
+                        if roleLabel then
+                            roleLabel.Visible = Value
+                        end
+                    end
+                end
+            end
+        end
+    end
+})
 
-ESPTab:CreateColorPicker({
+ESPDisplaySection.CreateSlider({
+    Name = "Max Distance",
+    Min = 100,
+    Max = 2000,
+    Default = ESPSettings.MaxDistance,
+    Increment = 100,
+    Suffix = " studs",
+    Callback = function(Value)
+        ESPSettings.MaxDistance = Value
+    end
+})
+
+-- ESP Colors
+local ESPColorSection = ESPTab.CreateSection("ESP Colors")
+
+ESPColorSection.CreateColorPicker({
     Name = "Murderer Color",
-    Color = ESPSettings.MurdererColor,
-    Flag = "MurdererColor",
+    Default = ESPSettings.MurdererColor,
     Callback = function(Value)
         ESPSettings.MurdererColor = Value
-    end,
+        
+        -- Update colors for murderers
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local role = GetPlayerRole(player)
+                if role == "Murderer" then
+                    local character = player.Character
+                    if character then
+                        local esp = character:FindFirstChild("ESPHighlight")
+                        if esp and esp:IsA("Highlight") then
+                            esp.FillColor = Value
+                            esp.OutlineColor = Value
+                        end
+                        
+                        local billboard = character:FindFirstChild("ESPBillboard")
+                        if billboard and billboard:IsA("BillboardGui") then
+                            local roleLabel = billboard:FindFirstChild("Role")
+                            if roleLabel then
+                                roleLabel.TextColor3 = Value
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 })
 
-ESPTab:CreateColorPicker({
+ESPColorSection.CreateColorPicker({
     Name = "Sheriff Color",
-    Color = ESPSettings.SheriffColor,
-    Flag = "SheriffColor",
+    Default = ESPSettings.SheriffColor,
     Callback = function(Value)
         ESPSettings.SheriffColor = Value
-    end,
+        
+        -- Update colors for sheriffs
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local role = GetPlayerRole(player)
+                if role == "Sheriff" then
+                    local character = player.Character
+                    if character then
+                        local esp = character:FindFirstChild("ESPHighlight")
+                        if esp and esp:IsA("Highlight") then
+                            esp.FillColor = Value
+                            esp.OutlineColor = Value
+                        end
+                        
+                        local billboard = character:FindFirstChild("ESPBillboard")
+                        if billboard and billboard:IsA("BillboardGui") then
+                            local roleLabel = billboard:FindFirstChild("Role")
+                            if roleLabel then
+                                roleLabel.TextColor3 = Value
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 })
 
-ESPTab:CreateColorPicker({
+ESPColorSection.CreateColorPicker({
     Name = "Innocent Color",
-    Color = ESPSettings.InnocentColor,
-    Flag = "InnocentColor",
+    Default = ESPSettings.InnocentColor,
     Callback = function(Value)
         ESPSettings.InnocentColor = Value
-    end,
+        
+        -- Update colors for innocents
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                local role = GetPlayerRole(player)
+                if role == "Innocent" then
+                    local character = player.Character
+                    if character then
+                        local esp = character:FindFirstChild("ESPHighlight")
+                        if esp and esp:IsA("Highlight") then
+                            esp.FillColor = Value
+                            esp.OutlineColor = Value
+                        end
+                        
+                        local billboard = character:FindFirstChild("ESPBillboard")
+                        if billboard and billboard:IsA("BillboardGui") then
+                            local roleLabel = billboard:FindFirstChild("Role")
+                            if roleLabel then
+                                roleLabel.TextColor3 = Value
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
 })
 
--- Update ESP
-RunService.RenderStepped:Connect(function()
-    for player, esp in pairs(playerESP) do
-        if ESPSettings.Enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local role = GetPlayerRole(player)
-            local shouldDisplay = 
-                (role == "Murderer" and ESPSettings.ShowMurderer) or
-                (role == "Sheriff" and ESPSettings.ShowSheriff) or
-                (role == "Innocent" and ESPSettings.ShowInnocent)
-            
-            if shouldDisplay then
-                local rootPart = player.Character.HumanoidRootPart
-                local head = player.Character:FindFirstChild("Head")
-                local hrpPos, hrpOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
+-- Function to create ESP for a character
+local function CreateESP(player, character)
+    if player == LocalPlayer then return end
+    
+    -- Remove existing ESP
+    for _, item in pairs(character:GetChildren()) do
+        if item.Name == "ESPHighlight" or item.Name == "ESPBillboard" then
+            item:Destroy()
+        end
+    end
+    
+    -- Get player's role
+    local role = GetPlayerRole(player)
+    
+    -- Determine if should show based on role
+    local shouldShow = 
+        (role == "Murderer" and ESPSettings.ShowMurderer) or
+        (role == "Sheriff" and ESPSettings.ShowSheriff) or
+        (role == "Innocent" and ESPSettings.ShowInnocent)
+    
+    -- Set color based on role
+    local espColor = 
+        role == "Murderer" and ESPSettings.MurdererColor or
+        role == "Sheriff" and ESPSettings.SheriffColor or
+        ESPSettings.InnocentColor
+    
+    -- Create highlight ESP
+    if ESPSettings.ShowBoxes then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESPHighlight"
+        highlight.FillColor = espColor
+        highlight.OutlineColor = espColor
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Enabled = ESPSettings.Enabled and shouldShow
+        highlight.Parent = character
+    end
+    
+    -- Create billboard GUI for text info
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESPBillboard"
+    billboard.Size = UDim2.new(0, 200, 0, 100)
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.AlwaysOnTop = true
+    billboard.Enabled = ESPSettings.Enabled and shouldShow
+    billboard.Parent = character
+    
+    -- Name label
+    local nameLabel = Instance.new("TextLabel")
+    nameLabel.Name = "Name"
+    nameLabel.Size = UDim2.new(1, 0, 0, 20)
+    nameLabel.Position = UDim2.new(0, 0, 0, 0)
+    nameLabel.BackgroundTransparency = 1
+    nameLabel.Font = ESPSettings.TextFont
+    nameLabel.Text = player.Name
+    nameLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    nameLabel.TextStrokeTransparency = 0.2
+    nameLabel.TextSize = ESPSettings.TextSize
+    nameLabel.Visible = ESPSettings.ShowNames
+    nameLabel.Parent = billboard
+    
+    -- Role label
+    local roleLabel = Instance.new("TextLabel")
+    roleLabel.Name = "Role"
+    roleLabel.Size = UDim2.new(1, 0, 0, 20)
+    roleLabel.Position = UDim2.new(0, 0, 0, 20)
+    roleLabel.BackgroundTransparency = 1
+    roleLabel.Font = ESPSettings.TextFont
+    roleLabel.Text = role
+    roleLabel.TextColor3 = espColor
+    roleLabel.TextStrokeTransparency = 0.2
+    roleLabel.TextSize = ESPSettings.TextSize
+    roleLabel.Visible = ESPSettings.ShowRole
+    roleLabel.Parent = billboard
+    
+    -- Distance label
+    local distanceLabel = Instance.new("TextLabel")
+    distanceLabel.Name = "Distance"
+    distanceLabel.Size = UDim2.new(1, 0, 0, 20)
+    distanceLabel.Position = UDim2.new(0, 0, 0, 40)
+    distanceLabel.BackgroundTransparency = 1
+    distanceLabel.Font = ESPSettings.TextFont
+    distanceLabel.Text = "0m"
+    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    distanceLabel.TextStrokeTransparency = 0.2
+    distanceLabel.TextSize = ESPSettings.TextSize
+    distanceLabel.Visible = ESPSettings.ShowDistance
+    distanceLabel.Parent = billboard
+    
+    -- Update the distance in a loop
+    task.spawn(function()
+        while billboard and billboard.Parent do
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and
+               character and character:FindFirstChild("HumanoidRootPart") then
+                local distance = (LocalPlayer.Character.HumanoidRootPart.Position - character.HumanoidRootPart.Position).Magnitude
+                distanceLabel.Text = math.floor(distance) .. "m"
                 
-                if hrpOnScreen then
-                    -- Get proper color based on role
-                    local color
-                    if role == "Murderer" then
-                        color = ESPSettings.MurdererColor
-                    elseif role == "Sheriff" then
-                        color = ESPSettings.SheriffColor
-                    else
-                        color = ESPSettings.InnocentColor
-                    end
-                    
-                    -- Update box
-                    if head then
-                        local headPos = Camera:WorldToViewportPoint(head.Position)
-                        local hrpPos = Camera:WorldToViewportPoint(rootPart.Position)
-                        
-                        local height = math.abs(headPos.Y - hrpPos.Y) * 2
-                        local width = height * 0.6
-                        
-                        esp.Box.Size = Vector2.new(width, height)
-                        esp.Box.Position = Vector2.new(hrpPos.X - width / 2, hrpPos.Y - height / 2)
-                        esp.Box.Color = color
-                        esp.Box.Visible = ESPSettings.ShowBox
-                        
-                        -- Update name
-                        esp.Name.Text = player.Name .. " (" .. role .. ")"
-                        esp.Name.Position = Vector2.new(hrpPos.X, hrpPos.Y - height / 2 - 15)
-                        esp.Name.Color = color
-                        esp.Name.Visible = ESPSettings.ShowName
-                        
-                        -- Update distance
-                        local distance = math.floor((rootPart.Position - Camera.CFrame.Position).Magnitude)
-                        esp.Distance.Text = tostring(distance) .. " studs"
-                        esp.Distance.Position = Vector2.new(hrpPos.X, hrpPos.Y + height / 2 + 5)
-                        esp.Distance.Color = color
-                        esp.Distance.Visible = ESPSettings.ShowDistance
-                    end
-                else
-                    esp.Box.Visible = false
-                    esp.Name.Visible = false
-                    esp.Distance.Visible = false
+                -- Hide if beyond max distance
+                local isVisible = distance <= ESPSettings.MaxDistance
+                billboard.Enabled = isVisible and ESPSettings.Enabled and shouldShow
+                
+                if character:FindFirstChild("ESPHighlight") then
+                    character.ESPHighlight.Enabled = isVisible and ESPSettings.Enabled and shouldShow
                 end
-            else
-                esp.Box.Visible = false
-                esp.Name.Visible = false
-                esp.Distance.Visible = false
             end
-        else
-            esp.Box.Visible = false
-            esp.Name.Visible = false
-            esp.Distance.Visible = false
+            task.wait(0.2) -- Update 5 times per second
         end
-    end
-end)
-
-------------------------------------------------------------------
--- SETTINGS TAB
-------------------------------------------------------------------
-
-local SettingsTab = Window:CreateTab("Settings", "settings")
-
--- Anti-Staff feature
-local AntiStaffSection = SettingsTab:CreateSection("Safety Features")
-
--- Anti-Staff settings
-local AntiStaffSettings = {
-    Enabled = false,
-    NotifyOnly = true, -- If true, just notifies but doesn't leave
-    StaffGroups = {1200769, 4895761} -- Common MM2 staff group IDs (example)
-}
-
-SettingsTab:CreateToggle({
-    Name = "Anti-Staff Detection",
-    CurrentValue = AntiStaffSettings.Enabled,
-    Flag = "AntiStaffEnabled",
-    Callback = function(Value)
-        AntiStaffSettings.Enabled = Value
-    end
-})
-
-SettingsTab:CreateToggle({
-    Name = "Notify Only (Don't Leave)",
-    CurrentValue = AntiStaffSettings.NotifyOnly,
-    Flag = "AntiStaffNotifyOnly",
-    Callback = function(Value)
-        AntiStaffSettings.NotifyOnly = Value
-    end
-})
-
--- Anti-Staff implementation
-local function CheckIfStaff(player)
-    -- Check based on group membership
-    for _, groupId in pairs(AntiStaffSettings.StaffGroups) do
-        local success, result = pcall(function()
-            return player:IsInGroup(groupId)
-        end)
-        
-        if success and result then
-            return true
-        end
-    end
-    
-    -- Also check for admin badges
-    local success, badges = pcall(function()
-        return player:GetRankInGroup(1200769) -- Main MM2 group
     end)
-    
-    if success and badges and badges >= 254 then
-        return true
-    end
-    
-    return false
 end
 
--- Check all players for staff
-local function CheckForStaff()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and CheckIfStaff(player) then
-            Rayfield:Notify({
-                Title = "⚠️ Staff Detected ⚠️",
-                Content = "Staff member detected: " .. player.Name,
-                Duration = 10,
-                Image = "warning"
-            })
-            
-            if AntiStaffSettings.Enabled and not AntiStaffSettings.NotifyOnly then
-                game:Shutdown()
-                -- Or alternatively:
-                -- TeleportService:Teleport(game.PlaceId)
-            end
-            
-            return true
-        end
-    end
-    
-    return false
-end
-
--- Check for staff on player added
+-- When player is added to game
 Players.PlayerAdded:Connect(function(player)
-    if AntiStaffSettings.Enabled and player ~= LocalPlayer then
-        wait(1) -- Wait for player data to load
+    player.CharacterAdded:Connect(function(character)
+        task.wait(1) -- Wait for character to fully load
+        CreateESP(player, character)
+    end)
+end)
+
+-- For existing players
+for _, player in pairs(Players:GetPlayers()) do
+    if player.Character then
+        task.spawn(function()
+            task.wait(1) -- Wait for character to fully load
+            CreateESP(player, player.Character)
+        end)
+    end
+    
+    player.CharacterAdded:Connect(function(character)
+        task.wait(1) -- Wait for character to fully load
+        CreateESP(player, character)
+    end)
+end
+
+-- Update ESP when roles change
+RunService.Heartbeat:Connect(function()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            local highlight = player.Character:FindFirstChild("ESPHighlight")
+            local billboard = player.Character:FindFirstChild("ESPBillboard")
+            
+            if highlight or billboard then
+                local role = GetPlayerRole(player)
+                
+                -- Determine if should show based on role
+                local shouldShow = 
+                    (role == "Murderer" and ESPSettings.ShowMurderer) or
+                    (role == "Sheriff" and ESPSettings.ShowSheriff) or
+                    (role == "Innocent" and ESPSettings.ShowInnocent)
+                
+                -- Set color based on role
+                local espColor = 
+                    role == "Murderer" and ESPSettings.MurdererColor or
+                    role == "Sheriff" and ESPSettings.SheriffColor or
+                    ESPSettings.InnocentColor
+                
+                -- Update highlight
+                if highlight then
+                    highlight.FillColor = espColor
+                    highlight.OutlineColor = espColor
+                end
+                
+                -- Update billboard
+                if billboard then
+                    local roleLabel = billboard:FindFirstChild("Role")
+                    if roleLabel then
+                        roleLabel.Text = role
+                        roleLabel.TextColor3 = espColor
+                    end
+                end
+            end
+        end
+    end
+end)
+
+------------------------------------------------------------------
+-- SETTINGS TAB IMPLEMENTATION
+------------------------------------------------------------------
+
+-- User Interface Section
+local UISection = SettingsTab.CreateSection("User Interface")
+
+UISection.CreateToggle({
+    Name = "Toggle UI with Right Control",
+    Default = true,
+    Callback = function(Value)
+        -- This will be handled in the keybind handler
+    end
+})
+
+UISection.CreateButton({
+    Name = "Reset UI Position",
+    Callback = function()
+        MainFrame.Position = UDim2.new(0.5, -275, 0.5, -175)
+    end
+})
+
+-- Game Options
+local GameSection = SettingsTab.CreateSection("Game Options")
+
+GameSection.CreateButton({
+    Name = "Teleport to Lobby",
+    Callback = function()
+        -- Try to find lobby spawn
+        for _, v in pairs(Workspace:GetDescendants()) do
+            if v.Name:lower():find("spawn") and v:IsA("BasePart") then
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    LocalPlayer.Character.HumanoidRootPart.CFrame = v.CFrame + Vector3.new(0, 5, 0)
+                    UILibrary.CreateNotification({
+                        Title = "Teleported",
+                        Content = "Successfully teleported to lobby",
+                        Duration = 3,
+                        Type = "Success"
+                    })
+                    return
+                end
+            end
+        end
         
-        if CheckIfStaff(player) then
-            Rayfield:Notify({
-                Title = "⚠️ Staff Joined ⚠️",
-                Content = "Staff member joined: " .. player.Name,
+        -- If lobby spawn not found
+        UILibrary.CreateNotification({
+            Title = "Teleport Failed",
+            Content = "Could not find lobby spawn",
+            Duration = 3,
+            Type = "Error"
+        })
+    end
+})
+
+-- Script info section
+local InfoSection = SettingsTab.CreateSection("Script Information")
+
+InfoSection.CreateLabel({
+    Text = "SkyX MM2 Advanced"
+})
+
+InfoSection.CreateLabel({
+    Text = "Custom UI Version"
+})
+
+InfoSection.CreateLabel({
+    Text = "Created by SkyX Team"
+})
+
+-- Staff detection
+local function CheckForStaff()
+    local staffFound = false
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        -- Check for admin badges - this is an example, actual detection would need to be more sophisticated
+        if player:GetRankInGroup(1200769) >= 8 then -- MM2 group rank check
+            staffFound = true
+            
+            UILibrary.CreateNotification({
+                Title = "⚠️ STAFF DETECTED ⚠️",
+                Content = "Staff member detected: " .. player.Name .. ". Consider disabling exploits!",
                 Duration = 10,
-                Image = "warning"
+                Type = "Error"
             })
-            
-            if not AntiStaffSettings.NotifyOnly then
-                game:Shutdown()
-                -- Or alternatively:
-                -- TeleportService:Teleport(game.PlaceId)
-            end
         end
+    end
+    
+    return staffFound
+end
+
+-- Add keybind to toggle UI visibility
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.RightControl then
+        SkyXUI.Enabled = not SkyXUI.Enabled
     end
 end)
 
--- Misc settings
-local MiscSection = SettingsTab:CreateSection("Miscellaneous")
-
--- No-clip toggle
-local NoClipEnabled = false
-
-SettingsTab:CreateToggle({
-    Name = "No-Clip",
-    CurrentValue = NoClipEnabled,
-    Flag = "NoClipEnabled",
-    Callback = function(Value)
-        NoClipEnabled = Value
-    end
-})
-
--- No-clip implementation
-RunService.Stepped:Connect(function()
-    if NoClipEnabled and LocalPlayer.Character then
-        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end
-end)
-
--- Full bright toggle
-local FullBrightEnabled = false
-
-SettingsTab:CreateToggle({
-    Name = "Full Bright",
-    CurrentValue = FullBrightEnabled,
-    Flag = "FullBrightEnabled",
-    Callback = function(Value)
-        FullBrightEnabled = Value
-        
-        if Value then
-            -- Store original lighting properties
-            local lighting = game:GetService("Lighting")
-            _G.OriginalLightingProperties = {
-                Brightness = lighting.Brightness,
-                ClockTime = lighting.ClockTime,
-                FogEnd = lighting.FogEnd,
-                GlobalShadows = lighting.GlobalShadows,
-                Ambient = lighting.Ambient
-            }
-            
-            -- Apply full bright
-            lighting.Brightness = 2
-            lighting.ClockTime = 14
-            lighting.FogEnd = 100000
-            lighting.GlobalShadows = false
-            lighting.Ambient = Color3.fromRGB(255, 255, 255)
-            
-            -- Remove all post effects
-            for _, effect in pairs(lighting:GetChildren()) do
-                if effect:IsA("BloomEffect") or 
-                   effect:IsA("BlurEffect") or 
-                   effect:IsA("ColorCorrectionEffect") or 
-                   effect:IsA("SunRaysEffect") then
-                    effect.Enabled = false
-                end
-            end
-        else
-            -- Restore original lighting
-            local lighting = game:GetService("Lighting")
-            if _G.OriginalLightingProperties then
-                lighting.Brightness = _G.OriginalLightingProperties.Brightness
-                lighting.ClockTime = _G.OriginalLightingProperties.ClockTime
-                lighting.FogEnd = _G.OriginalLightingProperties.FogEnd
-                lighting.GlobalShadows = _G.OriginalLightingProperties.GlobalShadows
-                lighting.Ambient = _G.OriginalLightingProperties.Ambient
-            end
-            
-            -- Re-enable post effects
-            for _, effect in pairs(lighting:GetChildren()) do
-                if effect:IsA("BloomEffect") or 
-                   effect:IsA("BlurEffect") or 
-                   effect:IsA("ColorCorrectionEffect") or 
-                   effect:IsA("SunRaysEffect") then
-                    effect.Enabled = true
-                end
-            end
-        end
-    end
-})
-
--- UI Customization
-local UISection = SettingsTab:CreateSection("UI Settings")
-
--- Theme dropdown
-local ThemeNames = {
-    "Default",
-    "Light",
-    "Dark",
-    "Midnight",
-    "Sentinel",
-    "Synapse",
-    "Serpent",
-    "Ocean"
-}
-
-SettingsTab:CreateDropdown({
-    Name = "UI Theme",
-    Options = ThemeNames,
-    CurrentOption = "Default",
-    Flag = "UITheme",
-    Callback = function(Option)
-        Window:SetTheme(Option)
-    end,
-})
-
--- Save config button
-SettingsTab:CreateButton({
-    Name = "Save Configuration",
-    Callback = function()
-        Rayfield:SaveConfiguration()
-        
-        Rayfield:Notify({
-            Title = "Configuration Saved",
-            Content = "Your settings have been saved!",
-            Duration = 3
-        })
-    end,
-})
-
--- Reset button
-SettingsTab:CreateButton({
-    Name = "Reset All Settings",
-    Callback = function()
-        Rayfield:LoadDefaultConfiguration()
-        
-        Rayfield:Notify({
-            Title = "Settings Reset",
-            Content = "All settings have been reset to default!",
-            Duration = 3
-        })
-    end,
-})
-
--- Credits
-local CreditsSection = SettingsTab:CreateSection("Credits")
-
-SettingsTab:CreateParagraph({
+-- Initial notifications
+UILibrary.CreateNotification({
     Title = "SkyX MM2 Advanced",
-    Content = "Developed by SkyX Team\nUI: Rayfield Interface Suite by Sirius"
+    Content = "Loading script...",
+    Duration = 3,
+    Type = "Info"
 })
 
-SettingsTab:CreateButton({
-    Name = "Join Discord",
-    Callback = function()
-        setclipboard("https://discord.gg/skyx-hub")
-        
-        Rayfield:Notify({
-            Title = "Discord Invite",
-            Content = "Discord invite copied to clipboard!",
-            Duration = 3
-        })
-    end,
-})
+task.wait(1)
 
--- Load saved configuration
-Rayfield:LoadConfiguration()
-
--- First welcome message
-Rayfield:Notify({
-    Title = "SkyX MM2 Advanced Loading",
-    Content = "Setting up aimbot, auto gun grab & coin collection features...",
-    Duration = 2,
-    Image = "sync"
-})
-
-task.wait(0.5)
-
--- Display final success message
-Rayfield:Notify({
-    Title = "SkyX MM2 Advanced Loaded",
-    Content = "All features ready to use! Enjoy exploiting!",
+UILibrary.CreateNotification({
+    Title = "SkyX MM2 Advanced",
+    Content = "Script loaded successfully!",
     Duration = 5,
-    Image = "check-circle",
-    Actions = {
-        Ignore = {
-            Name = "OK",
-            Callback = function()
-                -- Check for staff
-                CheckForStaff()
-            end
-        },
-    }
+    Type = "Success"
 })
 
-print("SkyX MM2 Advanced Script loaded successfully!")
+-- Check for staff
+CheckForStaff()
+
+print("SkyX MM2 Custom UI loaded successfully!")
