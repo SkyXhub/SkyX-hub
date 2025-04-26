@@ -1,67 +1,2897 @@
 --[[
-    SkyX Blox Fruits Script
-    Mobile-friendly with MM2sssssssssssssssss-style fallback modules
-    Works on: KRNL, Swift, Fluxus, Delta and other mobile executors
+    SkyX Hub - Blowwwwx Fruits
+    All-In-One Version (No external loading)
+    All modules directly embedded for better mobile compatibility
+    
+    Key Features:
+    - Auto Farm with customizable settings
+    - ESP for players, NPCs, chests, and fruits
+    - Devil Fruit management
+    - Teleportation to key locations
+    - Anti-ban protection
+    - Stats tracking and auto-upgrade
+    - Item collection
+    - Combat enhancements
 ]]
 
 -- Detect device type
-local IsMobile = (function()
-    local success, result = pcall(function()
-        return game:GetService("UserInputService").TouchEnabled and 
-               not game:GetService("UserInputService").MouseEnabled
-    end)
-    return success and result or false
-end)()
-
+local IsMobile = (not is_sirhurt_closure) and (not syn) and (not secure_load) and (not KRNL_LOADED)
 local DeviceText = IsMobile and "Mobile" or "PC"
 
--- Core services
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
+-- Service references
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
--- GitHub Module URLs
-local ModuleURLs = {
-    AutoFarm = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/AutoFarm%20(3).lua",
-    ESP = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/ESP%20(1).lua",
-    DevilFruit = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/DevilFruit%20(1).lua",
-    Teleport = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Teleport%20(1).lua",
-    AntiBan = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/AntiBan%20(1).lua",
-    Stats = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Stats%20(1).lua",
-    Items = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Items.lua",
-    Combat = "https://raw.githubusercontent.com/SkyXhub/modularsystem.lua/refs/heads/main/Combat.lua"
-}
-
--- Placeholder for modules that will be loaded after UI creation
+-- Embedded module code
 local Modules = {}
 
--- Load a module from URL
-local function LoadModule(moduleName)
-    local url = ModuleURLs[moduleName]
-    if not url then
-        warn("No URL found for module: " .. moduleName)
+-- AutoFarm Module Code
+local function CreateAutoFarmModule()
+    local AutoFarm = {}
+    
+    -- Module settings with defaults
+    AutoFarm.Settings = {
+        Enabled = false,
+        FarmDistance = 50,
+        FastAttack = true,
+        AutoQuest = false,
+        TargetNPC = "Closest NPC",
+        MaxDistance = 500,
+        MinDistance = 10
+    }
+    
+    -- References to other modules
+    local ESPModule = nil
+    local TeleportModule = nil
+    
+    -- Variables to track state
+    local Farming = false
+    local CurrentTarget = nil
+    local FarmConnection = nil
+    
+    -- Function to set the ESP module reference
+    function AutoFarm:SetESPModule(module)
+        ESPModule = module
+        print("AutoFarm: ESP Module Connected")
+    end
+    
+    -- Function to set the Teleport module reference
+    function AutoFarm:SetTeleportModule(module)
+        TeleportModule = module
+        print("AutoFarm: Teleport Module Connected")
+    end
+    
+    -- Define quest and monster info based on player level
+    local QuestData = {}
+    
+    -- Function to handle special entrances for areas that need them
+    function AutoFarm:HandleSpecialEntrance(questData)
+        local player = game:GetService("Players").LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local hrp = character.HumanoidRootPart
+        
+        -- Check if we need to use a special entrance
+        if questData.MonName == "Fishman Warrior" or questData.MonName == "Fishman Commando" then
+            -- Check distance to monster
+            if (questData.CFrameMon.Position - hrp.Position).Magnitude > 3000 then
+                print("Using special entrance to Fishman Island")
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(61163.8515625, 11.6796875, 1819.7841796875))
+                wait(2)
+            end
+        elseif questData.MonName == "God's Guard" then
+            if (questData.CFrameMon.Position - hrp.Position).Magnitude > 3000 then
+                print("Using special entrance to Sky Island")
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-4607.82275, 872.54248, -1667.55688))
+                wait(2)
+            end
+        elseif questData.MonName == "Shanda" then
+            if (questData.CFrameMon.Position - hrp.Position).Magnitude > 3000 then
+                print("Using special entrance to Upper Sky Island")
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("requestEntrance", Vector3.new(-7894.6176757813, 5547.1416015625, -380.29119873047))
+                wait(2)
+            end
+        end
+    end
+    
+    -- Function to get current quest data
+    function AutoFarm:GetQuestData()
+        local Lv = game:GetService("Players").LocalPlayer.Data.Level.Value
+        local placeId = game.PlaceId
+        
+        -- First Sea Quests
+        if placeId == 2753915549 then
+            if Lv == 1 or Lv <= 9 then
+                QuestData = {
+                    Mon = "Bandit",
+                    QuestName = "BanditQuest1",
+                    QuestLevel = 1,
+                    MonName = "Bandit",
+                    CFrameQuest = CFrame.new(1060.9383544922, 16.455066680908, 1547.7841796875),
+                    CFrameMon = CFrame.new(1038.5533447266, 41.296249389648, 1576.5098876953)
+                }
+            elseif Lv == 10 or Lv <= 14 then
+                QuestData = {
+                    Mon = "Monkey",
+                    QuestName = "JungleQuest",
+                    QuestLevel = 1,
+                    MonName = "Monkey",
+                    CFrameQuest = CFrame.new(-1601.6553955078, 36.85213470459, 153.38809204102),
+                    CFrameMon = CFrame.new(-1448.1446533203, 50.851993560791, 63.60718536377)
+                }
+            elseif Lv == 15 or Lv <= 29 then
+                QuestData = {
+                    Mon = "Gorilla",
+                    QuestName = "JungleQuest",
+                    QuestLevel = 2,
+                    MonName = "Gorilla",
+                    CFrameQuest = CFrame.new(-1601.6553955078, 36.85213470459, 153.38809204102),
+                    CFrameMon = CFrame.new(-1142.6488037109, 40.462348937988, -515.39227294922)
+                }
+            elseif Lv == 30 or Lv <= 39 then
+                QuestData = {
+                    Mon = "Pirate",
+                    QuestName = "BuggyQuest1",
+                    QuestLevel = 1,
+                    MonName = "Pirate",
+                    CFrameQuest = CFrame.new(-1140.1761474609, 4.752049446106, 3827.4057617188),
+                    CFrameMon = CFrame.new(-1201.0881347656, 40.628940582275, 3857.5966796875)
+                }
+            elseif Lv == 40 or Lv <= 59 then
+                QuestData = {
+                    Mon = "Brute",
+                    QuestName = "BuggyQuest1",
+                    QuestLevel = 2,
+                    MonName = "Brute",
+                    CFrameQuest = CFrame.new(-1140.1761474609, 4.752049446106, 3827.4057617188),
+                    CFrameMon = CFrame.new(-1387.5324707031, 24.592035293579, 4100.9575195313)
+                }
+            elseif Lv == 60 or Lv <= 74 then
+                QuestData = {
+                    Mon = "Desert Bandit",
+                    QuestName = "DesertQuest",
+                    QuestLevel = 1,
+                    MonName = "Desert Bandit",
+                    CFrameQuest = CFrame.new(896.51721191406, 6.4384617805481, 4390.1494140625),
+                    CFrameMon = CFrame.new(984.99896240234, 16.109552383423, 4417.91015625)
+                }
+            elseif Lv == 75 or Lv <= 89 then
+                QuestData = {
+                    Mon = "Desert Officer",
+                    QuestName = "DesertQuest",
+                    QuestLevel = 2,
+                    MonName = "Desert Officer",
+                    CFrameQuest = CFrame.new(896.51721191406, 6.4384617805481, 4390.1494140625),
+                    CFrameMon = CFrame.new(1547.1510009766, 14.452038764954, 4381.8002929688)
+                }
+            elseif Lv == 90 or Lv <= 99 then
+                QuestData = {
+                    Mon = "Snow Bandit",
+                    QuestName = "SnowQuest",
+                    QuestLevel = 1,
+                    MonName = "Snow Bandit",
+                    CFrameQuest = CFrame.new(1386.8073730469, 87.272789001465, -1298.3576660156),
+                    CFrameMon = CFrame.new(1356.3028564453, 105.76865386963, -1328.2418212891)
+                }
+            elseif Lv == 100 or Lv <= 119 then
+                QuestData = {
+                    Mon = "Snowman",
+                    QuestName = "SnowQuest",
+                    QuestLevel = 2,
+                    MonName = "Snowman",
+                    CFrameQuest = CFrame.new(1386.8073730469, 87.272789001465, -1298.3576660156),
+                    CFrameMon = CFrame.new(1218.7956542969, 138.01184082031, -1488.0262451172)
+                }
+            elseif Lv == 120 or Lv <= 149 then
+                QuestData = {
+                    Mon = "Chief Petty Officer",
+                    QuestName = "MarineQuest2",
+                    QuestLevel = 1,
+                    MonName = "Chief Petty Officer",
+                    CFrameQuest = CFrame.new(-5035.49609375, 28.677835464478, 4324.1840820313),
+                    CFrameMon = CFrame.new(-4931.1552734375, 65.793113708496, 4121.8393554688)
+                }
+            elseif Lv == 150 or Lv <= 174 then
+                QuestData = {
+                    Mon = "Sky Bandit",
+                    QuestName = "SkyQuest",
+                    QuestLevel = 1,
+                    MonName = "Sky Bandit",
+                    CFrameQuest = CFrame.new(-4842.1372070313, 717.69543457031, -2623.0483398438),
+                    CFrameMon = CFrame.new(-4955.6411132813, 365.46365356445, -2908.1865234375)
+                }
+            elseif Lv == 175 or Lv <= 189 then
+                QuestData = {
+                    Mon = "Dark Master",
+                    QuestName = "SkyQuest",
+                    QuestLevel = 2,
+                    MonName = "Dark Master",
+                    CFrameQuest = CFrame.new(-4842.1372070313, 717.69543457031, -2623.0483398438),
+                    CFrameMon = CFrame.new(-5148.1650390625, 439.04571533203, -2332.9611816406)
+                }
+            elseif Lv == 190 or Lv <= 209 then
+                QuestData = {
+                    Mon = "Prisoner",
+                    QuestName = "PrisonerQuest",
+                    QuestLevel = 1,
+                    MonName = "Prisoner",
+                    CFrameQuest = CFrame.new(5310.60547, 0.350014925, 474.946594),
+                    CFrameMon = CFrame.new(4937.31885, 0.332031399, 649.574524)
+                }
+            elseif Lv == 210 or Lv <= 249 then
+                QuestData = {
+                    Mon = "Dangerous Prisoner",
+                    QuestName = "PrisonerQuest",
+                    QuestLevel = 2,
+                    MonName = "Dangerous Prisoner",
+                    CFrameQuest = CFrame.new(5310.60547, 0.350014925, 474.946594),
+                    CFrameMon = CFrame.new(5099.6626, 0.351562679, 1055.7583)
+                }
+            elseif Lv == 250 or Lv <= 274 then
+                QuestData = {
+                    Mon = "Toga Warrior",
+                    QuestName = "ColosseumQuest",
+                    QuestLevel = 1,
+                    MonName = "Toga Warrior",
+                    CFrameQuest = CFrame.new(-1577.7890625, 7.4151420593262, -2984.4838867188),
+                    CFrameMon = CFrame.new(-1872.5166015625, 49.080215454102, -2913.810546875)
+                }
+            elseif Lv == 275 or Lv <= 299 then
+                QuestData = {
+                    Mon = "Gladiator",
+                    QuestName = "ColosseumQuest",
+                    QuestLevel = 2,
+                    MonName = "Gladiator",
+                    CFrameQuest = CFrame.new(-1577.7890625, 7.4151420593262, -2984.4838867188),
+                    CFrameMon = CFrame.new(-1521.3740234375, 81.203170776367, -3066.3139648438)
+                }
+            elseif Lv == 300 or Lv <= 324 then
+                QuestData = {
+                    Mon = "Military Soldier",
+                    QuestName = "MagmaQuest",
+                    QuestLevel = 1,
+                    MonName = "Military Soldier",
+                    CFrameQuest = CFrame.new(-5316.1157226563, 12.262831687927, 8517.00390625),
+                    CFrameMon = CFrame.new(-5369.0004882813, 61.24352645874, 8556.4921875)
+                }
+            elseif Lv == 325 or Lv <= 374 then
+                QuestData = {
+                    Mon = "Military Spy",
+                    QuestName = "MagmaQuest",
+                    QuestLevel = 2,
+                    MonName = "Military Spy",
+                    CFrameQuest = CFrame.new(-5316.1157226563, 12.262831687927, 8517.00390625),
+                    CFrameMon = CFrame.new(-5787.00293, 75.8262634, 8651.69922)
+                }
+            elseif Lv == 375 or Lv <= 399 then
+                QuestData = {
+                    Mon = "Fishman Warrior",
+                    QuestName = "FishmanQuest",
+                    QuestLevel = 1,
+                    MonName = "Fishman Warrior",
+                    CFrameQuest = CFrame.new(61122.65234375, 18.497442245483, 1569.3997802734),
+                    CFrameMon = CFrame.new(60844.10546875, 98.462875366211, 1298.3985595703)
+                }
+            elseif Lv == 400 or Lv <= 449 then
+                QuestData = {
+                    Mon = "Fishman Commando",
+                    QuestName = "FishmanQuest",
+                    QuestLevel = 2,
+                    MonName = "Fishman Commando",
+                    CFrameQuest = CFrame.new(61122.65234375, 18.497442245483, 1569.3997802734),
+                    CFrameMon = CFrame.new(61738.3984375, 64.207321166992, 1433.8375244141)
+                }
+            elseif Lv == 450 or Lv <= 474 then
+                QuestData = {
+                    Mon = "God's Guard",
+                    QuestName = "SkyExp1Quest",
+                    QuestLevel = 1,
+                    MonName = "God's Guard",
+                    CFrameQuest = CFrame.new(-4721.8603515625, 845.30297851563, -1953.8489990234),
+                    CFrameMon = CFrame.new(-4628.0498046875, 866.92877197266, -1931.2352294922)
+                }
+            elseif Lv == 475 or Lv <= 524 then
+                QuestData = {
+                    Mon = "Shanda",
+                    QuestName = "SkyExp1Quest",
+                    QuestLevel = 2,
+                    MonName = "Shanda",
+                    CFrameQuest = CFrame.new(-7863.1596679688, 5545.5190429688, -378.42266845703),
+                    CFrameMon = CFrame.new(-7685.1474609375, 5601.0751953125, -441.38876342773)
+                }
+            elseif Lv == 525 or Lv <= 549 then
+                QuestData = {
+                    Mon = "Royal Squad",
+                    QuestName = "SkyExp2Quest",
+                    QuestLevel = 1,
+                    MonName = "Royal Squad",
+                    CFrameQuest = CFrame.new(-7903.3828125, 5635.9897460938, -1410.923828125),
+                    CFrameMon = CFrame.new(-7654.2514648438, 5637.1079101563, -1407.7550048828)
+                }
+            elseif Lv == 550 or Lv <= 624 then
+                QuestData = {
+                    Mon = "Royal Soldier",
+                    QuestName = "SkyExp2Quest",
+                    QuestLevel = 2,
+                    MonName = "Royal Soldier",
+                    CFrameQuest = CFrame.new(-7903.3828125, 5635.9897460938, -1410.923828125),
+                    CFrameMon = CFrame.new(-7760.4106445313, 5679.9077148438, -1884.8112792969)
+                }
+            elseif Lv == 625 or Lv <= 649 then
+                QuestData = {
+                    Mon = "Galley Pirate",
+                    QuestName = "FountainQuest",
+                    QuestLevel = 1,
+                    MonName = "Galley Pirate",
+                    CFrameQuest = CFrame.new(5258.2788085938, 38.526931762695, 4050.044921875),
+                    CFrameMon = CFrame.new(5557.1684570313, 152.32717895508, 3998.7758789063)
+                }
+            elseif Lv >= 650 then
+                QuestData = {
+                    Mon = "Galley Captain",
+                    QuestName = "FountainQuest",
+                    QuestLevel = 2,
+                    MonName = "Galley Captain",
+                    CFrameQuest = CFrame.new(5258.2788085938, 38.526931762695, 4050.044921875),
+                    CFrameMon = CFrame.new(5677.6772460938, 92.786109924316, 4966.6323242188)
+                }
+            end
+        -- Second Sea Quests
+        elseif placeId == 4442272183 then
+            if Lv == 700 or Lv <= 724 then
+                QuestData = {
+                    Mon = "Raider",
+                    QuestName = "Area1Quest",
+                    QuestLevel = 1,
+                    MonName = "Raider",
+                    CFrameQuest = CFrame.new(-427.72567749023, 72.99634552002, 1835.7784423828),
+                    CFrameMon = CFrame.new(-737.026123, 39.1748352, 2392.57959)
+                }
+            elseif Lv == 725 or Lv <= 774 then
+                QuestData = {
+                    Mon = "Mercenary",
+                    QuestName = "Area1Quest",
+                    QuestLevel = 2,
+                    MonName = "Mercenary",
+                    CFrameQuest = CFrame.new(-427.72567749023, 72.99634552002, 1835.7784423828),
+                    CFrameMon = CFrame.new(-1022.21271, 72.9855194, 1891.39917)
+                }
+            elseif Lv == 775 or Lv <= 799 then
+                QuestData = {
+                    Mon = "Swan Pirate",
+                    QuestName = "Area2Quest",
+                    QuestLevel = 1,
+                    MonName = "Swan Pirate",
+                    CFrameQuest = CFrame.new(635.61151123047, 73.096351623535, 917.81298828125),
+                    CFrameMon = CFrame.new(970.369446, 142.653198, 1217.3667)
+                }
+            elseif Lv == 800 or Lv <= 874 then
+                QuestData = {
+                    Mon = "Factory Staff",
+                    QuestName = "Area2Quest",
+                    QuestLevel = 2,
+                    MonName = "Factory Staff",
+                    CFrameQuest = CFrame.new(635.61151123047, 73.096351623535, 917.81298828125),
+                    CFrameMon = CFrame.new(296.786499, 72.9948196, -57.1298141)
+                }
+            elseif Lv == 875 or Lv <= 899 then
+                QuestData = {
+                    Mon = "Marine Lieutenant",
+                    QuestName = "MarineQuest3",
+                    QuestLevel = 1,
+                    MonName = "Marine Lieutenant",
+                    CFrameQuest = CFrame.new(-2440.7939453125, 73.01626586914, -3217.7082519531),
+                    CFrameMon = CFrame.new(-2939.3903808594, 302.0693359375, -4067.8850097656)
+                }
+            elseif Lv == 900 or Lv <= 949 then
+                QuestData = {
+                    Mon = "Marine Captain",
+                    QuestName = "MarineQuest3",
+                    QuestLevel = 2,
+                    MonName = "Marine Captain",
+                    CFrameQuest = CFrame.new(-2440.7939453125, 73.01626586914, -3217.7082519531),
+                    CFrameMon = CFrame.new(-1814.7896728516, 93.1287078857422, -3206.2036132813)
+                }
+            elseif Lv == 950 or Lv <= 974 then
+                QuestData = {
+                    Mon = "Zombie",
+                    QuestName = "ZombieQuest",
+                    QuestLevel = 1,
+                    MonName = "Zombie",
+                    CFrameQuest = CFrame.new(-5497.06152, 47.5923004, -795.237061),
+                    CFrameMon = CFrame.new(-5649.23438, 126.0481262, -737.94549)
+                }
+            elseif Lv == 975 or Lv <= 999 then
+                QuestData = {
+                    Mon = "Vampire",
+                    QuestName = "ZombieQuest",
+                    QuestLevel = 2,
+                    MonName = "Vampire",
+                    CFrameQuest = CFrame.new(-5497.06152, 47.5923004, -795.237061),
+                    CFrameMon = CFrame.new(-6030.32031, 6.4377408, -1313.5564)
+                }
+            elseif Lv == 1000 or Lv <= 1049 then
+                QuestData = {
+                    Mon = "Snow Trooper",
+                    QuestName = "SnowMountainQuest",
+                    QuestLevel = 1,
+                    MonName = "Snow Trooper",
+                    CFrameQuest = CFrame.new(609.858826, 400.119904, -5372.25928),
+                    CFrameMon = CFrame.new(535.893677, 401.457062, -5329.6958)
+                }
+            elseif Lv == 1050 or Lv <= 1099 then
+                QuestData = {
+                    Mon = "Winter Warrior",
+                    QuestName = "SnowMountainQuest",
+                    QuestLevel = 2,
+                    MonName = "Winter Warrior",
+                    CFrameQuest = CFrame.new(609.858826, 400.119904, -5372.25928),
+                    CFrameMon = CFrame.new(1223.7417, 454.575226, -5170.02148)
+                }
+            elseif Lv == 1100 or Lv <= 1124 then
+                QuestData = {
+                    Mon = "Lab Subordinate",
+                    QuestName = "IceSideQuest",
+                    QuestLevel = 1,
+                    MonName = "Lab Subordinate",
+                    CFrameQuest = CFrame.new(-6064.06885, 15.2422857, -4902.97852),
+                    CFrameMon = CFrame.new(-5769.2041, 37.9288292, -4468.38721)
+                }
+            elseif Lv == 1125 or Lv <= 1174 then
+                QuestData = {
+                    Mon = "Horned Warrior",
+                    QuestName = "IceSideQuest",
+                    QuestLevel = 2,
+                    MonName = "Horned Warrior",
+                    CFrameQuest = CFrame.new(-6064.06885, 15.2422857, -4902.97852),
+                    CFrameMon = CFrame.new(-6401.27979, 15.9775667, -5948.24316)
+                }
+            elseif Lv == 1175 or Lv <= 1199 then
+                QuestData = {
+                    Mon = "Magma Ninja",
+                    QuestName = "FireSideQuest",
+                    QuestLevel = 1,
+                    MonName = "Magma Ninja",
+                    CFrameQuest = CFrame.new(-5428.03174, 15.0622921, -5299.43457),
+                    CFrameMon = CFrame.new(-5466.06445, 57.6952019, -5837.42822)
+                }
+            elseif Lv == 1200 or Lv <= 1249 then
+                QuestData = {
+                    Mon = "Lava Pirate",
+                    QuestName = "FireSideQuest",
+                    QuestLevel = 2,
+                    MonName = "Lava Pirate",
+                    CFrameQuest = CFrame.new(-5428.03174, 15.0622921, -5299.43457),
+                    CFrameMon = CFrame.new(-5169.71729, 34.1234779, -4669.73633)
+                }
+            elseif Lv == 1250 or Lv <= 1274 then
+                QuestData = {
+                    Mon = "Ship Deckhand",
+                    QuestName = "ShipQuest1",
+                    QuestLevel = 1,
+                    MonName = "Ship Deckhand",
+                    CFrameQuest = CFrame.new(1037.80127, 125.092171, 32911.6016),
+                    CFrameMon = CFrame.new(1181.84875, 130.485107, 33005.4961)
+                }
+            elseif Lv == 1275 or Lv <= 1299 then
+                QuestData = {
+                    Mon = "Ship Engineer",
+                    QuestName = "ShipQuest1",
+                    QuestLevel = 2,
+                    MonName = "Ship Engineer",
+                    CFrameQuest = CFrame.new(1037.80127, 125.092171, 32911.6016),
+                    CFrameMon = CFrame.new(916.96057, 44.0007133, 32780.9922)
+                }
+            elseif Lv == 1300 or Lv <= 1324 then
+                QuestData = {
+                    Mon = "Ship Steward",
+                    QuestName = "ShipQuest2",
+                    QuestLevel = 1,
+                    MonName = "Ship Steward",
+                    CFrameQuest = CFrame.new(968.80957, 125.092171, 33244.125),
+                    CFrameMon = CFrame.new(919.062561, 129.575104, 33436.9883)
+                }
+            elseif Lv == 1325 or Lv <= 1349 then
+                QuestData = {
+                    Mon = "Ship Officer",
+                    QuestName = "ShipQuest2",
+                    QuestLevel = 2,
+                    MonName = "Ship Officer",
+                    CFrameQuest = CFrame.new(968.80957, 125.092171, 33244.125),
+                    CFrameMon = CFrame.new(948.651001, 181.477661, 33331.7266)
+                }
+            elseif Lv == 1350 or Lv <= 1374 then
+                QuestData = {
+                    Mon = "Arctic Warrior",
+                    QuestName = "FrostQuest",
+                    QuestLevel = 1,
+                    MonName = "Arctic Warrior",
+                    CFrameQuest = CFrame.new(5667.6582, 26.7997818, -6486.08984),
+                    CFrameMon = CFrame.new(5878.23486, 81.3886948, -6136.35107)
+                }
+            elseif Lv == 1375 or Lv <= 1424 then
+                QuestData = {
+                    Mon = "Snow Lurker",
+                    QuestName = "FrostQuest",
+                    QuestLevel = 2,
+                    MonName = "Snow Lurker",
+                    CFrameQuest = CFrame.new(5667.6582, 26.7997818, -6486.08984),
+                    CFrameMon = CFrame.new(5513.36865, 60.546711, -6809.94971)
+                }
+            elseif Lv == 1425 or Lv <= 1449 then
+                QuestData = {
+                    Mon = "Sea Soldier",
+                    QuestName = "ForgottenQuest",
+                    QuestLevel = 1,
+                    MonName = "Sea Soldier",
+                    CFrameQuest = CFrame.new(-3054.44458, 235.544281, -10142.8193),
+                    CFrameMon = CFrame.new(-3115.78223, 63.8785706, -9808.38574)
+                }
+            elseif Lv >= 1450 then
+                QuestData = {
+                    Mon = "Water Fighter",
+                    QuestName = "ForgottenQuest",
+                    QuestLevel = 2,
+                    MonName = "Water Fighter",
+                    CFrameQuest = CFrame.new(-3054.44458, 235.544281, -10142.8193),
+                    CFrameMon = CFrame.new(-3262.00098, 298.699615, -10553.6943)
+                }
+            end
+        -- Third Sea Quests
+        elseif placeId == 7449423635 then
+            if Lv == 1500 or Lv <= 1524 then
+                QuestData = {
+                    Mon = "Pirate Millionaire",
+                    QuestName = "PiratePortQuest",
+                    QuestLevel = 1,
+                    MonName = "Pirate Millionaire",
+                    CFrameQuest = CFrame.new(-290.074677, 42.9034653, 5581.58984),
+                    CFrameMon = CFrame.new(-250.358337, 72.9656601, 5634.55957)
+                }
+            elseif Lv == 1525 or Lv <= 1574 then
+                QuestData = {
+                    Mon = "Pistol Billionaire",
+                    QuestName = "PiratePortQuest",
+                    QuestLevel = 2,
+                    MonName = "Pistol Billionaire",
+                    CFrameQuest = CFrame.new(-290.074677, 42.9034653, 5581.58984),
+                    CFrameMon = CFrame.new(-187.3519, 86.2278, 6018.7334)
+                }
+            elseif Lv == 1575 or Lv <= 1599 then
+                QuestData = {
+                    Mon = "Dragon Crew Warrior",
+                    QuestName = "AmazonQuest",
+                    QuestLevel = 1,
+                    MonName = "Dragon Crew Warrior",
+                    CFrameQuest = CFrame.new(5832.83594, 51.6806107, -1101.51563),
+                    CFrameMon = CFrame.new(6241.9951171875, 51.522083282471, -1243.9771728516)
+                }
+            elseif Lv == 1600 or Lv <= 1624 then
+                QuestData = {
+                    Mon = "Dragon Crew Archer",
+                    QuestName = "AmazonQuest",
+                    QuestLevel = 2,
+                    MonName = "Dragon Crew Archer",
+                    CFrameQuest = CFrame.new(5832.83594, 51.6806107, -1101.51563),
+                    CFrameMon = CFrame.new(6488.9155273438, 383.38375854492, -110.66246032715)
+                }
+            elseif Lv == 1625 or Lv <= 1649 then
+                QuestData = {
+                    Mon = "Female Islander",
+                    QuestName = "AmazonQuest2",
+                    QuestLevel = 1,
+                    MonName = "Female Islander",
+                    CFrameQuest = CFrame.new(5448.86133, 601.516174, 751.130676),
+                    CFrameMon = CFrame.new(5763.98682, 848.118103, 1082.43127)
+                }
+            elseif Lv == 1650 or Lv <= 1699 then
+                QuestData = {
+                    Mon = "Giant Islander",
+                    QuestName = "AmazonQuest2",
+                    QuestLevel = 2,
+                    MonName = "Giant Islander",
+                    CFrameQuest = CFrame.new(5448.86133, 601.516174, 751.130676),
+                    CFrameMon = CFrame.new(4784.24561, 708.376465, 466.297485)
+                }
+            elseif Lv == 1700 or Lv <= 1724 then
+                QuestData = {
+                    Mon = "Marine Commodore",
+                    QuestName = "MarineTreeIsland",
+                    QuestLevel = 1,
+                    MonName = "Marine Commodore",
+                    CFrameQuest = CFrame.new(2180.54126, 27.8156815, -6741.5498),
+                    CFrameMon = CFrame.new(2490.0844726563, 190.4232635498, -7160.0502929688)
+                }
+            elseif Lv == 1725 or Lv <= 1774 then
+                QuestData = {
+                    Mon = "Marine Rear Admiral",
+                    QuestName = "MarineTreeIsland",
+                    QuestLevel = 2,
+                    MonName = "Marine Rear Admiral",
+                    CFrameQuest = CFrame.new(2180.54126, 27.8156815, -6741.5498),
+                    CFrameMon = CFrame.new(3951.3903808594, 229.11549377441, -6912.81640625)
+                }
+            elseif Lv == 1775 or Lv <= 1799 then
+                QuestData = {
+                    Mon = "Fishman Raider",
+                    QuestName = "DeepForestIsland3",
+                    QuestLevel = 1,
+                    MonName = "Fishman Raider",
+                    CFrameQuest = CFrame.new(-10581.6563, 330.872955, -8761.18652),
+                    CFrameMon = CFrame.new(-10322.400390625, 390.94473266602, -8580.0908203125)
+                }
+            elseif Lv == 1800 or Lv <= 1824 then
+                QuestData = {
+                    Mon = "Fishman Captain",
+                    QuestName = "DeepForestIsland3",
+                    QuestLevel = 2,
+                    MonName = "Fishman Captain",
+                    CFrameQuest = CFrame.new(-10581.6563, 330.872955, -8761.18652),
+                    CFrameMon = CFrame.new(-11194.541992188, 442.02795410156, -8608.806640625)
+                }
+            elseif Lv == 1825 or Lv <= 1849 then
+                QuestData = {
+                    Mon = "Forest Pirate",
+                    QuestName = "DeepForestIsland",
+                    QuestLevel = 1,
+                    MonName = "Forest Pirate",
+                    CFrameQuest = CFrame.new(-13234.04, 331.488495, -7625.40137),
+                    CFrameMon = CFrame.new(-13225.809570313, 428.19387817383, -7753.1245117188)
+                }
+            elseif Lv == 1850 or Lv <= 1899 then
+                QuestData = {
+                    Mon = "Mythological Pirate",
+                    QuestName = "DeepForestIsland",
+                    QuestLevel = 2,
+                    MonName = "Mythological Pirate",
+                    CFrameQuest = CFrame.new(-13234.04, 331.488495, -7625.40137),
+                    CFrameMon = CFrame.new(-13869.172851563, 564.95251464844, -7084.4135742188)
+                }
+            elseif Lv == 1900 or Lv <= 1924 then
+                QuestData = {
+                    Mon = "Jungle Pirate",
+                    QuestName = "DeepForestIsland2",
+                    QuestLevel = 1,
+                    MonName = "Jungle Pirate",
+                    CFrameQuest = CFrame.new(-12680.3818, 389.971039, -9902.01953),
+                    CFrameMon = CFrame.new(-12256.7300, 331.7391, -10550.400)
+                }
+            elseif Lv == 1925 or Lv <= 1974 then
+                QuestData = {
+                    Mon = "Musketeer Pirate",
+                    QuestName = "DeepForestIsland2",
+                    QuestLevel = 2,
+                    MonName = "Musketeer Pirate",
+                    CFrameQuest = CFrame.new(-12680.3818, 389.971039, -9902.01953),
+                    CFrameMon = CFrame.new(-13282.3046875, 496.23684692383, -9565.150390625)
+                }
+            elseif Lv == 1975 or Lv <= 1999 then
+                QuestData = {
+                    Mon = "Reborn Skeleton",
+                    QuestName = "HauntedQuest1",
+                    QuestLevel = 1,
+                    MonName = "Reborn Skeleton",
+                    CFrameQuest = CFrame.new(-9479.2168, 141.215088, 5566.09277),
+                    CFrameMon = CFrame.new(-8761.3154296875, 164.85829162598, 6161.1567382813)
+                }
+            elseif Lv == 2000 or Lv <= 2024 then
+                QuestData = {
+                    Mon = "Living Zombie",
+                    QuestName = "HauntedQuest1",
+                    QuestLevel = 2,
+                    MonName = "Living Zombie",
+                    CFrameQuest = CFrame.new(-9479.2168, 141.215088, 5566.09277),
+                    CFrameMon = CFrame.new(-10093.930664063, 237.38233947754, 6180.5654296875)
+                }
+            elseif Lv == 2025 or Lv <= 2049 then
+                QuestData = {
+                    Mon = "Demonic Soul",
+                    QuestName = "HauntedQuest2",
+                    QuestLevel = 1,
+                    MonName = "Demonic Soul",
+                    CFrameQuest = CFrame.new(-9516.99316, 172.017181, 6078.46533),
+                    CFrameMon = CFrame.new(-9712.03125, 204.69589233398, 6193.322265625)
+                }
+            elseif Lv == 2050 or Lv <= 2074 then
+                QuestData = {
+                    Mon = "Posessed Mummy",
+                    QuestName = "HauntedQuest2",
+                    QuestLevel = 2,
+                    MonName = "Posessed Mummy",
+                    CFrameQuest = CFrame.new(-9516.99316, 172.017181, 6078.46533),
+                    CFrameMon = CFrame.new(-9545.7763671875, 69.619895935059, 6339.5615234375)
+                }
+            elseif Lv == 2075 or Lv <= 2099 then
+                QuestData = {
+                    Mon = "Peanut Scout",
+                    QuestName = "NutsIslandQuest",
+                    QuestLevel = 1,
+                    MonName = "Peanut Scout",
+                    CFrameQuest = CFrame.new(-2104.3908691406, 38.104167938232, -10194.21875),
+                    CFrameMon = CFrame.new(-2068.1374511719, 89.266731262207, -10117.540039063)
+                }
+            elseif Lv == 2100 or Lv <= 2124 then
+                QuestData = {
+                    Mon = "Peanut President",
+                    QuestName = "NutsIslandQuest",
+                    QuestLevel = 2,
+                    MonName = "Peanut President",
+                    CFrameQuest = CFrame.new(-2104.3908691406, 38.104167938232, -10194.21875),
+                    CFrameMon = CFrame.new(-1876.3461914063, 19.927753448486, -10343.564453125)
+                }
+            elseif Lv == 2125 or Lv <= 2149 then
+                QuestData = {
+                    Mon = "Ice Cream Chef",
+                    QuestName = "IceCreamIslandQuest",
+                    QuestLevel = 1,
+                    MonName = "Ice Cream Chef",
+                    CFrameQuest = CFrame.new(-820.64825439453, 65.819526672363, -10965.795898438),
+                    CFrameMon = CFrame.new(-872.24877929688, 65.819526672363, -10919.95703125)
+                }
+            elseif Lv == 2150 or Lv <= 2199 then
+                QuestData = {
+                    Mon = "Ice Cream Commander",
+                    QuestName = "IceCreamIslandQuest",
+                    QuestLevel = 2,
+                    MonName = "Ice Cream Commander",
+                    CFrameQuest = CFrame.new(-820.64825439453, 65.819526672363, -10965.795898438),
+                    CFrameMon = CFrame.new(-558.06005859375, 112.04895782471, -11234.4140625)
+                }
+            elseif Lv == 2200 or Lv <= 2224 then
+                QuestData = {
+                    Mon = "Cookie Crafter",
+                    QuestName = "CakeQuest1",
+                    QuestLevel = 1,
+                    MonName = "Cookie Crafter",
+                    CFrameQuest = CFrame.new(-2021.32007, 37.7982254, -12028.7295),
+                    CFrameMon = CFrame.new(-2121.56982421875, 215.76014709473, -12478.8671875)
+                }
+            elseif Lv == 2225 or Lv <= 2249 then
+                QuestData = {
+                    Mon = "Cake Guard",
+                    QuestName = "CakeQuest1",
+                    QuestLevel = 2,
+                    MonName = "Cake Guard",
+                    CFrameQuest = CFrame.new(-2021.32007, 37.7982254, -12028.7295),
+                    CFrameMon = CFrame.new(-1817.9978027344, 209.43321228027, -12288.9736328125)
+                }
+            elseif Lv == 2250 or Lv <= 2274 then
+                QuestData = {
+                    Mon = "Baking Staff",
+                    QuestName = "CakeQuest2",
+                    QuestLevel = 1,
+                    MonName = "Baking Staff",
+                    CFrameQuest = CFrame.new(-1927.9182128906, 37.79846954345, -12843.794921875),
+                    CFrameMon = CFrame.new(-1824.0770263672, 93.049217224121, -12891.588867188)
+                }
+            elseif Lv == 2275 or Lv <= 2299 then
+                QuestData = {
+                    Mon = "Head Baker",
+                    QuestName = "CakeQuest2",
+                    QuestLevel = 2,
+                    MonName = "Head Baker",
+                    CFrameQuest = CFrame.new(-1927.9182128906, 37.79846954345, -12843.794921875),
+                    CFrameMon = CFrame.new(-2203.302734375, 109.90937042236, -12788.7333984375)
+                }
+            elseif Lv == 2300 or Lv <= 2324 then
+                QuestData = {
+                    Mon = "Cocoa Warrior",
+                    QuestName = "ChocQuest1",
+                    QuestLevel = 1,
+                    MonName = "Cocoa Warrior",
+                    CFrameQuest = CFrame.new(231.13571166992, 24.734268188477, -12195.840820313),
+                    CFrameMon = CFrame.new(231.13571166992, 24.734268188477, -12195.840820313)
+                }
+            elseif Lv == 2325 or Lv <= 2349 then
+                QuestData = {
+                    Mon = "Chocolate Bar Battler",
+                    QuestName = "ChocQuest1",
+                    QuestLevel = 2,
+                    MonName = "Chocolate Bar Battler",
+                    CFrameQuest = CFrame.new(231.13571166992, 24.734268188477, -12195.840820313),
+                    CFrameMon = CFrame.new(231.13571166992, 24.734268188477, -12195.840820313)
+                }
+            elseif Lv == 2350 or Lv <= 2374 then
+                QuestData = {
+                    Mon = "Sweet Thief",
+                    QuestName = "ChocQuest2",
+                    QuestLevel = 1,
+                    MonName = "Sweet Thief",
+                    CFrameQuest = CFrame.new(147.52256774902, 24.793832778931, -12632.853515625),
+                    CFrameMon = CFrame.new(147.52256774902, 24.793832778931, -12632.853515625)
+                }
+            elseif Lv == 2375 or Lv <= 2399 then
+                QuestData = {
+                    Mon = "Candy Rebel",
+                    QuestName = "ChocQuest2",
+                    QuestLevel = 2,
+                    MonName = "Candy Rebel",
+                    CFrameQuest = CFrame.new(147.52256774902, 24.793832778931, -12632.853515625),
+                    CFrameMon = CFrame.new(147.52256774902, 24.793832778931, -12632.853515625)
+                }
+            elseif Lv == 2400 or Lv <= 2424 then
+                QuestData = {
+                    Mon = "Candy Pirate",
+                    QuestName = "CandyQuest1",
+                    QuestLevel = 1,
+                    MonName = "Candy Pirate",
+                    CFrameQuest = CFrame.new(-1147.1551513672, 13.08531665802, -14445.0859375),
+                    CFrameMon = CFrame.new(-1393.442138671875, 13.819832801818848, -14419.625)
+                }
+            elseif Lv == 2425 or Lv <= 2449 then
+                QuestData = {
+                    Mon = "Snow Demon",
+                    QuestName = "CandyQuest1",
+                    QuestLevel = 2,
+                    MonName = "Snow Demon",
+                    CFrameQuest = CFrame.new(-1147.1551513672, 13.08531665802, -14445.0859375),
+                    CFrameMon = CFrame.new(-883.241455, 40.9553833, -14538.4951, -0.28144443, -1.18274158e-07, 0.959577501, 1.83865634e-08, 1, 1.28649276e-07, -0.959577501, 5.38509785e-08, -0.28144443)
+                }
+            elseif Lv >= 2450 then
+                QuestData = {
+                    Mon = "Isle Outlaw",
+                    QuestName = "TikiQuest1",
+                    QuestLevel = 1,
+                    MonName = "Isle Outlaw",
+                    CFrameQuest = CFrame.new(-16549.890625, 55, -179.9294204),
+                    CFrameMon = CFrame.new(-16162.8193, 11.9777431, -68.3717117)
+                }
+            end
+        end
+        
+        -- Override with target if set
+        if self.Settings.TargetNPC ~= "Closest NPC" then
+            QuestData.Mon = self.Settings.TargetNPC
+            QuestData.MonName = self.Settings.TargetNPC
+        end
+        
+        return QuestData
+    end
+    
+    -- Function to find target monsters
+    function AutoFarm:FindTargetMonsters()
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return {} end
+        
+        local hrp = character.HumanoidRootPart
+        local targetMonsters = {}
+        local questData = self:GetQuestData()
+        
+        -- Look for monsters that match our target
+        for _, npc in pairs(workspace:GetChildren()) do
+            if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") and npc ~= character then
+                -- Check if it's an NPC (not a player) and matches our target
+                if not game.Players:GetPlayerFromCharacter(npc) and 
+                   (npc.Name == questData.Mon or npc.Name:find(questData.Mon)) then
+                    
+                    local distance = (hrp.Position - npc.HumanoidRootPart.Position).Magnitude
+                    if distance < self.Settings.MaxDistance and distance > self.Settings.MinDistance and npc.Humanoid.Health > 0 then
+                        table.insert(targetMonsters, {
+                            NPC = npc,
+                            Distance = distance
+                        })
+                    end
+                end
+            end
+        end
+        
+        -- Sort by distance
+        table.sort(targetMonsters, function(a, b)
+            return a.Distance < b.Distance
+        end)
+        
+        if #targetMonsters > 0 then
+            return targetMonsters[1].NPC
+        end
+        
         return nil
     end
     
-    local success, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
-    end)
-    
-    if success then
-        print("✅ Successfully loaded: " .. moduleName)
-        return result
-    else
-        warn("❌ Failed to load: " .. moduleName .. " | Error: " .. tostring(result))
-        -- Create fallback placeholder module
-        local placeholderModule = {}
-        placeholderModule.Settings = {}
-        placeholderModule.Start = function() end
-        placeholderModule.Stop = function() end
-        return placeholderModule
+    -- Function to attack the current target
+    function AutoFarm:AttackTarget()
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not CurrentTarget or not CurrentTarget:FindFirstChild("HumanoidRootPart") then return end
+        
+        -- Check if target is alive
+        if CurrentTarget:FindFirstChild("Humanoid") and CurrentTarget.Humanoid.Health <= 0 then
+            CurrentTarget = nil
+            return
+        end
+        
+        -- Position above the target for better attacking
+        local targetPos = CurrentTarget.HumanoidRootPart.Position + Vector3.new(0, 5, 0)
+        
+        -- Teleport to target if teleport module is available
+        if TeleportModule then
+            TeleportModule:TeleportTo(targetPos)
+        else
+            -- Move character to target
+            if character:FindFirstChild("HumanoidRootPart") then
+                character.HumanoidRootPart.CFrame = CFrame.new(targetPos)
+            end
+        end
+        
+        -- Try to equip weapon if not already equipped
+        if not character:FindFirstChildOfClass("Tool") then
+            local backpack = player.Backpack
+            if backpack then
+                local weapon = backpack:FindFirstChildOfClass("Tool")
+                if weapon then
+                    weapon.Parent = character
+                end
+            end
+        end
+        
+        -- Attack using remotes or other methods
+        local tool = character:FindFirstChildOfClass("Tool")
+        if tool then
+            -- Try different attack methods
+            pcall(function()
+                -- Method 1: Activate tool
+                tool:Activate()
+                
+                -- Method 2: Use attack remote
+                if tool:FindFirstChild("Attack") and tool.Attack:IsA("RemoteEvent") then
+                    tool.Attack:FireServer()
+                end
+                
+                -- Method 3: Simulate mouse click
+                if game:GetService("VirtualInputManager") then
+                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                end
+                
+                -- Method 4: Use combat remote directly
+                if game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") then
+                    game:GetService("ReplicatedStorage").CombatRemote:FireServer()
+                end
+            end)
+        end
+        
+        -- Apply Fast Attack if enabled
+        if self.Settings.FastAttack then
+            pcall(function()
+                -- Speed up attack animations
+                for _, anim in pairs(character.Humanoid:GetPlayingAnimationTracks()) do
+                    if anim.Name:lower():find("attack") or anim.Name:lower():find("combat") then
+                        anim:AdjustSpeed(2)
+                    end
+                end
+            end)
+        end
+        
+        -- Highlight target if ESP is available
+        if ESPModule then
+            ESPModule:HighlightObject(CurrentTarget, Color3.fromRGB(255, 0, 0))
+        end
     end
+    
+    -- Function to handle auto quest
+    function AutoFarm:TryGetQuest()
+        if not self.Settings.AutoQuest then return end
+        
+        -- Get quest data based on player level
+        local questData = self:GetQuestData()
+        if not questData or not questData.QuestName then
+            print("No suitable quest found for your level")
+            return
+        end
+        
+        print("Attempting to get quest: " .. questData.QuestName .. " Level " .. questData.QuestLevel)
+        
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        -- Check if already have the quest
+        if player.PlayerGui.Main.Quest.Visible and 
+           string.find(player.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text, questData.Mon) then
+            print("Already have the quest")
+            return true
+        end
+        
+        -- Handle special areas (Fishman Island, Sky Island, etc.)
+        self:HandleSpecialEntrance(questData)
+        
+        -- Teleport to quest giver
+        if TeleportModule then
+            TeleportModule:TeleportTo(questData.CFrameQuest.Position)
+        else
+            character.HumanoidRootPart.CFrame = questData.CFrameQuest
+        end
+        
+        -- Wait for player to reach the quest giver
+        wait(1)
+        
+        -- Try to accept the quest
+        if (character.HumanoidRootPart.Position - questData.CFrameQuest.Position).Magnitude < 25 then
+            game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", questData.QuestName, questData.QuestLevel)
+            wait(0.8)
+            
+            -- Check if quest accepted
+            if player.PlayerGui.Main.Quest.Visible and 
+               string.find(player.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text, questData.Mon) then
+                print("Quest accepted successfully")
+                return true
+            else
+                -- Try again with different method
+                game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("StartQuest", questData.QuestName, questData.QuestLevel)
+                wait(0.8)
+                
+                -- Check again
+                if player.PlayerGui.Main.Quest.Visible and 
+                  string.find(player.PlayerGui.Main.Quest.Container.QuestTitle.Title.Text, questData.Mon) then
+                    print("Quest accepted on second attempt")
+                    return true
+                else
+                    print("Failed to accept quest")
+                    return false
+                end
+            end
+        else
+            print("Could not reach quest giver")
+            return false
+        end
+    end
+    
+    -- Main farming loop
+    function AutoFarm:StartFarming()
+        if Farming then return end
+        Farming = true
+        
+        -- Try to get a quest first
+        self:TryGetQuest()
+        
+        -- Create the farming loop
+        FarmConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not self.Settings.Enabled then
+                self:StopFarming()
+                return
+            end
+            
+            -- Check if target exists and is still valid
+            if not CurrentTarget or not CurrentTarget:FindFirstChild("Humanoid") or CurrentTarget.Humanoid.Health <= 0 then
+                -- Find a new target
+                CurrentTarget = self:FindTargetMonsters()
+                if CurrentTarget then
+                    print("AutoFarm: Targeting " .. CurrentTarget.Name)
+                end
+            end
+            
+            -- If we have a target, attack it
+            if CurrentTarget then
+                self:AttackTarget()
+            else
+                -- No targets in range, try to get a quest
+                self:TryGetQuest()
+            end
+        end)
+    end
+    
+    -- Stop farming
+    function AutoFarm:StopFarming()
+        if FarmConnection then
+            FarmConnection:Disconnect()
+            FarmConnection = nil
+        end
+        Farming = false
+        CurrentTarget = nil
+        
+        -- Clear ESP highlights if available
+        if ESPModule and ESPModule.ClearHighlights then
+            ESPModule:ClearHighlights()
+        end
+    end
+    
+    -- Start the module
+    function AutoFarm:Start()
+        self.Settings.Enabled = true
+        self:StartFarming()
+    end
+    
+    -- Stop the module
+    function AutoFarm:Stop()
+        self.Settings.Enabled = false
+        self:StopFarming()
+    end
+    
+    -- Return the module
+    return AutoFarm
+end
+
+-- ESP Module Code
+local function CreateESPModule()
+    local ESP = {}
+    
+    -- Module settings with defaults
+    ESP.Settings = {
+        Enabled = false,
+        ShowPlayers = true,
+        ShowNPCs = true,
+        ShowChests = true,
+        ShowFruits = true,
+        PlayerColor = Color3.fromRGB(0, 255, 0),
+        NPCColor = Color3.fromRGB(255, 0, 0),
+        ChestColor = Color3.fromRGB(255, 255, 0),
+        FruitColor = Color3.fromRGB(255, 0, 255),
+        ShowDistance = true,
+        MaxDistance = 1000
+    }
+    
+    -- Tables to track ESP objects
+    local ESPObjects = {}
+    local HighlightedObjects = {}
+    
+    -- Create ESP for an object
+    local function CreateESPForObject(object, text, color)
+        -- Already has ESP
+        if ESPObjects[object] then
+            return ESPObjects[object]
+        end
+        
+        -- Create ESP components
+        local billboardGui = Instance.new("BillboardGui")
+        billboardGui.Name = "SKYX_ESP"
+        billboardGui.AlwaysOnTop = true
+        billboardGui.Size = UDim2.new(0, 100, 0, 50)
+        billboardGui.StudsOffset = Vector3.new(0, 3, 0)
+        
+        -- Create ESP text
+        local espText = Instance.new("TextLabel")
+        espText.Name = "ESPText"
+        espText.Size = UDim2.new(1, 0, 1, 0)
+        espText.BackgroundTransparency = 1
+        espText.Text = text
+        espText.TextColor3 = color
+        espText.TextStrokeColor3 = Color3.new(0, 0, 0)
+        espText.TextStrokeTransparency = 0.5
+        espText.Font = Enum.Font.GothamSemibold
+        espText.TextSize = 14
+        espText.Parent = billboardGui
+        
+        -- Try to parent to object
+        if object:IsA("Model") and object:FindFirstChild("HumanoidRootPart") then
+            billboardGui.Adornee = object.HumanoidRootPart
+            billboardGui.Parent = object.HumanoidRootPart
+        elseif object:IsA("BasePart") then
+            billboardGui.Adornee = object
+            billboardGui.Parent = object
+        else
+            -- Try to find a part to adorn
+            local part = object:FindFirstChildWhichIsA("BasePart")
+            if part then
+                billboardGui.Adornee = part
+                billboardGui.Parent = part
+            else
+                billboardGui:Destroy()
+                return nil
+            end
+        end
+        
+        -- Store in ESP objects table
+        ESPObjects[object] = {
+            BillboardGui = billboardGui,
+            TextLabel = espText,
+            Color = color
+        }
+        
+        return ESPObjects[object]
+    end
+    
+    -- Update ESP text (e.g., distance)
+    local function UpdateESP()
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local hrp = character.HumanoidRootPart
+        
+        for object, esp in pairs(ESPObjects) do
+            -- Skip if object is destroyed
+            if not object or not object.Parent or not esp.BillboardGui or not esp.BillboardGui.Parent then
+                ESP:RemoveESP(object)
+                continue
+            end
+            
+            -- Get object position
+            local objectPosition
+            if object:IsA("Model") and object:FindFirstChild("HumanoidRootPart") then
+                objectPosition = object.HumanoidRootPart.Position
+            elseif object:IsA("BasePart") then
+                objectPosition = object.Position
+            else
+                local part = object:FindFirstChildWhichIsA("BasePart")
+                objectPosition = part and part.Position
+            end
+            
+            -- Update distance text if position is found
+            if objectPosition and ESP.Settings.ShowDistance then
+                local distance = (hrp.Position - objectPosition).Magnitude
+                local distanceText = math.floor(distance + 0.5)
+                
+                -- Get object name
+                local objectName = object.Name
+                if object:FindFirstChild("Humanoid") then
+                    objectName = object:FindFirstChild("Humanoid").DisplayName.Value or object.Name
+                end
+                
+                -- Update text
+                esp.TextLabel.Text = objectName .. " [" .. distanceText .. "m]"
+            end
+        end
+    end
+    
+    -- Connection for updating ESP
+    local UpdateConnection = nil
+    
+    -- Start ESP system
+    function ESP:Start()
+        self.Settings.Enabled = true
+        
+        -- Set up update connection
+        if not UpdateConnection then
+            UpdateConnection = game:GetService("RunService").RenderStepped:Connect(function()
+                if self.Settings.Enabled then
+                    UpdateESP()
+                end
+            end)
+        end
+        
+        -- Initial ESP setup
+        self:RefreshESP()
+    end
+    
+    -- Stop ESP system
+    function ESP:Stop()
+        self.Settings.Enabled = false
+        
+        -- Disconnect update
+        if UpdateConnection then
+            UpdateConnection:Disconnect()
+            UpdateConnection = nil
+        end
+        
+        -- Remove all ESP
+        self:ClearESP()
+    end
+    
+    -- Refresh all ESP objects
+    function ESP:RefreshESP()
+        -- Clear existing ESP
+        self:ClearESP()
+        
+        -- Skip if disabled
+        if not self.Settings.Enabled then return end
+        
+        local player = game.Players.LocalPlayer
+        
+        -- Add ESP for players
+        if self.Settings.ShowPlayers then
+            for _, p in pairs(game.Players:GetPlayers()) do
+                if p ~= player and p.Character then
+                    CreateESPForObject(p.Character, p.Name, self.Settings.PlayerColor)
+                end
+            end
+        end
+        
+        -- Add ESP for NPCs
+        if self.Settings.ShowNPCs then
+            for _, npc in pairs(workspace:GetChildren()) do
+                if npc:FindFirstChild("Humanoid") and not game.Players:GetPlayerFromCharacter(npc) then
+                    CreateESPForObject(npc, npc.Name, self.Settings.NPCColor)
+                end
+            end
+        end
+        
+        -- Add ESP for chests
+        if self.Settings.ShowChests then
+            for _, object in pairs(workspace:GetDescendants()) do
+                if object.Name:lower():find("chest") or object.Name:lower():find("treasure") then
+                    CreateESPForObject(object, "Chest", self.Settings.ChestColor)
+                end
+            end
+        end
+        
+        -- Add ESP for fruits
+        if self.Settings.ShowFruits then
+            for _, object in pairs(workspace:GetDescendants()) do
+                if object.Name:lower():find("fruit") then
+                    CreateESPForObject(object, "Fruit", self.Settings.FruitColor)
+                end
+            end
+        end
+    end
+    
+    -- Clear all ESP objects
+    function ESP:ClearESP()
+        for object, esp in pairs(ESPObjects) do
+            if esp.BillboardGui and esp.BillboardGui.Parent then
+                esp.BillboardGui:Destroy()
+            end
+        end
+        ESPObjects = {}
+    end
+    
+    -- Remove ESP from a specific object
+    function ESP:RemoveESP(object)
+        if ESPObjects[object] then
+            if ESPObjects[object].BillboardGui and ESPObjects[object].BillboardGui.Parent then
+                ESPObjects[object].BillboardGui:Destroy()
+            end
+            ESPObjects[object] = nil
+        end
+    end
+    
+    -- Highlight a specific object
+    function ESP:HighlightObject(object, color)
+        -- Already highlighted
+        if HighlightedObjects[object] then
+            return
+        end
+        
+        -- Create highlight
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "SKYX_Highlight"
+        highlight.FillColor = color
+        highlight.OutlineColor = color
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        
+        -- Adorn to object
+        if object:IsA("Model") then
+            highlight.Adornee = object
+            highlight.Parent = object
+        else
+            highlight.Adornee = object
+            highlight.Parent = object
+        end
+        
+        -- Store in highlighted objects table
+        HighlightedObjects[object] = highlight
+    end
+    
+    -- Remove highlight from a specific object
+    function ESP:RemoveHighlight(object)
+        if HighlightedObjects[object] then
+            if HighlightedObjects[object].Parent then
+                HighlightedObjects[object]:Destroy()
+            end
+            HighlightedObjects[object] = nil
+        end
+    end
+    
+    -- Clear all highlights
+    function ESP:ClearHighlights()
+        for object, highlight in pairs(HighlightedObjects) do
+            if highlight.Parent then
+                highlight:Destroy()
+            end
+        end
+        HighlightedObjects = {}
+    end
+    
+    -- Return the module
+    return ESP
+end
+
+-- DevilFruit Module Code
+local function CreateDevilFruitModule()
+    local DevilFruit = {}
+    
+    -- Module settings with defaults
+    DevilFruit.Settings = {
+        Enabled = false,
+        AutoCollect = true,
+        AutoEquip = false,
+        StoreFruits = false,
+        PreferredFruit = "None"
+    }
+    
+    -- Variables to track state
+    local Scanning = false
+    local ScanConnection = nil
+    
+    -- Function to check if player has a devil fruit
+    function DevilFruit:HasDevilFruit()
+        local player = game.Players.LocalPlayer
+        
+        -- Check backpack
+        for _, item in pairs(player.Backpack:GetChildren()) do
+            if item.Name:lower():find("fruit") then
+                return true, item
+            end
+        end
+        
+        -- Check character
+        if player.Character then
+            for _, item in pairs(player.Character:GetChildren()) do
+                if item:IsA("Tool") and item.Name:lower():find("fruit") then
+                    return true, item
+                end
+            end
+        end
+        
+        return false, nil
+    end
+    
+    -- Function to get all devil fruits in the world
+    function DevilFruit:GetFruitsInWorld()
+        local fruits = {}
+        
+        -- Check workspace for fruits
+        for _, object in pairs(workspace:GetDescendants()) do
+            if object.Name:lower():find("fruit") and object:IsA("Tool") then
+                table.insert(fruits, object)
+            end
+        end
+        
+        return fruits
+    end
+    
+    -- Function to teleport to and collect a fruit
+    function DevilFruit:CollectFruit(fruit)
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local hrp = character.HumanoidRootPart
+        
+        -- Teleport to fruit
+        hrp.CFrame = CFrame.new(fruit.Handle.Position + Vector3.new(0, 3, 0))
+        
+        -- Wait a bit and then try to pick up
+        wait(0.2)
+        
+        -- Try different methods to pick up
+        pcall(function()
+            -- Method 1: ProximityPrompt
+            if fruit:FindFirstChild("ProximityPrompt") then
+                fireproximityprompt(fruit.ProximityPrompt)
+            end
+            
+            -- Method 2: Direct pickup remote
+            if game:GetService("ReplicatedStorage"):FindFirstChild("PickupRemote") then
+                game:GetService("ReplicatedStorage").PickupRemote:FireServer(fruit)
+            end
+            
+            -- Method 3: Touch interest
+            if fruit:FindFirstChild("Handle") then
+                firetouchinterest(hrp, fruit.Handle, 0)
+                wait()
+                firetouchinterest(hrp, fruit.Handle, 1)
+            end
+        end)
+    end
+    
+    -- Function to store a fruit
+    function DevilFruit:StoreFruit(fruit)
+        local player = game.Players.LocalPlayer
+        
+        -- Implement fruit storage logic
+        pcall(function()
+            -- Method 1: Use storage remote
+            if game:GetService("ReplicatedStorage"):FindFirstChild("StoreFruitRemote") then
+                game:GetService("ReplicatedStorage").StoreFruitRemote:FireServer(fruit)
+            end
+            
+            -- Method 2: Find NPC and interact
+            for _, npc in pairs(workspace:GetChildren()) do
+                if npc.Name:lower():find("fruit dealer") or npc.Name:lower():find("storage") then
+                    -- Teleport to NPC
+                    if npc:FindFirstChild("HumanoidRootPart") then
+                        player.Character.HumanoidRootPart.CFrame = npc.HumanoidRootPart.CFrame
+                        
+                        -- Try to fire interaction remote
+                        if npc:FindFirstChild("InteractRemote") then
+                            npc.InteractRemote:FireServer()
+                        end
+                    end
+                end
+            end
+        end)
+    end
+    
+    -- Function to start scanning for fruits
+    function DevilFruit:StartScanning()
+        if Scanning then return end
+        Scanning = true
+        
+        ScanConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not self.Settings.Enabled then
+                self:StopScanning()
+                return
+            end
+            
+            -- Auto collect fruits in the world
+            if self.Settings.AutoCollect then
+                local fruits = self:GetFruitsInWorld()
+                
+                for _, fruit in pairs(fruits) do
+                    self:CollectFruit(fruit)
+                    wait(1) -- Wait a bit between collections
+                end
+            end
+            
+            -- Auto equip preferred fruit
+            if self.Settings.AutoEquip then
+                local hasFruit, currentFruit = self:HasDevilFruit()
+                
+                if hasFruit and currentFruit and currentFruit.Name ~= self.Settings.PreferredFruit then
+                    -- Check if player has preferred fruit in backpack or storage
+                    -- Implement storage checking logic here
+                    
+                    -- Equip fruit
+                    pcall(function()
+                        currentFruit.Parent = game.Players.LocalPlayer.Character
+                    end)
+                end
+            end
+            
+            -- Store fruits if enabled
+            if self.Settings.StoreFruits then
+                local hasFruit, currentFruit = self:HasDevilFruit()
+                
+                if hasFruit and currentFruit then
+                    self:StoreFruit(currentFruit)
+                end
+            end
+        end)
+    end
+    
+    -- Function to stop scanning
+    function DevilFruit:StopScanning()
+        if ScanConnection then
+            ScanConnection:Disconnect()
+            ScanConnection = nil
+        end
+        Scanning = false
+    end
+    
+    -- Start the module
+    function DevilFruit:Start()
+        self.Settings.Enabled = true
+        self:StartScanning()
+    end
+    
+    -- Stop the module
+    function DevilFruit:Stop()
+        self.Settings.Enabled = false
+        self:StopScanning()
+    end
+    
+    -- Get list of possible fruits
+    function DevilFruit:GetFruitsList()
+        -- This would return a list of available fruits in the game
+        -- Placeholder implementation
+        return {
+            "None",
+            "Bomb Fruit",
+            "Spike Fruit",
+            "Chop Fruit",
+            "Spring Fruit",
+            "Smoke Fruit",
+            "Flame Fruit",
+            "Ice Fruit",
+            "Sand Fruit",
+            "Dark Fruit",
+            "Light Fruit",
+            "Rubber Fruit",
+            "Barrier Fruit",
+            "Magma Fruit",
+            "Quake Fruit",
+            "Human: Buddha Fruit",
+            "String Fruit",
+            "Bird: Phoenix Fruit",
+            "Rumble Fruit",
+            "Paw Fruit",
+            "Gravity Fruit",
+            "Dough Fruit",
+            "Shadow Fruit",
+            "Venom Fruit",
+            "Control Fruit",
+            "Dragon Fruit"
+        }
+    end
+    
+    -- Return the module
+    return DevilFruit
+end
+
+-- Teleport Module Code
+local function CreateTeleportModule()
+    local Teleport = {}
+    
+    -- Module settings with defaults
+    Teleport.Settings = {
+        Enabled = true,
+        TeleportSpeed = 100, -- Speed for tweened teleports
+        UseTween = true -- Use tweening for smooth teleportation
+    }
+    
+    -- Store common locations
+    local CommonLocations = {
+        ["First Island"] = Vector3.new(1000, 50, 1000),
+        ["Middle Island"] = Vector3.new(0, 50, 0),
+        ["Third Island"] = Vector3.new(-1000, 50, -1000),
+        ["Pirate Island"] = Vector3.new(500, 50, -800),
+        ["Marine Island"] = Vector3.new(-600, 50, 800),
+        ["Starter Island"] = Vector3.new(1000, 50, 1000),
+        ["Jungle Island"] = Vector3.new(-1200, 50, -50),
+        ["Desert Island"] = Vector3.new(800, 50, -400),
+        ["Frozen Island"] = Vector3.new(0, 50, -900),
+        ["Prison Island"] = Vector3.new(-500, 50, -500)
+    }
+    
+    -- Function to teleport directly to a position
+    function Teleport:TeleportTo(position)
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        
+        if not character or not character:FindFirstChild("HumanoidRootPart") then
+            warn("Teleport failed: Character or HumanoidRootPart not found")
+            return
+        end
+        
+        local hrp = character.HumanoidRootPart
+        
+        -- If using tweening for smooth teleport
+        if self.Settings.UseTween then
+            local distance = (hrp.Position - position).Magnitude
+            local tweenInfo = TweenInfo.new(
+                distance / self.Settings.TeleportSpeed,
+                Enum.EasingStyle.Linear,
+                Enum.EasingDirection.Out
+            )
+            
+            local tween = game:GetService("TweenService"):Create(
+                hrp,
+                tweenInfo,
+                {CFrame = CFrame.new(position)}
+            )
+            
+            tween:Play()
+            
+            -- Wait for tween to complete
+            tween.Completed:Wait()
+        else
+            -- Direct teleport
+            hrp.CFrame = CFrame.new(position)
+        end
+    end
+    
+    -- Function to teleport to a location by name
+    function Teleport:TeleportToLocation(locationName)
+        if CommonLocations[locationName] then
+            self:TeleportTo(CommonLocations[locationName])
+            return true
+        else
+            -- Try to find location in workspace
+            for _, obj in pairs(workspace:GetDescendants()) do
+                if obj.Name == locationName and obj:IsA("BasePart") then
+                    self:TeleportTo(obj.Position)
+                    return true
+                end
+            end
+            
+            warn("Teleport failed: Location not found: " .. locationName)
+            return false
+        end
+    end
+    
+    -- Function to get a list of available locations
+    function Teleport:GetLocationsList()
+        local locations = {}
+        
+        -- Add common locations
+        for name, _ in pairs(CommonLocations) do
+            table.insert(locations, {Name = name, Type = "Common"})
+        end
+        
+        -- Look for other potential locations in the game
+        for _, obj in pairs(workspace:GetChildren()) do
+            -- Check for NPCs or special objects that might be teleport locations
+            if obj:FindFirstChild("HumanoidRootPart") and not game.Players:GetPlayerFromCharacter(obj) then
+                table.insert(locations, {Name = obj.Name, Type = "NPC"})
+            elseif obj.Name:lower():find("island") or obj.Name:lower():find("place") or obj.Name:lower():find("location") then
+                table.insert(locations, {Name = obj.Name, Type = "Place"})
+            end
+        end
+        
+        return locations
+    end
+    
+    -- Start the module
+    function Teleport:Start()
+        self.Settings.Enabled = true
+    end
+    
+    -- Stop the module
+    function Teleport:Stop()
+        self.Settings.Enabled = false
+    end
+    
+    -- Return the module
+    return Teleport
+end
+
+-- Raid Module Code
+local function CreateRaidModule()
+    local Raid = {}
+    
+    -- Module settings with defaults
+    Raid.Settings = {
+        Enabled = false,
+        AutoRaid = false,
+        AutoBuyChip = false,
+        AutoAwaken = false,
+        SelectedRaid = "Flame",
+        RaidDifficulty = "Normal",
+        RaidTimeout = 300, -- 5 minutes timeout
+        PreferredFruit = "None",
+        KillAura = true,
+        CollectDrops = true
+    }
+    
+    -- References to other modules
+    local TeleportModule = nil
+    
+    -- Variables to track state
+    local RaidActive = false
+    local RaidTimer = 0
+    local RaidConnection = nil
+    local AutoBuyConnection = nil
+    
+    -- Function to set the Teleport module reference
+    function Raid:SetTeleportModule(module)
+        TeleportModule = module
+        print("Raid: Teleport Module Connected")
+    end
+    
+    -- Get available raids based on sea
+    function Raid:GetAvailableRaids()
+        local placeId = game.PlaceId
+        local raids = {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble", "Magma", "Human: Buddha", "Sand", "Bird: Phoenix", "Dough"}
+        
+        if placeId == 4442272183 or placeId == 7449423635 then
+            -- Add Sea 2 & 3 raids
+            table.insert(raids, "Control")
+            table.insert(raids, "Venom")
+            table.insert(raids, "Dragon")
+        end
+        
+        return raids
+    end
+    
+    -- Check if player has enough fragments
+    function Raid:HasEnoughFragments()
+        local player = game.Players.LocalPlayer
+        local fragments = player.Data.Fragments.Value
+        
+        -- Different raids have different costs
+        local costs = {
+            ["Flame"] = 1200,
+            ["Ice"] = 1200,
+            ["Quake"] = 1200,
+            ["Light"] = 1200,
+            ["Dark"] = 1200,
+            ["String"] = 1500,
+            ["Rumble"] = 1500,
+            ["Magma"] = 1500,
+            ["Human: Buddha"] = 1500,
+            ["Sand"] = 1500,
+            ["Bird: Phoenix"] = 1800,
+            ["Dough"] = 2000,
+            ["Control"] = 2000,
+            ["Venom"] = 2500,
+            ["Dragon"] = 2500
+        }
+        
+        local requiredFragments = costs[self.Settings.SelectedRaid] or 1500
+        return fragments >= requiredFragments, requiredFragments, fragments
+    end
+    
+    -- Try to buy a raid chip
+    function Raid:BuyRaidChip()
+        local hasEnough, required, current = self:HasEnoughFragments()
+        
+        if not hasEnough then
+            print("Not enough fragments for " .. self.Settings.SelectedRaid .. " raid. Need " .. required .. ", has " .. current)
+            return false
+        end
+        
+        -- Buy the chip
+        local args = {
+            [1] = "RaidsNpc",
+            [2] = "Select",
+            [3] = self.Settings.SelectedRaid
+        }
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        
+        print("Bought " .. self.Settings.SelectedRaid .. " raid chip")
+        return true
+    end
+    
+    -- Teleport to raid island
+    function Raid:TeleportToRaid()
+        if TeleportModule then
+            -- Different raid locations per sea
+            local raidLocations = {
+                [2753915549] = Vector3.new(-6438.73535, 250.645355, -4501.50684), -- First Sea
+                [4442272183] = Vector3.new(-6438.73535, 250.645355, -4501.50684), -- Second Sea
+                [7449423635] = Vector3.new(-5017.40869, 314.844055, -2823.0127)   -- Third Sea
+            }
+            
+            local location = raidLocations[game.PlaceId] or raidLocations[2753915549]
+            TeleportModule:TeleportTo(location)
+            wait(1)
+            return true
+        else
+            -- Manual teleport if module not available
+            local character = game.Players.LocalPlayer.Character
+            if character and character:FindFirstChild("HumanoidRootPart") then
+                local raidLocations = {
+                    [2753915549] = CFrame.new(-6438.73535, 250.645355, -4501.50684), -- First Sea
+                    [4442272183] = CFrame.new(-6438.73535, 250.645355, -4501.50684), -- Second Sea
+                    [7449423635] = CFrame.new(-5017.40869, 314.844055, -2823.0127)   -- Third Sea
+                }
+                
+                local location = raidLocations[game.PlaceId] or raidLocations[2753915549]
+                character.HumanoidRootPart.CFrame = location
+                wait(1)
+                return true
+            end
+        end
+        
+        print("Failed to teleport to raid island")
+        return false
+    end
+    
+    -- Start the raid
+    function Raid:StartRaid()
+        -- First teleport to raid island
+        if not self:TeleportToRaid() then return false end
+        
+        -- Start the raid
+        local args = {
+            [1] = "Raid",
+            [2] = "Start"
+        }
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        
+        -- Check if raid started
+        wait(3)
+        if game:GetService("Players").LocalPlayer.PlayerGui.Main.Timer.Visible then
+            print("Raid started successfully")
+            RaidActive = true
+            RaidTimer = os.time()
+            return true
+        else
+            print("Failed to start raid")
+            return false
+        end
+    end
+    
+    -- Kill aura for raid
+    function Raid:KillAura()
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        -- Find NPCs within range
+        local nearbyNPCs = {}
+        for _, npc in pairs(workspace.Enemies:GetChildren()) do
+            if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") and npc.Humanoid.Health > 0 then
+                local distance = (character.HumanoidRootPart.Position - npc.HumanoidRootPart.Position).Magnitude
+                if distance < 50 then
+                    table.insert(nearbyNPCs, npc)
+                end
+            end
+        end
+        
+        -- Attack nearest NPC
+        if #nearbyNPCs > 0 then
+            -- Sort by distance
+            table.sort(nearbyNPCs, function(a, b)
+                local distA = (character.HumanoidRootPart.Position - a.HumanoidRootPart.Position).Magnitude
+                local distB = (character.HumanoidRootPart.Position - b.HumanoidRootPart.Position).Magnitude
+                return distA < distB
+            end)
+            
+            local target = nearbyNPCs[1]
+            
+            -- Teleport above the target
+            character.HumanoidRootPart.CFrame = target.HumanoidRootPart.CFrame * CFrame.new(0, 5, 0)
+            
+            -- Try to equip weapon if not already equipped
+            if not character:FindFirstChildOfClass("Tool") then
+                local backpack = player.Backpack
+                if backpack then
+                    local weapon = backpack:FindFirstChildOfClass("Tool")
+                    if weapon then
+                        weapon.Parent = character
+                    end
+                end
+            end
+            
+            -- Attack using multiple methods
+            local tool = character:FindFirstChildOfClass("Tool")
+            if tool then
+                -- Method 1: Activate tool
+                tool:Activate()
+                
+                -- Method 2: Use attack remote
+                if tool:FindFirstChild("Attack") and tool.Attack:IsA("RemoteEvent") then
+                    tool.Attack:FireServer()
+                end
+                
+                -- Method 3: Simulate mouse click
+                if game:GetService("VirtualInputManager") then
+                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                    game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
+                end
+                
+                -- Method 4: Use combat remote directly
+                if game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") then
+                    game:GetService("ReplicatedStorage").CombatRemote:FireServer()
+                end
+            end
+        end
+    end
+    
+    -- Collect drops from the raid
+    function Raid:CollectDrops()
+        local character = game.Players.LocalPlayer.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        -- Look for dropped items
+        for _, drop in pairs(workspace:GetChildren()) do
+            if drop.Name == "DroppedItem" and drop:FindFirstChild("Handle") then
+                character.HumanoidRootPart.CFrame = drop.Handle.CFrame
+                wait(0.5)
+            end
+        end
+    end
+    
+    -- Check if awakening is available
+    function Raid:CheckAwakening()
+        local player = game.Players.LocalPlayer
+        
+        -- Check if currently holding a fruit
+        local fruit = nil
+        if player.Character and player.Character:FindFirstChildOfClass("Tool") and player.Character:FindFirstChildOfClass("Tool"):FindFirstChild("Fruit") then
+            fruit = player.Character:FindFirstChildOfClass("Tool")
+        elseif player.Backpack then
+            for _, item in pairs(player.Backpack:GetChildren()) do
+                if item:FindFirstChild("Fruit") then
+                    fruit = item
+                    break
+                end
+            end
+        end
+        
+        if not fruit then
+            print("No fruit found for awakening")
+            return false
+        end
+        
+        -- Try to awaken
+        local args = {
+            [1] = "Awakener",
+            [2] = "Check",
+            [3] = fruit.Name
+        }
+        local canAwaken = game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        
+        if canAwaken == 1 then
+            print("Awakening available for " .. fruit.Name)
+            return true, fruit.Name
+        else
+            print("Awakening not available for " .. fruit.Name)
+            return false
+        end
+    end
+    
+    -- Awaken a fruit
+    function Raid:AwakenFruit()
+        local canAwaken, fruitName = self:CheckAwakening()
+        if not canAwaken then return false end
+        
+        local args = {
+            [1] = "Awakener",
+            [2] = "Awaken",
+            [3] = fruitName
+        }
+        game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer(unpack(args))
+        
+        print("Attempted to awaken " .. fruitName)
+        return true
+    end
+    
+    -- Main raid loop
+    function Raid:RaidLoop()
+        if RaidConnection then return end
+        
+        RaidConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not self.Settings.Enabled then
+                self:StopRaid()
+                return
+            end
+            
+            -- Check if in raid
+            local inRaid = game:GetService("Players").LocalPlayer.PlayerGui.Main.Timer.Visible
+            
+            if inRaid then
+                RaidActive = true
+                
+                -- Kill aura (attack nearby NPCs)
+                if self.Settings.KillAura then
+                    self:KillAura()
+                end
+                
+                -- Check for raid timeout
+                if os.time() - RaidTimer > self.Settings.RaidTimeout then
+                    print("Raid timeout reached")
+                    self:TeleportToRaid() -- Teleport back to raid island to reset
+                    RaidActive = false
+                end
+            else
+                -- Not in raid
+                if RaidActive then
+                    -- Just finished a raid
+                    print("Raid completed or failed")
+                    RaidActive = false
+                    
+                    -- Collect drops
+                    if self.Settings.CollectDrops then
+                        self:CollectDrops()
+                    end
+                    
+                    -- Try to awaken fruit
+                    if self.Settings.AutoAwaken then
+                        self:AwakenFruit()
+                    end
+                    
+                    wait(5) -- Wait before trying another raid
+                end
+                
+                -- Auto start raids if enabled
+                if self.Settings.AutoRaid and not RaidActive then
+                    -- Buy chip first if needed
+                    if self.Settings.AutoBuyChip then
+                        self:BuyRaidChip()
+                    end
+                    
+                    -- Try to start raid
+                    self:StartRaid()
+                end
+            end
+        end)
+    end
+    
+    -- Stop raid
+    function Raid:StopRaid()
+        if RaidConnection then
+            RaidConnection:Disconnect()
+            RaidConnection = nil
+        end
+        
+        RaidActive = false
+        print("Raid system stopped")
+    end
+    
+    -- Start the module
+    function Raid:Start()
+        self.Settings.Enabled = true
+        self:RaidLoop()
+        print("Raid system started")
+    end
+    
+    -- Stop the module
+    function Raid:Stop()
+        self.Settings.Enabled = false
+        self:StopRaid()
+    end
+    
+    -- Return the module
+    return Raid
+end
+
+-- AntiBan Module Code
+local function CreateAntiBanModule()
+    local AntiBan = {}
+    
+    -- Module settings with defaults
+    AntiBan.Settings = {
+        Enabled = false,
+        HideUsername = true,
+        SpoofStats = true,
+        DisableReporting = true,
+        AntiKick = true,
+        AntiTeleport = true
+    }
+    
+    -- Variables to track state
+    local Protecting = false
+    local ProtectionConnection = nil
+    local OriginalProperties = {}
+    
+    -- Function to hook a function
+    local function hookFunction(target, hook)
+        local original = target
+        target = hook(original)
+        return original
+    end
+    
+    -- Function to start protection
+    function AntiBan:StartProtection()
+        if Protecting then return end
+        Protecting = true
+        
+        local player = game.Players.LocalPlayer
+        
+        -- Hide username if enabled
+        if self.Settings.HideUsername then
+            -- Store original values
+            OriginalProperties.DisplayName = player.DisplayName
+            OriginalProperties.Name = player.Name
+            
+            -- Set spoof values
+            player.DisplayName = "Player_" .. math.random(1000, 9999)
+            
+            -- Try to spoof name using metatable
+            pcall(function()
+                local mt = getmetatable(player)
+                local oldIndex = mt.__index
+                
+                mt.__index = newcclosure(function(t, k)
+                    if k == "Name" then
+                        return "Player_" .. math.random(1000, 9999)
+                    end
+                    return oldIndex(t, k)
+                end)
+            end)
+        end
+        
+        -- Spoof stats if enabled
+        if self.Settings.SpoofStats then
+            -- Look for leaderstats and spoof values
+            if player:FindFirstChild("leaderstats") then
+                for _, stat in pairs(player.leaderstats:GetChildren()) do
+                    -- Store original values
+                    OriginalProperties["leaderstats_" .. stat.Name] = stat.Value
+                    
+                    -- Set random value within reasonable range
+                    pcall(function()
+                        if typeof(stat.Value) == "number" then
+                            stat.Value = math.random(1, 100)
+                        end
+                    end)
+                end
+            end
+        end
+        
+        -- Disable reporting if enabled
+        if self.Settings.DisableReporting then
+            -- Hook reporting functions
+            pcall(function()
+                -- Attempt to hook report player function
+                local oldReport = game.ReportAbuse
+                game.ReportAbuse = function() return end
+            end)
+        end
+        
+        -- Anti-kick protection if enabled
+        if self.Settings.AntiKick then
+            -- Hook kick function
+            pcall(function()
+                local oldKick = player.Kick
+                player.Kick = function() return end
+            end)
+        end
+        
+        -- Anti-teleport protection if enabled
+        if self.Settings.AntiTeleport then
+            -- Hook teleport functions
+            pcall(function()
+                local oldTeleport = game:GetService("TeleportService").Teleport
+                game:GetService("TeleportService").Teleport = function(...) 
+                    local args = {...}
+                    if args[1] ~= game.PlaceId then
+                        return
+                    end
+                    return oldTeleport(...)
+                end
+            end)
+        end
+        
+        -- Set up protection connection for continuous protection
+        ProtectionConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not self.Settings.Enabled then
+                self:StopProtection()
+                return
+            end
+            
+            -- Continuous protection logic here
+            -- Example: Re-apply protection if bypassed
+            
+            -- Re-hide username if needed
+            if self.Settings.HideUsername and player.DisplayName ~= "Player_" .. math.random(1000, 9999) then
+                player.DisplayName = "Player_" .. math.random(1000, 9999)
+            end
+        end)
+    end
+    
+    -- Function to stop protection
+    function AntiBan:StopProtection()
+        if ProtectionConnection then
+            ProtectionConnection:Disconnect()
+            ProtectionConnection = nil
+        end
+        Protecting = false
+        
+        -- Restore original properties
+        local player = game.Players.LocalPlayer
+        
+        -- Restore display name
+        if OriginalProperties.DisplayName then
+            player.DisplayName = OriginalProperties.DisplayName
+        end
+        
+        -- Restore leaderstats
+        if player:FindFirstChild("leaderstats") then
+            for _, stat in pairs(player.leaderstats:GetChildren()) do
+                local originalValue = OriginalProperties["leaderstats_" .. stat.Name]
+                if originalValue then
+                    pcall(function()
+                        stat.Value = originalValue
+                    end)
+                end
+            end
+        end
+        
+        -- Clear stored properties
+        OriginalProperties = {}
+    end
+    
+    -- Start the module
+    function AntiBan:Start()
+        self.Settings.Enabled = true
+        self:StartProtection()
+    end
+    
+    -- Stop the module
+    function AntiBan:Stop()
+        self.Settings.Enabled = false
+        self:StopProtection()
+    end
+    
+    -- Return the module
+    return AntiBan
+end
+
+-- Stats Module Code
+local function CreateStatsModule()
+    local Stats = {}
+    
+    -- Module settings with defaults
+    Stats.Settings = {
+        Enabled = false,
+        AutoUpgradeStats = false,
+        AutoDistributePoints = false,
+        PreferredStat = "None",
+        ShowStatsGUI = true
+    }
+    
+    -- Variables to track state
+    local Tracking = false
+    local TrackingConnection = nil
+    local StatsGUI = nil
+    
+    -- Function to get player stats
+    function Stats:GetPlayerStats()
+        local player = game.Players.LocalPlayer
+        local stats = {}
+        
+        -- Default stats if we can't find the real ones
+        stats = {
+            Level = 1,
+            Beli = 0,
+            Fragments = 0,
+            Health = 100,
+            Energy = 100,
+            Melee = 1,
+            Defense = 1,
+            Sword = 1,
+            Gun = 1,
+            DevilFruit = 1,
+            AvailablePoints = 0
+        }
+        
+        -- Try to get stats from leaderstats
+        if player:FindFirstChild("leaderstats") then
+            for _, stat in pairs(player.leaderstats:GetChildren()) do
+                stats[stat.Name] = stat.Value
+            end
+        end
+        
+        -- Look for other stats folders that might contain relevant stats
+        for _, folder in pairs(player:GetChildren()) do
+            if folder:IsA("Folder") and (folder.Name:find("Stats") or folder.Name:find("Data")) then
+                for _, stat in pairs(folder:GetChildren()) do
+                    stats[stat.Name] = stat.Value
+                end
+            end
+        end
+        
+        -- Check specific values that might be in different locations
+        pcall(function()
+            -- These paths will vary based on the specific game
+            if player:FindFirstChild("Data") and player.Data:FindFirstChild("Level") then
+                stats.Level = player.Data.Level.Value
+            end
+            
+            if player:FindFirstChild("Data") and player.Data:FindFirstChild("Beli") then
+                stats.Beli = player.Data.Beli.Value
+            end
+            
+            if player:FindFirstChild("Points") then
+                stats.AvailablePoints = player.Points.Value
+            end
+        end)
+        
+        return stats
+    end
+    
+    -- Function to upgrade a stat
+    function Stats:UpgradeStat(statName)
+        -- Implementation will depend on the specific game's upgrade system
+        pcall(function()
+            -- Method 1: Use RemoteEvent
+            if game:GetService("ReplicatedStorage"):FindFirstChild("RemoteEvents") and 
+               game:GetService("ReplicatedStorage").RemoteEvents:FindFirstChild("AddPoint") then
+                game:GetService("ReplicatedStorage").RemoteEvents.AddPoint:FireServer(statName)
+            end
+            
+            -- Method 2: Find upgrade button and simulate click
+            local player = game.Players.LocalPlayer
+            local playerGui = player:FindFirstChild("PlayerGui")
+            
+            if playerGui then
+                for _, gui in pairs(playerGui:GetDescendants()) do
+                    if gui:IsA("TextButton") and gui.Name:lower():find(statName:lower()) and gui.Name:lower():find("upgrade") then
+                        firesignal(gui.MouseButton1Click)
+                    end
+                end
+            end
+        end)
+    end
+    
+    -- Function to create or update the stats GUI
+    function Stats:UpdateStatsGUI()
+        local player = game.Players.LocalPlayer
+        
+        -- Get current stats
+        local playerStats = self:GetPlayerStats()
+        
+        -- Create GUI if it doesn't exist
+        if not StatsGUI or not StatsGUI.Parent then
+            -- Create the main frame
+            StatsGUI = Instance.new("ScreenGui")
+            StatsGUI.Name = "SKYX_StatsGUI"
+            StatsGUI.DisplayOrder = 1000
+            StatsGUI.ResetOnSpawn = false
+            
+            -- Handle permissions
+            if syn then
+                syn.protect_gui(StatsGUI)
+                StatsGUI.Parent = game.CoreGui
+            else
+                StatsGUI.Parent = player:FindFirstChild("PlayerGui") or game.CoreGui
+            end
+            
+            -- Create main frame
+            local MainFrame = Instance.new("Frame")
+            MainFrame.Name = "MainFrame"
+            MainFrame.Size = UDim2.new(0, 200, 0, 200)
+            MainFrame.Position = UDim2.new(0, 10, 0.5, -100)
+            MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+            MainFrame.BorderSizePixel = 0
+            MainFrame.Parent = StatsGUI
+            
+            -- Add corner
+            local Corner = Instance.new("UICorner")
+            Corner.CornerRadius = UDim.new(0, 6)
+            Corner.Parent = MainFrame
+            
+            -- Add title
+            local Title = Instance.new("TextLabel")
+            Title.Name = "Title"
+            Title.Size = UDim2.new(1, 0, 0, 30)
+            Title.BackgroundColor3 = Color3.fromRGB(90, 120, 240)
+            Title.BorderSizePixel = 0
+            Title.Text = "Stats Tracker"
+            Title.Font = Enum.Font.GothamBold
+            Title.TextSize = 14
+            Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+            Title.Parent = MainFrame
+            
+            -- Add corner to title
+            local TitleCorner = Instance.new("UICorner")
+            TitleCorner.CornerRadius = UDim.new(0, 6)
+            TitleCorner.Parent = Title
+            
+            -- Add stats container
+            local StatsContainer = Instance.new("Frame")
+            StatsContainer.Name = "StatsContainer"
+            StatsContainer.Size = UDim2.new(1, -20, 1, -40)
+            StatsContainer.Position = UDim2.new(0, 10, 0, 35)
+            StatsContainer.BackgroundTransparency = 1
+            StatsContainer.Parent = MainFrame
+            
+            -- Add layout
+            local StatsLayout = Instance.new("UIListLayout")
+            StatsLayout.Padding = UDim.new(0, 5)
+            StatsLayout.Parent = StatsContainer
+            
+            -- Create stat labels
+            for stat, value in pairs(playerStats) do
+                local StatLabel = Instance.new("TextLabel")
+                StatLabel.Name = stat .. "Label"
+                StatLabel.Size = UDim2.new(1, 0, 0, 20)
+                StatLabel.BackgroundTransparency = 1
+                StatLabel.Font = Enum.Font.Gotham
+                StatLabel.TextSize = 14
+                StatLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                StatLabel.TextXAlignment = Enum.TextXAlignment.Left
+                StatLabel.Text = stat .. ": " .. tostring(value)
+                StatLabel.Parent = StatsContainer
+            end
+            
+            -- Update MainFrame size based on content
+            MainFrame.Size = UDim2.new(0, 200, 0, StatsLayout.AbsoluteContentSize.Y + 45)
+        else
+            -- Update existing labels
+            for stat, value in pairs(playerStats) do
+                local statLabel = StatsGUI.MainFrame.StatsContainer:FindFirstChild(stat .. "Label")
+                
+                if statLabel then
+                    statLabel.Text = stat .. ": " .. tostring(value)
+                else
+                    -- Create new label if it doesn't exist
+                    local StatLabel = Instance.new("TextLabel")
+                    StatLabel.Name = stat .. "Label"
+                    StatLabel.Size = UDim2.new(1, 0, 0, 20)
+                    StatLabel.BackgroundTransparency = 1
+                    StatLabel.Font = Enum.Font.Gotham
+                    StatLabel.TextSize = 14
+                    StatLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    StatLabel.TextXAlignment = Enum.TextXAlignment.Left
+                    StatLabel.Text = stat .. ": " .. tostring(value)
+                    StatLabel.Parent = StatsGUI.MainFrame.StatsContainer
+                end
+            end
+            
+            -- Update MainFrame size
+            local StatsLayout = StatsGUI.MainFrame.StatsContainer:FindFirstChild("UIListLayout")
+            if StatsLayout then
+                StatsGUI.MainFrame.Size = UDim2.new(0, 200, 0, StatsLayout.AbsoluteContentSize.Y + 45)
+            end
+        end
+    end
+    
+    -- Function to start tracking stats
+    function Stats:StartTracking()
+        if Tracking then return end
+        Tracking = true
+        
+        -- Show stats GUI if enabled
+        if self.Settings.ShowStatsGUI then
+            self:UpdateStatsGUI()
+        else
+            -- Destroy GUI if it exists
+            if StatsGUI and StatsGUI.Parent then
+                StatsGUI:Destroy()
+                StatsGUI = nil
+            end
+        end
+        
+        -- Set up tracking connection
+        TrackingConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not self.Settings.Enabled then
+                self:StopTracking()
+                return
+            end
+            
+            -- Update stats GUI if enabled
+            if self.Settings.ShowStatsGUI then
+                self:UpdateStatsGUI()
+            end
+            
+            -- Auto upgrade stats if enabled
+            if self.Settings.AutoUpgradeStats then
+                local playerStats = self:GetPlayerStats()
+                
+                if playerStats.AvailablePoints and playerStats.AvailablePoints > 0 then
+                    -- Upgrade preferred stat if set, otherwise distribute evenly
+                    if self.Settings.PreferredStat ~= "None" then
+                        self:UpgradeStat(self.Settings.PreferredStat)
+                    elseif self.Settings.AutoDistributePoints then
+                        -- Distribute points evenly between stats
+                        local statsToUpgrade = {"Melee", "Defense", "Sword", "Gun", "DevilFruit"}
+                        local statIndex = (os.time() % #statsToUpgrade) + 1
+                        self:UpgradeStat(statsToUpgrade[statIndex])
+                    end
+                end
+            end
+        end)
+    end
+    
+    -- Function to stop tracking stats
+    function Stats:StopTracking()
+        if TrackingConnection then
+            TrackingConnection:Disconnect()
+            TrackingConnection = nil
+        end
+        Tracking = false
+        
+        -- Destroy GUI if it exists
+        if StatsGUI and StatsGUI.Parent then
+            StatsGUI:Destroy()
+            StatsGUI = nil
+        end
+    end
+    
+    -- Start the module
+    function Stats:Start()
+        self.Settings.Enabled = true
+        self:StartTracking()
+    end
+    
+    -- Stop the module
+    function Stats:Stop()
+        self.Settings.Enabled = false
+        self:StopTracking()
+    end
+    
+    -- Get list of upgradable stats
+    function Stats:GetUpgradableStats()
+        return {
+            "None",
+            "Melee",
+            "Defense",
+            "Sword",
+            "Gun",
+            "DevilFruit"
+        }
+    end
+    
+    -- Return the module
+    return Stats
+end
+
+-- Items Module Code
+local function CreateItemsModule()
+    local Items = {}
+    
+    -- Module settings with defaults
+    Items.Settings = {
+        Enabled = false,
+        AutoPickup = true,
+        CollectDistance = 50,
+        CollectChests = true,
+        CollectDrops = true
+    }
+    
+    -- Variables to track state
+    local Collecting = false
+    local CollectConnection = nil
+    
+    -- Function to find items in the world
+    function Items:FindItemsInRange()
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return {} end
+        
+        local hrp = character.HumanoidRootPart
+        local itemsInRange = {}
+        
+        -- Search for items in workspace
+        for _, object in pairs(workspace:GetDescendants()) do
+            -- Skip player character
+            if object:IsA("Model") and object == character then
+                continue
+            end
+            
+            -- Check for items
+            local isItem = false
+            local itemPosition = nil
+            
+            -- Check if it's a tool (item)
+            if object:IsA("Tool") then
+                isItem = true
+                if object:FindFirstChild("Handle") then
+                    itemPosition = object.Handle.Position
+                end
+            -- Check if it's a chest
+            elseif self.Settings.CollectChests and (object.Name:lower():find("chest") or object.Name:lower():find("treasure")) then
+                isItem = true
+                if object:IsA("BasePart") then
+                    itemPosition = object.Position
+                elseif object:IsA("Model") and object:FindFirstChildWhichIsA("BasePart") then
+                    itemPosition = object:FindFirstChildWhichIsA("BasePart").Position
+                end
+            -- Check if it's a collectible drop
+            elseif self.Settings.CollectDrops and (object.Name:lower():find("drop") or object.Name:lower():find("coin") or object.Name:lower():find("gem")) then
+                isItem = true
+                if object:IsA("BasePart") then
+                    itemPosition = object.Position
+                elseif object:IsA("Model") and object:FindFirstChildWhichIsA("BasePart") then
+                    itemPosition = object:FindFirstChildWhichIsA("BasePart").Position
+                end
+            end
+            
+            -- If it's an item and we have a position, check distance
+            if isItem and itemPosition then
+                local distance = (hrp.Position - itemPosition).Magnitude
+                if distance <= self.Settings.CollectDistance then
+                    table.insert(itemsInRange, {
+                        Object = object,
+                        Position = itemPosition,
+                        Distance = distance
+                    })
+                end
+            end
+        end
+        
+        -- Sort by distance
+        table.sort(itemsInRange, function(a, b)
+            return a.Distance < b.Distance
+        end)
+        
+        return itemsInRange
+    end
+    
+    -- Function to collect an item
+    function Items:CollectItem(item)
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+        
+        local hrp = character.HumanoidRootPart
+        
+        -- Teleport to item
+        hrp.CFrame = CFrame.new(item.Position + Vector3.new(0, 3, 0))
+        
+        -- Wait a bit
+        wait(0.1)
+        
+        -- Try different methods to collect
+        pcall(function()
+            -- Method 1: ProximityPrompt
+            if item.Object:FindFirstChild("ProximityPrompt") then
+                fireproximityprompt(item.Object.ProximityPrompt)
+            end
+            
+            -- Method 2: Direct pickup remote
+            if game:GetService("ReplicatedStorage"):FindFirstChild("PickupRemote") then
+                game:GetService("ReplicatedStorage").PickupRemote:FireServer(item.Object)
+            end
+            
+            -- Method 3: Touch interest
+            local part = nil
+            if item.Object:IsA("BasePart") then
+                part = item.Object
+            elseif item.Object:IsA("Tool") and item.Object:FindFirstChild("Handle") then
+                part = item.Object.Handle
+            elseif item.Object:IsA("Model") and item.Object:FindFirstChildWhichIsA("BasePart") then
+                part = item.Object:FindFirstChildWhichIsA("BasePart")
+            end
+            
+            if part then
+                firetouchinterest(hrp, part, 0)
+                wait()
+                firetouchinterest(hrp, part, 1)
+            end
+        end)
+    end
+    
+    -- Function to start collecting items
+    function Items:StartCollecting()
+        if Collecting then return end
+        Collecting = true
+        
+        CollectConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not self.Settings.Enabled or not self.Settings.AutoPickup then
+                self:StopCollecting()
+                return
+            end
+            
+            -- Find items in range
+            local itemsInRange = self:FindItemsInRange()
+            
+            -- Collect nearest item if any
+            if #itemsInRange > 0 then
+                self:CollectItem(itemsInRange[1])
+            end
+        end)
+    end
+    
+    -- Function to stop collecting items
+    function Items:StopCollecting()
+        if CollectConnection then
+            CollectConnection:Disconnect()
+            CollectConnection = nil
+        end
+        Collecting = false
+    end
+    
+    -- Start the module
+    function Items:Start()
+        self.Settings.Enabled = true
+        if self.Settings.AutoPickup then
+            self:StartCollecting()
+        end
+    end
+    
+    -- Stop the module
+    function Items:Stop()
+        self.Settings.Enabled = false
+        self:StopCollecting()
+    end
+    
+    -- Return the module
+    return Items
+end
+
+-- Combat Module Code
+local function CreateCombatModule()
+    local Combat = {}
+    
+    -- Module settings with defaults
+    Combat.Settings = {
+        Enabled = false,
+        FastAttack = true,
+        AutoClick = false,
+        AttackSpeed = 5,
+        AttackMethod = "Default"
+    }
+    
+    -- Variables to track state
+    local Attacking = false
+    local ClickConnection = nil
+    
+    -- Function to perform attack
+    function Combat:PerformAttack()
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character then return end
+        
+        -- Get tool
+        local tool = character:FindFirstChildOfClass("Tool")
+        
+        -- Try different attack methods based on settings
+        if tool then
+            -- Method 1: Simple activate
+            pcall(function()
+                tool:Activate()
+            end)
+            
+            -- Method 2: Use attack remote
+            pcall(function()
+                if tool:FindFirstChild("Attack") and tool.Attack:IsA("RemoteEvent") then
+                    tool.Attack:FireServer()
+                end
+            end)
+        end
+        
+        -- Method 3: Simulate mouse click
+        pcall(function()
+            if game:GetService("VirtualInputManager") then
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, true, game, 1)
+                game:GetService("VirtualInputManager"):SendMouseButtonEvent(0, 0, 0, false, game, 1)
+            end
+        end)
+        
+        -- Method 4: Use combat remote directly
+        pcall(function()
+            if game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") then
+                game:GetService("ReplicatedStorage").CombatRemote:FireServer()
+            end
+        end)
+    end
+    
+    -- Function to apply fast attack
+    function Combat:ApplyFastAttack()
+        -- Method 1: Speed up animations
+        pcall(function()
+            for _, anim in pairs(game:GetService("Players").LocalPlayer.Character.Humanoid:GetPlayingAnimationTracks()) do
+                if anim.Name:lower():find("attack") or anim.Name:lower():find("combat") then
+                    anim:AdjustSpeed(2)
+                end
+            end
+        end)
+        
+        -- Method 2: Modify tool properties
+        pcall(function()
+            local tool = game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Tool")
+            if tool and tool:FindFirstChild("AttackCooldown") then
+                tool.AttackCooldown.Value = 0
+            end
+        end)
+    end
+    
+    -- Function to start auto clicking
+    function Combat:StartAutoClick()
+        if ClickConnection then return end
+        
+        local clickDelay = 1 / self.Settings.AttackSpeed
+        
+        ClickConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            if not self.Settings.Enabled or not self.Settings.AutoClick then
+                self:StopAutoClick()
+                return
+            end
+            
+            -- Apply fast attack if enabled
+            if self.Settings.FastAttack then
+                self:ApplyFastAttack()
+            end
+            
+            -- Perform attack
+            self:PerformAttack()
+            
+            -- Wait based on attack speed
+            wait(clickDelay)
+        end)
+    end
+    
+    -- Function to stop auto clicking
+    function Combat:StopAutoClick()
+        if ClickConnection then
+            ClickConnection:Disconnect()
+            ClickConnection = nil
+        end
+    end
+    
+    -- Start the module
+    function Combat:Start()
+        self.Settings.Enabled = true
+        if self.Settings.AutoClick then
+            self:StartAutoClick()
+        end
+    end
+    
+    -- Stop the module
+    function Combat:Stop()
+        self.Settings.Enabled = false
+        self:StopAutoClick()
+    end
+    
+    -- Return the module
+    return Combat
+end
+
+-- Function to create all modules
+local function LoadAllModules()
+    Modules.AutoFarm = CreateAutoFarmModule()
+    Modules.ESP = CreateESPModule()
+    Modules.DevilFruit = CreateDevilFruitModule()
+    Modules.Teleport = CreateTeleportModule()
+    Modules.Raid = CreateRaidModule()
+    Modules.AntiBan = CreateAntiBanModule()
+    Modules.Stats = CreateStatsModule()
+    Modules.Items = CreateItemsModule()
+    Modules.Combat = CreateCombatModule()
+    
+    -- Connect modules that need references to each other
+    Modules.AutoFarm:SetESPModule(Modules.ESP)
+    Modules.AutoFarm:SetTeleportModule(Modules.Teleport)
+    
+    return Modules
 end
 
 -- Create connections table for cleanup
@@ -228,11 +3058,16 @@ AddConnection(UserInputService.InputChanged, function(input)
 end)
 
 -- Create tab container
-local TabContainer = Instance.new("Frame")
+local TabContainer = Instance.new("ScrollingFrame")
 TabContainer.Name = "TabContainer"
 TabContainer.Size = UDim2.new(1, 0, 0, 35)
 TabContainer.Position = UDim2.new(0, 0, 0, 40)
 TabContainer.BackgroundTransparency = 1
+TabContainer.BorderSizePixel = 0
+TabContainer.ScrollBarThickness = 2 -- Thin scrollbar
+TabContainer.ScrollingDirection = Enum.ScrollingDirection.X
+TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0) -- Will auto-adjust
+TabContainer.ScrollBarImageColor3 = Colors.Button
 TabContainer.Parent = MainWindow
 
 -- Create tab button layout
@@ -247,6 +3082,11 @@ local TabPadding = Instance.new("UIPadding")
 TabPadding.PaddingLeft = UDim.new(0, 10)
 TabPadding.PaddingRight = UDim.new(0, 10)
 TabPadding.Parent = TabContainer
+
+-- Auto-adjust canvas size for tab container
+AddConnection(TabLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
+    TabContainer.CanvasSize = UDim2.new(0, TabLayout.AbsoluteContentSize.X + 20, 0, 0)
+end)
 
 -- Create content container
 local ContentContainer = Instance.new("Frame")
@@ -558,6 +3398,7 @@ local function CreateSection(tab, name)
         local Label = Instance.new("TextLabel")
         Label.Name = "Label"
         Label.Size = UDim2.new(1, -50, 0, 20)
+        Label.Position = UDim2.new(0, 0, 0, 0)
         Label.BackgroundTransparency = 1
         Label.Font = Enum.Font.Gotham
         Label.TextSize = 14
@@ -566,65 +3407,83 @@ local function CreateSection(tab, name)
         Label.Text = text
         Label.Parent = SliderContainer
         
-        -- Create value label
+        -- Create value display
         local ValueLabel = Instance.new("TextLabel")
-        ValueLabel.Name = "Value"
-        ValueLabel.Size = UDim2.new(0, 40, 0, 20)
-        ValueLabel.Position = UDim2.new(1, -40, 0, 0)
+        ValueLabel.Name = "ValueLabel"
+        ValueLabel.Size = UDim2.new(0, 50, 0, 20)
+        ValueLabel.Position = UDim2.new(1, -50, 0, 0)
         ValueLabel.BackgroundTransparency = 1
-        ValueLabel.Font = Enum.Font.GothamBold
+        ValueLabel.Font = Enum.Font.Gotham
         ValueLabel.TextSize = 14
         ValueLabel.TextColor3 = Colors.Text
+        ValueLabel.TextXAlignment = Enum.TextXAlignment.Right
         ValueLabel.Text = tostring(default)
         ValueLabel.Parent = SliderContainer
         
-        -- Create slider background
-        local SliderBackground = Instance.new("Frame")
-        SliderBackground.Name = "Background"
-        SliderBackground.Size = UDim2.new(1, 0, 0, 10)
-        SliderBackground.Position = UDim2.new(0, 0, 0, 30)
-        SliderBackground.BackgroundColor3 = Colors.Container
-        SliderBackground.BorderSizePixel = 0
-        SliderBackground.Parent = SliderContainer
+        -- Create slider track
+        local SliderTrack = Instance.new("Frame")
+        SliderTrack.Name = "SliderTrack"
+        SliderTrack.Size = UDim2.new(1, 0, 0, 6)
+        SliderTrack.Position = UDim2.new(0, 0, 0, 30)
+        SliderTrack.BackgroundColor3 = Colors.TabInactive
+        SliderTrack.BorderSizePixel = 0
+        SliderTrack.Parent = SliderContainer
         
-        -- Add corner
-        local BackgroundCorner = Instance.new("UICorner")
-        BackgroundCorner.CornerRadius = UDim.new(0, 5)
-        BackgroundCorner.Parent = SliderBackground
+        -- Add corner to track
+        local TrackCorner = Instance.new("UICorner")
+        TrackCorner.CornerRadius = UDim.new(0, 3)
+        TrackCorner.Parent = SliderTrack
         
         -- Create slider fill
         local SliderFill = Instance.new("Frame")
-        SliderFill.Name = "Fill"
+        SliderFill.Name = "SliderFill"
         SliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
         SliderFill.BackgroundColor3 = Colors.Button
         SliderFill.BorderSizePixel = 0
-        SliderFill.Parent = SliderBackground
+        SliderFill.Parent = SliderTrack
         
         -- Add corner to fill
         local FillCorner = Instance.new("UICorner")
-        FillCorner.CornerRadius = UDim.new(0, 5)
+        FillCorner.CornerRadius = UDim.new(0, 3)
         FillCorner.Parent = SliderFill
         
-        -- Create slider button for better interaction
+        -- Create slider knob
+        local SliderKnob = Instance.new("Frame")
+        SliderKnob.Name = "SliderKnob"
+        SliderKnob.Size = UDim2.new(0, 14, 0, 14)
+        SliderKnob.Position = UDim2.new((default - min) / (max - min), -7, 0.5, -7)
+        SliderKnob.BackgroundColor3 = Colors.Text
+        SliderKnob.BorderSizePixel = 0
+        SliderKnob.ZIndex = 2
+        SliderKnob.Parent = SliderTrack
+        
+        -- Add corner to knob
+        local KnobCorner = Instance.new("UICorner")
+        KnobCorner.CornerRadius = UDim.new(0, 7)
+        KnobCorner.Parent = SliderKnob
+        
+        -- Create the clickable button that covers the track
         local SliderButton = Instance.new("TextButton")
         SliderButton.Name = "SliderButton"
         SliderButton.Size = UDim2.new(1, 0, 1, 0)
         SliderButton.BackgroundTransparency = 1
         SliderButton.Text = ""
-        SliderButton.Parent = SliderBackground
+        SliderButton.Parent = SliderTrack
         
         -- Track value
-        local value = default or min
+        local value = default
         
-        -- Function to update slider
-        local function updateSlider(newValue)
-            -- Clamp value
+        -- Function to update slider visuals
+        local function UpdateSlider(newValue)
+            -- Clamp value to min and max
             newValue = math.clamp(newValue, min, max)
             value = newValue
             
             -- Update visuals
-            SliderFill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
-            ValueLabel.Text = tostring(math.floor(value * 10) / 10) -- Round to 1 decimal
+            local percent = (value - min) / (max - min)
+            SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+            SliderKnob.Position = UDim2.new(percent, -7, 0.5, -7)
+            ValueLabel.Text = tostring(math.floor(value))
             
             -- Callback
             if callback then
@@ -632,49 +3491,48 @@ local function CreateSection(tab, name)
             end
         end
         
-        -- Add drag functionality
-        local isDragging = false
+        -- Handle slider interaction
+        local dragging = false
         
         AddConnection(SliderButton.MouseButton1Down, function()
-            isDragging = true
+            dragging = true
         end)
         
         AddConnection(UserInputService.InputEnded, function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                isDragging = false
+                dragging = false
             end
         end)
         
         AddConnection(UserInputService.InputChanged, function(input)
-            if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                -- Calculate the position
-                local absPos = SliderBackground.AbsolutePosition
-                local absSize = SliderBackground.AbsoluteSize
-                local relativePos = input.Position.X - absPos.X
+            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                -- Calculate new value based on mouse position
+                local mousePos = UserInputService:GetMouseLocation()
+                local trackPos = SliderTrack.AbsolutePosition
+                local trackSize = SliderTrack.AbsoluteSize
                 
-                -- Calculate value
-                local percent = math.clamp(relativePos / absSize.X, 0, 1)
+                local relX = mousePos.X - trackPos.X
+                local percent = math.clamp(relX / trackSize.X, 0, 1)
                 local newValue = min + (max - min) * percent
                 
-                -- Update slider
-                updateSlider(newValue)
+                UpdateSlider(newValue)
             end
         end)
         
         -- Create slider object
         local SliderObj = {
             Container = SliderContainer,
-            Background = SliderBackground,
+            Track = SliderTrack,
             Fill = SliderFill,
-            Button = SliderButton,
+            Knob = SliderKnob,
             Value = value,
             
-            -- Set value
+            -- Set the slider value
             SetValue = function(_, newValue)
-                updateSlider(newValue)
+                UpdateSlider(newValue)
             end,
             
-            -- Get value
+            -- Get the current value
             GetValue = function()
                 return value
             end
@@ -682,6 +3540,209 @@ local function CreateSection(tab, name)
         
         table.insert(self.Elements, SliderObj)
         return SliderObj
+    end
+    
+    -- Method to add a dropdown
+    function SectionObj:AddDropdown(text, options, default, callback)
+        -- Create dropdown container
+        local DropdownContainer = Instance.new("Frame")
+        DropdownContainer.Name = text .. "DropdownContainer"
+        DropdownContainer.Size = UDim2.new(1, 0, 0, 55) -- Initial size, will expand when open
+        DropdownContainer.BackgroundTransparency = 1
+        DropdownContainer.LayoutOrder = #self.Elements
+        DropdownContainer.Parent = self.Container
+        
+        -- Create label
+        local Label = Instance.new("TextLabel")
+        Label.Name = "Label"
+        Label.Size = UDim2.new(1, 0, 0, 20)
+        Label.BackgroundTransparency = 1
+        Label.Font = Enum.Font.Gotham
+        Label.TextSize = 14
+        Label.TextColor3 = Colors.Text
+        Label.TextXAlignment = Enum.TextXAlignment.Left
+        Label.Text = text
+        Label.Parent = DropdownContainer
+        
+        -- Create dropdown button
+        local DropdownButton = Instance.new("TextButton")
+        DropdownButton.Name = "DropdownButton"
+        DropdownButton.Size = UDim2.new(1, 0, 0, 30)
+        DropdownButton.Position = UDim2.new(0, 0, 0, 25)
+        DropdownButton.BackgroundColor3 = Colors.TabInactive
+        DropdownButton.BorderSizePixel = 0
+        DropdownButton.Font = Enum.Font.Gotham
+        DropdownButton.TextSize = 14
+        DropdownButton.TextColor3 = Colors.Text
+        DropdownButton.Text = default or (options and options[1]) or "Select..."
+        DropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+        DropdownButton.TextTruncate = Enum.TextTruncate.AtEnd
+        DropdownButton.Parent = DropdownContainer
+        
+        -- Add padding to text
+        local TextPadding = Instance.new("UIPadding")
+        TextPadding.PaddingLeft = UDim.new(0, 10)
+        TextPadding.Parent = DropdownButton
+        
+        -- Add corner to button
+        local ButtonCorner = Instance.new("UICorner")
+        ButtonCorner.CornerRadius = UDim.new(0, 5)
+        ButtonCorner.Parent = DropdownButton
+        
+        -- Create dropdown arrow
+        local DropdownArrow = Instance.new("ImageLabel")
+        DropdownArrow.Name = "DropdownArrow"
+        DropdownArrow.Size = UDim2.new(0, 20, 0, 20)
+        DropdownArrow.Position = UDim2.new(1, -25, 0.5, -10)
+        DropdownArrow.BackgroundTransparency = 1
+        DropdownArrow.Image = "rbxassetid://7072706796" -- Down arrow
+        DropdownArrow.ImageColor3 = Colors.Text
+        DropdownArrow.Parent = DropdownButton
+        
+        -- Create dropdown list frame
+        local DropdownList = Instance.new("Frame")
+        DropdownList.Name = "DropdownList"
+        DropdownList.Size = UDim2.new(1, 0, 0, 0) -- Will be sized based on options
+        DropdownList.Position = UDim2.new(0, 0, 1, 5)
+        DropdownList.BackgroundColor3 = Colors.TabInactive
+        DropdownList.BorderSizePixel = 0
+        DropdownList.Visible = false
+        DropdownList.Parent = DropdownButton
+        
+        -- Add corner to list
+        local ListCorner = Instance.new("UICorner")
+        ListCorner.CornerRadius = UDim.new(0, 5)
+        ListCorner.Parent = DropdownList
+        
+        -- Create list layout
+        local ListLayout = Instance.new("UIListLayout")
+        ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        ListLayout.Padding = UDim.new(0, 1)
+        ListLayout.Parent = DropdownList
+        
+        -- Track state
+        local isOpen = false
+        local selectedOption = default or (options and options[1]) or "Select..."
+        
+        -- Function to update the dropdown list
+        local function UpdateDropdown(newOptions)
+            -- Clear existing items
+            for _, child in pairs(DropdownList:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child:Destroy()
+                end
+            end
+            
+            -- Add new items
+            for i, option in ipairs(newOptions) do
+                local OptionButton = Instance.new("TextButton")
+                OptionButton.Name = "Option_" .. option
+                OptionButton.Size = UDim2.new(1, 0, 0, 25)
+                OptionButton.BackgroundColor3 = Colors.TabInactive
+                OptionButton.BorderSizePixel = 0
+                OptionButton.Font = Enum.Font.Gotham
+                OptionButton.TextSize = 14
+                OptionButton.TextColor3 = Colors.Text
+                OptionButton.Text = option
+                OptionButton.TextXAlignment = Enum.TextXAlignment.Left
+                OptionButton.LayoutOrder = i
+                OptionButton.Parent = DropdownList
+                
+                -- Add padding to text
+                local OptionPadding = Instance.new("UIPadding")
+                OptionPadding.PaddingLeft = UDim.new(0, 10)
+                OptionPadding.Parent = OptionButton
+                
+                -- Add hover effect
+                AddConnection(OptionButton.MouseEnter, function()
+                    OptionButton.BackgroundColor3 = Colors.TabActive
+                end)
+                
+                AddConnection(OptionButton.MouseLeave, function()
+                    OptionButton.BackgroundColor3 = Colors.TabInactive
+                end)
+                
+                -- Add click functionality
+                AddConnection(OptionButton.MouseButton1Click, function()
+                    selectedOption = option
+                    DropdownButton.Text = option
+                    
+                    -- Close dropdown
+                    isOpen = false
+                    DropdownList.Visible = false
+                    
+                    -- Callback
+                    if callback then
+                        callback(option)
+                    end
+                end)
+            end
+            
+            -- Update list size
+            DropdownList.Size = UDim2.new(1, 0, 0, ListLayout.AbsoluteContentSize.Y)
+        end
+        
+        -- Toggle dropdown on button click
+        AddConnection(DropdownButton.MouseButton1Click, function()
+            isOpen = not isOpen
+            
+            -- Toggle visibility
+            DropdownList.Visible = isOpen
+            
+            -- Rotate arrow
+            local rotation = isOpen and 180 or 0
+            TweenService:Create(DropdownArrow, TweenInfo.new(0.2), {Rotation = rotation}):Play()
+        end)
+        
+        -- Initialize dropdown with options
+        if options and #options > 0 then
+            UpdateDropdown(options)
+        end
+        
+        -- Create dropdown object
+        local DropdownObj = {
+            Container = DropdownContainer,
+            Button = DropdownButton,
+            List = DropdownList,
+            
+            -- Set the selected option
+            SetValue = function(_, option)
+                if table.find(options, option) then
+                    selectedOption = option
+                    DropdownButton.Text = option
+                    
+                    -- Callback
+                    if callback then
+                        callback(option)
+                    end
+                end
+            end,
+            
+            -- Get the current option
+            GetValue = function()
+                return selectedOption
+            end,
+            
+            -- Update the options list
+            SetOptions = function(_, newOptions)
+                options = newOptions
+                UpdateDropdown(newOptions)
+                
+                -- Reset selection if current selection is not in new options
+                if not table.find(newOptions, selectedOption) then
+                    selectedOption = newOptions[1]
+                    DropdownButton.Text = selectedOption
+                    
+                    -- Callback
+                    if callback then
+                        callback(selectedOption)
+                    end
+                end
+            end
+        }
+        
+        table.insert(self.Elements, DropdownObj)
+        return DropdownObj
     end
     
     -- Method to add a label
@@ -701,8 +3762,6 @@ local function CreateSection(tab, name)
         -- Create label object
         local LabelObj = {
             Label = Label,
-            
-            -- Set text
             SetText = function(_, newText)
                 Label.Text = newText
             end
@@ -712,184 +3771,71 @@ local function CreateSection(tab, name)
         return LabelObj
     end
     
-    -- Add to tab's sections
+    -- Add to tab's sections table
     table.insert(tab.Sections, SectionObj)
     
     return SectionObj
 end
 
--- Load all modules function (Like MM2)
-local function LoadAllModules()
-    -- Create modules table like MM2
-    Modules = {
-        AutoFarm = nil,
-        ESP = nil,
-        DevilFruit = nil,
-        Teleport = nil,
-        AntiBan = nil,
-        Stats = nil,
-        Items = nil,
-        Combat = nil
-    }
-    
-    print("Loading modules in MM2 style...")
-    
-    -- First load anti-ban
-    Modules.AntiBan = LoadModule("AntiBan")
-    if Modules.AntiBan then
-        print("Starting AntiBan module...")
-        pcall(function()
-            Modules.AntiBan.Start()
-        end)
-    end
-
-    -- Load core modules one by one - if any fail, UI will still work
-    -- Load AutoFarm and ensure it has Settings
-    Modules.AutoFarm = LoadModule("AutoFarm")
-    if Modules.AutoFarm then
-        -- Make sure the module has Settings initialized
-        if not Modules.AutoFarm.Settings then
-            Modules.AutoFarm.Settings = {
-                Enabled = false,
-                FarmDistance = 50,
-                FastAttack = true,
-                AutoCollect = true,
-                SelectedMob = "Bandit"
-            }
-        end
-    end
-    wait(0.1) -- Small delay between module loads
-    
-    Modules.ESP = LoadModule("ESP")
-    wait(0.1)
-    
-    Modules.DevilFruit = LoadModule("DevilFruit")
-    wait(0.1)
-    
-    Modules.Teleport = LoadModule("Teleport")
-    wait(0.1)
-    
-    Modules.Combat = LoadModule("Combat")
-    wait(0.1)
-    
-    Modules.Stats = LoadModule("Stats")
-    wait(0.1)
-    
-    -- Load Items and ensure it has Settings
-    Modules.Items = LoadModule("Items")
-    if Modules.Items then
-        -- Make sure the module has Settings initialized
-        if not Modules.Items.Settings then
-            Modules.Items.Settings = {
-                AutoPickup = false,
-                CollectDistance = 15
-            }
-        end
-        
-        -- Make sure it has Start and Stop methods
-        if not Modules.Items.Start then
-            Modules.Items.Start = function() 
-                print("Items Start called") 
-                Modules.Items.Settings.AutoPickup = true
-            end
-        end
-        
-        if not Modules.Items.Stop then
-            Modules.Items.Stop = function() 
-                print("Items Stop called") 
-                Modules.Items.Settings.AutoPickup = false
-            end
-        end
-    end
-    wait(0.1)
-
-    -- Set up module connections (for modules that need to interact)
-    if Modules.AutoFarm and Modules.ESP then
-        pcall(function()
-            Modules.AutoFarm.SetESPModule(Modules.ESP)
-        end)
-    end
-
-    if Modules.AutoFarm and Modules.Teleport then
-        pcall(function()
-            Modules.AutoFarm.SetTeleportModule(Modules.Teleport)
-        end)
-    end
-
-    -- Start other modules - wrapped in pcall to prevent errors
-    if Modules.ESP then pcall(function() Modules.ESP.Start() end) end
-    if Modules.DevilFruit then pcall(function() Modules.DevilFruit.Start() end) end
-    if Modules.Teleport then pcall(function() Modules.Teleport.Start() end) end
-    if Modules.Combat then pcall(function() Modules.Combat.Start() end) end
-    if Modules.Stats then pcall(function() Modules.Stats.Start() end) end
-    if Modules.Items then pcall(function() Modules.Items.Start() end) end
-    
-    return true
-end
-
 -- Create tabs
 local MainTab = CreateTab("Main")
-local FarmTab = CreateTab("Farm")
-local TPTab = CreateTab("Teleport")
-local FruitTab = CreateTab("Devil Fruit")
-local CombatTab = CreateTab("Combat")
+local AutoFarmTab = CreateTab("Auto Farm")
 local ESPTab = CreateTab("ESP")
-local ItemsTab = CreateTab("Items")
+local TeleportTab = CreateTab("Teleport")
+local DevilFruitTab = CreateTab("Devil Fruit")
+local RaidTab = CreateTab("Raid")
+local CombatTab = CreateTab("Combat")
 local StatsTab = CreateTab("Stats")
+local ItemsTab = CreateTab("Items")
+local MiscTab = CreateTab("Misc")
 local SettingsTab = CreateTab("Settings")
 
--- Create main sections
-local StatusSection = CreateSection(MainTab, "Script Status")
-local PlayerSection = CreateSection(MainTab, "Player Info")
+-- Load all modules
+LoadAllModules()
 
--- Create status elements
-local StatusLabel = StatusSection:AddLabel("Loading modules...")
-local DiscordButton = StatusSection:AddButton("Join Discord Server", function()
-    setclipboard("https://discord.gg/skyx")
-    print("Discord link copied to clipboard!")
-end)
+-- Main Tab
+local MainSection = CreateSection(MainTab, "SkyX Hub Controls")
 
--- Player info
-local PlayerName = PlayerSection:AddLabel("Username: " .. LocalPlayer.Name)
-local PlayerLevel = PlayerSection:AddLabel("Level: Loading...")
+-- Add information labels
+MainSection:AddLabel("Version: v1.0.0 - All-In-One")
+MainSection:AddLabel("Device: " .. DeviceText)
 
--- Update player info periodically
-spawn(function()
-    while wait(5) do
-        local level = "Unknown"
-        local beli = "Unknown"
-        local fragments = "Unknown"
-        
-        pcall(function()
-            if LocalPlayer:FindFirstChild("Data") then
-                if LocalPlayer.Data:FindFirstChild("Level") then
-                    level = LocalPlayer.Data.Level.Value
-                end
-                
-                if LocalPlayer.Data:FindFirstChild("Beli") then
-                    beli = LocalPlayer.Data.Beli.Value
-                end
-                
-                if LocalPlayer.Data:FindFirstChild("Fragments") then
-                    fragments = LocalPlayer.Data.Fragments.Value
-                end
-            end
-        end)
-        
-        PlayerLevel:SetText("Level: " .. tostring(level))
-        PlayerSection:AddLabel("Beli: " .. tostring(beli))
-        PlayerSection:AddLabel("Fragments: " .. tostring(fragments))
+-- Add quick access buttons
+local ToggleAutoFarmButton = MainSection:AddButton("Toggle Auto Farm", function()
+    if Modules.AutoFarm then
+        if Modules.AutoFarm.Settings.Enabled then
+            Modules.AutoFarm:Stop()
+        else
+            Modules.AutoFarm:Start()
+        end
     end
 end)
 
--- Farm tab setup
-local FarmSection = CreateSection(FarmTab, "Auto Farm")
+local ToggleESPButton = MainSection:AddButton("Toggle ESP", function()
+    if Modules.ESP then
+        if Modules.ESP.Settings.Enabled then
+            Modules.ESP:Stop()
+        else
+            Modules.ESP:Start()
+        end
+    end
+end)
 
--- Always create the UI elements regardless of module loading status
+local ClearAllButton = MainSection:AddButton("Stop All Features", function()
+    for name, module in pairs(Modules) do
+        if module.Stop then
+            module:Stop()
+        end
+    end
+end)
+
+-- Auto Farm Tab
+local FarmSection = CreateSection(AutoFarmTab, "Auto Farm Settings")
+
+-- Always create UI controls regardless of module status
 local EnableFarmToggle = FarmSection:AddToggle("Enable Auto Farm", false, function(Value)
     if Modules.AutoFarm then
         pcall(function()
-            Modules.AutoFarm.Settings.Enabled = Value
             if Value then
                 Modules.AutoFarm:Start()
             else
@@ -915,7 +3861,7 @@ local FastAttackToggle = FarmSection:AddToggle("Fast Attack", true, function(Val
     end
 end)
 
-local AutoQuestToggle = FarmSection:AddToggle("Auto Quest", true, function(Value)
+local AutoQuestToggle = FarmSection:AddToggle("Auto Quest", false, function(Value)
     if Modules.AutoFarm then
         pcall(function()
             Modules.AutoFarm.Settings.AutoQuest = Value
@@ -923,172 +3869,119 @@ local AutoQuestToggle = FarmSection:AddToggle("Auto Quest", true, function(Value
     end
 end)
 
--- The status label will be added after modules are loaded
+-- Add fallback label if module failed to load
+if not Modules.AutoFarm then
+    FarmSection:AddLabel("⚠️ Auto Farm module initialization")
+end
 
--- ESP tab setup
+-- ESP Tab
 local ESPSection = CreateSection(ESPTab, "ESP Settings")
 
+-- Add ESP controls
 local EnableESPToggle = ESPSection:AddToggle("Enable ESP", false, function(Value)
     if Modules.ESP then
-        Modules.ESP.Settings.Enabled = Value
-        if Value then
-            Modules.ESP:Start()
-        else
-            Modules.ESP:Stop()
-        end
+        pcall(function()
+            if Value then
+                Modules.ESP:Start()
+            else
+                Modules.ESP:Stop()
+            end
+        end)
     end
 end)
 
 local ShowPlayersToggle = ESPSection:AddToggle("Show Players", true, function(Value)
     if Modules.ESP then
-        Modules.ESP.Settings.ShowPlayers = Value
+        pcall(function()
+            Modules.ESP.Settings.ShowPlayers = Value
+            if Modules.ESP.Settings.Enabled then
+                Modules.ESP:RefreshESP()
+            end
+        end)
     end
 end)
 
 local ShowNPCsToggle = ESPSection:AddToggle("Show NPCs", true, function(Value)
     if Modules.ESP then
-        Modules.ESP.Settings.ShowNPCs = Value
+        pcall(function()
+            Modules.ESP.Settings.ShowNPCs = Value
+            if Modules.ESP.Settings.Enabled then
+                Modules.ESP:RefreshESP()
+            end
+        end)
     end
 end)
 
 local ShowChestsToggle = ESPSection:AddToggle("Show Chests", true, function(Value)
     if Modules.ESP then
-        Modules.ESP.Settings.ShowChests = Value
+        pcall(function()
+            Modules.ESP.Settings.ShowChests = Value
+            if Modules.ESP.Settings.Enabled then
+                Modules.ESP:RefreshESP()
+            end
+        end)
     end
 end)
 
--- The status label will be added after modules are loaded
-
--- Devil Fruit tab setup
-local FruitSection = CreateSection(FruitTab, "Devil Fruit Settings")
-
-local AutoBuyFruitToggle = FruitSection:AddToggle("Auto Buy Fruits", false, function(Value)
-    if Modules.DevilFruit then
-        Modules.DevilFruit.Settings.AutoBuy = Value
+local ShowFruitsToggle = ESPSection:AddToggle("Show Fruits", true, function(Value)
+    if Modules.ESP then
+        pcall(function()
+            Modules.ESP.Settings.ShowFruits = Value
+            if Modules.ESP.Settings.Enabled then
+                Modules.ESP:RefreshESP()
+            end
+        end)
     end
 end)
 
-local NotifyFruitToggle = FruitSection:AddToggle("Notify On Fruit Spawn", true, function(Value)
-    if Modules.DevilFruit then
-        Modules.DevilFruit.Settings.NotifyOnSpawn = Value
+local ShowDistanceToggle = ESPSection:AddToggle("Show Distance", true, function(Value)
+    if Modules.ESP then
+        pcall(function()
+            Modules.ESP.Settings.ShowDistance = Value
+        end)
     end
 end)
 
-local AutoPickupFruitToggle = FruitSection:AddToggle("Auto Pickup Fruits", true, function(Value)
-    if Modules.DevilFruit then
-        Modules.DevilFruit.Settings.AutoPickup = Value
-        if Value then
-            Modules.DevilFruit:Start()
-        else
-            Modules.DevilFruit:Stop()
-        end
+-- Add refresh button
+local RefreshESPButton = ESPSection:AddButton("Refresh ESP", function()
+    if Modules.ESP then
+        pcall(function()
+            Modules.ESP:RefreshESP()
+        end)
     end
 end)
 
--- The status label will be added after modules are loaded
+-- Add fallback label if module failed to load
+if not Modules.ESP then
+    ESPSection:AddLabel("⚠️ ESP module initialization")
+end
 
--- Teleport tab setup
-local TPSection = CreateSection(TPTab, "Teleport Locations")
+-- Teleport Tab
+local TPSection = CreateSection(TeleportTab, "Teleport Locations")
 
--- Common teleport locations even if module fails to load
+-- Add common locations
 local CommonLocations = {
-    "First Island", 
-    "Middle Island", 
-    "Pirate Village", 
-    "Jungle",
-    "Prison",
-    "Magma Town",
-    "Colosseum"
+    "First Island",
+    "Middle Island",
+    "Third Island",
+    "Pirate Island",
+    "Marine Island",
+    "Starter Island",
+    "Jungle Island",
+    "Desert Island",
+    "Frozen Island",
+    "Prison Island"
 }
 
--- Add common locations first (they'll always be shown)
-for _, locationName in ipairs(CommonLocations) do
-    TPSection:AddButton(locationName, function()
-        -- When user clicks, try to use teleport module if it's loaded
+-- Add teleport buttons for common locations
+for _, location in ipairs(CommonLocations) do
+    TPSection:AddButton(location, function()
         if Modules.Teleport then
             pcall(function()
-                Modules.Teleport:TeleportToLocation(locationName)
+                Modules.Teleport:TeleportToLocation(location)
             end)
-        else
-            StatusLabel:SetText("Teleport module not loaded!")
         end
     end)
-end
-
--- Add dynamic locations after modules are loaded - moved to end section to match MM2 style
-
--- Settings tab setup
-local ScriptSection = CreateSection(SettingsTab, "Script Settings")
-
-local CleanupButton = ScriptSection:AddButton("Destroy UI", function()
-    -- Stop all modules
-    for _, module in pairs(Modules) do
-        if module and module.Stop then
-            pcall(function()
-                module:Stop()
-            end)
-        end
-    end
-    
-    -- Disconnect all connections
-    for _, connection in pairs(Connections) do
-        if connection.Connected then
-            connection:Disconnect()
-        end
-    end
-    
-    -- Destroy UI
-    SkyXUI:Destroy()
-    
-    print("SkyX Blox Fruits UI destroyed and cleaned up")
-end)
-
--- Add close button functionality
-AddConnection(CloseButton.MouseButton1Click, function()
-    CleanupButton.Button.MouseButton1Click:Fire()
-end)
-
--- Now that ALL the UI is created, load modules
-StatusLabel:SetText("Loading modules...")
-wait(0.5)
-
--- This is the MM2 approach - load modules last after all UI elements are created
-print("Loading modules after UI creation...")
-local success = LoadAllModules()
-
--- Update status based on success
-if success then
-    StatusLabel:SetText("All modules loaded successfully!")
-else
-    StatusLabel:SetText("Some modules failed to load!")
-end
-
--- Now check each module and create appropriate UI elements
--- We'll update sections that were conditionally created based on modules
--- This is the key pattern from MM2 - check modules AFTER attempting to load them
-
--- ESP Tab updates
-if Modules.ESP then
-    print("ESP module loaded - adding controls")
-else
-    print("ESP module failed - adding fallback label")
-    ESPSection:AddLabel("⚠️ ESP module failed to load")
-end
-
--- Farm Tab updates
-if Modules.AutoFarm then
-    print("AutoFarm module loaded - adding controls")
-else
-    print("AutoFarm module failed - adding fallback label")
-    FarmSection:AddLabel("⚠️ AutoFarm module failed to load")
-end
-
--- DevilFruit Tab updates
-if Modules.DevilFruit then
-    print("DevilFruit module loaded - adding controls")
-else
-    print("DevilFruit module failed - adding fallback label")
-    FruitSection:AddLabel("⚠️ DevilFruit module failed to load")
 end
 
 -- Teleport Tab updates
@@ -1123,7 +4016,158 @@ if Modules.Teleport then
     end)
 else
     print("Teleport module failed - adding fallback label")
-    TPSection:AddLabel("⚠️ Teleport module failed to load")
+    TPSection:AddLabel("⚠️ Teleport module initialization")
+end
+
+-- Combat Tab updates
+local CombatSection = CreateSection(CombatTab, "Combat Settings")
+
+-- Add combat controls
+local EnableFastAttackToggle = CombatSection:AddToggle("Fast Attack", true, function(Value)
+    if Modules.Combat then
+        pcall(function()
+            Modules.Combat.Settings.FastAttack = Value
+        end)
+    end
+end)
+
+local EnableAutoClickToggle = CombatSection:AddToggle("Auto Click", false, function(Value)
+    if Modules.Combat then
+        pcall(function()
+            Modules.Combat.Settings.AutoClick = Value
+            if Value then
+                Modules.Combat:StartAutoClick()
+            else
+                Modules.Combat:StopAutoClick()
+            end
+        end)
+    end
+end)
+
+local AttackSpeedSlider = CombatSection:AddSlider("Attack Speed", 1, 10, 5, function(Value)
+    if Modules.Combat then
+        pcall(function()
+            Modules.Combat.Settings.AttackSpeed = Value
+        end)
+    end
+end)
+
+-- Add fallback label if module failed to load
+if not Modules.Combat then
+    CombatSection:AddLabel("⚠️ Combat module initialization")
+end
+
+-- Devil Fruit Tab
+local FruitSection = CreateSection(DevilFruitTab, "Devil Fruit Settings")
+
+-- Add devil fruit controls
+local EnableFruitToggle = FruitSection:AddToggle("Enable Devil Fruit Helpers", false, function(Value)
+    if Modules.DevilFruit then
+        pcall(function()
+            if Value then
+                Modules.DevilFruit:Start()
+            else
+                Modules.DevilFruit:Stop()
+            end
+        end)
+    end
+end)
+
+local AutoCollectFruitToggle = FruitSection:AddToggle("Auto Collect Fruits", true, function(Value)
+    if Modules.DevilFruit then
+        pcall(function()
+            Modules.DevilFruit.Settings.AutoCollect = Value
+        end)
+    end
+end)
+
+local AutoEquipFruitToggle = FruitSection:AddToggle("Auto Equip Preferred Fruit", false, function(Value)
+    if Modules.DevilFruit then
+        pcall(function()
+            Modules.DevilFruit.Settings.AutoEquip = Value
+        end)
+    end
+end)
+
+local StoreFruitsToggle = FruitSection:AddToggle("Store Fruits Automatically", false, function(Value)
+    if Modules.DevilFruit then
+        pcall(function()
+            Modules.DevilFruit.Settings.StoreFruits = Value
+        end)
+    end
+end)
+
+-- Add dropdown for preferred fruit if available
+if Modules.DevilFruit and Modules.DevilFruit.GetFruitsList then
+    local fruitsList = pcall(function() return Modules.DevilFruit:GetFruitsList() end) and Modules.DevilFruit:GetFruitsList() or {"None"}
+    
+    FruitSection:AddDropdown("Preferred Fruit", fruitsList, "None", function(Value)
+        pcall(function()
+            Modules.DevilFruit.Settings.PreferredFruit = Value
+        end)
+    end)
+else
+    FruitSection:AddLabel("⚠️ Devil Fruit module initialization")
+end
+
+-- Stats Tab
+local StatsSection = CreateSection(StatsTab, "Stats Settings")
+
+-- Add stats controls
+local EnableStatsToggle = StatsSection:AddToggle("Enable Stats Tracker", false, function(Value)
+    if Modules.Stats then
+        pcall(function()
+            if Value then
+                Modules.Stats:Start()
+            else
+                Modules.Stats:Stop()
+            end
+        end)
+    end
+end)
+
+local ShowStatsGUIToggle = StatsSection:AddToggle("Show Stats GUI", true, function(Value)
+    if Modules.Stats then
+        pcall(function()
+            Modules.Stats.Settings.ShowStatsGUI = Value
+            if Modules.Stats.Settings.Enabled then
+                if Value then
+                    Modules.Stats:UpdateStatsGUI()
+                else
+                    -- Code to hide GUI if it exists
+                end
+            end
+        end)
+    end
+end)
+
+local AutoUpgradeStatsToggle = StatsSection:AddToggle("Auto Upgrade Stats", false, function(Value)
+    if Modules.Stats then
+        pcall(function()
+            Modules.Stats.Settings.AutoUpgradeStats = Value
+        end)
+    end
+end)
+
+local AutoDistributePointsToggle = StatsSection:AddToggle("Auto Distribute Points", false, function(Value)
+    if Modules.Stats then
+        pcall(function()
+            Modules.Stats.Settings.AutoDistributePoints = Value
+        end)
+    end
+end)
+
+-- Add dropdown for preferred stat if available
+if Modules.Stats and Modules.Stats.GetUpgradableStats then
+    local statsList = pcall(function() return Modules.Stats:GetUpgradableStats() end) and Modules.Stats:GetUpgradableStats() or {"None"}
+    
+    StatsSection:AddDropdown("Preferred Stat", statsList, "None", function(Value)
+        pcall(function()
+            Modules.Stats.Settings.PreferredStat = Value
+        end)
+    end)
+else
+    StatsSection:AddLabel("⚠️ Stats module initialization")
 end
 
 -- Items Tab updates
@@ -1153,8 +4197,77 @@ end)
 
 -- Add fallback label if module failed to load
 if not Modules.Items then
-    ItemsSection:AddLabel("⚠️ Items module failed to load")
+    ItemsSection:AddLabel("⚠️ Items module initialization")
 end
+
+-- Misc Tab
+local AntiBanSection = CreateSection(MiscTab, "Anti-Ban Settings")
+
+-- Add anti-ban controls
+local EnableAntiBanToggle = AntiBanSection:AddToggle("Enable Anti-Ban Protection", false, function(Value)
+    if Modules.AntiBan then
+        pcall(function()
+            if Value then
+                Modules.AntiBan:Start()
+            else
+                Modules.AntiBan:Stop()
+            end
+        end)
+    end
+end)
+
+local HideUsernameToggle = AntiBanSection:AddToggle("Hide Username", true, function(Value)
+    if Modules.AntiBan then
+        pcall(function()
+            Modules.AntiBan.Settings.HideUsername = Value
+        end)
+    end
+end)
+
+local SpoofStatsToggle = AntiBanSection:AddToggle("Spoof Stats", true, function(Value)
+    if Modules.AntiBan then
+        pcall(function()
+            Modules.AntiBan.Settings.SpoofStats = Value
+        end)
+    end
+end)
+
+local DisableReportingToggle = AntiBanSection:AddToggle("Disable Reporting", true, function(Value)
+    if Modules.AntiBan then
+        pcall(function()
+            Modules.AntiBan.Settings.DisableReporting = Value
+        end)
+    end
+end)
+
+local AntiKickToggle = AntiBanSection:AddToggle("Anti-Kick Protection", true, function(Value)
+    if Modules.AntiBan then
+        pcall(function()
+            Modules.AntiBan.Settings.AntiKick = Value
+        end)
+    end
+end)
+
+local AntiTeleportToggle = AntiBanSection:AddToggle("Anti-Teleport Protection", true, function(Value)
+    if Modules.AntiBan then
+        pcall(function()
+            Modules.AntiBan.Settings.AntiTeleport = Value
+        end)
+    end
+end)
+
+-- Add fallback label if module failed to load
+if not Modules.AntiBan then
+    AntiBanSection:AddLabel("⚠️ Anti-Ban module initialization")
+end
+
+-- Settings Tab
+local UISection = CreateSection(SettingsTab, "UI Settings")
+
+-- Add UI settings
+UISection:AddButton("Reset UI Position", function()
+    MainWindow.Position = UDim2.new(0.5, -250, 0.5, -175)
+end)
 
 -- Add toggle functionality for closing/opening UI
 -- Global variables to track UI state
@@ -1297,4 +4410,17 @@ if IsMobile then
     end)
 end
 
-print("SkyX Blox Fruits Mobile UI has been loaded successfully! Press Right Control to toggle UI")
+-- Add close button functionality
+AddConnection(CloseButton.MouseButton1Click, function()
+    ToggleUI()
+end)
+
+AddConnection(CloseButton.MouseEnter, function()
+    CloseButton.TextColor3 = Colors.Danger
+end)
+
+AddConnection(CloseButton.MouseLeave, function()
+    CloseButton.TextColor3 = Colors.Text
+end)
+
+print("SkyX Blox Fruits All-In-One script loaded successfully! Press Right Control to toggle UI")
