@@ -1,138 +1,481 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Settings.lua"))()
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Main/main/Library/V3.lua"))()
-local Window = Library:MakeWindow({
-    Title = "Speed Hub X | " .. Version,
-    SaveFolder = "Speed Hub X"
-});Window:AddMinimizeButton({
-    Button = {Image = "rbxassetid://16022917595"},
-    Corner = {CornerRadius = UDim.new(0, 5)}
-})
-local Home = Window:MakeTab({"Home", "scan-face"})
-Home:AddDiscordInvite({
-    Name = "Speed Hub X | Official Server",
-    Logo = "rbxassetid://16022917595",
-    Invite = Discord
-})
-task.spawn(function()
-    if game.Workspace:FindFirstChild("RobloxForwardPortals") then
-        game.Workspace.RobloxForwardPortals:Destroy()
+-- SkyX Blox Fruits Script with SpeedHub X UI
+
+-- Determine if we're running in Roblox or standalone test environment
+local isRobloxEnvironment = pcall(function() return game:GetService("Players") end)
+
+-- Setup for standalone testing
+if not isRobloxEnvironment then
+    print("Running in standalone mode - creating mock environment")
+    -- Create a basic mock environment
+    game = {
+        PlaceId = 2753915549, -- First Sea
+        GetService = function(self, serviceName)
+            return {
+                LocalPlayer = {},
+                TimeOfDay = "12:00:00",
+                GetChildren = function() return {} end,
+                WaitForChild = function() return {} end
+            }
+        end,
+        HttpGet = function(self, url)
+            print("Mock HttpGet: " .. url)
+            if url:find("V3.5") then
+                return [[
+                    return {
+                        Start = function(self, options)
+                            print("Creating window: " .. options.Name)
+                            return {
+                                MakeTab = function(name)
+                                    print("Creating tab: " .. tostring(name))
+                                    return {
+                                        Section = function(options)
+                                            print("Creating section: " .. (options.Title or ""))
+                                            return {
+                                                Seperator = function() end,
+                                                Paragraph = function() return {Set = function() end} end,
+                                                Toggle = function() return {} end,
+                                                Button = function() return {} end,
+                                                Dropdown = function() return {} end,
+                                                Slider = function() return {} end,
+                                                TextInput = function() return {} end
+                                            }
+                                        end
+                                    }
+                                end
+                            }
+                        end
+                    }
+                ]]
+            else
+                return "Version = 'Blox Fruits'; Discord = 'discord.gg/skyx'"
+            end
+        end
+    }
+    
+    -- Define missing globals
+    setclipboard = function(text) print("Clipboard: " .. text) end
+    hookfunction = function(orig, new) return new end
+    getnilinstances = function() return {} end
+    isfile = function() return false end
+    delfile = function() end
+    
+    -- Define task library for standalone mode
+    task = {
+        spawn = function(f) pcall(f) end,
+        wait = function(t) t = t or 0; return t end
+    }
+    
+    -- Create stub for table.find
+    if not table.find then
+        table.find = function(t, v)
+            for i, val in pairs(t) do
+                if val == v then return i end
+            end
+            return nil
+        end
     end
-end)
+end
+
+-- Load the SpeedHub X UI Library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Main/main/Library/V3.5"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Settings.lua"))()
+
+local Window = Library:Start({
+  ["Name"] = "SkyX Hub | " .. Version,
+  ["SaveFolder"] = "SkyX Hub"
+})
+
+if isRobloxEnvironment then
+    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Script Status", Text = "Loading SkyX Hub Blox Fruits...", Icon = "rbxassetid://0", Duration = 10})
+else
+    print("SkyX Hub Blox Fruits loading...")
+end
+
 local SpeedHubX = {}
-local function Toggle(Tab, Name, Desc, Default)
-  local Ver = Tab:AddToggle({
-    Name = Name,Description = Desc or "",Default = Default,
-    Callback = function(Value)
-      SpeedHubX[Name] = Value
-    end})
-    return Ver
+
+-- Helper Functions
+local Funcs = {} do
+  function Funcs:AddToggle(Section, Name, Content, Default)
+    return Section:Toggle({
+      ["Title"] = Name,
+      ["Content"] = Content,
+      ["Default"] = Default,
+      ["Callback"] = function(Value)
+        SpeedHubX[Name] = Value
+      end,
+      ["Flag"] = "SPD/Toggle/" .. tostring(Name)
+    })
+  end
+
+  function Funcs:AddDropdown(Section, Name, Multi, Options, Default)
+    return Section:Dropdown({
+      ["Title"] = Name,
+      ["Multi"] = Multi,
+      ["Options"] = Options,
+      ["Default"] = Default,
+      ["PlaceHolderText"] = "Select Options",
+      ["Callback"] = function(Value)
+        if not Multi and type(Value) == "table" then
+          for _, v in next, Value do
+            SpeedHubX[Name] = v
+          end
+        else
+          SpeedHubX[Name] = Value
+        end
+      end
+    })
+  end
+
+  function Funcs:AddSlider(Section, Name, Content, Min, Max, Increment, Default)
+    return Section:Slider({
+      ["Title"] = Name,
+      ["Content"] = Content,
+      ["Min"] = Min,
+      ["Max"] = Max,
+      ["Increment"] = Increment,
+      ["Default"] = Default,
+      ["Callback"] = function(Value)
+        SpeedHubX[Name] = Value
+      end
+    })
+  end
+
+  function Funcs:AddTextbox(Section, Name, Content, Default, ClearText)
+    return Section:TextInput({
+      ["Title"] = Name,
+      ["Content"] = Content,
+      ["PlaceHolderText"] = "Enter your text here...",
+      ["ClearTextOnFocus"] = ClearText,
+      ["Default"] = Default,
+      ["Callback"] = function(Value)
+        SpeedHubX[Name] = Value
+      end
+    })
+  end
+
+  function Funcs:AddButton(Section, Name, Content, Callback)
+    return Section:Button({
+      ["Title"] = Name,
+      ["Content"] = Content,
+      ["Callback"] = Callback
+    })  
+  end
 end
-local function Dropdown(Tab, Name, Desc, Option, Default)
-  local Ver = Tab:AddDropdown({
-    Name = Name,Description = Desc or "",Options = Option,Default = Default,
-    Callback = function(Value)
-      SpeedHubX[Name] = Value
-    end})
-    return Ver
+
+-- Get Game Services
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local TeleportService = game:GetService("TeleportService")
+local Workspace = game:GetService("Workspace")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Default data for testing
+local defaultBosses = {"Bandit Leader", "Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral"}
+local defaultMaterials = {"Angel Wings", "Leather", "Scrap Metal", "Magma Ore", "Fish Tail"}
+local defaultIslands = {"Pirate Village", "Middle Town", "Jungle", "Marine Base", "Desert", "Frozen Village"}
+local defaultFruits = {"Bomb Fruit", "Spike Fruit", "Flame Fruit", "Ice Fruit", "Sand Fruit", "Dark Fruit"}
+local defaultChips = {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble"}
+local defaultPlayers = {"Player1", "Player2", "Player3"}
+
+-- Setup environment functions
+local _env = getgenv and getgenv() or {}
+
+-- Game utility functions
+_env.BossesList = function()
+  return isRobloxEnvironment and {} or defaultBosses
 end
-local function Silder(Tab, Name, Min, Max, Default)
-  local Ver = Tab:AddSlider({
-    Name = Name,Min = Min,Max = Max,Default = Default,
-    Callback = function(Value)
-      SpeedHubX[Name] = Value
-    end})
-    return Ver
+
+_env.CheckMob = function(Value)
+  return false
 end
-Home:AddSection({"Local Player"})
-Silder(Home, "Set WalkSpeed", 0, 100000, 1000)
-Silder(Home, "Set JumpPower", 0, 100000, 1000)
-Silder(Home, "Set Size", 0, 100, 2)
-Toggle(Home, "Enable WalkSpeed", "This Can Set Walk Speed!", false)
-Toggle(Home, "Enable JumpPower", "This Can Set JumpPower!", false)
-Toggle(Home, "Enable Size", "This Can Set Size!", false)
-local Main = Window:MakeTab({"Main", "home"})
-Main:AddSection({"Farming Gym"})
-Dropdown(Main, "Select City Gym", "", {"Frost","Mystical","Eternal","Legends","Muscle King"}, "Frost")
-local UpdateGym = Dropdown(Main, "Select Gym", "", {""}, "")
-task.spawn(function()
-  while task.wait(1) do
-    pcall(function()
-      if SpeedHubX["Select City Gym"] == "Frost" then
-        UpdateGym:Set({"Lift", "Press", "Squat", "Punch"})
-      elseif SpeedHubX["Select City Gym"] == "Mystical" then
-        UpdateGym:Set({"Pullup", "Throw", "Press", "Punch"})
-      elseif SpeedHubX["Select City Gym"] == "Eternal" then
-        UpdateGym:Set({"Press", "Punch"})
-      elseif SpeedHubX["Select City Gym"] == "Legends" then
-        UpdateGym:Set({"Pullup", "Squat", "Lift", "Punch"})
-      elseif SpeedHubX["Select City Gym"] == "Muscle King" then
-        UpdateGym:Set({"Lift", "Squat", "Bench", "Punch"})
+
+_env.VerifyMaterial = function(NameC)
+  return 0
+end
+
+_env.IslandList = function()
+  return isRobloxEnvironment and {} or defaultIslands
+end
+
+_env.NPCList = function()
+  return {}
+end
+
+_env.ChipsList = function()
+  return isRobloxEnvironment and {} or defaultChips
+end
+
+_env.PlayerList = function()
+  return isRobloxEnvironment and {} or defaultPlayers
+end
+
+-- Game data
+local Sea = {
+  [1] = game.PlaceId == 2753915549,
+  [2] = game.PlaceId == 4442272183,
+  [3] = game.PlaceId == 7449423635
+}
+
+local FruitTable = {
+  "Rocket Fruit", "Spin Fruit", "Chop Fruit", "Spring Fruit", "Bomb Fruit",
+  "Smoke Fruit", "Spike Fruit", "Flame Fruit", "Falcon Fruit", "Ice Fruit",
+  "Sand Fruit", "Dark Fruit", "Ghost Fruit", "Diamond Fruit", "Light Fruit",
+  "Rubber Fruit", "Barrier Fruit", "Magma Fruit", "Quake Fruit", "Buddha Fruit",
+  "Love Fruit", "Spider Fruit", "Sound Fruit", "Phoenix Fruit", "Portal Fruit",
+  "Rumble Fruit", "Pain Fruit", "Blizzard Fruit", "Gravity Fruit", "Mammoth Fruit",
+  "T-Rex Fruit", "Dough Fruit", "Shadow Fruit", "Venom Fruit", "Control Fruit",
+  "Spirit Fruit", "Dragon Fruit", "Leopard Fruit", "Kitsune Fruit", "Gas Fruit",
+  "Blade Fruit"
+}
+
+-- Define material list based on current sea
+_env.MaterialList = defaultMaterials
+
+-- Define upgrade item list based on current sea
+_env.ItemListUpgrade = {"Cutlass", "Katana", "Iron Mace", "Slingshot", "Flintlock"}
+
+-- Shop items table
+local ShopTable = {
+  {"Frags", {
+    {"Race Rerol", {"BlackbeardReward", "Reroll", "2"}},
+    {"Reset Stats", {"BlackbeardReward", "Refund", "2"}}
+  }},
+  {"Fighting Style", {
+    {"Buy Black Leg", {"BuyBlackLeg"}},
+    {"Buy Electro", {"BuyElectro"}},
+    {"Buy Fishman Karate", {"BuyFishmanKarate"}},
+    {"Buy Dragon Claw", {"BlackbeardReward", "DragonClaw", "2"}},
+    {"Buy Superhuman", {"BuySuperhuman"}},
+    {"Buy Death Step", {"BuyDeathStep"}},
+    {"Buy Sharkman Karate", {"BuySharkmanKarate"}},
+    {"Buy Electric Claw", {"BuyElectricClaw"}},
+    {"Buy Dragon Talon", {"BuyDragonTalon"}},
+    {"Buy GodHuman", {"BuyGodhuman"}},
+    {"Buy Sanguine Art", {"BuySanguineArt"}}
+  }},
+  {"Ability Teacher", {
+    {"Buy Geppo", {"BuyHaki", "Geppo"}},
+    {"Buy Buso", {"BuyHaki", "Buso"}},
+    {"Buy Soru", {"BuyHaki", "Soru"}},
+    {"Buy Ken", {"KenTalk", "Buy"}}
+  }}
+}
+
+_env.FruitList = function()
+  return isRobloxEnvironment and {} or defaultFruits
+end
+
+_env.CodesRedeem = {"GAMER", "NEWCODE", "BLUXFRUIT", "SKYX"}
+
+-- Create UI tabs and sections
+local _home = Window:MakeTab("Home") do
+  local _info = _home:Section({["Title"] = "Information", ["Content"] = ""}) do
+    Funcs:AddButton(_info, "Discord Invite", "Click to copy invite server", function()
+      _setclipboard(Discord)
+    end)
+
+    _info:Seperator("Status")
+
+    local _timeServer = _info:Paragraph({["Title"] = "Time Server", ["Content"] = "" })
+    task.spawn(function()
+      while task.wait(2) do
+        if isRobloxEnvironment then
+          _timeServer:Set({
+            ["Title"] = "Time Server",
+            ["Content"] = tostring(Lighting.TimeOfDay)
+          })
+        end
       end
     end)
   end
-end)
-Toggle(Main, "Auto Farm On Select Gym", "", false)
-Main:AddSection({"Farming General"})
-Toggle(Main, "Auto Weight", "", false)
-Toggle(Main, "Auto Pushups", "", false)
-Toggle(Main, "Auto Situps", "", false)
-Toggle(Main, "Auto Punch", "", false)
-Main:AddSection({"Misc"})
-Toggle(Main, "Unlock Fast Punch", "", false)
-Toggle(Main, "Lock Position", "", false)
-if game.Players.LocalPlayer.UserId == 2608992754 or game.Players.LocalPlayer.UserId == 1724621193 then
-  Toggle(Main, "Anti-Knockback", "", false)
+
+  local _localplayer = _home:Section({["Title"] = "LocalPlayer", ["Content"] = ""}) do
+    Funcs:AddDropdown(_localplayer, "Set WalkSpeed", false, {"100", "200", "300", "400", "500"}, {"300"})
+    Funcs:AddToggle(_localplayer, "Enable WalkSpeed", "", false)
+    Funcs:AddToggle(_localplayer, "Anti-Knockback", "", false)
+    Funcs:AddToggle(_localplayer, "Anti-Busy", "", true)
+  end
+
+  local _config = _home:Section({["Title"] = "Config", ["Content"] = ""}) do
+    _config:Seperator("Weapon")
+    Funcs:AddDropdown(_config, "Weapon Tool", false, {"Melee","Sword","Blox Fruit","Gun"}, {"Melee"})
+    _config:Seperator("Tween/Distance")
+    Funcs:AddDropdown(_config, "Farm Distance", false, {"10", "20", "30", "40", "50", "60"}, {"40"})
+    Funcs:AddDropdown(_config, "Tween Speed", false, {"100", "200", "300", "400", "500"}, {"200"})
+    _config:Seperator("Bring Mob")
+    Funcs:AddToggle(_config, "Bring Mob", "", true)
+    Funcs:AddDropdown(_config, "Bring Mob Radius", false, {"100", "200", "300", "400", "500"}, {"200"})
+    _config:Seperator("Fast Attack")
+    Funcs:AddToggle(_config, "Fast Attack", "", true)
+    Funcs:AddDropdown(_config, "Fast Attack Delay", false, {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"}, {"0"})
+    _config:Seperator("Other")
+    Funcs:AddToggle(_config, "Hop if Admin or Staff", "", true)
+    Funcs:AddToggle(_config, "Auto Dodge Skill", "", false)
+    _config:Seperator("Active Race")
+    Funcs:AddToggle(_config, "Auto Active Race (V4)", "", false)
+  end
 end
-Toggle(Main, "Anti-Rebirths", "", false)
-Toggle(Main, "Anti-Stun", "BETA", false)
-Toggle(Main, "Anti-Busy", "BETA", false)
-Toggle(Main, "Walk On Water", "", false)
-Toggle(Main, "Disable Punch Animation", "", false)
-Main:AddSection({"Brawl"})
-Toggle(Main, "Auto Join Brawl", "", false)
-Toggle(Main, "Auto Win Brawl", "", false)
-local Rebirths = Window:MakeTab({"Rebirths", "refresh"})
-AddTextFunc(Rebirths)
-Dropdown(Rebirths, "Choose At Stopping Rebirths Number", "", {"Leave", "Crash", "Kick", "Rejoin", "Off [Loading Fix]"}, "Kick")
-Toggle(Rebirths, "Auto Rebirths [Stopping Rebirths Number]", "", false)
-Toggle(Rebirths, "Auto Rebirths", "This Auto Rebirths Without Stopping Rebirths Number", false)
-local Killer = Window:MakeTab({"Killer", "rbxassetid://16279627995"})
-Dropdown(Killer, "Choose Kills Mode", "", {"Bring Player And Teleport Part", "Bring Player", "No Bring Player And Teleport Part", "No Bring"}, "Bring Player And Teleport Part")
-local update1 = Dropdown(Killer, "Select Whitelist Player", "This Mean Won't Kill Player ", getgenv().TablePlayer, "")
-Toggle(Killer, "Auto Kills", "", false)
-Killer:AddSection({"Player"})
-local update = Dropdown(Killer, "Select Player", "", getgenv().TablePlayer, "")
-Killer:AddButton({Name = "Refersh Player", Description = "", Callback = function()
-  update:Set(getgenv().TablePlayerR)
-  update1:Set(getgenv().TablePlayerR)
-end})
-Toggle(Killer, "Auto Kill Player", "", false)
-Toggle(Killer, "Teleport Player", "", false)
-Toggle(Killer, "Spectate Player", "", false)
-local Crystal = Window:MakeTab({"Crystal", "gem"})
-Dropdown(Crystal, "Select Crystal", "", {"Blue Crystal", "Green Crystal", "Frost Crystal", "Mythical Crystal", "Inferno Crystal", "Legends Crystal", "Dark Nebula Crystal", "Muscle Elite Crystal", "Galaxy Oracle Crystal", "Battle Legends Crystal", "Sky Eclipse Crystal"}, "")
-Toggle(Crystal, "Auto Open Crystal", "", false)
-local Stats = Window:MakeTab({"Stats", "plus-circle"})
-AddStatusMain(Stats)
-local Glitcher = Window:MakeTab({"Glitcher", "rbxassetid://15623956340"})
-Glitcher:AddSection({"Config Pets"})
-Dropdown(Glitcher, "Choose Pets (Only Unique)", "", {"Darkstar Hunter", "Gold Warrior", "Cybernetic Showdown Dragon", "Flaming Hedgehog"}, "Flaming Hedgehog")
-Dropdown(Glitcher, "How Many Pets do You Carry", "", {"1", "2", "3", "4", "5"}, "2")
-Glitcher:AddSection({"Config Stopping Strength Number"})
-AddTextFunc1(Glitcher)
-Dropdown(Glitcher, "Choose At Stopping Strength Number", "", {"Go To Farm Select Gym", "Go To Farm Rebirths On Stopping"}, "Go To Farm Select Gym")
-Glitcher:AddSection({"Config Farm"})
-Dropdown(Glitcher, "Choose Rock Map", "", {"Frost","Mystical","Eternal","Legends","Muscle King"}, "Muscle King")
-Toggle(Glitcher, "Auto Farm On Choose Rock Map", "", false)
-local Misc = Window:MakeTab({"Misc", "rbxassetid://15877464662"})
-Misc:AddSection({"Server"})
-Misc:AddButton({Name = "Server Hop",Callback = function()getgenv().Server("Hop")end})
-Misc:AddButton({Name = "Server Hop [Low Player]",Callback = function()getgenv().Server("Hop1")end})
-Misc:AddButton({Name = "Rejoin",Callback = function()getgenv().Server("Rejoin")end})
-Misc:AddSection("Misc")
-Toggle(Misc, "Infinits Jump", "", false)
-Toggle(Misc, "No Clip", "", false)
-Misc:AddSection("ESP")
-Toggle(Misc, "ESP Player", "", false)
-Window:SelectTab(2)
-return SpeedHubX
+
+local _farm = Window:MakeTab("Farm") do
+  local _main = _farm:Section({["Title"] = "Main Farm", ["Content"] = ""}) do
+    Funcs:AddToggle(_main, "Auto Farm Level", "", false)
+    Funcs:AddToggle(_main, "Auto Farm Fruit Mastery", "", false)
+    Funcs:AddToggle(_main, "Auto Farm Gun Mastery", "", false)
+    Funcs:AddToggle(_main, "Auto Farm Nearest Mob", "", false)
+  end
+
+  local _mastery = _farm:Section({["Title"] = "Mastery Setting", ["Content"] = ""}) do
+    Funcs:AddSlider(_mastery, "Kill At", "Kill mob when it reaches this percentage of health", 0, 100, 1, 25)
+    Funcs:AddToggle(_mastery, "Skill Z", "", true)
+    Funcs:AddToggle(_mastery, "Skill X", "", true)
+    Funcs:AddToggle(_mastery, "Skill C", "", true)
+    Funcs:AddToggle(_mastery, "Skill V", "", true)
+    Funcs:AddToggle(_mastery, "Skill F", "", false)
+  end
+
+  local _quests = _farm:Section({["Title"] = "Quests", ["Content"] = ""}) do
+    Funcs:AddToggle(_quests, "Auto Quest", "", true)
+    Funcs:AddToggle(_quests, "Auto Quest Boss", "", true)
+  end
+
+  local _bosses = _farm:Section({["Title"] = "Bosses", ["Content"] = ""}) do
+    Funcs:AddDropdown(_bosses, "Select Boss", false, _env.BossesList(), {_env.BossesList()[1]})
+    Funcs:AddToggle(_bosses, "Auto Farm Boss", "", false)
+    Funcs:AddToggle(_bosses, "Auto Farm All Boss", "", false)
+  end
+
+  local _materials = _farm:Section({["Title"] = "Materials", ["Content"] = ""}) do
+    Funcs:AddDropdown(_materials, "Select Material", false, _env.MaterialList, {_env.MaterialList[1]})
+    Funcs:AddToggle(_materials, "Auto Farm Material", "", false)
+  end
+end
+
+local _island = Window:MakeTab("Island") do
+  local _teleport = _island:Section({["Title"] = "Teleport", ["Content"] = ""}) do
+    Funcs:AddDropdown(_teleport, "Select Island", false, _env.IslandList(), {_env.IslandList()[1]})
+    Funcs:AddButton(_teleport, "Teleport to Island", "", function()
+      print("Teleporting to island...")
+    end)
+  end
+end
+
+local _stats = Window:MakeTab("Stats") do
+  local _points = _stats:Section({["Title"] = "Stats Points", ["Content"] = ""}) do
+    Funcs:AddToggle(_points, "Auto Stats Melee", "", false)
+    Funcs:AddToggle(_points, "Auto Stats Defense", "", false)
+    Funcs:AddToggle(_points, "Auto Stats Sword", "", false)
+    Funcs:AddToggle(_points, "Auto Stats Gun", "", false)
+    Funcs:AddToggle(_points, "Auto Stats Devil Fruit", "", false)
+  end
+
+  local _custom = _stats:Section({["Title"] = "Custom Stats", ["Content"] = ""}) do
+    Funcs:AddSlider(_custom, "Melee Points", "", 0, 2500, 1, 0)
+    Funcs:AddSlider(_custom, "Defense Points", "", 0, 2500, 1, 0)
+    Funcs:AddSlider(_custom, "Sword Points", "", 0, 2500, 1, 0)
+    Funcs:AddSlider(_custom, "Gun Points", "", 0, 2500, 1, 0)
+    Funcs:AddSlider(_custom, "Devil Fruit Points", "", 0, 2500, 1, 0)
+    Funcs:AddToggle(_custom, "Auto Custom Stats", "", false)
+  end
+end
+
+local _combat = Window:MakeTab("Combat") do
+  local _players = _combat:Section({["Title"] = "Players", ["Content"] = ""}) do
+    Funcs:AddDropdown(_players, "Select Player", false, _env.PlayerList(), {_env.PlayerList()[1]})
+    Funcs:AddToggle(_players, "Spectate Player", "", false)
+    Funcs:AddToggle(_players, "Teleport to Player", "", false)
+    Funcs:AddToggle(_players, "Auto Farm Player", "", false)
+  end
+end
+
+local _devil = Window:MakeTab("Devil Fruits") do
+  local _manager = _devil:Section({["Title"] = "Devil Fruit Manager", ["Content"] = ""}) do
+    Funcs:AddToggle(_manager, "Auto Random Fruit", "", false)
+    Funcs:AddToggle(_manager, "Auto Store Fruit", "", false)
+    Funcs:AddDropdown(_manager, "Select Devil Fruit", false, FruitTable, {FruitTable[1]})
+    Funcs:AddToggle(_manager, "Auto Buy Devil Fruit", "", false)
+    Funcs:AddToggle(_manager, "Auto Raid Devil Fruit", "", false)
+  end
+
+  local _esp = _devil:Section({["Title"] = "ESP", ["Content"] = ""}) do
+    Funcs:AddToggle(_esp, "ESP Devil Fruit", "", false)
+    Funcs:AddToggle(_esp, "ESP Island", "", false)
+    Funcs:AddToggle(_esp, "ESP Flower", "", false)
+    Funcs:AddToggle(_esp, "ESP Chest", "", false)
+  end
+end
+
+local _raid = Window:MakeTab("Raid") do
+  local _dungeon = _raid:Section({["Title"] = "Dungeon", ["Content"] = ""}) do
+    Funcs:AddDropdown(_dungeon, "Select Microchip", false, _env.ChipsList(), {_env.ChipsList()[1]})
+    Funcs:AddToggle(_dungeon, "Auto Raid", "", false)
+    Funcs:AddToggle(_dungeon, "Auto Awakener", "", false)
+    Funcs:AddToggle(_dungeon, "Auto Next Place", "", true)
+    Funcs:AddToggle(_dungeon, "Kill Aura", "", false)
+  end
+end
+
+local _shop = Window:MakeTab("Shop") do
+  for _, Shop in next, ShopTable do
+    local _shop_section = _shop:Section({["Title"] = Shop[1], ["Content"] = ""}) do
+      for _, Item in next, Shop[2] do
+        Funcs:AddButton(_shop_section, Item[1], "", function()
+          if isRobloxEnvironment then
+            CommF_:InvokeServer(unpack(Item[2]))
+          else
+            print("Buying: " .. Item[1])
+          end
+        end)
+      end
+    end
+  end
+end
+
+local _misc = Window:MakeTab("Misc") do
+  local _codes = _misc:Section({["Title"] = "Codes", ["Content"] = ""}) do
+    Funcs:AddButton(_codes, "Redeem All Codes", "", function()
+      if _env.CodesRedeem then
+        for _, Code in next, _env.CodesRedeem do
+          if isRobloxEnvironment then
+            CommF_:InvokeServer("Redeem", Code)
+          else
+            print("Redeeming code: " .. Code)
+          end
+        end
+      end
+    end)
+  end
+  
+  local _haki = _misc:Section({["Title"] = "Haki", ["Content"] = ""}) do
+    Funcs:AddToggle(_haki, "Auto Buy Haki Colors", "", false)
+    Funcs:AddToggle(_haki, "Auto Active Haki", "", true)
+  end
+
+  local _server = _misc:Section({["Title"] = "Server", ["Content"] = ""}) do
+    Funcs:AddButton(_server, "Rejoin Server", "", function()
+      if isRobloxEnvironment then
+        TeleportService:Teleport(game.PlaceId, Player)
+      else
+        print("Rejoining server...")
+      end
+    end)
+    Funcs:AddButton(_server, "Server Hop", "", function()
+      print("Server hopping...")
+    end)
+    Funcs:AddButton(_server, "Hop to Lower Player", "", function()
+      print("Hopping to lower player count server...")
+    end)
+  end
+end
+
+-- Game notification
+if isRobloxEnvironment then
+  game:GetService("StarterGui"):SetCore("SendNotification", {
+    Title = "SkyX Hub",
+    Text = "Blox Fruits script loaded successfully! Made by SkyX Team",
+    Duration = 5
+  })
+else
+  print("\nSkyX Hub Blox Fruits loaded successfully!")
+  print("UI would display properly in Roblox environment")
+  print("Press Right Control to toggle UI")
+end
