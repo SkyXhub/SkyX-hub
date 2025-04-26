@@ -1,152 +1,1680 @@
-local Material = loadstring(game:HttpGet("https://raw.githubusercontent.com/Kinlei/MaterialLua/master/Module.lua"))()
+-- SkyX MM2 Advanced Script with Rayfield UI
+-- Features: Aimbot, Auto Grab Sheriff Gun, Auto Commmllect Coins
 
-local X = Material.Load({
-	Title = "ChibuHub",
-	Style = 3,
-	SizeX = 500,
-	SizeY = 350,
-	Theme = "Light",
-	ColorOverrides = {
-		MainFrame = Color3.fromRGB(235,235,235)
-	}
+-- Check if we're running in a standalone environment and create mock objects if needed
+local isMockEnvironment = not game
+
+if isMockEnvironment then
+    print("Running in standalone mode - creating mock Roblox environment")
+    
+    -- Create mock game object
+    game = {
+        Players = {
+            LocalPlayer = {
+                Name = "MockPlayer",
+                Character = {
+                    HumanoidRootPart = {
+                        Position = Vector3.new(0, 0, 0),
+                        CFrame = CFrame.new(0, 0, 0)
+                    },
+                    Head = {
+                        Position = Vector3.new(0, 1.5, 0)
+                    },
+                    Humanoid = {
+                        Health = 100,
+                        EquipTool = function() end
+                    },
+                    FindFirstChild = function(_, name)
+                        if name == "HumanoidRootPart" or name == "Humanoid" or name == "Head" then
+                            return true
+                        end
+                        return nil
+                    end
+                },
+                Backpack = {
+                    FindFirstChild = function() return nil end
+                },
+                GetMouse = function()
+                    return {
+                        X = 500,
+                        Y = 500,
+                        Target = nil
+                    }
+                }
+            },
+            GetPlayers = function()
+                return {game.Players.LocalPlayer}
+            end
+        },
+        GetService = function(_, serviceName)
+            if serviceName == "Players" then
+                return game.Players
+            elseif serviceName == "RunService" then
+                return {
+                    RenderStepped = {
+                        Connect = function(_, callback) 
+                            -- Call once for demo
+                            callback()
+                            return {Disconnect = function() end}
+                        end
+                    },
+                    Stepped = {
+                        Connect = function(_, callback) 
+                            return {Disconnect = function() end}
+                        end
+                    }
+                }
+            elseif serviceName == "UserInputService" then
+                return {
+                    InputBegan = {
+                        Connect = function(_, callback) 
+                            return {Disconnect = function() end}
+                        end
+                    },
+                    InputEnded = {
+                        Connect = function(_, callback) 
+                            return {Disconnect = function() end}
+                        end
+                    }
+                }
+            elseif serviceName == "ReplicatedStorage" then
+                return {
+                    FindFirstChild = function() return nil end
+                }
+            elseif serviceName == "CoreGui" then
+                return {
+                    FindFirstChild = function() return nil end
+                }
+            elseif serviceName == "Workspace" then
+                return {
+                    CurrentCamera = {
+                        ViewportSize = Vector2.new(1000, 1000),
+                        CFrame = CFrame.new(0, 0, 0),
+                        WorldToScreenPoint = function() 
+                            return Vector3.new(500, 500, 0), true
+                        end,
+                        WorldToViewportPoint = function() 
+                            return Vector3.new(500, 500, 0), true
+                        end
+                    },
+                    GetDescendants = function() return {} end,
+                    DescendantAdded = {
+                        Connect = function() return {Disconnect = function() end} end
+                    }
+                }
+            elseif serviceName == "Lighting" then
+                return {
+                    Brightness = 1,
+                    ClockTime = 14,
+                    FogEnd = 10000,
+                    GlobalShadows = true,
+                    Ambient = Color3.fromRGB(200, 200, 200),
+                    GetChildren = function() return {} end
+                }
+            end
+            return {}
+        end,
+        HttpGet = function()
+            print("Mock HttpGet called with URL: https://sirius.menu/rayfield")
+            return "return {}"
+        end,
+        Shutdown = function() print("Game shutdown called") end
+    }
+    
+    -- Create mock Vector2
+    if not Vector2 then
+        Vector2 = {
+            new = function(x, y)
+                return {X = x, Y = y, Magnitude = math.sqrt(x^2 + y^2)}
+            end
+        }
+    end
+    
+    -- Create mock Vector3
+    if not Vector3 then
+        Vector3 = {
+            new = function(x, y, z)
+                return {
+                    X = x, Y = y, Z = z, 
+                    Magnitude = math.sqrt(x^2 + y^2 + z^2),
+                    Unit = {X = 0, Y = 1, Z = 0}
+                }
+            end
+        }
+    end
+    
+    -- Create mock CFrame
+    if not CFrame then
+        CFrame = {
+            new = function(x, y, z)
+                return {
+                    Position = Vector3.new(x, y, z),
+                    LookVector = Vector3.new(0, 0, -1)
+                }
+            end
+        }
+    end
+    
+    -- Mock Color3
+    if not Color3 then
+        Color3 = {
+            fromRGB = function(r, g, b)
+                return {R = r/255, G = g/255, B = b/255}
+            end
+        }
+    end
+    
+    -- Mock Enum
+    Enum = {
+        KeyCode = {
+            Q = "Q",
+            E = "E",
+            R = "R",
+            T = "T"
+        },
+        UserInputType = {
+            MouseButton1 = "MouseButton1",
+            MouseButton2 = "MouseButton2"
+        }
+    }
+    
+    -- Mock Instance
+    Instance = {
+        new = function(className)
+            local instance = {
+                Name = "",
+                ClassName = className,
+                Parent = nil,
+                Children = {},
+                Enabled = true,
+                Transparency = 0,
+                FindFirstChild = function(self, name)
+                    for _, child in pairs(self.Children) do
+                        if child.Name == name then
+                            return child
+                        end
+                    end
+                    return nil
+                end,
+                FindFirstChildOfClass = function() return nil end,
+                IsA = function(self, checkClass)
+                    return self.ClassName == checkClass
+                end
+            }
+            
+            -- Add specific properties based on className
+            if className == "Highlight" then
+                instance.FillColor = Color3.fromRGB(255, 0, 0)
+                instance.OutlineColor = Color3.fromRGB(255, 0, 0)
+                instance.FillTransparency = 0.5
+                instance.OutlineTransparency = 0
+            end
+            
+            return instance
+        end
+    }
+    
+    -- Mock Drawing
+    Drawing = {
+        new = function(drawingType)
+            return {
+                Visible = false, 
+                Color = Color3.fromRGB(255, 255, 255),
+                Transparency = 1,
+                Thickness = 1,
+                Radius = 100,
+                Position = Vector2.new(0, 0),
+                Size = Vector2.new(0, 0),
+                Text = "",
+                Center = false,
+                Outline = false,
+                Font = 0,
+                Size = 16,
+                Filled = false,
+                Remove = function() end,
+                Set = function(self, prop, value) self[prop] = value end
+            }
+        end
+    }
+    
+    -- Mock functions
+    fireproximityprompt = function() end
+    fireclickdetector = function() end
+    mousemoverel = function() end
+    setclipboard = function(text) print("Copied to clipboard: " .. text) end
+end
+
+-- Create mock Rayfield library in standalone mode
+local Rayfield
+if isMockEnvironment then
+    Rayfield = {
+        CreateWindow = function(settings)
+            print("Creating window: " .. (settings.Name or "Unnamed Window"))
+            return {
+                CreateTab = function(name)
+                    print("Creating tab: " .. (name or "Unnamed Tab"))
+                    return {
+                        CreateSection = function(name)
+                            print("Creating section: " .. (name or "Unnamed Section"))
+                            return "Section"
+                        end,
+                        CreateToggle = function(options)
+                            print("Creating toggle: " .. (options.Name or "Unnamed Toggle") .. " (Default: " .. tostring(options.CurrentValue) .. ")")
+                            return {
+                                Set = function() end
+                            }
+                        end,
+                        CreateButton = function(options)
+                            print("Creating button: " .. (options.Name or "Unnamed Button"))
+                            return {
+                                Set = function() end
+                            }
+                        end,
+                        CreateSlider = function(options)
+                            print("Creating slider: " .. (options.Name or "Unnamed Slider") .. " (Range: " .. options.Range[1] .. "-" .. options.Range[2] .. ")")
+                            return {
+                                Set = function() end
+                            }
+                        end,
+                        CreateDropdown = function(options)
+                            print("Creating dropdown: " .. (options.Name or "Unnamed Dropdown"))
+                            return {
+                                Set = function() end
+                            }
+                        end,
+                        CreateParagraph = function(options)
+                            print("Creating paragraph: " .. (options.Title or "Unnamed Paragraph"))
+                            return {
+                                Set = function() end
+                            }
+                        end,
+                        CreateColorPicker = function(options)
+                            print("Creating color picker: " .. (options.Name or "Unnamed Color Picker"))
+                            return {
+                                Set = function() end
+                            }
+                        end,
+                        CreateLabel = function(text)
+                            print("Creating label: " .. (text or "Unnamed Label"))
+                            return {
+                                Set = function() end
+                            }
+                        end,
+                        CreateKeybind = function(options)
+                            print("Creating keybind: " .. (options.Name or "Unnamed Keybind"))
+                            return {
+                                Set = function() end
+                            }
+                        end
+                    }
+                end,
+                SetTheme = function() end
+            }
+        end,
+        Notify = function(settings)
+            print("Notification: " .. (settings.Title or "Untitled") .. " - " .. (settings.Content or ""))
+        end,
+        SaveConfiguration = function()
+            print("Configuration saved")
+        end,
+        LoadConfiguration = function()
+            print("Configuration loaded")
+        end,
+        LoadDefaultConfiguration = function()
+            print("Default configuration loaded")
+        end
+    }
+else
+    -- In Roblox environment, load the actual library
+    Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+end
+
+-- Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
+
+-- Variables
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+-- Create main window
+local Window = Rayfield:CreateWindow({
+    Name = "SkyX MM2 Advanced",
+    Icon = "knife",  -- Using Lucide icon
+    LoadingTitle = "SkyX MM2 Advanced",
+    LoadingSubtitle = "by SkyX Team",
+    Theme = "Darker",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "SkyX",
+        FileName = "MM2Advanced"
+    }
 })
 
-local Y = X.New({
-	Title = "1"
+-- Main Features Tab
+local MainTab = Window:CreateTab("Main Features", "settings")
+
+-- Identify roles in MM2
+local function GetPlayerRole(player)
+    if player.Character then
+        -- Check for murderer (knife)
+        if player.Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
+            return "Murderer"
+        end
+        
+        -- Check for sheriff (gun)
+        if player.Backpack:FindFirstChild("Gun") or player.Character:FindFirstChild("Gun") or 
+           player.Backpack:FindFirstChild("Revolver") or player.Character:FindFirstChild("Revolver") then
+            return "Sheriff"
+        end
+        
+        -- Otherwise innocent
+        return "Innocent"
+    end
+    return "Unknown"
+end
+
+------------------------------------------------------------------
+-- AIMBOT IMPLEMENTATION
+------------------------------------------------------------------
+
+local AimbotSection = MainTab:CreateSection("Aimbot")
+
+-- Aimbot Settings
+local AimbotSettings = {
+    Enabled = false,
+    TeamCheck = true,
+    TargetMurderer = true,
+    TargetSheriff = false,
+    TargetInnocent = false,
+    TargetPart = "Head",
+    Sensitivity = 0.2,
+    FOV = 250,
+    ShowFOV = false,
+    FOVColor = Color3.fromRGB(255, 50, 50),
+    ToggleKey = Enum.KeyCode.Q
+}
+
+-- Create FOV circle
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Visible = AimbotSettings.ShowFOV
+FOVCircle.Radius = AimbotSettings.FOV
+FOVCircle.Thickness = 2
+FOVCircle.Transparency = 1
+FOVCircle.Color = AimbotSettings.FOVColor
+FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+-- Main aimbot function
+local function GetClosestPlayerToCursor()
+    local ClosestPlayer = nil
+    local ShortestDistance = math.huge
+    
+    for _, Player in pairs(Players:GetPlayers()) do
+        if Player ~= LocalPlayer then
+            -- Role checks
+            local role = GetPlayerRole(Player)
+            local shouldTarget = 
+                (role == "Murderer" and AimbotSettings.TargetMurderer) or
+                (role == "Sheriff" and AimbotSettings.TargetSheriff) or
+                (role == "Innocent" and AimbotSettings.TargetInnocent)
+            
+            if not shouldTarget then
+                goto continue
+            end
+            
+            -- Character checks
+            if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") and 
+               Player.Character:FindFirstChild("Humanoid") and Player.Character.Humanoid.Health > 0 then
+                
+                -- Check if target part exists
+                local TargetPart = Player.Character:FindFirstChild(AimbotSettings.TargetPart)
+                if not TargetPart then
+                    goto continue
+                end
+                
+                -- FOV check
+                local ScreenPoint = Camera:WorldToScreenPoint(TargetPart.Position)
+                local VectorDistance = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(ScreenPoint.X, ScreenPoint.Y)).Magnitude
+                
+                if VectorDistance < ShortestDistance and VectorDistance <= AimbotSettings.FOV then
+                    ClosestPlayer = Player
+                    ShortestDistance = VectorDistance
+                end
+            end
+        end
+        ::continue::
+    end
+    
+    return ClosestPlayer
+end
+
+-- Update FOV circle
+RunService.RenderStepped:Connect(function()
+    FOVCircle.Visible = AimbotSettings.ShowFOV
+    FOVCircle.Radius = AimbotSettings.FOV
+    FOVCircle.Color = AimbotSettings.FOVColor
+    FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
+end)
+
+-- Aimbot Logic
+local IsAiming = false
+
+UserInputService.InputBegan:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+        IsAiming = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(Input)
+    if Input.UserInputType == Enum.UserInputType.MouseButton2 then
+        IsAiming = false
+    end
+end)
+
+-- Toggle keybind
+UserInputService.InputBegan:Connect(function(Input)
+    if Input.KeyCode == AimbotSettings.ToggleKey then
+        AimbotSettings.Enabled = not AimbotSettings.Enabled
+        AimbotToggle:Set(AimbotSettings.Enabled)
+    end
+end)
+
+-- Main aimbot loop
+RunService.RenderStepped:Connect(function()
+    if AimbotSettings.Enabled and IsAiming then
+        local ClosestPlayer = GetClosestPlayerToCursor()
+        
+        if ClosestPlayer and ClosestPlayer.Character and ClosestPlayer.Character:FindFirstChild(AimbotSettings.TargetPart) then
+            local TargetPart = ClosestPlayer.Character[AimbotSettings.TargetPart]
+            local TargetPos = Camera:WorldToViewportPoint(TargetPart.Position)
+            local MousePos = Vector2.new(Mouse.X, Mouse.Y)
+            local MoveMousePos = Vector2.new(
+                (TargetPos.X - MousePos.X) * AimbotSettings.Sensitivity,
+                (TargetPos.Y - MousePos.Y) * AimbotSettings.Sensitivity
+            )
+            mousemoverel(MoveMousePos.X, MoveMousePos.Y)
+        end
+    end
+end)
+
+-- Aimbot UI Elements
+local AimbotToggle = MainTab:CreateToggle({
+    Name = "Enable Aimbot",
+    CurrentValue = AimbotSettings.Enabled,
+    Flag = "AimbotEnabled",
+    Callback = function(Value)
+        AimbotSettings.Enabled = Value
+    end
 })
 
-local Z = X.New({
-	Title = "2"
+MainTab:CreateToggle({
+    Name = "Target Murderer",
+    CurrentValue = AimbotSettings.TargetMurderer,
+    Flag = "TargetMurderer",
+    Callback = function(Value)
+        AimbotSettings.TargetMurderer = Value
+    end
 })
 
-local A = Y.Button({
-	Text = "Kill All",
-	Callback = function()
-		print("hello")
-	end,
-	Menu = {
-		Information = function(self)
-			X.Banner({
-				Text = "This function can get you banned in up-to-date servers; use at your own risk."
-			})
-		end
-	}
+MainTab:CreateToggle({
+    Name = "Target Sheriff",
+    CurrentValue = AimbotSettings.TargetSheriff,
+    Flag = "TargetSheriff",
+    Callback = function(Value)
+        AimbotSettings.TargetSheriff = Value
+    end
 })
 
-local B = Y.Toggle({
-	Text = "I'm a switch",
-	Callback = function(Value)
-		print(Value)
-	end,
-	Enabled = false
+MainTab:CreateToggle({
+    Name = "Target Innocent",
+    CurrentValue = AimbotSettings.TargetInnocent,
+    Flag = "TargetInnocent",
+    Callback = function(Value)
+        AimbotSettings.TargetInnocent = Value
+    end
 })
 
-local C = Y.Slider({
-	Text = "Slip and... you get the idea",
-	Callback = function(Value)
-		print(Value)
-	end,
-	Min = 200,
-	Max = 400,
-	Def = 300
+MainTab:CreateDropdown({
+    Name = "Target Part",
+    Options = {"Head", "HumanoidRootPart", "Torso"},
+    CurrentOption = AimbotSettings.TargetPart,
+    Flag = "TargetPart", 
+    Callback = function(Option)
+        AimbotSettings.TargetPart = Option
+    end,
 })
 
-local D = Y.Dropdown({
-	Text = "Dropping care package",
-	Callback = function(Value)
-		print(Value)
-	end,
-	Options = {
-		"Floor 1",
-		"Floor 2",
-		"Floor 3",
-		"Floor 4",
-		"Floor 5"
-	},
-	Menu = {
-		Information = function(self)
-			X.Banner({
-				Text = "Test alert!"
-			})
-		end
-	}
+MainTab:CreateSlider({
+    Name = "Aimbot Sensitivity",
+    Range = {0.01, 1},
+    Increment = 0.01,
+    Suffix = "x",
+    CurrentValue = AimbotSettings.Sensitivity,
+    Flag = "AimbotSensitivity",
+    Callback = function(Value)
+        AimbotSettings.Sensitivity = Value
+    end,
 })
 
-local E = Y.ChipSet({
-	Text = "Chipping away",
-	Callback = function(ChipSet)
-		table.foreach(ChipSet, function(Option, Value)
-			print(Option, Value)
-		end)
-	end,
-	Options = {
-		ESP = true,
-		TeamCheck = false,
-		UselessBool = {
-			Enabled = true,
-			Menu = {
-				Information = function(self)
-					X.Banner({
-						Text = "This bool has absolutely no purpose whatsoever."
-					})
-				end
-			}
-		}
-	}
+MainTab:CreateSlider({
+    Name = "FOV Radius",
+    Range = {50, 800},
+    Increment = 10,
+    Suffix = "px",
+    CurrentValue = AimbotSettings.FOV,
+    Flag = "FOVRadius",
+    Callback = function(Value)
+        AimbotSettings.FOV = Value
+    end,
 })
 
-local F = Y.DataTable({
-	Text = "Chipping away",
-	Callback = function(ChipSet)
-		table.foreach(ChipSet, function(Option, Value)
-			print(Option, Value)
-		end)
-	end,
-	Options = {
-		ESP2 = true,
-		TeamCheck2 = false,
-		UselessBool2 = {
-			Enabled = true,
-			Menu = {
-				Information = function(self)
-					X.Banner({
-						Text = "This bool ALSO has absolutely no purpose. Sorry."
-					})
-				end
-			}
-		}
-	}
+MainTab:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = AimbotSettings.ShowFOV,
+    Flag = "ShowFOV",
+    Callback = function(Value)
+        AimbotSettings.ShowFOV = Value
+    end,
 })
 
-local G = Y.ColorPicker({
-	Text = "ESP Colour",
-	Default = Color3.fromRGB(0,255,110),
-	Callback = function(Value)
-		print("RGB:", Value.R * 255, Value.G * 255, Value.B * 255)
-	end,
-	Menu = {
-		Information = function(self)
-			X.Banner({
-				Text = "This changes the color of your ESP."
-			})
-		end
-	}
+MainTab:CreateColorPicker({
+    Name = "FOV Circle Color",
+    Color = AimbotSettings.FOVColor,
+    Flag = "FOVColor",
+    Callback = function(Value)
+        AimbotSettings.FOVColor = Value
+    end,
 })
 
-local H = Y.TextField({
-	Text = "Country",
-	Callback = function(Value)
-		print(Value)
-	end,
-	Menu = {
-		GB = function(self)
-			self.SetText("GB")
-		end,
-		JP = function(self)
-			self.SetText("JP")
-		end,
-		KO = function(self)
-			self.SetText("KO")
-		end
-	}
+MainTab:CreateKeybind({
+    Name = "Toggle Aimbot Key",
+    CurrentKeybind = "Q",
+    HoldToInteract = false,
+    Flag = "AimbotKeybind",
+    Callback = function()
+        AimbotSettings.Enabled = not AimbotSettings.Enabled
+        AimbotToggle:Set(AimbotSettings.Enabled)
+    end,
+})
+
+------------------------------------------------------------------
+-- AUTO GRAB SHERIFF GUN IMPLEMENTATION
+------------------------------------------------------------------
+
+local GunGrabSection = MainTab:CreateSection("Auto Gun Grab")
+
+-- Gun grab settings
+local GunGrabSettings = {
+    Enabled = false,
+    AutoEquip = true,
+    IgnoreIfMurderer = true,
+    VisualOnly = false, -- If true, just highlights the gun but doesn't grab it
+    GunHighlight = true,
+    GunHighlightColor = Color3.fromRGB(0, 150, 255)
+}
+
+-- Gun grab UI elements
+MainTab:CreateToggle({
+    Name = "Auto Grab Sheriff Gun",
+    CurrentValue = GunGrabSettings.Enabled,
+    Flag = "AutoGrabGun",
+    Callback = function(Value)
+        GunGrabSettings.Enabled = Value
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Auto Equip Gun",
+    CurrentValue = GunGrabSettings.AutoEquip,
+    Flag = "AutoEquipGun",
+    Callback = function(Value)
+        GunGrabSettings.AutoEquip = Value
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Don't Grab If Murderer",
+    CurrentValue = GunGrabSettings.IgnoreIfMurderer,
+    Flag = "IgnoreIfMurderer",
+    Callback = function(Value)
+        GunGrabSettings.IgnoreIfMurderer = Value
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Highlight Gun Only (No Grab)",
+    CurrentValue = GunGrabSettings.VisualOnly,
+    Flag = "VisualOnly",
+    Callback = function(Value)
+        GunGrabSettings.VisualOnly = Value
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Highlight Gun",
+    CurrentValue = GunGrabSettings.GunHighlight,
+    Flag = "GunHighlight",
+    Callback = function(Value)
+        GunGrabSettings.GunHighlight = Value
+        
+        -- Update all existing gun highlights
+        for _, item in pairs(Workspace:GetDescendants()) do
+            if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") then
+                local highlight = item:FindFirstChild("GunHighlight")
+                if highlight then
+                    highlight.Enabled = Value
+                end
+            end
+        end
+    end
+})
+
+MainTab:CreateColorPicker({
+    Name = "Gun Highlight Color",
+    Color = GunGrabSettings.GunHighlightColor,
+    Flag = "GunHighlightColor",
+    Callback = function(Value)
+        GunGrabSettings.GunHighlightColor = Value
+        
+        -- Update all existing gun highlights
+        for _, item in pairs(Workspace:GetDescendants()) do
+            if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") then
+                local highlight = item:FindFirstChild("GunHighlight")
+                if highlight then
+                    highlight.FillColor = Value
+                    highlight.OutlineColor = Value
+                end
+            end
+        end
+    end,
+})
+
+-- Gun grab implementation
+local function HighlightGun(gun)
+    if not gun or not gun:IsA("Tool") then return end
+    
+    -- Don't add duplicate highlights
+    if gun:FindFirstChild("GunHighlight") then return end
+    
+    -- Create highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "GunHighlight"
+    highlight.FillColor = GunGrabSettings.GunHighlightColor
+    highlight.OutlineColor = GunGrabSettings.GunHighlightColor
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.Enabled = GunGrabSettings.GunHighlight
+    highlight.Parent = gun
+end
+
+-- Function to teleport to and grab the gun
+local function GrabGun(gun)
+    if GunGrabSettings.VisualOnly then
+        return
+    end
+    
+    -- Check if we're murderer and should ignore
+    if GunGrabSettings.IgnoreIfMurderer and GetPlayerRole(LocalPlayer) == "Murderer" then
+        return
+    end
+    
+    if gun and gun:IsA("Tool") and gun.Parent and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        -- Save original position
+        local originalPos = LocalPlayer.Character.HumanoidRootPart.CFrame
+        
+        -- Teleport to gun
+        LocalPlayer.Character.HumanoidRootPart.CFrame = gun.Parent.CFrame
+        
+        -- Try to pick up the gun
+        wait(0.1)
+        
+        -- Use ProximityPrompt if available
+        local prompt = gun:FindFirstChildOfClass("ProximityPrompt")
+        if prompt then
+            fireproximityprompt(prompt)
+        else
+            -- Otherwise try to use game-specific pickup method
+            -- Method 1: FireServer GunDrop remote
+            local gunPickupRemote = ReplicatedStorage:FindFirstChild("GunDrop", true)
+            if gunPickupRemote and gunPickupRemote:IsA("RemoteEvent") then
+                gunPickupRemote:FireServer(gun)
+            end
+            
+            -- Method 2: Click the gun
+            local clickDetector = gun:FindFirstChildOfClass("ClickDetector")
+            if clickDetector then
+                fireclickdetector(clickDetector)
+            end
+        end
+        
+        -- Wait for pickup to register
+        wait(0.2)
+        
+        -- Auto equip if enabled
+        if GunGrabSettings.AutoEquip and LocalPlayer.Backpack:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Revolver") then
+            local gunItem = LocalPlayer.Backpack:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Revolver")
+            LocalPlayer.Character.Humanoid:EquipTool(gunItem)
+        end
+        
+        -- Return to original position
+        LocalPlayer.Character.HumanoidRootPart.CFrame = originalPos
+        
+        Rayfield:Notify({
+            Title = "Gun Grabbed",
+            Content = "Successfully grabbed sheriff's gun!",
+            Duration = 3
+        })
+    end
+end
+
+-- Monitor for dropped guns in the workspace
+local function MonitorForDroppedGuns()
+    -- Check for initially present guns
+    for _, item in pairs(Workspace:GetDescendants()) do
+        if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") and not item.Parent:IsA("Backpack") and not item.Parent:IsA("Player") then
+            HighlightGun(item)
+            
+            if GunGrabSettings.Enabled then
+                GrabGun(item)
+            end
+        end
+    end
+    
+    -- Listen for new guns being added to workspace
+    Workspace.DescendantAdded:Connect(function(descendant)
+        if descendant:IsA("Tool") and (descendant.Name == "Gun" or descendant.Name == "Revolver") then
+            -- Check if gun is dropped (not in someone's backpack or character)
+            if not descendant.Parent:IsA("Backpack") and not descendant.Parent:IsA("Player") then
+                HighlightGun(descendant)
+                
+                if GunGrabSettings.Enabled then
+                    GrabGun(descendant)
+                end
+            end
+        end
+    end)
+    
+    -- Monitor players for death (sheriff dropping gun)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character then
+            player.Character:WaitForChild("Humanoid").Died:Connect(function()
+                -- Check if this was the sheriff
+                if GetPlayerRole(player) == "Sheriff" then
+                    -- Wait a brief moment for the gun to drop
+                    wait(0.5)
+                    
+                    -- Look for the dropped gun
+                    for _, item in pairs(Workspace:GetDescendants()) do
+                        if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") and not item.Parent:IsA("Backpack") and not item.Parent:IsA("Player") then
+                            HighlightGun(item)
+                            
+                            if GunGrabSettings.Enabled then
+                                GrabGun(item)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end
+    
+    -- Watch for new players joining
+    Players.PlayerAdded:Connect(function(player)
+        if player ~= LocalPlayer and player.Character then
+            player.Character:WaitForChild("Humanoid").Died:Connect(function()
+                if GetPlayerRole(player) == "Sheriff" then
+                    wait(0.5)
+                    
+                    for _, item in pairs(Workspace:GetDescendants()) do
+                        if item:IsA("Tool") and (item.Name == "Gun" or item.Name == "Revolver") and not item.Parent:IsA("Backpack") and not item.Parent:IsA("Player") then
+                            HighlightGun(item)
+                            
+                            if GunGrabSettings.Enabled then
+                                GrabGun(item)
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+    end)
+end
+
+-- Start monitoring for guns
+MonitorForDroppedGuns()
+
+------------------------------------------------------------------
+-- AUTO COLLECT COINS IMPLEMENTATION
+------------------------------------------------------------------
+
+local CoinSection = MainTab:CreateSection("Auto Coin Collection")
+
+-- Coin collection settings
+local CoinSettings = {
+    Enabled = false,
+    CollectDistance = 40,
+    IgnoreIfMurderer = true,
+    VisualOnly = false, -- If true, just highlights coins but doesn't collect
+    CoinHighlight = true,
+    CoinHighlightColor = Color3.fromRGB(255, 215, 0),
+    TeleportSpeed = 80, -- Higher = faster collection but more visible
+    CollectInterval = 0.1 -- Time between collecting multiple coins
+}
+
+-- UI Elements for coin collection
+MainTab:CreateToggle({
+    Name = "Auto Collect Coins",
+    CurrentValue = CoinSettings.Enabled,
+    Flag = "AutoCollectCoins",
+    Callback = function(Value)
+        CoinSettings.Enabled = Value
+    end
+})
+
+MainTab:CreateSlider({
+    Name = "Collection Distance",
+    Range = {10, 200},
+    Increment = 5,
+    Suffix = "studs",
+    CurrentValue = CoinSettings.CollectDistance,
+    Flag = "CoinCollectDistance",
+    Callback = function(Value)
+        CoinSettings.CollectDistance = Value
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "Don't Collect If Murderer",
+    CurrentValue = CoinSettings.IgnoreIfMurderer,
+    Flag = "IgnoreIfMurdererCoins",
+    Callback = function(Value)
+        CoinSettings.IgnoreIfMurderer = Value
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Highlight Coins Only (No Collect)",
+    CurrentValue = CoinSettings.VisualOnly,
+    Flag = "VisualOnlyCoins",
+    Callback = function(Value)
+        CoinSettings.VisualOnly = Value
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Highlight Coins",
+    CurrentValue = CoinSettings.CoinHighlight,
+    Flag = "CoinHighlight",
+    Callback = function(Value)
+        CoinSettings.CoinHighlight = Value
+        
+        -- Update all existing coin highlights
+        for _, coin in pairs(Workspace:GetDescendants()) do
+            if coin.Name == "Coin" or coin.Name == "Coin_Server" then
+                local highlight = coin:FindFirstChild("CoinHighlight")
+                if highlight then
+                    highlight.Enabled = Value
+                end
+            end
+        end
+    end
+})
+
+MainTab:CreateColorPicker({
+    Name = "Coin Highlight Color",
+    Color = CoinSettings.CoinHighlightColor,
+    Flag = "CoinHighlightColor",
+    Callback = function(Value)
+        CoinSettings.CoinHighlightColor = Value
+        
+        -- Update all existing coin highlights
+        for _, coin in pairs(Workspace:GetDescendants()) do
+            if coin.Name == "Coin" or coin.Name == "Coin_Server" then
+                local highlight = coin:FindFirstChild("CoinHighlight")
+                if highlight then
+                    highlight.FillColor = Value
+                    highlight.OutlineColor = Value
+                end
+            end
+        end
+    end,
+})
+
+MainTab:CreateSlider({
+    Name = "Collect Speed",
+    Range = {20, 150},
+    Increment = 5,
+    Suffix = "",
+    CurrentValue = CoinSettings.TeleportSpeed,
+    Flag = "TeleportSpeed",
+    Callback = function(Value)
+        CoinSettings.TeleportSpeed = Value
+    end,
+})
+
+MainTab:CreateSlider({
+    Name = "Collect Interval",
+    Range = {0.05, 0.5},
+    Increment = 0.05,
+    Suffix = "sec",
+    CurrentValue = CoinSettings.CollectInterval,
+    Flag = "CollectInterval",
+    Callback = function(Value)
+        CoinSettings.CollectInterval = Value
+    end,
+})
+
+-- Coin highlighting function
+local function HighlightCoin(coin)
+    if not coin or (coin.Name ~= "Coin" and coin.Name ~= "Coin_Server") then return end
+    
+    -- Don't add duplicate highlights
+    if coin:FindFirstChild("CoinHighlight") then return end
+    
+    -- Create highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "CoinHighlight"
+    highlight.FillColor = CoinSettings.CoinHighlightColor
+    highlight.OutlineColor = CoinSettings.CoinHighlightColor
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.Enabled = CoinSettings.CoinHighlight
+    highlight.Parent = coin
+end
+
+-- Main coin collection coroutine
+local CoinCollectionActive = false
+local function StartCoinCollection()
+    if CoinCollectionActive then return end
+    CoinCollectionActive = true
+    
+    coroutine.wrap(function()
+        while CoinSettings.Enabled do
+            -- Get player state
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and not CoinSettings.VisualOnly then
+                -- Check if we're murderer and should ignore
+                if CoinSettings.IgnoreIfMurderer and GetPlayerRole(LocalPlayer) == "Murderer" then
+                    wait(1)
+                    goto continue_coin_loop
+                end
+                
+                local originalPos = LocalPlayer.Character.HumanoidRootPart.CFrame
+                local hrp = LocalPlayer.Character.HumanoidRootPart
+                
+                -- Find nearby coins
+                local coins = {}
+                for _, coin in pairs(Workspace:GetDescendants()) do
+                    if (coin.Name == "Coin" or coin.Name == "Coin_Server") and coin:IsA("BasePart") then
+                        local distance = (coin.Position - hrp.Position).Magnitude
+                        if distance <= CoinSettings.CollectDistance then
+                            table.insert(coins, {coin = coin, distance = distance})
+                        end
+                    end
+                end
+                
+                -- Sort coins by distance
+                table.sort(coins, function(a, b)
+                    return a.distance < b.distance
+                end)
+                
+                -- Collect coins
+                if #coins > 0 then
+                    for _, coinData in ipairs(coins) do
+                        local coin = coinData.coin
+                        
+                        -- Check if coin still exists
+                        if coin and coin:IsA("BasePart") then
+                            -- Try to collect the coin
+                            -- Method 1: Teleport to coin
+                            local targetPosition = coin.Position
+                            
+                            -- Lerp to coin position for smoother movement
+                            for i = 0, 1, 0.1 do
+                                if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or not coin or not coin.Parent then
+                                    break
+                                end
+                                
+                                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(
+                                    hrp.Position:Lerp(targetPosition, i)
+                                )
+                                
+                                wait(1 / CoinSettings.TeleportSpeed) -- Adjust speed
+                            end
+                            
+                            -- Final position
+                            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and coin and coin.Parent then
+                                LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(coin.Position)
+                                
+                                -- Method 2: Try to use proximity prompt if available
+                                local prompt = coin:FindFirstChildOfClass("ProximityPrompt")
+                                if prompt then
+                                    fireproximityprompt(prompt)
+                                end
+                                
+                                -- Method 3: Try to use coin pickup remote
+                                local coinPickupRemote = ReplicatedStorage:FindFirstChild("CollectCoin", true)
+                                if coinPickupRemote and coinPickupRemote:IsA("RemoteEvent") then
+                                    coinPickupRemote:FireServer(coin)
+                                end
+                                
+                                -- Wait for server to register collection
+                                wait(CoinSettings.CollectInterval)
+                            end
+                        end
+                    end
+                    
+                    -- Return to original position
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                        LocalPlayer.Character.HumanoidRootPart.CFrame = originalPos
+                    end
+                end
+            end
+            
+            -- Wait before next collection cycle
+            wait(0.5)
+            ::continue_coin_loop::
+        end
+        
+        CoinCollectionActive = false
+    end)()
+end
+
+-- Monitor for new coins in the workspace
+local function MonitorForCoins()
+    -- Check for initially present coins
+    for _, coin in pairs(Workspace:GetDescendants()) do
+        if coin.Name == "Coin" or coin.Name == "Coin_Server" then
+            HighlightCoin(coin)
+        end
+    end
+    
+    -- Listen for new coins being added to workspace
+    Workspace.DescendantAdded:Connect(function(descendant)
+        if descendant.Name == "Coin" or descendant.Name == "Coin_Server" then
+            HighlightCoin(descendant)
+        end
+    end)
+    
+    -- Start coin collection when enabled
+    CoinSettings.EnabledChanged = function(newValue)
+        if newValue and not CoinCollectionActive then
+            StartCoinCollection()
+        end
+    end
+end
+
+-- Start monitoring for coins
+MonitorForCoins()
+
+-- Start coin collection if enabled
+if CoinSettings.Enabled then
+    StartCoinCollection()
+end
+
+------------------------------------------------------------------
+-- PLAYER ESP IMPLEMENTATION
+------------------------------------------------------------------
+
+local ESPTab = Window:CreateTab("Player ESP", "eye")
+
+-- ESP Settings
+local ESPSettings = {
+    Enabled = false,
+    ShowMurderer = true,
+    ShowSheriff = true,
+    ShowInnocent = true,
+    ShowName = true,
+    ShowDistance = true,
+    ShowBox = true,
+    MurdererColor = Color3.fromRGB(255, 0, 0),
+    SheriffColor = Color3.fromRGB(0, 0, 255),
+    InnocentColor = Color3.fromRGB(0, 255, 0)
+}
+
+-- Store ESP objects for each player
+local playerESP = {}
+
+-- Create ESP for a player
+local function CreateESP(player)
+    if playerESP[player] then return end
+    
+    local esp = {}
+    
+    -- Box ESP
+    esp.Box = Drawing.new("Square")
+    esp.Box.Visible = false
+    esp.Box.Color = Color3.fromRGB(255, 255, 255)
+    esp.Box.Thickness = 1
+    esp.Box.Transparency = 1
+    esp.Box.Filled = false
+    
+    -- Name ESP
+    esp.Name = Drawing.new("Text")
+    esp.Name.Visible = false
+    esp.Name.Color = Color3.fromRGB(255, 255, 255)
+    esp.Name.Size = 14
+    esp.Name.Center = true
+    esp.Name.Outline = true
+    
+    -- Distance ESP
+    esp.Distance = Drawing.new("Text")
+    esp.Distance.Visible = false
+    esp.Distance.Color = Color3.fromRGB(255, 255, 255)
+    esp.Distance.Size = 12
+    esp.Distance.Center = true
+    esp.Distance.Outline = true
+    
+    playerESP[player] = esp
+end
+
+-- Remove ESP when player leaves
+local function RemoveESP(player)
+    if playerESP[player] then
+        for _, obj in pairs(playerESP[player]) do
+            obj:Remove()
+        end
+        playerESP[player] = nil
+    end
+end
+
+-- Create ESP for all players
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        CreateESP(player)
+    end
+end
+
+-- Create ESP for new players
+Players.PlayerAdded:Connect(function(player)
+    CreateESP(player)
+end)
+
+-- Remove ESP for players who leave
+Players.PlayerRemoving:Connect(function(player)
+    RemoveESP(player)
+end)
+
+-- ESP UI Elements
+local ESPToggleSection = ESPTab:CreateSection("ESP Toggles")
+
+ESPTab:CreateToggle({
+    Name = "Enable ESP",
+    CurrentValue = ESPSettings.Enabled,
+    Flag = "ESPEnabled",
+    Callback = function(Value)
+        ESPSettings.Enabled = Value
+        
+        -- Show/hide all existing ESP
+        for player, esp in pairs(playerESP) do
+            if esp and esp.Box then
+                esp.Box.Visible = Value and ESPSettings.ShowBox
+                esp.Name.Visible = Value and ESPSettings.ShowName
+                esp.Distance.Visible = Value and ESPSettings.ShowDistance
+            end
+        end
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Murderer",
+    CurrentValue = ESPSettings.ShowMurderer,
+    Flag = "ShowMurderer",
+    Callback = function(Value)
+        ESPSettings.ShowMurderer = Value
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Sheriff",
+    CurrentValue = ESPSettings.ShowSheriff,
+    Flag = "ShowSheriff",
+    Callback = function(Value)
+        ESPSettings.ShowSheriff = Value
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Innocent",
+    CurrentValue = ESPSettings.ShowInnocent,
+    Flag = "ShowInnocent",
+    Callback = function(Value)
+        ESPSettings.ShowInnocent = Value
+    end
+})
+
+local ESPOptionsSection = ESPTab:CreateSection("ESP Options")
+
+ESPTab:CreateToggle({
+    Name = "Show Box",
+    CurrentValue = ESPSettings.ShowBox,
+    Flag = "ShowBox",
+    Callback = function(Value)
+        ESPSettings.ShowBox = Value
+        
+        for player, esp in pairs(playerESP) do
+            if esp and esp.Box then
+                esp.Box.Visible = ESPSettings.Enabled and Value
+            end
+        end
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Name",
+    CurrentValue = ESPSettings.ShowName,
+    Flag = "ShowName",
+    Callback = function(Value)
+        ESPSettings.ShowName = Value
+        
+        for player, esp in pairs(playerESP) do
+            if esp and esp.Name then
+                esp.Name.Visible = ESPSettings.Enabled and Value
+            end
+        end
+    end
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Distance",
+    CurrentValue = ESPSettings.ShowDistance,
+    Flag = "ShowDistance",
+    Callback = function(Value)
+        ESPSettings.ShowDistance = Value
+        
+        for player, esp in pairs(playerESP) do
+            if esp and esp.Distance then
+                esp.Distance.Visible = ESPSettings.Enabled and Value
+            end
+        end
+    end
+})
+
+local ESPColorSection = ESPTab:CreateSection("ESP Colors")
+
+ESPTab:CreateColorPicker({
+    Name = "Murderer Color",
+    Color = ESPSettings.MurdererColor,
+    Flag = "MurdererColor",
+    Callback = function(Value)
+        ESPSettings.MurdererColor = Value
+    end,
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Sheriff Color",
+    Color = ESPSettings.SheriffColor,
+    Flag = "SheriffColor",
+    Callback = function(Value)
+        ESPSettings.SheriffColor = Value
+    end,
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Innocent Color",
+    Color = ESPSettings.InnocentColor,
+    Flag = "InnocentColor",
+    Callback = function(Value)
+        ESPSettings.InnocentColor = Value
+    end,
+})
+
+-- Update ESP
+RunService.RenderStepped:Connect(function()
+    for player, esp in pairs(playerESP) do
+        if ESPSettings.Enabled and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local role = GetPlayerRole(player)
+            local shouldDisplay = 
+                (role == "Murderer" and ESPSettings.ShowMurderer) or
+                (role == "Sheriff" and ESPSettings.ShowSheriff) or
+                (role == "Innocent" and ESPSettings.ShowInnocent)
+            
+            if shouldDisplay then
+                local rootPart = player.Character.HumanoidRootPart
+                local head = player.Character:FindFirstChild("Head")
+                local hrpPos, hrpOnScreen = Camera:WorldToViewportPoint(rootPart.Position)
+                
+                if hrpOnScreen then
+                    -- Get proper color based on role
+                    local color
+                    if role == "Murderer" then
+                        color = ESPSettings.MurdererColor
+                    elseif role == "Sheriff" then
+                        color = ESPSettings.SheriffColor
+                    else
+                        color = ESPSettings.InnocentColor
+                    end
+                    
+                    -- Update box
+                    if head then
+                        local headPos = Camera:WorldToViewportPoint(head.Position)
+                        local hrpPos = Camera:WorldToViewportPoint(rootPart.Position)
+                        
+                        local height = math.abs(headPos.Y - hrpPos.Y) * 2
+                        local width = height * 0.6
+                        
+                        esp.Box.Size = Vector2.new(width, height)
+                        esp.Box.Position = Vector2.new(hrpPos.X - width / 2, hrpPos.Y - height / 2)
+                        esp.Box.Color = color
+                        esp.Box.Visible = ESPSettings.ShowBox
+                        
+                        -- Update name
+                        esp.Name.Text = player.Name .. " (" .. role .. ")"
+                        esp.Name.Position = Vector2.new(hrpPos.X, hrpPos.Y - height / 2 - 15)
+                        esp.Name.Color = color
+                        esp.Name.Visible = ESPSettings.ShowName
+                        
+                        -- Update distance
+                        local distance = math.floor((rootPart.Position - Camera.CFrame.Position).Magnitude)
+                        esp.Distance.Text = tostring(distance) .. " studs"
+                        esp.Distance.Position = Vector2.new(hrpPos.X, hrpPos.Y + height / 2 + 5)
+                        esp.Distance.Color = color
+                        esp.Distance.Visible = ESPSettings.ShowDistance
+                    end
+                else
+                    esp.Box.Visible = false
+                    esp.Name.Visible = false
+                    esp.Distance.Visible = false
+                end
+            else
+                esp.Box.Visible = false
+                esp.Name.Visible = false
+                esp.Distance.Visible = false
+            end
+        else
+            esp.Box.Visible = false
+            esp.Name.Visible = false
+            esp.Distance.Visible = false
+        end
+    end
+end)
+
+------------------------------------------------------------------
+-- SETTINGS TAB
+------------------------------------------------------------------
+
+local SettingsTab = Window:CreateTab("Settings", "settings")
+
+-- Anti-Staff feature
+local AntiStaffSection = SettingsTab:CreateSection("Safety Features")
+
+-- Anti-Staff settings
+local AntiStaffSettings = {
+    Enabled = false,
+    NotifyOnly = true, -- If true, just notifies but doesn't leave
+    StaffGroups = {1200769, 4895761} -- Common MM2 staff group IDs (example)
+}
+
+SettingsTab:CreateToggle({
+    Name = "Anti-Staff Detection",
+    CurrentValue = AntiStaffSettings.Enabled,
+    Flag = "AntiStaffEnabled",
+    Callback = function(Value)
+        AntiStaffSettings.Enabled = Value
+    end
+})
+
+SettingsTab:CreateToggle({
+    Name = "Notify Only (Don't Leave)",
+    CurrentValue = AntiStaffSettings.NotifyOnly,
+    Flag = "AntiStaffNotifyOnly",
+    Callback = function(Value)
+        AntiStaffSettings.NotifyOnly = Value
+    end
+})
+
+-- Anti-Staff implementation
+local function CheckIfStaff(player)
+    -- Check based on group membership
+    for _, groupId in pairs(AntiStaffSettings.StaffGroups) do
+        local success, result = pcall(function()
+            return player:IsInGroup(groupId)
+        end)
+        
+        if success and result then
+            return true
+        end
+    end
+    
+    -- Also check for admin badges
+    local success, badges = pcall(function()
+        return player:GetRankInGroup(1200769) -- Main MM2 group
+    end)
+    
+    if success and badges and badges >= 254 then
+        return true
+    end
+    
+    return false
+end
+
+-- Check all players for staff
+local function CheckForStaff()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and CheckIfStaff(player) then
+            Rayfield:Notify({
+                Title = "⚠️ Staff Detected ⚠️",
+                Content = "Staff member detected: " .. player.Name,
+                Duration = 10,
+                Image = "warning"
+            })
+            
+            if AntiStaffSettings.Enabled and not AntiStaffSettings.NotifyOnly then
+                game:Shutdown()
+                -- Or alternatively:
+                -- TeleportService:Teleport(game.PlaceId)
+            end
+            
+            return true
+        end
+    end
+    
+    return false
+end
+
+-- Check for staff on player added
+Players.PlayerAdded:Connect(function(player)
+    if AntiStaffSettings.Enabled and player ~= LocalPlayer then
+        wait(1) -- Wait for player data to load
+        
+        if CheckIfStaff(player) then
+            Rayfield:Notify({
+                Title = "⚠️ Staff Joined ⚠️",
+                Content = "Staff member joined: " .. player.Name,
+                Duration = 10,
+                Image = "warning"
+            })
+            
+            if not AntiStaffSettings.NotifyOnly then
+                game:Shutdown()
+                -- Or alternatively:
+                -- TeleportService:Teleport(game.PlaceId)
+            end
+        end
+    end
+end)
+
+-- Misc settings
+local MiscSection = SettingsTab:CreateSection("Miscellaneous")
+
+-- No-clip toggle
+local NoClipEnabled = false
+
+SettingsTab:CreateToggle({
+    Name = "No-Clip",
+    CurrentValue = NoClipEnabled,
+    Flag = "NoClipEnabled",
+    Callback = function(Value)
+        NoClipEnabled = Value
+    end
+})
+
+-- No-clip implementation
+RunService.Stepped:Connect(function()
+    if NoClipEnabled and LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Full bright toggle
+local FullBrightEnabled = false
+
+SettingsTab:CreateToggle({
+    Name = "Full Bright",
+    CurrentValue = FullBrightEnabled,
+    Flag = "FullBrightEnabled",
+    Callback = function(Value)
+        FullBrightEnabled = Value
+        
+        if Value then
+            -- Store original lighting properties
+            local lighting = game:GetService("Lighting")
+            _G.OriginalLightingProperties = {
+                Brightness = lighting.Brightness,
+                ClockTime = lighting.ClockTime,
+                FogEnd = lighting.FogEnd,
+                GlobalShadows = lighting.GlobalShadows,
+                Ambient = lighting.Ambient
+            }
+            
+            -- Apply full bright
+            lighting.Brightness = 2
+            lighting.ClockTime = 14
+            lighting.FogEnd = 100000
+            lighting.GlobalShadows = false
+            lighting.Ambient = Color3.fromRGB(255, 255, 255)
+            
+            -- Remove all post effects
+            for _, effect in pairs(lighting:GetChildren()) do
+                if effect:IsA("BloomEffect") or 
+                   effect:IsA("BlurEffect") or 
+                   effect:IsA("ColorCorrectionEffect") or 
+                   effect:IsA("SunRaysEffect") then
+                    effect.Enabled = false
+                end
+            end
+        else
+            -- Restore original lighting
+            local lighting = game:GetService("Lighting")
+            if _G.OriginalLightingProperties then
+                lighting.Brightness = _G.OriginalLightingProperties.Brightness
+                lighting.ClockTime = _G.OriginalLightingProperties.ClockTime
+                lighting.FogEnd = _G.OriginalLightingProperties.FogEnd
+                lighting.GlobalShadows = _G.OriginalLightingProperties.GlobalShadows
+                lighting.Ambient = _G.OriginalLightingProperties.Ambient
+            end
+            
+            -- Re-enable post effects
+            for _, effect in pairs(lighting:GetChildren()) do
+                if effect:IsA("BloomEffect") or 
+                   effect:IsA("BlurEffect") or 
+                   effect:IsA("ColorCorrectionEffect") or 
+                   effect:IsA("SunRaysEffect") then
+                    effect.Enabled = true
+                end
+            end
+        end
+    end
+})
+
+-- UI Customization
+local UISection = SettingsTab:CreateSection("UI Settings")
+
+-- Theme dropdown
+local ThemeNames = {
+    "Default",
+    "Light",
+    "Dark",
+    "Midnight",
+    "Sentinel",
+    "Synapse",
+    "Serpent",
+    "Ocean"
+}
+
+SettingsTab:CreateDropdown({
+    Name = "UI Theme",
+    Options = ThemeNames,
+    CurrentOption = "Default",
+    Flag = "UITheme",
+    Callback = function(Option)
+        Window:SetTheme(Option)
+    end,
+})
+
+-- Save config button
+SettingsTab:CreateButton({
+    Name = "Save Configuration",
+    Callback = function()
+        Rayfield:SaveConfiguration()
+        
+        Rayfield:Notify({
+            Title = "Configuration Saved",
+            Content = "Your settings have been saved!",
+            Duration = 3
+        })
+    end,
+})
+
+-- Reset button
+SettingsTab:CreateButton({
+    Name = "Reset All Settings",
+    Callback = function()
+        Rayfield:LoadDefaultConfiguration()
+        
+        Rayfield:Notify({
+            Title = "Settings Reset",
+            Content = "All settings have been reset to default!",
+            Duration = 3
+        })
+    end,
+})
+
+-- Credits
+local CreditsSection = SettingsTab:CreateSection("Credits")
+
+SettingsTab:CreateParagraph({
+    Title = "SkyX MM2 Advanced",
+    Content = "Developed by SkyX Team\nUI: Rayfield Interface Suite by Sirius"
+})
+
+SettingsTab:CreateButton({
+    Name = "Join Discord",
+    Callback = function()
+        setclipboard("https://discord.gg/skyx-hub")
+        
+        Rayfield:Notify({
+            Title = "Discord Invite",
+            Content = "Discord invite copied to clipboard!",
+            Duration = 3
+        })
+    end,
+})
+
+-- Load saved configuration
+Rayfield:LoadConfiguration()
+
+-- Display welcome message
+Rayfield:Notify({
+    Title = "SkyX MM2 Advanced Loaded",
+    Content = "Aimbot, Auto Gun Grab, & Coin Collection",
+    Duration = 5,
+    Image = "check-circle",
+    Actions = {
+        Ignore = {
+            Name = "OK",
+            Callback = function()
+                -- Check for staff
+                CheckForStaff()
+            end
+        },
+    }
 })
