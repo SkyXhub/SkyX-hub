@@ -1,82 +1,5 @@
 -- SkyX Blox Fruits Script with SpeedHub X UI
 
--- Determine if we're running in Roblox or standalone test environment
-local isRobloxEnvironment = pcall(function() return game:GetService("Players") end)
-
--- Setup for standalone testing
-if not isRobloxEnvironment then
-    print("Running in standalone mode - creating mock environment")
-    -- Create a basic mock environment
-    game = {
-        PlaceId = 2753915549, -- First Sea
-        GetService = function(self, serviceName)
-            return {
-                LocalPlayer = {},
-                TimeOfDay = "12:00:00",
-                GetChildren = function() return {} end,
-                WaitForChild = function() return {} end
-            }
-        end,
-        HttpGet = function(self, url)
-            print("Mock HttpGet: " .. url)
-            if url:find("V3.5") then
-                return [[
-                    return {
-                        Start = function(self, options)
-                            print("Creating window: " .. options.Name)
-                            return {
-                                MakeTab = function(name)
-                                    print("Creating tab: " .. tostring(name))
-                                    return {
-                                        Section = function(options)
-                                            print("Creating section: " .. (options.Title or ""))
-                                            return {
-                                                Seperator = function() end,
-                                                Paragraph = function() return {Set = function() end} end,
-                                                Toggle = function() return {} end,
-                                                Button = function() return {} end,
-                                                Dropdown = function() return {} end,
-                                                Slider = function() return {} end,
-                                                TextInput = function() return {} end
-                                            }
-                                        end
-                                    }
-                                end
-                            }
-                        end
-                    }
-                ]]
-            else
-                return "Version = 'Blox Fruits'; Discord = 'discord.gg/skyx'"
-            end
-        end
-    }
-    
-    -- Define missing globals
-    setclipboard = function(text) print("Clipboard: " .. text) end
-    hookfunction = function(orig, new) return new end
-    getnilinstances = function() return {} end
-    isfile = function() return false end
-    delfile = function() end
-    
-    -- Define task library for standalone mode
-    task = {
-        spawn = function(f) pcall(f) end,
-        wait = function(t) t = t or 0; return t end
-    }
-    
-    -- Create stub for table.find
-    if not table.find then
-        table.find = function(t, v)
-            for i, val in pairs(t) do
-                if val == v then return i end
-            end
-            return nil
-        end
-    end
-end
-
--- Load the SpeedHub X UI Library
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Main/main/Library/V3.5"))()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Settings.lua"))()
 
@@ -85,15 +8,10 @@ local Window = Library:Start({
   ["SaveFolder"] = "SkyX Hub"
 })
 
-if isRobloxEnvironment then
-    game:GetService("StarterGui"):SetCore("SendNotification", {Title = "Script Status", Text = "Loading SkyX Hub Blox Fruits...", Icon = "rbxassetid://0", Duration = 10})
-else
-    print("SkyX Hub Blox Fruits loading...")
-end
+game.StarterGui:SetCore("SendNotification", {Title = "Script Status", Text = "Loading SkyX Hub...", Icon = "rbxassetid://0", Duration = 10})
 
 local SpeedHubX = {}
 
--- Helper Functions
 local Funcs = {} do
   function Funcs:AddToggle(Section, Name, Content, Default)
     return Section:Toggle({
@@ -162,79 +80,230 @@ local Funcs = {} do
   end
 end
 
--- Get Game Services
 local Players = game:GetService("Players")
 local Lighting = game:GetService("Lighting")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Default data for testing
-local defaultBosses = {"Bandit Leader", "Gorilla King", "Bobby", "Yeti", "Mob Leader", "Vice Admiral"}
-local defaultMaterials = {"Angel Wings", "Leather", "Scrap Metal", "Magma Ore", "Fish Tail"}
-local defaultIslands = {"Pirate Village", "Middle Town", "Jungle", "Marine Base", "Desert", "Frozen Village"}
-local defaultFruits = {"Bomb Fruit", "Spike Fruit", "Flame Fruit", "Ice Fruit", "Sand Fruit", "Dark Fruit"}
-local defaultChips = {"Flame", "Ice", "Quake", "Light", "Dark", "String", "Rumble"}
-local defaultPlayers = {"Player1", "Player2", "Player3"}
+local Player = Players.LocalPlayer
+local Enemies = Workspace:WaitForChild("Enemies")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes")
+local CommF_ = Remotes:WaitForChild("CommF_")
+local Map = Workspace:WaitForChild("Map")
+local WorldOrigin = Workspace:WaitForChild("_WorldOrigin")
+local NPCs = Workspace:WaitForChild("NPCs")
 
--- Setup environment functions
+local _setclipboard = setclipboard or (function()end)
+local _hookfunction = hookfunction or hookfunc or (function()end)
+local _require = require or (function()end)
+local _getnilinstances = getnilinstances or (function()end)
+local _isfile = isfile or (function()end)
+local _delfile = delfile or (function()end)
+
+local Raids = _require(ReplicatedStorage.Raids)
+
 local _env = getgenv and getgenv() or {}
 
--- Game utility functions
-_env.BossesList = function()
-  return isRobloxEnvironment and {} or defaultBosses
-end
-
-_env.CheckMob = function(Value)
-  return false
-end
-
-_env.VerifyMaterial = function(NameC)
-  return 0
-end
-
-_env.IslandList = function()
-  return isRobloxEnvironment and {} or defaultIslands
-end
-
-_env.NPCList = function()
-  return {}
-end
-
-_env.ChipsList = function()
-  return isRobloxEnvironment and {} or defaultChips
-end
-
-_env.PlayerList = function()
-  return isRobloxEnvironment and {} or defaultPlayers
-end
-
--- Game data
 local Sea = {
   [1] = game.PlaceId == 2753915549,
   [2] = game.PlaceId == 4442272183,
   [3] = game.PlaceId == 7449423635
 }
-
 local FruitTable = {
-  "Rocket Fruit", "Spin Fruit", "Chop Fruit", "Spring Fruit", "Bomb Fruit",
-  "Smoke Fruit", "Spike Fruit", "Flame Fruit", "Falcon Fruit", "Ice Fruit",
-  "Sand Fruit", "Dark Fruit", "Ghost Fruit", "Diamond Fruit", "Light Fruit",
-  "Rubber Fruit", "Barrier Fruit", "Magma Fruit", "Quake Fruit", "Buddha Fruit",
-  "Love Fruit", "Spider Fruit", "Sound Fruit", "Phoenix Fruit", "Portal Fruit",
-  "Rumble Fruit", "Pain Fruit", "Blizzard Fruit", "Gravity Fruit", "Mammoth Fruit",
-  "T-Rex Fruit", "Dough Fruit", "Shadow Fruit", "Venom Fruit", "Control Fruit",
-  "Spirit Fruit", "Dragon Fruit", "Leopard Fruit", "Kitsune Fruit", "Gas Fruit",
-  "Blade Fruit"
+  "Rocket Fruit",
+  "Spin Fruit",
+  "Chop Fruit",
+  "Spring Fruit",
+  "Bomb Fruit",
+  "Smoke Fruit",
+  "Spike Fruit",
+  "Flame Fruit",
+  "Falcon Fruit",
+  "Ice Fruit",
+  "Sand Fruit",
+  "Dark Fruit",
+  "Ghost Fruit",
+  "Diamond Fruit",
+  "Light Fruit",
+  "Rubber Fruit",
+  "Barrier Fruit",
+  "Magma Fruit",
+  "Quake Fruit",
+  "Buddha Fruit",
+  "Love Fruit",
+  "Spider Fruit",
+  "Sound Fruit",
+  "Phoenix Fruit",
+  "Portal Fruit",
+  "Rumble Fruit",
+  "Pain Fruit",
+  "Blizzard Fruit",
+  "Gravity Fruit",
+  "Mammoth Fruit",
+  "T-Rex Fruit",
+  "Dough Fruit",
+  "Shadow Fruit",
+  "Venom Fruit",
+  "Control Fruit",
+  "Spirit Fruit",
+  "Dragon Fruit",
+  "Leopard Fruit",
+  "Kitsune Fruit",
+  "Gas Fruit",
+  "Blade Fruit",
 }
 
--- Define material list based on current sea
-_env.MaterialList = defaultMaterials
+task.spawn(function()
+  local Container = ReplicatedStorage.Effect.Container
+  local CameraShaker = _require(ReplicatedStorage.Util.CameraShaker)
+  local Death = _require(Container:FindFirstChild("Death"))
+  local Respawn = _require(Container:FindFirstChild("Respawn"))
+  local DisplayNPC = _require(ReplicatedStorage:FindFirstChild("GuideModule")).ChangeDisplayedNPC
 
--- Define upgrade item list based on current sea
-_env.ItemListUpgrade = {"Cutlass", "Katana", "Iron Mace", "Slingshot", "Flintlock"}
+  _hookfunction(Death, function()return nil end)
+  _hookfunction(Respawn, function()return nil end)
+  _hookfunction(DisplayNPC, function()return nil end)
+  CameraShaker:Stop()
+end)
 
--- Shop items table
+_env.CodesRedeem = loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Main/main/Codes_BloxFruit"))()
+
+_env.BossesList = function()
+  local BossTable = {}
+  
+  local function GetBoss(Objects)
+    for _, Boss in ipairs(Objects) do
+      local Humanoid = Boss:FindFirstChildOfClass("Humanoid")
+      if Humanoid and Humanoid.DisplayName:find("Boss") then
+        table.insert(BossTable, Boss.Name)
+      end
+    end
+  end
+
+  GetBoss(ReplicatedStorage:GetDescendants())
+  GetBoss(Enemies:GetDescendants())
+  return BossTable
+end
+
+_env.CheckMob = function(Value)
+  local Boolen = false
+
+  local function GetMob(Object)
+    for _, Mob in ipairs(Object) do
+      if table.find(Value, Mob.Name) then
+        local HD = Mob:FindFirstChild("Humanoid")
+        if HD and HD.Health > 0 then
+          Boolen = true
+          break 
+        end
+      end
+    end
+  end
+
+  local children = ReplicatedStorage:GetChildren()
+  if not Boolen then
+    GetMob(children)
+  end
+  if not Boolen then
+    children = Enemies:GetChildren()
+    GetMob(children)
+  end
+  return Boolen
+end
+
+_env.VerifyMaterial = function(NameC)
+  for _, Item in pairs(CommF_:InvokeServer("getInventory")) do
+    if Item.Type == "Material" then
+      if Item.Name == NameC then
+        return Item.Count
+      end
+    end
+  end
+  return 0
+end
+
+_env.IslandList = function()
+  local ListName = {}
+  local CheckName = {}
+  local Sky = {"Sky 2","Sky 3"}
+
+  for _, part in next, WorldOrigin.Locations:GetChildren() do
+    if part and not CheckName[part.name] then
+      table.insert(ListName, part.name)CheckName[part.name]=true
+    end
+  end
+  
+  if Sea[1] then
+    for _, part in next, Sky do
+      table.insert(ListName, part)
+    end
+  end
+
+  return ListName
+end
+
+_env.NPCList = function()
+  local ListNPC = {}
+  local CheckName = {}
+
+  local function CreateNPC(NPCGroup)
+    for _, part in next, NPCGroup do
+      local Head = part:FindFirstChild("Head")
+      if Head then
+        local QuestBBG = Head:FindFirstChild("QuestBBG")
+        if QuestBBG and QuestBBG:FindFirstChild("Title") and not CheckName[part.Name] then
+          table.insert(ListNPC, part.Name)CheckName[part.Name]=true
+        end
+      end
+    end
+  end
+
+  CreateNPC(NPCs:GetChildren())
+  CreateNPC(_getnilinstances())
+
+  return ListNPC
+end
+
+_env.ChipsList = function()
+  local ListName = {}
+
+  for _, Raids in next, Raids.raids do
+    table.insert(ListName, Raids)
+  end
+  for _, Raids in next, Raids.advancedRaids do
+    table.insert(ListName, Raids)
+  end
+
+  return ListName
+end
+
+_env.PlayerList = function()
+  local ListName = {}
+
+  for _, v in next, Players:GetChildren() do
+    table.insert(ListName, v.Name)
+  end
+
+  return ListName
+end
+
+if Sea[1] then
+  _env.MaterialList = {"Angel Wings", "Leather + Scrap Metal", "Magma Ore", "Fish Tail"}
+elseif Sea[2] then
+  _env.MaterialList = {"Leather + Scrap Metal", "Magma Ore", "Mystic Droplet", "Radioactive Material", "Vampire Fang"}
+elseif Sea[3] then
+  _env.MaterialList = {"Leather + Scrap Metal", "Fish Tail", "Gunpowder", "Mini Tusk", "Conjured Cocoa", "Dragon Scale"}
+end
+
+if Sea[1] then
+  _env.ItemListUpgrade = {"Cutlass", "Dual Katana", "Katana", "Iron Mace", "Shark Saw", "Triple Katana", "Dual-Headed Blade", "Pipe", "Soul Cane", "Trident", "Wardens Sword", "Bisento", "Pole (1st Form)", "Saber", "Slingshot", "Flintlock", "Musket", "Cannon", "Refined Flintlock", "Refined Musket", "Refined Slingshot", "Bazooka"}
+elseif Sea[2] then
+  _env.ItemListUpgrade = {"Dragon Trident", "Gravity Cane", "Jitte", "Longsword", "Koko", "Midnight Blade", "Pole (2nd Form)", "Rengoku", "Saddi", "Shisui", "Wando", "True Triple Katana", "Acidum Rifle", "Bizarre Rifle", "Kabucha"}
+elseif Sea[3] then
+  _env.ItemListUpgrade = {"Twin Hooks", "Buddy Sword", "Canvander", "Dark Dagger", "Fox Lamp", "Shark Anchor", "Spikey Trident", "Tushita", "Yama", "Cursed Dual Katana", "Hallow Scythe", "Serpent Bow", "Soul Guitar"}
+end
+
 local ShopTable = {
   {"Frags", {
     {"Race Rerol", {"BlackbeardReward", "Reroll", "2"}},
@@ -258,16 +327,48 @@ local ShopTable = {
     {"Buy Buso", {"BuyHaki", "Buso"}},
     {"Buy Soru", {"BuyHaki", "Soru"}},
     {"Buy Ken", {"KenTalk", "Buy"}}
+  }},
+  {"Sword", {
+    {"Buy Katana", {"BuyItem", "Katana"}},
+    {"Buy Cutlass", {"BuyItem", "Cutlass"}},
+    {"Buy Dual Katana", {"BuyItem", "Dual Katana"}},
+    {"Buy Iron Mace", {"BuyItem", "Iron Mace"}},
+    {"Buy Triple Katana", {"BuyItem", "Triple Katana"}},
+    {"Buy Pipe", {"BuyItem", "Pipe"}},
+    {"Buy Dual-Headed Blade", {"BuyItem", "Dual-Headed Blade"}},
+    {"Buy Soul Cane", {"BuyItem", "Soul Cane"}},
+    {"Buy Bisento", {"BuyItem", "Bisento"}}
+  }},
+  {"Gun", {
+    {"Buy Musket", {"BuyItem", "Musket"}},
+    {"Buy Slingshot", {"BuyItem", "Slingshot"}},
+    {"Buy Flintlock", {"BuyItem", "Flintlock"}},
+    {"Buy Refined Slingshot", {"BuyItem", "Refined Slingshot"}},
+    {"Buy Refined Flintlock", {"BuyItem", "Refined Flintlock"}},
+    {"Buy Cannon", {"BuyItem", "Cannon"}},
+    {"Buy Kabucha", {"BlackbeardReward", "Slingshot", "2"}}
+  }},
+  {"Accessories", {
+    {"Buy Black Cape", {"BuyItem", "Black Cape"}},
+    {"Buy Swordsman Hat", {"BuyItem", "Swordsman Hat"}},
+    {"Buy Tomoe Ring", {"BuyItem", "Tomoe Ring"}}
+  }},
+  {"Race", {
+    {"Ghoul Race", {"Ectoplasm", "Change", 4}},
+    {"Cyborg Race", {"CyborgTrainer", "Buy"}}
   }}
 }
 
 _env.FruitList = function()
-  return isRobloxEnvironment and {} or defaultFruits
+  local ListName = {}
+
+  for _, Fruit in next, CommF_:InvokeServer("GetFruits") do
+    table.insert(ListName, Fruit.Name)
+  end
+
+  return ListName
 end
 
-_env.CodesRedeem = {"GAMER", "NEWCODE", "BLUXFRUIT", "SKYX"}
-
--- Create UI tabs and sections
 local _home = Window:MakeTab("Home") do
   local _info = _home:Section({["Title"] = "Information", ["Content"] = ""}) do
     Funcs:AddButton(_info, "Discord Invite", "Click to copy invite server", function()
@@ -279,12 +380,10 @@ local _home = Window:MakeTab("Home") do
     local _timeServer = _info:Paragraph({["Title"] = "Time Server", ["Content"] = "" })
     task.spawn(function()
       while task.wait(2) do
-        if isRobloxEnvironment then
-          _timeServer:Set({
-            ["Title"] = "Time Server",
-            ["Content"] = tostring(Lighting.TimeOfDay)
-          })
-        end
+        _timeServer:Set({
+          ["Title"] = "Time Server",
+          ["Content"] = tostring(Lighting.TimeOfDay)
+        })
       end
     end)
   end
@@ -354,7 +453,7 @@ local _island = Window:MakeTab("Island") do
   local _teleport = _island:Section({["Title"] = "Teleport", ["Content"] = ""}) do
     Funcs:AddDropdown(_teleport, "Select Island", false, _env.IslandList(), {_env.IslandList()[1]})
     Funcs:AddButton(_teleport, "Teleport to Island", "", function()
-      print("Teleporting to island...")
+      -- Teleport function would go here
     end)
   end
 end
@@ -419,11 +518,7 @@ local _shop = Window:MakeTab("Shop") do
     local _shop_section = _shop:Section({["Title"] = Shop[1], ["Content"] = ""}) do
       for _, Item in next, Shop[2] do
         Funcs:AddButton(_shop_section, Item[1], "", function()
-          if isRobloxEnvironment then
-            CommF_:InvokeServer(unpack(Item[2]))
-          else
-            print("Buying: " .. Item[1])
-          end
+          CommF_:InvokeServer(unpack(Item[2]))
         end)
       end
     end
@@ -435,11 +530,7 @@ local _misc = Window:MakeTab("Misc") do
     Funcs:AddButton(_codes, "Redeem All Codes", "", function()
       if _env.CodesRedeem then
         for _, Code in next, _env.CodesRedeem do
-          if isRobloxEnvironment then
-            CommF_:InvokeServer("Redeem", Code)
-          else
-            print("Redeeming code: " .. Code)
-          end
+          CommF_:InvokeServer("Redeem", Code)
         end
       end
     end)
@@ -452,30 +543,32 @@ local _misc = Window:MakeTab("Misc") do
 
   local _server = _misc:Section({["Title"] = "Server", ["Content"] = ""}) do
     Funcs:AddButton(_server, "Rejoin Server", "", function()
-      if isRobloxEnvironment then
-        TeleportService:Teleport(game.PlaceId, Player)
-      else
-        print("Rejoining server...")
-      end
+      TeleportService:Teleport(game.PlaceId, Player)
     end)
     Funcs:AddButton(_server, "Server Hop", "", function()
-      print("Server hopping...")
+      -- Server hop function would go here
     end)
     Funcs:AddButton(_server, "Hop to Lower Player", "", function()
-      print("Hopping to lower player count server...")
+      -- Hop to lower player count server function would go here
     end)
   end
 end
 
+-- Initialize implementation functions
+task.spawn(function()
+  while task.wait() do
+    -- Enable WalkSpeed if toggled
+    if SpeedHubX["Enable WalkSpeed"] and Player.Character and Player.Character:FindFirstChild("Humanoid") then
+      Player.Character.Humanoid.WalkSpeed = tonumber(SpeedHubX["Set WalkSpeed"] or 16)
+    end
+    
+    -- Add more implementation functions here
+  end
+end)
+
 -- Game notification
-if isRobloxEnvironment then
-  game:GetService("StarterGui"):SetCore("SendNotification", {
-    Title = "SkyX Hub",
-    Text = "Blox Fruits script loaded successfully! Made by SkyX Team",
-    Duration = 5
-  })
-else
-  print("\nSkyX Hub Blox Fruits loaded successfully!")
-  print("UI would display properly in Roblox environment")
-  print("Press Right Control to toggle UI")
-end
+game:GetService("StarterGui"):SetCore("SendNotification", {
+  Title = "SkyX Hub",
+  Text = "Blox Fruits script loaded successfully! Made by SkyX Team",
+  Duration = 5
+})
