@@ -1,63 +1,121 @@
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
 
--- init
-local library = loadstring(game:HttpGet("https://raw.githubusercontent.com/GreenDeno/Venyx-UI-Library/main/source.lua"))()
-local venyx = library.new("Venyx", 5013109572)
+local Window = Rayfield:CreateWindow({
+   Name = "Combat Exploits",
+   LoadingTitle = "Loading Aimbot...",
+   LoadingSubtitle = "by SkyX",
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = "CombatConfig",
+      FileName = "Config"
+   }
+})
 
--- themes
-local themes = {
-	Background = Color3.fromRGB(24, 24, 24),
-	Glow = Color3.fromRGB(0, 0, 0),
-	Accent = Color3.fromRGB(10, 10, 10),
-	LightContrast = Color3.fromRGB(20, 20, 20),
-	DarkContrast = Color3.fromRGB(14, 14, 14),  
-	TextColor = Color3.fromRGB(255, 255, 255)
-}
+local AimbotTab = Window:CreateTab("Aimbot", 4483362458)
+local MovementTab = Window:CreateTab("Movement", 4483362458)
 
--- first page
-local page = venyx:addPage("Test", 5012544693)
-local section1 = page:addSection("Section 1")
-local section2 = page:addSection("Section 2")
+-- Aimbot settings
+local AimbotEnabled = false
+local AimPart = "Head"
+local TeamCheck = true
+local AimRadius = 250
+local Sensitivity = 0.2
 
-section1:addToggle("Toggle", nil, function(value)
-	print("Toggled", value)
-end)
-section1:addButton("Button", function()
-	print("Clicked")
-end)
-section1:addTextbox("Notification", "Default", function(value, focusLost)
-	print("Input", value)
-
-	if focusLost then
-		venyx:Notify("Title", value)
-	end
-end)
-
-section2:addKeybind("Toggle Keybind", Enum.KeyCode.One, function()
-	print("Activated Keybind")
-	venyx:toggle()
-end, function()
-	print("Changed Keybind")
-end)
-section2:addColorPicker("ColorPicker", Color3.fromRGB(50, 50, 50))
-section2:addColorPicker("ColorPicker2")
-section2:addSlider("Slider", 0, -100, 100, function(value)
-	print("Dragged", value)
-end)
-section2:addDropdown("Dropdown", {"Hello", "World", "Hello World", "Word", 1, 2, 3})
-section2:addDropdown("Dropdown", {"Hello", "World", "Hello World", "Word", 1, 2, 3}, function(text)
-	print("Selected", text)
-end)
-section2:addButton("Button")
-
--- second page
-local theme = venyx:addPage("Theme", 5012544693)
-local colors = theme:addSection("Colors")
-
-for theme, color in pairs(themes) do -- all in one theme changer, i know, im cool
-	colors:addColorPicker(theme, color, function(color3)
-		venyx:setTheme(theme, color3)
-	end)
+-- Aimbot implementation
+local function GetClosestPlayer()
+    local ClosestDistance = AimRadius
+    local ClosestPlayer = nil
+    
+    for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+        if player ~= game.Players.LocalPlayer then
+            if not TeamCheck or player.Team ~= game.Players.LocalPlayer.Team then
+                if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild(AimPart) then
+                    local pos = game.Workspace.CurrentCamera:WorldToViewportPoint(player.Character[AimPart].Position)
+                    local magnitude = (Vector2.new(pos.X, pos.Y) - Vector2.new(game.Players.LocalPlayer:GetMouse().X, game.Players.LocalPlayer:GetMouse().Y)).Magnitude
+                    
+                    if magnitude < ClosestDistance then
+                        ClosestPlayer = player
+                        ClosestDistance = magnitude
+                    end
+                end
+            end
+        end
+    end
+    
+    return ClosestPlayer
 end
 
--- load
-venyx:SelectPage(venyx.pages[1], true)
+-- Add aimbot toggle to UI
+AimbotTab:CreateToggle({
+   Name = "Enable Aimbot",
+   CurrentValue = false,
+   Flag = "AimbotEnabled",
+   Callback = function(Value)
+       AimbotEnabled = Value
+   end,
+})
+
+AimbotTab:CreateDropdown({
+   Name = "Aim Part",
+   Options = {"Head", "HumanoidRootPart", "Torso"},
+   CurrentOption = "Head",
+   Flag = "AimPart",
+   Callback = function(Value)
+       AimPart = Value
+   end,
+})
+
+AimbotTab:CreateToggle({
+   Name = "Team Check",
+   CurrentValue = true,
+   Flag = "TeamCheck",
+   Callback = function(Value)
+       TeamCheck = Value
+   end,
+})
+
+AimbotTab:CreateSlider({
+   Name = "Aim Radius",
+   Range = {50, 500},
+   Increment = 10,
+   Suffix = "px",
+   CurrentValue = 250,
+   Flag = "AimRadius",
+   Callback = function(Value)
+       AimRadius = Value
+   end,
+})
+
+AimbotTab:CreateSlider({
+   Name = "Smoothness",
+   Range = {0.1, 1},
+   Increment = 0.1,
+   Suffix = "x",
+   CurrentValue = 0.2,
+   Flag = "Smoothness",
+   Callback = function(Value)
+       Sensitivity = Value
+   end,
+})
+
+-- Implement aimbot
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local IsAiming = false
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        IsAiming = true
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton2 then
+        IsAiming = false
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if AimbotEnabled and IsAiming then
+        local ClosestPlayer = GetClosestPlayer()
+        if ClosestPlayer and ClosestPlayer.Character and Clos
