@@ -1,5 +1,5 @@
 --[[
-    SkyX Hub - Blowwwwx Fruits
+    SkyX Hub - Blox Fruits
     All-In-One Version (No external loading)
     All modules directly embedded for better mobile compatibility
     
@@ -851,40 +851,128 @@ local function CreateAutoFarmModule()
     end
     
     -- Function to find target monsters
-    function AutoFarm:FindTargetMonsters()
+    -- Bring mobs function (Fluent style mob collection)
+    function AutoFarm:BringMob()
+        if not self.Settings.Enabled then return end
+        
         local player = game.Players.LocalPlayer
-        local character = player.Character
-        if not character or not character:FindFirstChild("HumanoidRootPart") then return {} end
-        
-        local hrp = character.HumanoidRootPart
-        local targetMonsters = {}
+        if not player or not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = player.Character.HumanoidRootPart
         local questData = self:GetQuestData()
+        if not questData then return end
         
-        -- Look for monsters that match our target
-        for _, npc in pairs(workspace:GetChildren()) do
-            if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") and npc ~= character then
-                -- Check if it's an NPC (not a player) and matches our target
-                if not game.Players:GetPlayerFromCharacter(npc) and 
-                   (npc.Name == questData.Mon or npc.Name:find(questData.Mon)) then
-                    
-                    local distance = (hrp.Position - npc.HumanoidRootPart.Position).Magnitude
-                    if distance < self.Settings.MaxDistance and distance > self.Settings.MinDistance and npc.Humanoid.Health > 0 then
-                        table.insert(targetMonsters, {
-                            NPC = npc,
-                            Distance = distance
-                        })
+        -- Look for enemies in workspace.Enemies
+        for i, v in pairs(game:GetService("Workspace").Enemies:GetChildren()) do
+            if self.Settings.Enabled and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") and 
+               v.Humanoid.Health > 0 and (v.HumanoidRootPart.Position - hrp.Position).Magnitude <= 350 then
+                
+                -- Check if enemy matches quest target (try both MonName and Mon fields)
+                if string.find(v.Name, questData.MonName) or v.Name == questData.MonName or 
+                   (questData.Mon and (string.find(v.Name, questData.Mon) or v.Name == questData.Mon)) then
+                    -- Modify enemy properties for easier farming
+                    if v.Parent and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
+                        v.HumanoidRootPart.CanCollide = false
+                        v.Humanoid.WalkSpeed = 0
+                        v.HumanoidRootPart.Size = Vector3.new(80, 80, 80)
+                        v.HumanoidRootPart.Transparency = 0.8
+                        
+                        -- Bring mob to player
+                        v.HumanoidRootPart.CFrame = hrp.CFrame * CFrame.new(0, 20, 0)
                     end
                 end
             end
         end
-        
-        -- Sort by distance
-        table.sort(targetMonsters, function(a, b)
-            return a.Distance < b.Distance
+    end
+    
+    -- Fast Attack function (Fluent-style combat framework manipulation)
+    function AutoFarm:FastAttack()
+        -- Try to get combat framework upvalues
+        pcall(function()
+            local CombatFramework = require(game:GetService("Players").LocalPlayer.PlayerScripts.CombatFramework)
+            local CombatFrameworkR = getupvalues(CombatFramework)[2]
+            local RigController = getupvalues(CombatFrameworkR)[2]
+            local RigControllerR = getupvalues(RigController)[2]
+            local realbhit = require(game:GetService("Players").LocalPlayer.PlayerScripts.CombatFramework.RigLib)
+            local cooldownfastattack = tick()
+            
+            -- Save original value if not already saved
+            if not shared.orl then
+                shared.orl = RigControllerR.activeController.timeToNextAttack
+            end
+            
+            -- Manipulate attack values
+            if tick() - cooldownfastattack > 0.5 then
+                cooldownfastattack = tick()
+            end 
+            
+            -- Remove attack cooldown
+            RigControllerR.activeController.timeToNextAttack = 0
+            RigControllerR.activeController.attacking = false
+            RigControllerR.activeController.blocking = false
+            RigControllerR.activeController.focusStart = 0
+            RigControllerR.activeController.increment = 4
+            RigControllerR.activeController.hitboxMagnitude = 100
+            RigControllerR.activeController.humanoid.AutoRotate = true
+            
+            -- Speed up attack animations
+            for _, v in next, getupvalues(realbhit) do
+                if typeof(v) == "table" then
+                    if v.attackSeedTarget then
+                        v.attackSeedTarget = 0
+                    end
+                    if v.currentAttackTrack then
+                        v.currentAttackTrack.TimePosition = 8
+                    end
+                end
+            end
         end)
+    end
+    
+    -- Improved target finding (works with BringMob)
+    function AutoFarm:FindTargetMonsters()
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
         
-        if #targetMonsters > 0 then
-            return targetMonsters[1].NPC
+        local hrp = character.HumanoidRootPart
+        local questData = self:GetQuestData()
+        if not questData then return nil end
+        
+        -- First bring mobs to make them easier to target
+        self:BringMob()
+        
+        -- Look for monsters in Workspace.Enemies (more reliable than just workspace)
+        local closestMonster = nil
+        local closestDistance = self.Settings.MaxDistance
+        
+        for _, monster in pairs(workspace.Enemies:GetChildren()) do
+            if monster:FindFirstChild("Humanoid") and monster.Humanoid.Health > 0 and 
+               monster:FindFirstChild("HumanoidRootPart") and
+               (string.find(monster.Name, questData.MonName) or monster.Name == questData.MonName or 
+               (questData.Mon and (string.find(monster.Name, questData.Mon) or monster.Name == questData.Mon))) then
+                
+                local distance = (monster.HumanoidRootPart.Position - hrp.Position).Magnitude
+                if distance < closestDistance then
+                    closestMonster = monster
+                    closestDistance = distance
+                end
+            end
+        end
+        
+        if closestMonster then
+            return closestMonster
+        end
+        
+        -- If no close monsters, teleport to monster spawn
+        if questData and questData.CFrameMon then
+            print("No monsters found, teleporting to spawn location")
+            if TeleportModule then
+                TeleportModule:TeleportTo(questData.CFrameMon.Position)
+            else
+                -- Direct teleport fallback
+                character.HumanoidRootPart.CFrame = questData.CFrameMon
+            end
+            wait(1)
         end
         
         return nil
@@ -952,16 +1040,9 @@ local function CreateAutoFarmModule()
             end)
         end
         
-        -- Apply Fast Attack if enabled
+        -- Apply Fast Attack if enabled (use Fluent-style combat framework manipulation)
         if self.Settings.FastAttack then
-            pcall(function()
-                -- Speed up attack animations
-                for _, anim in pairs(character.Humanoid:GetPlayingAnimationTracks()) do
-                    if anim.Name:lower():find("attack") or anim.Name:lower():find("combat") then
-                        anim:AdjustSpeed(2)
-                    end
-                end
-            end)
+            self:FastAttack()
         end
         
         -- Highlight target if ESP is available
@@ -1043,6 +1124,9 @@ local function CreateAutoFarmModule()
         if Farming then return end
         Farming = true
         
+        -- Create timer for periodic bring mob
+        local bringMobTimer = 0
+        
         -- Try to get a quest first
         self:TryGetQuest()
         
@@ -1051,6 +1135,15 @@ local function CreateAutoFarmModule()
             if not self.Settings.Enabled then
                 self:StopFarming()
                 return
+            end
+            
+            -- Increment timer
+            bringMobTimer = bringMobTimer + game:GetService("RunService").Heartbeat:Wait()
+            
+            -- Periodically call BringMob to collect enemies (every 1 second)
+            if bringMobTimer >= 1 then
+                self:BringMob()
+                bringMobTimer = 0
             end
             
             -- Check if target exists and is still valid
