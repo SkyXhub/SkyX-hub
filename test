@@ -1,389 +1,216 @@
 --[[    
-    SkyX | BladeBall Executor Script
-    Using OrionX-UI with Dark Theme
-    
-    Features:
-    - Auto Parry (with customizable distance and timing)
-    - ESP for players and balls
-    - Auto Farm mode
-    - Teleport utilities
+    Complete OrionX-UI Example
+    Demonstrates all UI elements and parameters
 ]]
 
--- Load the OrionX-UI library
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))() 
+-- Load the OrionX-UI library 
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))()
 
--- Apply Dark theme immediately
-OrionLib.Themes:SetTheme("Dark")
-
--- Game detection
-if game.PlaceId ~= 13772394625 and game.PlaceId ~= 14732610803 and game.PlaceId ~= 15216371542 then
-    OrionLib:MakeNotification({
-        Name = "Game Not Supported",
-        Content = "This script only works in Blade Ball! Please join a supported game.",
-        Image = "warning",
-        Time = 10
-    })
-    return
-end
-
--- Variables
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-
--- Settings with default values
-local Settings = {
-    AutoParry = false,
-    ParryDistance = 20,
-    ParryTiming = 0.25,
-    ESP = false,
-    AutoFarm = false,
-    TargetPlayer = nil,
-    PingBased = true
-}
-
--- Helper functions
-local function GetBall()
-    for _, ball in pairs(workspace:GetChildren()) do
-        if ball.Name == "Ball" and ball:IsA("BasePart") then
-            return ball
-        end
-    end
-    return nil
-end
-
-local function GetDistanceFromBall(ball)
-    if not ball or not HumanoidRootPart then return 999 end
-    return (ball.Position - HumanoidRootPart.Position).Magnitude
-end
-
-local function DetectBallMovingTowardsPlayer(ball)
-    if not ball or not HumanoidRootPart then return false end
-    local ballVelocity = ball.Velocity
-    local playerPosition = HumanoidRootPart.Position
-    local ballPosition = ball.Position
-    local direction = (playerPosition - ballPosition).Unit
-    local dotProduct = ballVelocity:Dot(direction)
-    
-    return dotProduct > 0 -- Ball is moving towards the player
-end
-
-local function AutoParry()
-    local ball = GetBall()
-    if not ball then return end
-    
-    local distance = GetDistanceFromBall(ball)
-    local isMovingTowardsPlayer = DetectBallMovingTowardsPlayer(ball)
-    local speed = ball.Velocity.Magnitude
-    
-    if distance <= Settings.ParryDistance and isMovingTowardsPlayer then
-        local timeToImpact = distance / speed
-        
-        if Settings.PingBased then
-            -- Adjust timing based on ping
-            local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
-            timeToImpact = timeToImpact - (ping / 2) -- Compensate for ping
-        end
-        
-        if timeToImpact <= Settings.ParryTiming and timeToImpact > 0 then
-            -- Trigger parry
-            local args = {[1] = 0.5} -- Parry timing argument
-            game:GetService("ReplicatedStorage").Remotes.ParryButtonPress:FireServer(unpack(args))
-            
-            -- Show notification
-            OrionLib:MakeNotification({
-                Name = "Auto Parry",
-                Content = "Parried ball at distance: " .. math.floor(distance) .. "m",
-                Image = "check",
-                Time = 1
-            })
-        end
-    end
-end
-
-local function ToggleESP(enabled)
-    if enabled then
-        -- Create ESP highlights
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local highlight = Instance.new("Highlight")
-                highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                highlight.FillTransparency = 0.5
-                highlight.OutlineTransparency = 0
-                highlight.Adornee = player.Character
-                highlight.Parent = player.Character
-                highlight.Name = "SkyXESP"
-            end
-        end
-        
-        -- Create ESP for balls
-        local ball = GetBall()
-        if ball then
-            local highlight = Instance.new("Highlight")
-            highlight.FillColor = Color3.fromRGB(0, 255, 0)
-            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.FillTransparency = 0.3
-            highlight.OutlineTransparency = 0
-            highlight.Adornee = ball
-            highlight.Parent = ball
-            highlight.Name = "SkyXESP"
-        end
-    else
-        -- Remove all ESP highlights
-        for _, player in pairs(Players:GetPlayers()) do
-            if player.Character then
-                local highlight = player.Character:FindFirstChild("SkyXESP")
-                if highlight then highlight:Destroy() end
-            end
-        end
-        
-        local ball = GetBall()
-        if ball then
-            local highlight = ball:FindFirstChild("SkyXESP")
-            if highlight then highlight:Destroy() end
-        end
-    end
-end
-
-local function StartAutoFarm()
-    -- Teleport to the center of the arena
-    HumanoidRootPart.CFrame = CFrame.new(0, 50, 0)
-    
-    -- Enable auto parry if not already enabled
-    Settings.AutoParry = true
-end
-
-local function StopAutoFarm()
-    Settings.AutoParry = false
-end
-
-local function TeleportToPlayer(targetPlayer)
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
-    end
-end
-
--- Create main window
+-- Create window with all options
 local Window = OrionLib:MakeWindow({
-    Name = "SkyX | Blade Ball",
+    Name = "Complete OrionX UI", 
     HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "SkyXBladeBall",
+    SaveConfig = true, 
+    ConfigFolder = "OrionXComplete",
     IntroEnabled = true,
-    IntroText = "SkyX Hub",
-    IntroIcon = "rbxassetid://10618644218",  -- Replace with your actual icon
-    Icon = "rbxassetid://10618644218"        -- Replace with your actual icon
+    IntroText = "OrionX UI",
+    IntroIcon = "rbxassetid://10618644218",
+    Icon = "rbxassetid://10618644218",
+    CloseCallback = function()
+        print("UI was closed")
+    end
 })
 
--- Main tab
+-- Create main tab
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "sword",
+    Icon = "home", 
     PremiumOnly = false
 })
 
+-- Create information section
 local InfoSection = MainTab:AddSection({
     Name = "Information"
 })
 
-InfoSection:AddParagraph("Welcome to SkyX Blade Ball", "This script provides various utilities for Blade Ball including auto parry, ESP, and auto farm.")
+-- Add a paragraph
+InfoSection:AddParagraph("Welcome to OrionX-UI", "This example demonstrates all UI elements and parameters available in the library.")
 
--- Auto Parry section
-local AutoParrySection = MainTab:AddSection({
-    Name = "Auto Parry"
+-- Add a label
+InfoSection:AddLabel("This is a basic label")
+
+-- Create a controls section
+local ControlsSection = MainTab:AddSection({
+    Name = "UI Controls"
 })
 
-AutoParrySection:AddToggle({
-    Name = "Auto Parry",
-    Default = false,
-    Flag = "AutoParry",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoParry = Value
+-- Add a button with all parameters
+ControlsSection:AddButton({
+    Name = "Click Me",
+    Callback = function()
+        OrionLib:MakeNotification({
+            Name = "Button Clicked",
+            Content = "You clicked the button!",
+            Image = "check",
+            Time = 5
+        })
     end
 })
 
-AutoParrySection:AddSlider({
-    Name = "Parry Distance",
-    Min = 5,
-    Max = 50,
-    Default = 20,
-    Color = Color3.fromRGB(60, 100, 200),
+-- Add a toggle with saving
+local MyToggle = ControlsSection:AddToggle({
+    Name = "Toggle Example",
+    Default = false,
+    Save = true,
+    Flag = "toggleExample",
+    Callback = function(Value)
+        print("Toggle:", Value)
+    end
+})
+
+-- Add button to demonstrate toggle manipulation
+ControlsSection:AddButton({
+    Name = "Toggle ON",
+    Callback = function()
+        MyToggle:Set(true)
+    end
+})
+
+-- Add a slider with all parameters
+ControlsSection:AddSlider({
+    Name = "Slider Example",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(60, 120, 220),
     Increment = 1,
-    ValueName = "meters",
-    Flag = "ParryDistance",
+    ValueName = "units",
     Save = true,
+    Flag = "sliderExample",
     Callback = function(Value)
-        Settings.ParryDistance = Value
-    end    
+        print("Slider value:", Value)
+    end
 })
 
-AutoParrySection:AddSlider({
-    Name = "Parry Timing",
-    Min = 0.1,
-    Max = 1,
-    Default = 0.25,
-    Color = Color3.fromRGB(60, 200, 100),
-    Increment = 0.01,
-    ValueName = "seconds",
-    Flag = "ParryTiming",
+-- Add a dropdown with all parameters
+local MyDropdown = ControlsSection:AddDropdown({
+    Name = "Dropdown Example",
+    Default = "Option 1",
+    Options = {"Option 1", "Option 2", "Option 3"},
     Save = true,
+    Flag = "dropdownExample", 
     Callback = function(Value)
-        Settings.ParryTiming = Value
-    end    
+        print("Selected:", Value)
+    end
 })
 
-AutoParrySection:AddToggle({
-    Name = "Ping-Based Timing",
+-- Add button to refresh dropdown options
+ControlsSection:AddButton({
+    Name = "Refresh Dropdown",
+    Callback = function()
+        MyDropdown:Refresh({"New Option 1", "New Option 2", "New Option 3", "New Option 4"}, true) -- true to clear old options
+    end
+})
+
+-- Add a selectable dropdown value
+ControlsSection:AddButton({
+    Name = "Set Dropdown to New Option 2",
+    Callback = function()
+        MyDropdown:Set("New Option 2")
+    end
+})
+
+-- Add a textbox
+ControlsSection:AddTextbox({
+    Name = "Textbox Example",
+    Default = "Type here...",
+    TextDisappear = false,
+    Callback = function(Value)
+        print("Textbox value:", Value)
+    end
+})
+
+-- Add a colorpicker
+local MyColorPicker = ControlsSection:AddColorpicker({
+    Name = "Colorpicker Example",
+    Default = Color3.fromRGB(255, 0, 0),
+    Save = true,
+    Flag = "colorExample",
+    Callback = function(Value)
+        print("Color picked:", Value)
+    end
+})
+
+-- Set a default color
+ControlsSection:AddButton({
+    Name = "Set Color to Blue",
+    Callback = function()
+        MyColorPicker:Set(Color3.fromRGB(0, 0, 255))
+    end
+})
+
+-- Add a keybind
+ControlsSection:AddBind({
+    Name = "Keybind Example",
+    Default = Enum.KeyCode.E,
+    Hold = false,
+    Save = true,
+    Flag = "keybindExample",
+    Callback = function()
+        print("Keybind triggered")
+    end
+})
+
+-- Create a Mobile tab
+local MobileTab = Window:MakeTab({
+    Name = "Mobile",
+    Icon = "settings",
+    PremiumOnly = false
+})
+
+-- Create a mobile section
+local MobileSection = MobileTab:AddSection({
+    Name = "Mobile Settings"
+})
+
+-- Add mobile toggle button visibility toggle
+MobileSection:AddToggle({
+    Name = "Show Mobile Toggle",
     Default = true,
-    Flag = "PingBased",
-    Save = true,
     Callback = function(Value)
-        Settings.PingBased = Value
+        OrionLib.Mobile:SetToggleVisibility(Value)
     end
 })
 
--- Visual tab
-local VisualsTab = Window:MakeTab({
-    Name = "Visuals",
-    Icon = "eye",
-    PremiumOnly = false
-})
-
-local ESPSection = VisualsTab:AddSection({
-    Name = "ESP"
-})
-
-ESPSection:AddToggle({
-    Name = "ESP",
-    Default = false,
-    Flag = "ESP",
-    Save = true,
+-- Add mobile toggle position dropdown
+MobileSection:AddDropdown({
+    Name = "Mobile Toggle Position",
+    Default = "TopRight",
+    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
     Callback = function(Value)
-        Settings.ESP = Value
-        ToggleESP(Value)
+        OrionLib.Mobile:SetTogglePosition(Value)
     end
 })
 
--- Teleport tab
-local TeleportTab = Window:MakeTab({
-    Name = "Teleport",
-    Icon = "bolt",
-    PremiumOnly = false
-})
-
-local TeleportSection = TeleportTab:AddSection({
-    Name = "Teleport Options"
-})
-
--- Create dropdown of players
-local playerList = {}
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        table.insert(playerList, player.Name)
-    end
-end
-
-local PlayerDropdown = TeleportTab:AddDropdown({
-    Name = "Select Player",
-    Default = "",
-    Options = playerList,
-    Flag = "TargetPlayer",
-    Save = false,
-    Callback = function(Value)
-        for _, player in pairs(Players:GetPlayers()) do
-            if player.Name == Value then
-                Settings.TargetPlayer = player
-                break
-            end
-        end
-    end    
-})
-
-TeleportTab:AddButton({
-    Name = "Refresh Player List",
-    Callback = function()
-        local newPlayerList = {}
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                table.insert(newPlayerList, player.Name)
-            end
-        end
-        PlayerDropdown:Refresh(newPlayerList, true)
-    end    
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Player",
-    Callback = function()
-        if Settings.TargetPlayer then
-            TeleportToPlayer(Settings.TargetPlayer)
-        else
-            OrionLib:MakeNotification({
-                Name = "Teleport Failed",
-                Content = "Please select a player first!",
-                Image = "warning",
-                Time = 3
-            })
-        end
-    end    
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Center",
-    Callback = function()
-        HumanoidRootPart.CFrame = CFrame.new(0, 50, 0)
-    end    
-})
-
--- Auto farm tab
-local FarmTab = Window:MakeTab({
-    Name = "Auto Farm",
-    Icon = "rotate",
-    PremiumOnly = false
-})
-
-local FarmSection = FarmTab:AddSection({
-    Name = "Auto Farm"
-})
-
-FarmSection:AddToggle({
-    Name = "Auto Farm",
-    Default = false,
-    Flag = "AutoFarm",
-    Save = true,
-    Callback = function(Value)
-        Settings.AutoFarm = Value
-        if Value then
-            StartAutoFarm()
-        else
-            StopAutoFarm()
-        end
-    end
-})
-
-FarmSection:AddParagraph("How Auto Farm Works", "Auto Farm teleports you to the center of the arena and automatically parries incoming balls to accumulate wins.")
-
--- Theme tab
+-- Create a Theme tab
 local ThemeTab = Window:MakeTab({
-    Name = "Theme",
+    Name = "Themes",
     Icon = "palette",
     PremiumOnly = false
 })
 
+-- Create a theme section
 local ThemeSection = ThemeTab:AddSection({
-    Name = "UI Theme"
+    Name = "Theme Options"
 })
 
+-- Available themes
 local themes = {"Default", "Dark", "Light", "Ocean", "Blood"}
 
+-- Add theme buttons
 for _, themeName in pairs(themes) do
-    ThemeTab:AddButton({
-        Name = "Switch to " .. themeName,
+    ThemeSection:AddButton({
+        Name = "Set " .. themeName .. " Theme",
         Callback = function()
             OrionLib.Themes:SetTheme(themeName)
             OrionLib:MakeNotification({
@@ -396,86 +223,106 @@ for _, themeName in pairs(themes) do
     })
 end
 
--- Mobile support
-local MobileSection = ThemeTab:AddSection({
-    Name = "Mobile Support"
-})
-
-MobileSection:AddToggle({
-    Name = "Show Mobile Toggle",
-    Default = true,
-    Callback = function(Value)
-        OrionLib.Mobile:SetToggleVisibility(Value)
+-- Create a custom theme
+ThemeSection:AddButton({
+    Name = "Create Custom Purple Theme",
+    Callback = function()
+        -- Add a custom theme
+        OrionLib.Themes:AddTheme("Purple", {
+            Main = Color3.fromRGB(40, 30, 60),
+            Second = Color3.fromRGB(50, 40, 70),
+            Stroke = Color3.fromRGB(80, 70, 100),
+            Divider = Color3.fromRGB(80, 70, 100),
+            Text = Color3.fromRGB(240, 230, 255),
+            TextDark = Color3.fromRGB(170, 160, 190)
+        })
+        
+        -- Apply the custom theme
+        OrionLib.Themes:SetTheme("Purple")
+        
+        -- Notification
+        OrionLib:MakeNotification({
+            Name = "Custom Theme Created",
+            Content = "Created and applied Purple theme",
+            Image = "check",
+            Time = 3
+        })
     end
 })
 
-MobileSection:AddDropdown({
-    Name = "Toggle Position",
-    Default = "TopRight",
-    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
-    Callback = function(Value)
-        OrionLib.Mobile:SetTogglePosition(Value)
-    end
-})
-
--- Credits tab
-local CreditsTab = Window:MakeTab({
-    Name = "Credits",
-    Icon = "info",
+-- Create a flags tab to demonstrate flags
+local FlagsTab = Window:MakeTab({
+    Name = "Flags",
+    Icon = "key",
     PremiumOnly = false
 })
 
-CreditsTab:AddParagraph("SkyX Hub", "Created by SkyX Team")
-CreditsTab:AddParagraph("UI Library", "Using OrionX-UI - An enhanced version of Orion Library")
+-- Create a flags section
+local FlagsSection = FlagsTab:AddSection({
+    Name = "Saved Values"
+})
 
--- Initialize connections
-RunService.Heartbeat:Connect(function()
-    if Settings.AutoParry then
-        AutoParry()
-    end
-    
-    if Settings.ESP then
-        -- Refresh ESP on new players or balls
-        ToggleESP(true)
+-- Add button to print all flag values
+FlagsSection:AddButton({
+    Name = "Print All Flag Values",
+    Callback = function()
+        -- Loop through all flags
+        for flagName, flagData in pairs(OrionLib.Flags) do
+            print(flagName .. " = " .. tostring(flagData.Value))
+        end
     end
 })
 
--- Handle player joining
-Players.PlayerAdded:Connect(function(player)
-    local newPlayerList = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(newPlayerList, p.Name)
-        end
-    end
-    PlayerDropdown:Refresh(newPlayerList, true)
-    
-    -- Add ESP to new player if enabled
-    if Settings.ESP and player ~= LocalPlayer and player.Character then
-        local highlight = Instance.new("Highlight")
-        highlight.FillColor = Color3.fromRGB(255, 0, 0)
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-        highlight.FillTransparency = 0.5
-        highlight.OutlineTransparency = 0
-        highlight.Adornee = player.Character
-        highlight.Parent = player.Character
-        highlight.Name = "SkyXESP"
+-- Add buttons to show individual flags
+FlagsSection:AddButton({
+    Name = "Show Toggle Value",
+    Callback = function()
+        local value = OrionLib.Flags["toggleExample"].Value
+        OrionLib:MakeNotification({
+            Name = "Toggle Flag Value",
+            Content = "Value: " .. tostring(value),
+            Image = "info",
+            Time = 5
+        })
     end
 })
 
--- Handle player leaving
-Players.PlayerRemoving:Connect(function(player)
-    local newPlayerList = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p ~= player then
-            table.insert(newPlayerList, p.Name)
-        end
+FlagsSection:AddButton({
+    Name = "Show Slider Value",
+    Callback = function()
+        local value = OrionLib.Flags["sliderExample"].Value
+        OrionLib:MakeNotification({
+            Name = "Slider Flag Value",
+            Content = "Value: " .. tostring(value),
+            Image = "info",
+            Time = 5
+        })
     end
-    PlayerDropdown:Refresh(newPlayerList, true)
-    
-    -- Reset target player if they leave
-    if Settings.TargetPlayer == player then
-        Settings.TargetPlayer = nil
+})
+
+FlagsSection:AddButton({
+    Name = "Show Dropdown Value",
+    Callback = function()
+        local value = OrionLib.Flags["dropdownExample"].Value
+        OrionLib:MakeNotification({
+            Name = "Dropdown Flag Value",
+            Content = "Value: " .. tostring(value),
+            Image = "info",
+            Time = 5
+        })
+    end
+})
+
+-- Create Utility Section
+local UtilitySection = FlagsTab:AddSection({
+    Name = "Utility"
+})
+
+-- Destroy UI button
+UtilitySection:AddButton({
+    Name = "Destroy UI",
+    Callback = function()
+        OrionLib:Destroy()
     end
 })
 
