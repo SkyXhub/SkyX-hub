@@ -1,244 +1,206 @@
 --[[
-    SkyX Executor-Ready Script with SkyXBlue Theme
-    This script is designed for direct use in Roblox executors
-    Author: SkyXhub
-    Version: 1.0.0
+    Simple OrionX UI - Executor Ready
+    A compact, enhanced UI script for Roblox exploits with no theme options
 ]]
 
--- Load OrionLib using the standard loading pattern
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI')))()
+-- Load the OrionX-UI Library
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI.lua'))()
 
--- Simple notification that the library has loaded
-pcall(function()
-    game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "SkyX Hub",
-        Text = "Library loaded successfully",
-        Duration = 3
-    })
-end)
-
--- Create window with SkyXBlue theme
+-- Create the main window
 local Window = OrionLib:MakeWindow({
-    Name = "SkyX Hub",
+    Name = "SkyX Enhanced UI", 
+    IntroEnabled = true,
+    IntroText = "SkyX Enhanced UI",
+    IntroIcon = "flower",
+    Icon = "flower",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFolder = "SkyXExecutor",
-    IntroEnabled = true,
-    IntroText = "SkyX Hub",
-    IntroIcon = "rbxassetid://10618644218", -- SkyX logo
-    Icon = "rbxassetid://10618644218"
+    ConfigFolder = "SkyXConfig"
 })
 
--- Set the theme to SkyXBlue
-OrionLib:SetTheme("SkyXBlue")
-
--- Create main tab
+-- Main Tab
 local MainTab = Window:MakeTab({
-    Name = "Main",
-    Icon = "home", -- Using built-in icon
+    Name = "Player",
+    Icon = "person",
     PremiumOnly = false
 })
 
--- Add a welcome section
-local WelcomeSection = MainTab:AddSection({
-    Name = "Welcome to SkyX Hub"
+-- Information
+MainTab:AddParagraph("SkyX Enhanced UI", "This exploit UI features enhanced typography with GothamBold fonts, better spacing, and improved interactive elements.")
+
+MainTab:AddButton({
+    Name = "Show Notification",
+    Callback = function()
+        OrionLib:Notify("Enhanced UI", "You're using the improved OrionX-UI with better visuals!", "info", 5)
+    end    
 })
 
--- Show game info
-WelcomeSection:AddParagraph("Game Information", "Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name .. "\nPlace ID: " .. game.PlaceId)
-
--- Add user info
-local playerName = game.Players.LocalPlayer.Name
-local playerDisplayName = game.Players.LocalPlayer.DisplayName
-WelcomeSection:AddParagraph("User Information", "Username: " .. playerName .. "\nDisplay Name: " .. playerDisplayName)
-
--- Create a features section
-local FeaturesSection = MainTab:AddSection({
-    Name = "Features"
+-- Player section
+local PlayerSection = MainTab:AddSection({
+    Name = "Player Features"
 })
 
--- Add some basic features common in most executors
-FeaturesSection:AddToggle({
-    Name = "ESP Players",
+-- Walk Speed
+PlayerSection:AddToggle({
+    Name = "Speed Boost",
     Default = false,
+    Flag = "speedToggle",
     Callback = function(Value)
-        -- ESP implementation would go here
-        OrionLib:MakeNotification({
-            Name = "Feature Toggled",
-            Content = "ESP Players: " .. (Value and "Enabled" or "Disabled"),
-            Image = "info",
-            Time = 3
-        })
-    end
-})
-
-FeaturesSection:AddToggle({
-    Name = "Infinite Jump",
-    Default = false,
-    Callback = function(Value)
-        -- Basic infinite jump implementation
-        _G.InfiniteJump = Value
-        
-        if _G.InfiniteJumpConnection then
-            _G.InfiniteJumpConnection:Disconnect()
-            _G.InfiniteJumpConnection = nil
-        end
-        
         if Value then
-            _G.InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
-                if _G.InfiniteJump then
-                    game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+            -- Apply speed boost
+            if game.Players.LocalPlayer.Character and 
+               game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+                
+                -- Store original speed
+                if not _G.OrigSpeed then
+                    _G.OrigSpeed = game.Players.LocalPlayer.Character.Humanoid.WalkSpeed
                 end
-            end)
-        end
-        
-        OrionLib:MakeNotification({
-            Name = "Feature Toggled",
-            Content = "Infinite Jump: " .. (Value and "Enabled" or "Disabled"),
-            Image = "info",
-            Time = 3
-        })
-    end
-})
-
-FeaturesSection:AddSlider({
-    Name = "WalkSpeed",
-    Min = 16,
-    Max = 500,
-    Default = 16,
-    Color = Color3.fromRGB(80, 170, 255), -- SkyXBlue color
-    Increment = 1,
-    ValueName = "Speed",
-    Callback = function(Value)
-        -- Set the player's walkspeed
-        pcall(function()
-            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
-        end)
-    end    
-})
-
-FeaturesSection:AddSlider({
-    Name = "JumpPower",
-    Min = 50,
-    Max = 500,
-    Default = 50,
-    Color = Color3.fromRGB(80, 170, 255), -- SkyXBlue color
-    Increment = 1,
-    ValueName = "Power",
-    Callback = function(Value)
-        -- Set the player's jump power
-        pcall(function()
-            game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
-        end)
-    end    
-})
-
--- Create a teleport section
-local TeleportSection = MainTab:AddSection({
-    Name = "Teleport"
-})
-
--- Add player list to teleport to
-local playerList = {}
-for _, player in pairs(game.Players:GetPlayers()) do
-    if player ~= game.Players.LocalPlayer then
-        table.insert(playerList, player.Name)
-    end
-end
-
-TeleportSection:AddDropdown({
-    Name = "Teleport to Player",
-    Default = "",
-    Options = playerList,
-    Callback = function(Value)
-        -- Teleport to the selected player
-        local targetPlayer = game.Players:FindFirstChild(Value)
-        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
-            
-            OrionLib:MakeNotification({
-                Name = "Teleport",
-                Content = "Teleported to " .. Value,
-                Image = "check",
-                Time = 3
-            })
+                
+                -- Apply boost
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 50
+            end
         else
-            OrionLib:MakeNotification({
-                Name = "Teleport Failed",
-                Content = "Could not teleport to " .. Value,
-                Image = "error",
-                Time = 3
-            })
+            -- Restore original speed
+            if game.Players.LocalPlayer.Character and 
+               game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") and
+               _G.OrigSpeed then
+                
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = _G.OrigSpeed
+            end
         end
-    end    
+    end
 })
 
--- Create utility tab
-local UtilityTab = Window:MakeTab({
-    Name = "Utility",
-    Icon = "settings", -- Using built-in icon
+-- Jump Power
+PlayerSection:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 250,
+    Default = 50,
+    Color = Color3.fromRGB(31, 120, 200),
+    Increment = 1,
+    Callback = function(Value)
+        if game.Players.LocalPlayer.Character and 
+           game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+            
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+        end
+    end
+})
+
+-- UI Elements Tab
+local UITab = Window:MakeTab({
+    Name = "UI Elements",
+    Icon = "settings",
     PremiumOnly = false
 })
 
--- Add a settings section
-local SettingsSection = UtilityTab:AddSection({
-    Name = "Settings"
+-- Dropdowns section
+local DropdownSection = UITab:AddSection({
+    Name = "Enhanced Dropdowns"
 })
 
--- Add theme selector
-local themes = {"Default", "Dark", "Light", "Ocean", "Blood", "SkyXBlue", "Blurple", "Emerald", "Cyberpunk"}
-SettingsSection:AddDropdown({
-    Name = "UI Theme",
-    Default = "SkyXBlue",
-    Options = themes,
+DropdownSection:AddDropdown({
+    Name = "Select Game",
+    Default = "Current",
+    Options = {"Current", "Blox Fruits", "Adopt Me", "BedWars", "Pet Sim X"},
     Callback = function(Value)
-        -- Change the UI theme
-        OrionLib:SetTheme(Value)
-        
-        OrionLib:MakeNotification({
-            Name = "Theme Changed",
-            Content = "UI Theme set to " .. Value,
-            Image = "palette",
-            Time = 3
-        })
+        print("Game selected: " .. Value)
     end    
 })
 
--- Add about section
-local AboutSection = UtilityTab:AddSection({
-    Name = "About"
+-- Multi-select dropdown with improved styling
+DropdownSection:AddDropdown({
+    Name = "Multi-Select",
+    Default = "Option 1",
+    Multiple = true,
+    Options = {"Option 1", "Option 2", "Option 3", "Option 4"},
+    Callback = function(Value)
+        print("Multi-selection made")
+    end    
 })
 
-AboutSection:AddParagraph("SkyX Hub", "Version: 1.0.0\nDeveloped by: SkyXhub\nExecutor-ready script with SkyXBlue theme\nThanks for using SkyX Hub!")
+-- Input controls with enhanced styling
+local InputSection = UITab:AddSection({
+    Name = "Enhanced Inputs"
+})
 
--- Add a credits button
-AboutSection:AddButton({
-    Name = "Credits",
+InputSection:AddTextbox({
+    Name = "Text Input",
+    Default = "Type here...",
+    TextDisappear = false,
+    Callback = function(Value)
+        print("Input text: " .. Value)
+    end  
+})
+
+-- Keybind with improved visibility (32x32px)
+InputSection:AddKeybind({
+    Name = "Action Key",
+    Default = Enum.KeyCode.E,
+    Hold = false,
     Callback = function()
-        OrionLib:MakeNotification({
-            Name = "Credits",
-            Content = "UI Library: Orion (Modified)\nTheme: SkyXBlue\nDeveloped by SkyXhub",
-            Image = "info",
-            Time = 5
-        })
+        OrionLib:Notify("Keybind", "Key pressed!", "bell", 2)
     end    
 })
 
--- Add a discord button that copies the invite
-AboutSection:AddButton({
-    Name = "Join Discord",
-    Callback = function()
-        -- This is a placeholder Discord invite, replace with your actual Discord
-        setclipboard("https://discord.gg/skyx")
-        
-        OrionLib:MakeNotification({
-            Name = "Discord Invite",
-            Content = "Discord invite copied to clipboard!",
-            Image = "discord",
-            Time = 5
-        })
+-- Hold-type keybind
+InputSection:AddKeybind({
+    Name = "Hold Action",
+    Default = Enum.KeyCode.F,
+    Hold = true,
+    Callback = function(state)
+        if state then
+            print("Key is being held")
+        else
+            print("Key was released")
+        end
     end    
 })
 
--- Initialize the library
-OrionLib:Init()
+-- Color picker with enhanced UI
+local ColorSection = UITab:AddSection({
+    Name = "Enhanced Colors"
+})
+
+ColorSection:AddColorpicker({
+    Name = "UI Color",
+    Default = Color3.fromRGB(50, 120, 200),
+    Callback = function(Value)
+        print("Color picked")
+    end    
+})
+
+-- Mobile Tab
+local MobileTab = Window:MakeTab({
+    Name = "Mobile",
+    Icon = "mobile",
+    PremiumOnly = false
+})
+
+-- Mobile support section
+local MobileSection = MobileTab:AddSection({
+    Name = "Mobile Support"
+})
+
+MobileSection:AddToggle({
+    Name = "Mobile Button",
+    Default = true,
+    Callback = function(Value)
+        -- Enable/disable mobile toggle button
+        OrionLib.ToggleMobileButton(Value)
+    end
+})
+
+MobileSection:AddDropdown({
+    Name = "Button Position",
+    Default = "TopRight",
+    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
+    Callback = function(Value)
+        -- Set mobile button position
+        OrionLib.SetMobileButtonPosition(Value)
+    end
+})
+
+-- Welcome notification
+OrionLib:Notify("SkyX Enhanced UI", "Loaded with improved visuals & controls. Press RightControl to toggle.", "check", 5)
