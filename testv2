@@ -1,212 +1,209 @@
---[[    
-    Orion Original Example
-    Using documentation URL: https://raw.githubusercontent.com/jensonhirst/Orion/main/source
+--[[
+    Simple OrionX UI - Executor Ready
+    A compact, enhanced UI script for Roblox exploits with no theme options
 ]]
 
--- Load the Orion Library (using original URL from documentation)
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))() 
+-- Load the OrionX-UI Library
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI.lua'))()
+
+-- Initialize with default theme only
+OrionLib:Init()
 
 -- Create the main window
 local Window = OrionLib:MakeWindow({
-    Name = "Orion Original Example",
+    Name = "SkyX Enhanced UI", 
+    IntroEnabled = true,
+    IntroText = "SkyX Enhanced UI",
+    IntroIcon = "flower",
+    Icon = "flower",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFolder = "OrionExample", 
-    IntroEnabled = true,
-    IntroText = "Orion Library",
-    IntroIcon = "rbxassetid://4483345998",
-    Icon = "rbxassetid://4483345998",
-    CloseCallback = function()
-        print("UI closed")
-    end
+    ConfigFolder = "SkyXConfig"
 })
 
--- Create first tab
+-- Main Tab
 local MainTab = Window:MakeTab({
-    Name = "Main",
-    Icon = "rbxassetid://4483345998",
+    Name = "Player",
+    Icon = "person",
     PremiumOnly = false
 })
 
--- Add a section
-local MainSection = MainTab:AddSection({
-    Name = "Main Section"
-})
+-- Information
+MainTab:AddParagraph("SkyX Enhanced UI", "This exploit UI features enhanced typography with GothamBold fonts, better spacing, and improved interactive elements.")
 
--- Add a notification example
-MainSection:AddButton({
+MainTab:AddButton({
     Name = "Show Notification",
     Callback = function()
-        OrionLib:MakeNotification({
-            Name = "Notification Title",
-            Content = "Notification content... what will it say??",
-            Image = "rbxassetid://4483345998",
-            Time = 5
-        })
-    end
+        OrionLib:Notify("Enhanced UI", "You're using the improved OrionX-UI with better visuals!", "info", 5)
+    end    
 })
 
--- Add a button
-MainSection:AddButton({
-    Name = "Button Example",
-    Callback = function()
-        print("Button pressed")
-    end
+-- Player section
+local PlayerSection = MainTab:AddSection({
+    Name = "Player Features"
 })
 
--- Add a toggle with save flag
-local MyToggle = MainSection:AddToggle({
-    Name = "Toggle Example",
+-- Walk Speed
+PlayerSection:AddToggle({
+    Name = "Speed Boost",
     Default = false,
-    Save = true,
-    Flag = "toggleExample",
+    Flag = "speedToggle",
     Callback = function(Value)
-        print("Toggle:", Value)
+        if Value then
+            -- Apply speed boost
+            if game.Players.LocalPlayer.Character and 
+               game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+                
+                -- Store original speed
+                if not _G.OrigSpeed then
+                    _G.OrigSpeed = game.Players.LocalPlayer.Character.Humanoid.WalkSpeed
+                end
+                
+                -- Apply boost
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 50
+            end
+        else
+            -- Restore original speed
+            if game.Players.LocalPlayer.Character and 
+               game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") and
+               _G.OrigSpeed then
+                
+                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = _G.OrigSpeed
+            end
+        end
     end
 })
 
--- Add a button to update toggle
-MainSection:AddButton({
-    Name = "Set Toggle to True",
-    Callback = function()
-        MyToggle:Set(true)
-    end
-})
-
--- Add a color picker
-local MyColorPicker = MainSection:AddColorpicker({
-    Name = "Color Picker",
-    Default = Color3.fromRGB(255, 0, 0),
-    Callback = function(Value)
-        print("Color picked:", Value)
-    end
-})
-
--- Add a slider
-local MySlider = MainSection:AddSlider({
-    Name = "Slider Example",
-    Min = 0,
-    Max = 20,
-    Default = 5,
-    Color = Color3.fromRGB(255, 255, 255),
+-- Jump Power
+PlayerSection:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 250,
+    Default = 50,
+    Color = Color3.fromRGB(31, 120, 200),
     Increment = 1,
-    ValueName = "bananas",
-    Save = true,
-    Flag = "sliderExample",
     Callback = function(Value)
-        print("Slider:", Value)
+        if game.Players.LocalPlayer.Character and 
+           game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
+            
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+        end
     end
 })
 
--- Add a label
-local MyLabel = MainSection:AddLabel("This is a label")
-
--- Add a button to update label
-MainSection:AddButton({
-    Name = "Update Label",
-    Callback = function()
-        MyLabel:Set("Label Updated!")
-    end
+-- UI Elements Tab
+local UITab = Window:MakeTab({
+    Name = "UI Elements",
+    Icon = "settings",
+    PremiumOnly = false
 })
 
--- Add a paragraph
-local MyParagraph = MainSection:AddParagraph("Paragraph Title", "This is the content of the paragraph that can contain a lot more text...")
-
--- Add a button to update paragraph
-MainSection:AddButton({
-    Name = "Update Paragraph",
-    Callback = function()
-        MyParagraph:Set("New Title", "This is the updated content of the paragraph!")
-    end
+-- Dropdowns section
+local DropdownSection = UITab:AddSection({
+    Name = "Enhanced Dropdowns"
 })
 
--- Add a textbox
-MainSection:AddTextbox({
-    Name = "Textbox Example",
-    Default = "Default text",
-    TextDisappear = true,
+DropdownSection:AddDropdown({
+    Name = "Select Game",
+    Default = "Current",
+    Options = {"Current", "Blox Fruits", "Adopt Me", "BedWars", "Pet Sim X"},
     Callback = function(Value)
-        print("Textbox:", Value)
-    end
+        print("Game selected: " .. Value)
+    end    
 })
 
--- Add a keybind
-MainSection:AddBind({
-    Name = "Keybind Example",
+-- Multi-select dropdown with improved styling
+DropdownSection:AddDropdown({
+    Name = "Multi-Select",
+    Default = "Option 1",
+    Multiple = true,
+    Options = {"Option 1", "Option 2", "Option 3", "Option 4"},
+    Callback = function(Value)
+        print("Multi-selection made")
+    end    
+})
+
+-- Input controls with enhanced styling
+local InputSection = UITab:AddSection({
+    Name = "Enhanced Inputs"
+})
+
+InputSection:AddTextbox({
+    Name = "Text Input",
+    Default = "Type here...",
+    TextDisappear = false,
+    Callback = function(Value)
+        print("Input text: " .. Value)
+    end  
+})
+
+-- Keybind with improved visibility (32x32px)
+InputSection:AddKeybind({
+    Name = "Action Key",
     Default = Enum.KeyCode.E,
     Hold = false,
     Callback = function()
-        print("Keybind pressed")
-    end
+        OrionLib:Notify("Keybind", "Key pressed!", "bell", 2)
+    end    
 })
 
--- Add a dropdown
-local MyDropdown = MainSection:AddDropdown({
-    Name = "Dropdown Example",
-    Default = "Option 1",
-    Options = {"Option 1", "Option 2", "Option 3"},
+-- Hold-type keybind
+InputSection:AddKeybind({
+    Name = "Hold Action",
+    Default = Enum.KeyCode.F,
+    Hold = true,
+    Callback = function(state)
+        if state then
+            print("Key is being held")
+        else
+            print("Key was released")
+        end
+    end    
+})
+
+-- Color picker with enhanced UI
+local ColorSection = UITab:AddSection({
+    Name = "Enhanced Colors"
+})
+
+ColorSection:AddColorpicker({
+    Name = "UI Color",
+    Default = Color3.fromRGB(50, 120, 200),
     Callback = function(Value)
-        print("Dropdown:", Value)
-    end
+        print("Color picked")
+    end    
 })
 
--- Add a button to refresh dropdown
-MainSection:AddButton({
-    Name = "Refresh Dropdown",
-    Callback = function()
-        MyDropdown:Refresh({"New Option 1", "New Option 2", "New Option 3"}, true) -- true to clear old options
-    end
-})
-
--- Add a button to set dropdown value
-MainSection:AddButton({
-    Name = "Set Dropdown Value",
-    Callback = function()
-        MyDropdown:Set("New Option 2")
-    end
-})
-
--- Create a second tab for flags
-local FlagsTab = Window:MakeTab({
-    Name = "Flags",
-    Icon = "rbxassetid://4483345998",
+-- Mobile Tab
+local MobileTab = Window:MakeTab({
+    Name = "Mobile",
+    Icon = "mobile",
     PremiumOnly = false
 })
 
--- Add a section for flags
-local FlagsSection = FlagsTab:AddSection({
-    Name = "Flags Example"
+-- Mobile support section
+local MobileSection = MobileTab:AddSection({
+    Name = "Mobile Support"
 })
 
--- Add a button to print flags
-FlagsSection:AddButton({
-    Name = "Print Toggle Flag",
-    Callback = function()
-        print("Toggle flag value:", OrionLib.Flags["toggleExample"].Value)
+MobileSection:AddToggle({
+    Name = "Mobile Button",
+    Default = true,
+    Callback = function(Value)
+        -- Enable/disable mobile toggle button
+        OrionLib.ToggleMobileButton(Value)
     end
 })
 
-FlagsSection:AddButton({
-    Name = "Print Slider Flag",
-    Callback = function()
-        print("Slider flag value:", OrionLib.Flags["sliderExample"].Value)
+MobileSection:AddDropdown({
+    Name = "Button Position",
+    Default = "TopRight",
+    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
+    Callback = function(Value)
+        -- Set mobile button position
+        OrionLib.SetMobileButtonPosition(Value)
     end
 })
 
--- Create a tab for Destroy functionality
-local DestroyTab = Window:MakeTab({
-    Name = "Destroy UI",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
--- Add a button to destroy the UI
-DestroyTab:AddButton({
-    Name = "Destroy Interface",
-    Callback = function()
-        OrionLib:Destroy()
-    end
-})
-
--- Initialize the library (REQUIRED)
-OrionLib:Init()
+-- Welcome notification
+OrionLib:Notify("SkyX Enhanced UI", "Loaded with improved visuals & controls. Press RightControl to toggle.", "check", 5)
