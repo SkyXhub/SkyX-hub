@@ -1,205 +1,51 @@
+--[[    
+    Simple OrionX UI for Executor
+    Minimal example for Roblox executors
+]]
+
+-- Load the OrionX-UI library 
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))()
 
 
--- Load the OrionX-UI library
-local success, OrionLib = pcall(function()
-    return loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI')))() 
-end)
-
-if not success then
-    -- Fallback to local version if available
-    print("WARNING: Failed to load OrionX from GitHub. Using local fallback")
-    OrionLib = loadstring(readfile("OrionX-UI.lua"))()
-end
-
--- Apply Dark theme immediately
-OrionLib.Themes:SetTheme("Dark")
-
--- Create the window
+-- Create a simple window
 local Window = OrionLib:MakeWindow({
-    Name = "OrionX Dark Theme Demo", 
+    Name = "Simple OrionX UI", 
     HidePremium = false,
     SaveConfig = true, 
-    ConfigFolder = "OrionXDarkDemo",
-    IntroEnabled = true,
-    IntroText = "OrionX Dark Theme",
-    IntroIcon = "rbxassetid://7733658504"
+    ConfigFolder = "SimpleOrionX"
 })
 
--- Create main tab
+-- Create a single tab
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "home",
+    Icon = "home", 
     PremiumOnly = false
 })
 
--- Create about section
-local AboutSection = MainTab:AddSection({
-    Name = "About Dark Theme"
+-- Add a section
+local Section = MainTab:AddSection({
+    Name = "Test Section"
 })
 
--- Add information about the dark theme
-MainTab:AddParagraph("Dark Theme", "The Dark theme provides a sleek, low-eye-strain interface that's perfect for night use. It features deeper blacks and contrasting elements.")
-
-MainTab:AddLabel("Theme Colors")
-
--- Add colors display section
-local ColorsSection = MainTab:AddSection({
-    Name = "Theme Colors"
-})
-
--- Add color previews
-Local_ThemeColors = {
-    Main = Color3.fromRGB(25, 25, 25),
-    Second = Color3.fromRGB(32, 32, 32),
-    Stroke = Color3.fromRGB(60, 60, 60),
-    Divider = Color3.fromRGB(60, 60, 60),
-    Text = Color3.fromRGB(240, 240, 240),
-    TextDark = Color3.fromRGB(150, 150, 150)
-}
-
--- Display color values
-for colorName, colorValue in pairs(Local_ThemeColors) do
-    MainTab:AddLabel(colorName .. ": " .. tostring(colorValue))
-    
-    -- Add a color picker to demonstrate each color
-    MainTab:AddColorpicker({
-        Name = colorName .. " Picker",
-        Default = colorValue,
-        Callback = function(Value)
-            print(colorName .. " color changed to: " .. tostring(Value))
-        end
-    })
- end
-
--- Create a Features tab
-local FeaturesTab = Window:MakeTab({
-    Name = "Features",
-    Icon = "settings",
-    PremiumOnly = false
-})
-
--- UI Elements Section
-local ElementsSection = FeaturesTab:AddSection({
-    Name = "UI Elements"
-})
-
--- Add various UI elements to showcase how they look in dark theme
-FeaturesTab:AddButton({
-    Name = "Show Notification",
+-- Add a button
+MainTab:AddButton({
+    Name = "Click Me",
     Callback = function()
         OrionLib:MakeNotification({
-            Name = "Dark Theme",
-            Content = "This notification uses the dark theme styling",
-            Image = "info",
+            Name = "Button Clicked",
+            Content = "It works!",
+            Image = "check",
             Time = 5
         })
     end
 })
 
--- Toggle example
-FeaturesTab:AddToggle({
-    Name = "Toggle Example",
-    Default = true,
+-- Add a toggle
+MainTab:AddToggle({
+    Name = "Toggle",
+    Default = false,
     Callback = function(Value)
-        print("Toggle switched to: " .. tostring(Value))
-    end
-})
-
--- Slider example
-FeaturesTab:AddSlider({
-    Name = "Slider Example",
-    Min = 0,
-    Max = 100,
-    Default = 50,
-    Color = Color3.fromRGB(80, 80, 120),
-    Increment = 1,
-    ValueName = "value",
-    Callback = function(Value)
-        print("Slider value: " .. Value)
-    end
-})
-
--- Dropdown example
-FeaturesTab:AddDropdown({
-    Name = "Dropdown Example",
-    Default = "Option 1",
-    Options = {"Option 1", "Option 2", "Option 3"},
-    Callback = function(Value)
-        print("Selected: " .. Value)
-    end
-})
-
--- Textbox example
-FeaturesTab:AddTextbox({
-    Name = "Textbox Example",
-    Default = "Type here...",
-    TextDisappear = false,
-    Callback = function(Value)
-        print("Input: " .. Value)
-    end
-})
-
--- Keybind example
-FeaturesTab:AddBind({
-    Name = "Keybind Example",
-    Default = Enum.KeyCode.F,
-    Hold = false,
-    Callback = function()
-        print("Keybind pressed!")
-    end
-})
-
--- Theme switcher tab
-local ThemeTab = Window:MakeTab({
-    Name = "Theme Options",
-    Icon = "palette",
-    PremiumOnly = false
-})
-
--- Theme selection section
-local ThemeSection = ThemeTab:AddSection({
-    Name = "Change Theme"
-})
-
--- Add buttons to switch themes
-themes = {"Default", "Dark", "Light", "Ocean", "Blood"}
-
-for _, themeName in pairs(themes) do
-    ThemeTab:AddButton({
-        Name = "Switch to " .. themeName,
-        Callback = function()
-            OrionLib.Themes:SetTheme(themeName)
-            OrionLib:MakeNotification({
-                Name = "Theme Changed",
-                Content = "Switched to " .. themeName .. " theme",
-                Image = "check",
-                Time = 3
-            })
-        end
-    })
-end
-
--- Add option for mobile users
-local MobileSection = ThemeTab:AddSection({
-    Name = "Mobile Options"
-})
-
--- Toggle for mobile button
-MobileSection:AddToggle({
-    Name = "Show Mobile Toggle",
-    Default = true,
-    Callback = function(Value)
-        OrionLib.Mobile:SetToggleVisibility(Value)
-    end
-})
-
--- Position selection for mobile button
-MobileSection:AddDropdown({
-    Name = "Mobile Button Position",
-    Default = "TopRight",
-    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
-    Callback = function(Value)
-        OrionLib.Mobile:SetTogglePosition(Value)
+        print("Toggle:", Value)
     end
 })
 
