@@ -1,1633 +1,483 @@
---[[                                 
-    SkyX Blade Ball Script - Custom UI                               
-    Features:                               
-    - Auto Parry                               
-    - Auto Clash                               
-    - ESP for Players                               
-    - Ball ESP/Prediction                               
-    - Auto Ability                               
-]]                               
-                               
+--[[    
+    SkyX | BladeBall Executor Script
+    Using OrionX-UI with Dark Theme
+    
+    Features:
+    - Auto Parry (with customizable distance and timing)
+    - ESP for players and balls
+    - Auto Farm mode
+    - Teleport utilities
+]]
 
-                    
--- Services                               
-local Players = game:GetService("Players")                               
-local ReplicatedStorage = game:GetService("ReplicatedStorage")                               
-local RunService = game:GetService("RunService")                               
-local UserInputService = game:GetService("UserInputService")                               
-local Workspace = game:GetService("Workspace")                               
-local CoreGui = game:GetService("CoreGui")                               
-local TweenService = game:GetService("TweenService")                               
-local GuiService = game:GetService("GuiService")                               
-                               
--- Variables                               
-local LocalPlayer = Players.LocalPlayer                               
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()                               
-local Humanoid = Character:WaitForChild("Humanoid")                               
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")                               
-local Camera = Workspace.CurrentCamera                               
-                               
--- Game specific references                               
-local BallFolder                               
-local AbilityFolder                               
-local GameEvents                               
-                               
--- Auto-reconnect character references when player respawns                               
-LocalPlayer.CharacterAdded:Connect(function(Char)                               
-    Character = Char                               
-    Humanoid = Character:WaitForChild("Humanoid")                               
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")                               
-end)                               
-                               
-----------------------------------                               
--- CUSTOM UI LIBRARY                               
-----------------------------------                               
-                               
-local SkyXUI = {}                               
-local ScreenGui                               
-local MainFrame                               
-local TabContainer                               
-local TabButtons = {}                               
-local TabFrames = {}                               
-                               
--- UI Colors                               
-local UIColors = {                               
-    Background = Color3.fromRGB(25, 25, 35),                               
-    DarkBackground = Color3.fromRGB(20, 20, 28),                               
-    Border = Color3.fromRGB(50, 50, 65),                               
-    Accent = Color3.fromRGB(70, 130, 255),                               
-    Accent2 = Color3.fromRGB(90, 150, 255),                               
-    Toggle = Color3.fromRGB(45, 105, 255),                               
-    Text = Color3.fromRGB(230, 230, 255),                               
-    SubText = Color3.fromRGB(170, 170, 200),                               
-    Button = Color3.fromRGB(35, 35, 48),                               
-    ButtonHover = Color3.fromRGB(45, 45, 60),                               
-    Section = Color3.fromRGB(30, 30, 42)                               
-}                               
-                               
--- Destroy existing UI if it exists                               
-for _, gui in pairs(CoreGui:GetChildren()) do                               
-    if gui.Name == "SkyXBladeballUI" then                               
-        gui:Destroy()                               
-    end                               
-end                               
-                               
--- Create new UI                               
-function SkyXUI:CreateGui()                               
-    -- Create ScreenGui                               
-    ScreenGui = Instance.new("ScreenGui")                               
-    ScreenGui.Name = "SkyXBladeballUI"                               
-    ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling                               
-    ScreenGui.ResetOnSpawn = false                               
-    ScreenGui.Parent = CoreGui                               
-                               
-    -- Create main frame                               
-    MainFrame = Instance.new("Frame")                               
-    MainFrame.Name = "MainFrame"                               
-    MainFrame.Size = UDim2.new(0, 500, 0, 350)                               
-    MainFrame.Position = UDim2.new(0.5, -250, 0.5, -175)                               
-    MainFrame.BackgroundColor3 = UIColors.Background                               
-    MainFrame.BorderSizePixel = 0                               
-    MainFrame.Active = true                               
-    MainFrame.Draggable = true                               
-    MainFrame.Parent = ScreenGui                               
-                               
-    -- Add corner rounding                               
-    local Corner = Instance.new("UICorner")                               
-    Corner.CornerRadius = UDim.new(0, 10)                               
-    Corner.Parent = MainFrame                               
-                               
-    -- Create title bar                               
-    local TitleBar = Instance.new("Frame")                               
-    TitleBar.Name = "TitleBar"                               
-    TitleBar.Size = UDim2.new(1, 0, 0, 40)                               
-    TitleBar.BackgroundColor3 = UIColors.DarkBackground                               
-    TitleBar.BorderSizePixel = 0                               
-    TitleBar.Parent = MainFrame                               
-                               
-    -- Add corner rounding to title bar                               
-    local TitleCorner = Instance.new("UICorner")                               
-    TitleCorner.CornerRadius = UDim.new(0, 10)                               
-    TitleCorner.Parent = TitleBar                               
-                               
-    -- Prevent corner rounding at the bottom                               
-    local FixCorners = Instance.new("Frame")                               
-    FixCorners.Name = "FixCorners"                               
-    FixCorners.Size = UDim2.new(1, 0, 0.5, 0)                               
-    FixCorners.Position = UDim2.new(0, 0, 0.5, 0)                               
-    FixCorners.BackgroundColor3 = UIColors.DarkBackground                               
-    FixCorners.BorderSizePixel = 0                               
-    FixCorners.Parent = TitleBar                               
-                               
-    -- Title                               
-    local Title = Instance.new("TextLabel")                               
-    Title.Name = "Title"                               
-    Title.Size = UDim2.new(1, -40, 1, 0)                               
-    Title.BackgroundTransparency = 1                               
-    Title.Position = UDim2.new(0, 15, 0, 0)                               
-    Title.Font = Enum.Font.GothamSemibold                               
-    Title.Text = "SkyX Hub - Blade Ball"                               
-    Title.TextColor3 = UIColors.Text                               
-    Title.TextSize = 18                               
-    Title.TextXAlignment = Enum.TextXAlignment.Left                               
-    Title.Parent = TitleBar                               
-                               
-    -- Close button                               
-    local CloseButton = Instance.new("TextButton")                               
-    CloseButton.Name = "CloseButton"                               
-    CloseButton.Size = UDim2.new(0, 40, 0, 40)                               
-    CloseButton.Position = UDim2.new(1, -40, 0, 0)                               
-    CloseButton.BackgroundTransparency = 1                               
-    CloseButton.Text = "×"                               
-    CloseButton.TextColor3 = UIColors.Text                               
-    CloseButton.TextSize = 24                               
-    CloseButton.Font = Enum.Font.GothamSemibold                               
-    CloseButton.Parent = TitleBar                               
-                               
-    CloseButton.MouseButton1Click:Connect(function()                               
-        ScreenGui:Destroy()                               
-    end)                               
-                               
-    -- Tab container                               
-    local TabBar = Instance.new("Frame")                               
-    TabBar.Name = "TabBar"                               
-    TabBar.Size = UDim2.new(1, 0, 0, 30)                               
-    TabBar.Position = UDim2.new(0, 0, 0, 40)                               
-    TabBar.BackgroundColor3 = UIColors.Section                               
-    TabBar.BorderSizePixel = 0                               
-    TabBar.Parent = MainFrame                               
-                               
-    -- Create tab button container                               
-    local TabButtonContainer = Instance.new("Frame")                               
-    TabButtonContainer.Name = "TabButtonContainer"                               
-    TabButtonContainer.Size = UDim2.new(1, -20, 1, 0)                               
-    TabButtonContainer.Position = UDim2.new(0, 10, 0, 0)                               
-    TabButtonContainer.BackgroundTransparency = 1                               
-    TabButtonContainer.Parent = TabBar                               
-                               
-    -- Create layout for tab buttons                               
-    local TabButtonLayout = Instance.new("UIListLayout")                               
-    TabButtonLayout.Name = "TabButtonLayout"                               
-    TabButtonLayout.FillDirection = Enum.FillDirection.Horizontal                               
-    TabButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder                               
-    TabButtonLayout.Padding = UDim.new(0, 5)                               
-    TabButtonLayout.Parent = TabButtonContainer                               
-                               
-    -- Create tab content container                               
-    TabContainer = Instance.new("Frame")                               
-    TabContainer.Name = "TabContainer"                               
-    TabContainer.Size = UDim2.new(1, 0, 1, -70)                               
-    TabContainer.Position = UDim2.new(0, 0, 0, 70)                               
-    TabContainer.BackgroundTransparency = 1                               
-    TabContainer.Parent = MainFrame                               
-                               
-    -- Create keybind for toggling UI                               
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)                               
-        if not gameProcessed and input.KeyCode == Enum.KeyCode.RightShift then                               
-            ScreenGui.Enabled = not ScreenGui.Enabled                               
-        end                               
-    end)                               
-                               
-    -- Notification                               
-    local notification = Instance.new("Frame")                               
-    notification.Name = "Notification"                               
-    notification.Size = UDim2.new(0, 250, 0, 60)                               
-    notification.Position = UDim2.new(1, -260, 0, 10)                               
-    notification.BackgroundColor3 = UIColors.Background                               
-    notification.BorderSizePixel = 0                               
-    notification.Visible = false                               
-    notification.Parent = ScreenGui                               
-                               
-    local notifCorner = Instance.new("UICorner")                               
-    notifCorner.CornerRadius = UDim.new(0, 6)                               
-    notifCorner.Parent = notification                               
-                               
-    local notifTitle = Instance.new("TextLabel")                               
-    notifTitle.Name = "NotifTitle"                               
-    notifTitle.Size = UDim2.new(1, -20, 0, 20)                               
-    notifTitle.Position = UDim2.new(0, 10, 0, 5)                               
-    notifTitle.BackgroundTransparency = 1                               
-    notifTitle.Font = Enum.Font.GothamSemibold                               
-    notifTitle.TextColor3 = UIColors.Text                               
-    notifTitle.TextSize = 15                               
-    notifTitle.TextXAlignment = Enum.TextXAlignment.Left                               
-    notifTitle.Parent = notification                               
-                               
-    local notifText = Instance.new("TextLabel")                               
-    notifText.Name = "NotifText"                               
-    notifText.Size = UDim2.new(1, -20, 0, 20)                               
-    notifText.Position = UDim2.new(0, 10, 0, 25)                               
-    notifText.BackgroundTransparency = 1                               
-    notifText.Font = Enum.Font.Gotham                               
-    notifText.TextColor3 = UIColors.SubText                               
-    notifText.TextSize = 14                               
-    notifText.TextXAlignment = Enum.TextXAlignment.Left                               
-    notifText.Parent = notification                               
-                               
-    -- Mobile UI support                               
-    if GuiService:IsTenFootInterface() or UserInputService.TouchEnabled then                               
-        local MobileButton = Instance.new("TextButton")                               
-        MobileButton.Name = "MobileToggle"                               
-        MobileButton.Size = UDim2.new(0, 50, 0, 50)                               
-        MobileButton.Position = UDim2.new(0, 10, 0.5, 0)                               
-        MobileButton.BackgroundColor3 = UIColors.Accent                               
-        MobileButton.Text = "≡"                               
-        MobileButton.TextColor3 = UIColors.Text                               
-        MobileButton.TextSize = 30                               
-        MobileButton.Font = Enum.Font.GothamBold                               
-        MobileButton.Parent = ScreenGui                               
-                               
-        local mobileCorner = Instance.new("UICorner")                               
-        mobileCorner.CornerRadius = UDim.new(1, 0)  -- Make it circular                               
-        mobileCorner.Parent = MobileButton                               
-                               
-        MobileButton.MouseButton1Click:Connect(function()                               
-            ScreenGui.MainFrame.Visible = not ScreenGui.MainFrame.Visible                               
-        end)                               
-    end                               
-                               
-    return ScreenGui                               
-end                               
-                               
--- Create a new tab                               
-function SkyXUI:CreateTab(name)                               
-    local tabIndex = #TabFrames + 1                               
-                               
-    -- Create tab button                               
-    local TabButton = Instance.new("TextButton")                               
-    TabButton.Name = name.."Button"                               
-    TabButton.Size = UDim2.new(0, 100, 1, 0)                               
-    TabButton.BackgroundColor3 = UIColors.Button                               
-    TabButton.BorderSizePixel = 0                               
-    TabButton.Text = name                               
-    TabButton.TextColor3 = UIColors.Text                               
-    TabButton.TextSize = 14                               
-    TabButton.Font = Enum.Font.Gotham                               
-    TabButton.Parent = MainFrame.TabBar.TabButtonContainer                               
-                               
-    local buttonCorner = Instance.new("UICorner")                               
-    buttonCorner.CornerRadius = UDim.new(0, 6)                               
-    buttonCorner.Parent = TabButton                               
-                               
-    -- Create tab content frame                               
-    local TabFrame = Instance.new("ScrollingFrame")                               
-    TabFrame.Name = name.."Tab"                               
-    TabFrame.Size = UDim2.new(1, -20, 1, -10)                               
-    TabFrame.Position = UDim2.new(0, 10, 0, 5)                               
-    TabFrame.BackgroundTransparency = 1                               
-    TabFrame.BorderSizePixel = 0                               
-    TabFrame.ScrollBarThickness = 3                               
-    TabFrame.ScrollBarImageColor3 = UIColors.Accent                               
-    TabFrame.CanvasSize = UDim2.new(0, 0, 0, 0)  -- Will be auto-sized                               
-    TabFrame.Visible = false                               
-    TabFrame.Parent = TabContainer                               
-                               
-    -- Add layout for sections                               
-    local SectionLayout = Instance.new("UIListLayout")                               
-    SectionLayout.Name = "SectionLayout"                               
-    SectionLayout.SortOrder = Enum.SortOrder.LayoutOrder                               
-    SectionLayout.Padding = UDim.new(0, 10)                               
-    SectionLayout.Parent = TabFrame                               
-                               
-    -- Auto-size canvas                               
-    SectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()                               
-        TabFrame.CanvasSize = UDim2.new(0, 0, 0, SectionLayout.AbsoluteContentSize.Y + 20)                               
-    end)                               
-                               
-    -- Add tab to tables                               
-    table.insert(TabButtons, TabButton)                               
-    table.insert(TabFrames, TabFrame)                               
-                               
-    -- Tab button click handler                               
-    TabButton.MouseButton1Click:Connect(function()                               
-        -- Hide all tabs                               
-        for _, tab in pairs(TabFrames) do                               
-            tab.Visible = false                               
-        end                               
-                               
-        -- Set all buttons to default color                               
-        for _, btn in pairs(TabButtons) do                               
-            btn.BackgroundColor3 = UIColors.Button                               
-        end                               
-                               
-        -- Show this tab and highlight its button                               
-        TabFrame.Visible = true                               
-        TabButton.BackgroundColor3 = UIColors.Accent                               
-    end)                               
-                               
-    -- Auto-select first tab                               
-    if tabIndex == 1 then                               
-        TabFrame.Visible = true                               
-        TabButton.BackgroundColor3 = UIColors.Accent                               
-    end                               
-                               
-    -- Tab methods                               
-    local Tab = {}                               
-                               
-    function Tab:CreateSection(name)                               
-        -- Create section container                               
-        local Section = Instance.new("Frame")                               
-        Section.Name = name.."Section"                               
-        Section.Size = UDim2.new(1, 0, 0, 30)  -- Will be auto-sized                               
-        Section.BackgroundColor3 = UIColors.Section                               
-        Section.BorderSizePixel = 0                               
-        Section.Parent = TabFrame                               
-                               
-        local sectionCorner = Instance.new("UICorner")                               
-        sectionCorner.CornerRadius = UDim.new(0, 6)                               
-        sectionCorner.Parent = Section                               
-                               
-        -- Section title                               
-        local SectionTitle = Instance.new("TextLabel")                               
-        SectionTitle.Name = "SectionTitle"                               
-        SectionTitle.Size = UDim2.new(1, -20, 0, 30)                               
-        SectionTitle.Position = UDim2.new(0, 10, 0, 0)                               
-        SectionTitle.BackgroundTransparency = 1                               
-        SectionTitle.Font = Enum.Font.GothamSemibold                               
-        SectionTitle.Text = name                               
-        SectionTitle.TextColor3 = UIColors.Text                               
-        SectionTitle.TextSize = 14                               
-        SectionTitle.TextXAlignment = Enum.TextXAlignment.Left                               
-        SectionTitle.Parent = Section                               
-                               
-        -- Content container                               
-        local SectionContent = Instance.new("Frame")                               
-        SectionContent.Name = "SectionContent"                               
-        SectionContent.Size = UDim2.new(1, -20, 0, 0)  -- Height will be auto-sized                               
-        SectionContent.Position = UDim2.new(0, 10, 0, 30)                               
-        SectionContent.BackgroundTransparency = 1                               
-        SectionContent.Parent = Section                               
-                               
-        -- Add layout for elements                               
-        local ElementLayout = Instance.new("UIListLayout")                               
-        ElementLayout.Name = "ElementLayout"                               
-        ElementLayout.SortOrder = Enum.SortOrder.LayoutOrder                               
-        ElementLayout.Padding = UDim.new(0, 10)                               
-        ElementLayout.Parent = SectionContent                               
-                               
-        -- Auto-size section based on content                               
-        ElementLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()                               
-            SectionContent.Size = UDim2.new(1, -20, 0, ElementLayout.AbsoluteContentSize.Y)                               
-            Section.Size = UDim2.new(1, 0, 0, ElementLayout.AbsoluteContentSize.Y + 40)                               
-        end)                               
-                               
-        -- Section methods                               
-        local SectionAPI = {}                               
-                               
-        function SectionAPI:AddToggle(options)                               
-            local toggle = Instance.new("Frame")                               
-            toggle.Name = options.Name.."Toggle"                               
-            toggle.Size = UDim2.new(1, 0, 0, 30)                               
-            toggle.BackgroundTransparency = 1                               
-            toggle.Parent = SectionContent                               
-                               
-            -- Toggle name                               
-            local toggleName = Instance.new("TextLabel")                               
-            toggleName.Name = "ToggleName"                               
-            toggleName.Size = UDim2.new(1, -60, 1, 0)                               
-            toggleName.BackgroundTransparency = 1                               
-            toggleName.Font = Enum.Font.Gotham                               
-            toggleName.Text = options.Name                               
-            toggleName.TextColor3 = UIColors.Text                               
-            toggleName.TextSize = 14                               
-            toggleName.TextXAlignment = Enum.TextXAlignment.Left                               
-            toggleName.Parent = toggle                               
-                               
-            -- Toggle indicator                               
-            local toggleIndicator = Instance.new("Frame")                               
-            toggleIndicator.Name = "ToggleIndicator"                               
-            toggleIndicator.Size = UDim2.new(0, 40, 0, 20)                               
-            toggleIndicator.Position = UDim2.new(1, -50, 0.5, -10)                               
-            toggleIndicator.BackgroundColor3 = UIColors.Button                               
-            toggleIndicator.BorderSizePixel = 0                               
-            toggleIndicator.Parent = toggle                               
-                               
-            local toggleCorner = Instance.new("UICorner")                               
-            toggleCorner.CornerRadius = UDim.new(1, 0)                               
-            toggleCorner.Parent = toggleIndicator                               
-                               
-            -- Toggle circle                               
-            local toggleCircle = Instance.new("Frame")                               
-            toggleCircle.Name = "ToggleCircle"                               
-            toggleCircle.Size = UDim2.new(0, 16, 0, 16)                               
-            toggleCircle.Position = UDim2.new(0, 2, 0.5, -8)                               
-            toggleCircle.BackgroundColor3 = UIColors.Text                               
-            toggleCircle.BorderSizePixel = 0                               
-            toggleCircle.Parent = toggleIndicator                               
-                               
-            local circleCorner = Instance.new("UICorner")                               
-            circleCorner.CornerRadius = UDim.new(1, 0)                               
-            circleCorner.Parent = toggleCircle                               
-                               
-            -- Click detector                               
-            local toggleButton = Instance.new("TextButton")                               
-            toggleButton.Name = "ToggleButton"                               
-            toggleButton.Size = UDim2.new(1, 0, 1, 0)                               
-            toggleButton.BackgroundTransparency = 1                               
-            toggleButton.Text = ""                               
-            toggleButton.Parent = toggle                               
-                               
-            -- Toggle state                               
-            local toggled = options.Default or false                               
-                               
-            -- Update toggle visuals                               
-            local function updateToggle()                               
-                if toggled then                               
-                    TweenService:Create(toggleIndicator, TweenInfo.new(0.2), {BackgroundColor3 = UIColors.Toggle}):Play()                               
-                    TweenService:Create(toggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(0, 22, 0.5, -8)}):Play()                               
-                else                               
-                    TweenService:Create(toggleIndicator, TweenInfo.new(0.2), {BackgroundColor3 = UIColors.Button}):Play()                               
-                    TweenService:Create(toggleCircle, TweenInfo.new(0.2), {Position = UDim2.new(0, 2, 0.5, -8)}):Play()                               
-                end                               
-                                               
-                if options.Callback then                               
-                    options.Callback(toggled)                               
-                end                               
-            end                               
-                               
-            -- Initialize toggle state                               
-            updateToggle()                               
-                               
-            -- Toggle click handler                               
-            toggleButton.MouseButton1Click:Connect(function()                               
-                toggled = not toggled                               
-                updateToggle()                               
-            end)                               
-                               
-            -- Toggle API                               
-            local ToggleAPI = {}                               
-                               
-            function ToggleAPI:SetState(state)                               
-                toggled = state                               
-                updateToggle()                               
-            end                               
-                               
-            function ToggleAPI:GetState()                               
-                return toggled                               
-            end                               
-                               
-            return ToggleAPI                               
-        end                               
-                               
-        function SectionAPI:AddSlider(options)                               
-            -- Create slider container                               
-            local sliderFrame = Instance.new("Frame")                               
-            sliderFrame.Name = options.Name.."Slider"                               
-            sliderFrame.Size = UDim2.new(1, 0, 0, 45)                               
-            sliderFrame.BackgroundTransparency = 1                               
-            sliderFrame.Parent = SectionContent                               
-                               
-            -- Slider name                               
-            local sliderName = Instance.new("TextLabel")                               
-            sliderName.Name = "SliderName"                               
-            sliderName.Size = UDim2.new(1, 0, 0, 20)                               
-            sliderName.BackgroundTransparency = 1                               
-            sliderName.Font = Enum.Font.Gotham                               
-            sliderName.Text = options.Name                               
-            sliderName.TextColor3 = UIColors.Text                               
-            sliderName.TextSize = 14                               
-            sliderName.TextXAlignment = Enum.TextXAlignment.Left                               
-            sliderName.Parent = sliderFrame                               
-                               
-            -- Slider value display                               
-            local sliderValue = Instance.new("TextLabel")                               
-            sliderValue.Name = "SliderValue"                               
-            sliderValue.Size = UDim2.new(0, 50, 0, 20)                               
-            sliderValue.Position = UDim2.new(1, -50, 0, 0)                               
-            sliderValue.BackgroundTransparency = 1                               
-            sliderValue.Font = Enum.Font.Gotham                               
-            sliderValue.TextColor3 = UIColors.SubText                               
-            sliderValue.TextSize = 14                               
-            sliderValue.TextXAlignment = Enum.TextXAlignment.Right                               
-            sliderValue.Parent = sliderFrame                               
-                               
-            -- Slider background                               
-            local sliderBG = Instance.new("Frame")                               
-            sliderBG.Name = "SliderBackground"                               
-            sliderBG.Size = UDim2.new(1, 0, 0, 6)                               
-            sliderBG.Position = UDim2.new(0, 0, 0, 30)                               
-            sliderBG.BackgroundColor3 = UIColors.Button                               
-            sliderBG.BorderSizePixel = 0                               
-            sliderBG.Parent = sliderFrame                               
-                               
-            local bgCorner = Instance.new("UICorner")                               
-            bgCorner.CornerRadius = UDim.new(0, 3)                               
-            bgCorner.Parent = sliderBG                               
-                               
-            -- Slider fill                               
-            local sliderFill = Instance.new("Frame")                               
-            sliderFill.Name = "SliderFill"                               
-            sliderFill.Size = UDim2.new(0.5, 0, 1, 0)  -- Default 50%                               
-            sliderFill.BackgroundColor3 = UIColors.Accent                               
-            sliderFill.BorderSizePixel = 0                               
-            sliderFill.Parent = sliderBG                               
-                               
-            local fillCorner = Instance.new("UICorner")                               
-            fillCorner.CornerRadius = UDim.new(0, 3)                               
-            fillCorner.Parent = sliderFill                               
-                               
-            -- Slider knob                               
-            local sliderKnob = Instance.new("Frame")                               
-            sliderKnob.Name = "SliderKnob"                               
-            sliderKnob.Size = UDim2.new(0, 14, 0, 14)                               
-            sliderKnob.Position = UDim2.new(0.5, -7, 0.5, -7)                               
-            sliderKnob.BackgroundColor3 = UIColors.Text                               
-            sliderKnob.BorderSizePixel = 0                               
-            sliderKnob.ZIndex = 2                               
-            sliderKnob.Parent = sliderBG                               
-                               
-            local knobCorner = Instance.new("UICorner")                               
-            knobCorner.CornerRadius = UDim.new(1, 0)                               
-            knobCorner.Parent = sliderKnob                               
-                               
-            -- Slider button for interaction                               
-            local sliderButton = Instance.new("TextButton")                               
-            sliderButton.Name = "SliderButton"                               
-            sliderButton.Size = UDim2.new(1, 0, 1, 0)                               
-            sliderButton.BackgroundTransparency = 1                               
-            sliderButton.Text = ""                               
-            sliderButton.Parent = sliderBG                               
-                               
-            -- Slider parameters                               
-            local min = options.Min or 0                               
-            local max = options.Max or 100                               
-            local currentValue = options.Default or min                               
-            local valueType = options.ValueType or ""  -- Optional suffix like "%"                               
-                               
-            -- Update slider visuals                               
-            local function updateSlider(value)                               
-                value = math.clamp(value, min, max)                               
-                currentValue = value                               
-                                               
-                -- Calculate percentage for visual elements                               
-                local percent = (value - min) / (max - min)                               
-                                               
-                -- Update slider visuals                               
-                sliderFill:TweenSize(                               
-                    UDim2.new(percent, 0, 1, 0),                               
-                    Enum.EasingDirection.Out,                               
-                    Enum.EasingStyle.Quad,                               
-                    0.1,                               
-                    true                               
-                )                               
-                                               
-                sliderKnob:TweenPosition(                               
-                    UDim2.new(percent, -7, 0.5, -7),                               
-                    Enum.EasingDirection.Out,                               
-                    Enum.EasingStyle.Quad,                               
-                    0.1,                               
-                    true                               
-                )                               
-                                               
-                -- Update value text                               
-                if options.Increment then                               
-                    -- Round to increment                               
-                    local roundedValue = math.floor(value / options.Increment + 0.5) * options.Increment                               
-                    sliderValue.Text = tostring(roundedValue) .. valueType                               
-                else                               
-                    -- Display as is                               
-                    sliderValue.Text = tostring(value) .. valueType                               
-                end                               
-                                               
-                -- Call callback                               
-                if options.Callback then                               
-                    if options.Increment then                               
-                        local roundedValue = math.floor(value / options.Increment + 0.5) * options.Increment                               
-                        options.Callback(roundedValue)                               
-                    else                               
-                        options.Callback(value)                               
-                    end                               
-                end                               
-            end                               
-                               
-            -- Initialize slider                               
-            updateSlider(currentValue)                               
-                               
-            -- Slider interaction handlers                               
-            local isDragging = false                               
-                               
-            sliderButton.MouseButton1Down:Connect(function()                               
-                isDragging = true                               
-                                               
-                -- Calculate value based on mouse position                               
-                local function updateFromMouse()                               
-                    local mousePos = UserInputService:GetMouseLocation()                               
-                    local sliderPos = sliderBG.AbsolutePosition                               
-                    local sliderSize = sliderBG.AbsoluteSize                               
-                    local percent = math.clamp((mousePos.X - sliderPos.X) / sliderSize.X, 0, 1)                               
-                    local value = min + (max - min) * percent                               
-                    updateSlider(value)                               
-                end                               
-                                               
-                -- Initial update                               
-                updateFromMouse()                               
-                                               
-                -- Update while dragging                               
-                local moveConnection                               
-                local releaseConnection                               
-                                               
-                moveConnection = UserInputService.InputChanged:Connect(function(input)                               
-                    if input.UserInputType == Enum.UserInputType.MouseMovement or                               
-                       input.UserInputType == Enum.UserInputType.Touch then                               
-                        if isDragging then                               
-                            updateFromMouse()                               
-                        end                               
-                    end                               
-                end)                               
-                                               
-                releaseConnection = UserInputService.InputEnded:Connect(function(input)                               
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 or                               
-                       input.UserInputType == Enum.UserInputType.Touch then                               
-                        isDragging = false                               
-                        moveConnection:Disconnect()                               
-                        releaseConnection:Disconnect()                               
-                    end                               
-                end)                               
-            end)                               
-                               
-            -- Slider API                               
-            local SliderAPI = {}                               
-                               
-            function SliderAPI:SetValue(value)                               
-                updateSlider(value)                               
-            end                               
-                               
-            function SliderAPI:GetValue()                               
-                return currentValue                               
-            end                               
-                               
-            return SliderAPI                               
-        end                               
-                               
-        function SectionAPI:AddButton(options)                               
-            -- Create button                               
-            local buttonFrame = Instance.new("Frame")                               
-            buttonFrame.Name = options.Name.."Button"                               
-            buttonFrame.Size = UDim2.new(1, 0, 0, 30)                               
-            buttonFrame.BackgroundTransparency = 1                               
-            buttonFrame.Parent = SectionContent                               
-                               
-            local button = Instance.new("TextButton")                               
-            button.Name = "Button"                               
-            button.Size = UDim2.new(1, 0, 1, 0)                               
-            button.BackgroundColor3 = UIColors.Button                               
-            button.BorderSizePixel = 0                               
-            button.Text = options.Name                               
-            button.TextColor3 = UIColors.Text                               
-            button.TextSize = 14                               
-            button.Font = Enum.Font.Gotham                               
-            button.ClipsDescendants = true  -- For ripple effect                               
-            button.Parent = buttonFrame                               
-                               
-            local buttonCorner = Instance.new("UICorner")                               
-            buttonCorner.CornerRadius = UDim.new(0, 6)                               
-            buttonCorner.Parent = button                               
-                               
-            -- Button hover effect                               
-            button.MouseEnter:Connect(function()                               
-                TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = UIColors.ButtonHover}):Play()                               
-            end)                               
-                               
-            button.MouseLeave:Connect(function()                               
-                TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = UIColors.Button}):Play()                               
-            end)                               
-                               
-            -- Ripple effect                               
-            button.MouseButton1Down:Connect(function(x, y)                               
-                -- Create ripple                               
-                local ripple = Instance.new("Frame")                               
-                ripple.Name = "Ripple"                               
-                ripple.Size = UDim2.new(0, 0, 0, 0)                               
-                ripple.BorderSizePixel = 0                               
-                ripple.BackgroundColor3 = Color3.fromRGB(255, 255, 255)                               
-                ripple.BackgroundTransparency = 0.7                               
-                ripple.Position = UDim2.new(0, x - button.AbsolutePosition.X, 0, y - button.AbsolutePosition.Y)                               
-                ripple.Parent = button                               
-                                               
-                local rippleCorner = Instance.new("UICorner")                               
-                rippleCorner.CornerRadius = UDim.new(1, 0)                               
-                rippleCorner.Parent = ripple                               
-                                               
-                -- Animate ripple                               
-                local size = math.max(button.AbsoluteSize.X, button.AbsoluteSize.Y) * 2                               
-                TweenService:Create(ripple, TweenInfo.new(0.5), {Size = UDim2.new(0, size, 0, size), Position = UDim2.new(0.5, -size/2, 0.5, -size/2), BackgroundTransparency = 1}):Play()                               
-                                               
-                -- Clean up ripple                               
-                Debris:AddItem(ripple, 0.5)                               
-            end)                               
-                               
-            -- Button click handler                               
-            button.MouseButton1Click:Connect(function()                               
-                if options.Callback then                               
-                    options.Callback()                               
-                end                               
-            end)                               
-                               
-            -- Button API                               
-            local ButtonAPI = {}                               
-                               
-            function ButtonAPI:SetText(text)                               
-                button.Text = text                               
-            end                               
-                               
-            return ButtonAPI                               
-        end                               
-                               
-        function SectionAPI:AddDropdown(options)                               
-            -- Create dropdown frame                               
-            local dropdownFrame = Instance.new("Frame")                               
-            dropdownFrame.Name = options.Name.."Dropdown"                               
-            dropdownFrame.Size = UDim2.new(1, 0, 0, 40)  -- Initial size, will expand                               
-            dropdownFrame.BackgroundTransparency = 1                               
-            dropdownFrame.Parent = SectionContent                               
-                               
-            -- Dropdown header                               
-            local dropdownHeader = Instance.new("Frame")                               
-            dropdownHeader.Name = "DropdownHeader"                               
-            dropdownHeader.Size = UDim2.new(1, 0, 0, 30)                               
-            dropdownHeader.BackgroundColor3 = UIColors.Button                               
-            dropdownHeader.BorderSizePixel = 0                               
-            dropdownHeader.Parent = dropdownFrame                               
-                               
-            local headerCorner = Instance.new("UICorner")                               
-            headerCorner.CornerRadius = UDim.new(0, 6)                               
-            headerCorner.Parent = dropdownHeader                               
-                               
-            -- Dropdown name                               
-            local dropdownName = Instance.new("TextLabel")                               
-            dropdownName.Name = "DropdownName"                               
-            dropdownName.Size = UDim2.new(1, -30, 1, 0)                               
-            dropdownName.Position = UDim2.new(0, 10, 0, 0)                               
-            dropdownName.BackgroundTransparency = 1                               
-            dropdownName.Font = Enum.Font.Gotham                               
-            dropdownName.Text = options.Name                               
-            dropdownName.TextColor3 = UIColors.Text                               
-            dropdownName.TextSize = 14                               
-            dropdownName.TextXAlignment = Enum.TextXAlignment.Left                               
-            dropdownName.Parent = dropdownHeader                               
-                               
-            -- Selected value                               
-            local selectedValue = Instance.new("TextLabel")                               
-            selectedValue.Name = "SelectedValue"                               
-            selectedValue.Size = UDim2.new(0, 100, 1, 0)                               
-            selectedValue.Position = UDim2.new(1, -120, 0, 0)                               
-            selectedValue.BackgroundTransparency = 1                               
-            selectedValue.Font = Enum.Font.Gotham                               
-            selectedValue.Text = options.Default or "Select..."                               
-            selectedValue.TextColor3 = UIColors.SubText                               
-            selectedValue.TextSize = 14                               
-            selectedValue.TextXAlignment = Enum.TextXAlignment.Right                               
-            selectedValue.Parent = dropdownHeader                               
-                               
-            -- Arrow indicator                               
-            local arrow = Instance.new("TextLabel")                               
-            arrow.Name = "Arrow"                               
-            arrow.Size = UDim2.new(0, 20, 0, 20)                               
-            arrow.Position = UDim2.new(1, -20, 0.5, -10)                               
-            arrow.BackgroundTransparency = 1                               
-            arrow.Font = Enum.Font.GothamBold                               
-            arrow.Text = "▼"                               
-            arrow.TextColor3 = UIColors.SubText                               
-            arrow.TextSize = 14                               
-            arrow.Parent = dropdownHeader                               
-                               
-            -- Dropdown content container                               
-            local contentContainer = Instance.new("Frame")                               
-            contentContainer.Name = "Content"                               
-            contentContainer.Size = UDim2.new(1, 0, 0, 0)  -- Will be resized                               
-            contentContainer.Position = UDim2.new(0, 0, 0, 35)                               
-            contentContainer.BackgroundColor3 = UIColors.DarkBackground                               
-            contentContainer.BorderSizePixel = 0                               
-            contentContainer.Visible = false                               
-            contentContainer.ClipsDescendants = true                               
-            contentContainer.Parent = dropdownFrame                               
-                               
-            local contentCorner = Instance.new("UICorner")                               
-            contentCorner.CornerRadius = UDim.new(0, 6)                               
-            contentCorner.Parent = contentContainer                               
-                               
-            -- Dropdown options list                               
-            local optionsList = Instance.new("ScrollingFrame")                               
-            optionsList.Name = "OptionsList"                               
-            optionsList.Size = UDim2.new(1, -10, 1, -10)                               
-            optionsList.Position = UDim2.new(0, 5, 0, 5)                               
-            optionsList.BackgroundTransparency = 1                               
-            optionsList.ScrollBarThickness = 3                               
-            optionsList.ScrollBarImageColor3 = UIColors.Accent                               
-            optionsList.CanvasSize = UDim2.new(0, 0, 0, 0)  -- Will be auto-sized                               
-            optionsList.Parent = contentContainer                               
-                               
-            -- Add layout for options                               
-            local optionsLayout = Instance.new("UIListLayout")                               
-            optionsLayout.Name = "OptionsLayout"                               
-            optionsLayout.SortOrder = Enum.SortOrder.LayoutOrder                               
-            optionsLayout.Padding = UDim.new(0, 2)                               
-            optionsLayout.Parent = optionsList                               
-                               
-            -- Auto-size options list                               
-            optionsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()                               
-                optionsList.CanvasSize = UDim2.new(0, 0, 0, optionsLayout.AbsoluteContentSize.Y)                               
-            end)                               
-                               
-            -- Dropdown button                               
-            local dropdownButton = Instance.new("TextButton")                               
-            dropdownButton.Name = "DropdownButton"                               
-            dropdownButton.Size = UDim2.new(1, 0, 1, 0)                               
-            dropdownButton.BackgroundTransparency = 1                               
-            dropdownButton.Text = ""                               
-            dropdownButton.Parent = dropdownHeader                               
-                               
-            -- Dropdown state                               
-            local isOpen = false                               
-            local selectedOption = options.Default                               
-                               
-            -- Function to create option button                               
-            local function createOption(optionName)                               
-                local option = Instance.new("TextButton")                               
-                option.Name = optionName.."Option"                               
-                option.Size = UDim2.new(1, 0, 0, 25)                               
-                option.BackgroundTransparency = 1                               
-                option.Text = optionName                               
-                option.TextColor3 = UIColors.SubText                               
-                option.TextSize = 14                               
-                option.Font = Enum.Font.Gotham                               
-                option.Parent = optionsList                               
-                                               
-                option.MouseEnter:Connect(function()                               
-                    option.BackgroundTransparency = 0.9                               
-                    option.BackgroundColor3 = UIColors.Accent                               
-                end)                               
-                                               
-                option.MouseLeave:Connect(function()                               
-                    option.BackgroundTransparency = 1                               
-                end)                               
-                                               
-                option.MouseButton1Click:Connect(function()                               
-                    selectedOption = optionName                               
-                    selectedValue.Text = optionName                               
-                    toggleDropdown(false)                               
-                                               
-                    if options.Callback then                               
-                        options.Callback(optionName)                               
-                    end                               
-                end)                               
-                                               
-                return option                               
-            end                               
-                               
-            -- Function to toggle dropdown                               
-            function toggleDropdown(forceState)                               
-                if forceState ~= nil then                               
-                    isOpen = forceState                               
-                else                               
-                    isOpen = not isOpen                               
-                end                               
-                                               
-                if isOpen then                               
-                    -- Calculate content height                               
-                    local optionsHeight = math.min(optionsLayout.AbsoluteContentSize.Y + 10, 150)                               
-                    contentContainer.Visible = true                               
-                                               
-                    -- Animate dropdown opening                               
-                    TweenService:Create(arrow, TweenInfo.new(0.2), {Rotation = 180}):Play()                               
-                    TweenService:Create(contentContainer, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, optionsHeight)}):Play()                               
-                    TweenService:Create(dropdownFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 40 + optionsHeight)}):Play()                               
-                else                               
-                    -- Animate dropdown closing                               
-                    TweenService:Create(arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()                               
-                    TweenService:Create(contentContainer, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 0)}):Play()                               
-                    TweenService:Create(dropdownFrame, TweenInfo.new(0.2), {Size = UDim2.new(1, 0, 0, 40)}):Play()                               
-                                               
-                    -- Hide content after animation completes                               
-                    delay(0.2, function()                               
-                        contentContainer.Visible = false                               
-                    end)                               
-                end                               
-            end                               
-                               
-            -- Dropdown click handler                               
-            dropdownButton.MouseButton1Click:Connect(function()                               
-                toggleDropdown()                               
-            end)                               
-                               
-            -- Close dropdown when clicking elsewhere                               
-            UserInputService.InputBegan:Connect(function(input)                               
-                if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then                               
-                    if isOpen and (not dropdownFrame:IsDescendantOf(ScreenGui) or not dropdownFrame:FindFirstChild("DropdownHeader"):FindFirstChild("DropdownButton").AbsolutePosition.X) then                               
-                        toggleDropdown(false)                               
-                    end                               
-                end                               
-            end)                               
-                               
-            -- Populate options                               
-            for _, option in pairs(options.Options or {}) do                               
-                createOption(option)                               
-            end                               
-                               
-            -- Dropdown API                               
-            local DropdownAPI = {}                               
-                               
-            function DropdownAPI:Select(option)                               
-                if table.find(options.Options, option) then                               
-                    selectedOption = option                               
-                    selectedValue.Text = option                               
-                                               
-                    if options.Callback then                               
-                        options.Callback(option)                               
-                    end                               
-                end                               
-            end                               
-                               
-            function DropdownAPI:UpdateOptions(newOptions)                               
-                -- Clear existing options                               
-                for _, child in pairs(optionsList:GetChildren()) do                               
-                    if child:IsA("TextButton") then                               
-                        child:Destroy()                               
-                    end                               
-                end                               
-                                               
-                -- Add new options                               
-                options.Options = newOptions                               
-                for _, option in pairs(newOptions) do                               
-                    createOption(option)                               
-                end                               
-                                               
-                -- Reset selection if needed                               
-                if not table.find(newOptions, selectedOption) then                               
-                    selectedOption = nil                               
-                    selectedValue.Text = "Select..."                               
-                end                               
-            end                               
-                               
-            function DropdownAPI:GetSelected()                               
-                return selectedOption                               
-            end                               
-                               
-            return DropdownAPI                               
-        end                               
-                               
-        function SectionAPI:AddKeybind(options)                               
-            -- Create keybind frame                               
-            local keybindFrame = Instance.new("Frame")                               
-            keybindFrame.Name = options.Name.."Keybind"                               
-            keybindFrame.Size = UDim2.new(1, 0, 0, 30)                               
-            keybindFrame.BackgroundTransparency = 1                               
-            keybindFrame.Parent = SectionContent                               
-                               
-            -- Keybind name                               
-            local keybindName = Instance.new("TextLabel")                               
-            keybindName.Name = "KeybindName"                               
-            keybindName.Size = UDim2.new(1, -80, 1, 0)                               
-            keybindName.BackgroundTransparency = 1                               
-            keybindName.Font = Enum.Font.Gotham                               
-            keybindName.Text = options.Name                               
-            keybindName.TextColor3 = UIColors.Text                               
-            keybindName.TextSize = 14                               
-            keybindName.TextXAlignment = Enum.TextXAlignment.Left                               
-            keybindName.Parent = keybindFrame                               
-                               
-            -- Keybind button                               
-            local keybindButton = Instance.new("TextButton")                               
-            keybindButton.Name = "KeybindButton"                               
-            keybindButton.Size = UDim2.new(0, 70, 0, 20)                               
-            keybindButton.Position = UDim2.new(1, -70, 0.5, -10)                               
-            keybindButton.BackgroundColor3 = UIColors.Button                               
-            keybindButton.BorderSizePixel = 0                               
-            keybindButton.Text = options.Default and options.Default.Name or "None"                               
-            keybindButton.TextColor3 = UIColors.Text                               
-            keybindButton.TextSize = 12                               
-            keybindButton.Font = Enum.Font.Gotham                               
-            keybindButton.Parent = keybindFrame                               
-                               
-            local buttonCorner = Instance.new("UICorner")                               
-            buttonCorner.CornerRadius = UDim.new(0, 4)                               
-            buttonCorner.Parent = keybindButton                               
-                               
-            -- Keybind state                               
-            local currentKey = options.Default                               
-            local isListening = false                               
-                               
-            -- Update keybind text                               
-            local function updateKeybindText()                               
-                keybindButton.Text = currentKey and currentKey.Name or "None"                               
-            end                               
-                               
-            -- Key input handler                               
-            UserInputService.InputBegan:Connect(function(input, gameProcessed)                               
-                if gameProcessed then return end                               
-                                               
-                -- Check if we're listening for a key                               
-                if isListening then                               
-                    -- Handle key press                               
-                    if input.UserInputType == Enum.UserInputType.Keyboard then                               
-                        currentKey = input.KeyCode                               
-                        isListening = false                               
-                        updateKeybindText()                               
-                        TweenService:Create(keybindButton, TweenInfo.new(0.2), {BackgroundColor3 = UIColors.Button}):Play()                               
-                                                       
-                        if options.Callback then                               
-                            options.Callback(currentKey)                               
-                        end                               
-                    end                               
-                else                               
-                    -- Check if pressed key matches our keybind                               
-                    if currentKey and input.KeyCode == currentKey then                               
-                        if options.KeyCallback then                               
-                            options.KeyCallback()                               
-                        end                               
-                    end                               
-                end                               
-            end)                               
-                               
-            -- Keybind button click                               
-            keybindButton.MouseButton1Click:Connect(function()                               
-                isListening = true                               
-                keybindButton.Text = "Press Any Key..."                               
-                TweenService:Create(keybindButton, TweenInfo.new(0.2), {BackgroundColor3 = UIColors.Accent}):Play()                               
-            end)                               
-                               
-            -- Keybind API                               
-            local KeybindAPI = {}                               
-                               
-            function KeybindAPI:SetKey(keyCode)                               
-                currentKey = keyCode                               
-                updateKeybindText()                               
-                                               
-                if options.Callback then                               
-                    options.Callback(currentKey)                               
-                end                               
-            end                               
-                               
-            function KeybindAPI:GetKey()                               
-                return currentKey                               
-            end                               
-                               
-            return KeybindAPI                               
-        end                               
-                               
-        function SectionAPI:AddColorPicker(options)                               
-            -- Create colorpicker frame                               
-            local colorFrame = Instance.new("Frame")                               
-            colorFrame.Name = options.Name.."ColorPicker"                               
-            colorFrame.Size = UDim2.new(1, 0, 0, 30)                               
-            colorFrame.BackgroundTransparency = 1                               
-            colorFrame.Parent = SectionContent                               
-                               
-            -- Colorpicker name                               
-            local colorName = Instance.new("TextLabel")                               
-            colorName.Name = "ColorName"                               
-            colorName.Size = UDim2.new(1, -60, 1, 0)                               
-            colorName.BackgroundTransparency = 1                               
-            colorName.Font = Enum.Font.Gotham                               
-            colorName.Text = options.Name                               
-            colorName.TextColor3 = UIColors.Text                               
-            colorName.TextSize = 14                               
-            colorName.TextXAlignment = Enum.TextXAlignment.Left                               
-            colorName.Parent = colorFrame                               
-                               
-            -- Color preview                               
-            local colorPreview = Instance.new("Frame")                               
-            colorPreview.Name = "ColorPreview"                               
-            colorPreview.Size = UDim2.new(0, 30, 0, 20)                               
-            colorPreview.Position = UDim2.new(1, -40, 0.5, -10)                               
-            colorPreview.BackgroundColor3 = options.Default or Color3.fromRGB(255, 255, 255)                               
-            colorPreview.BorderSizePixel = 0                               
-            colorPreview.Parent = colorFrame                               
-                               
-            local previewCorner = Instance.new("UICorner")                               
-            previewCorner.CornerRadius = UDim.new(0, 4)                               
-            previewCorner.Parent = colorPreview                               
-                               
-            -- Open color picker button                               
-            local colorButton = Instance.new("TextButton")                               
-            colorButton.Name = "ColorButton"                               
-            colorButton.Size = UDim2.new(1, 0, 1, 0)                               
-            colorButton.BackgroundTransparency = 1                               
-            colorButton.Text = ""                               
-            colorButton.Parent = colorFrame                               
-                               
-            -- State                               
-            local currentColor = options.Default or Color3.fromRGB(255, 255, 255)                               
-                               
-            -- Handle color selection                               
-            local function updateColor(color)                               
-                currentColor = color                               
-                colorPreview.BackgroundColor3 = color                               
-                                               
-                if options.Callback then                               
-                    options.Callback(color)                               
-                end                               
-            end                               
-                               
-            -- Color picker UI would be quite complex for this demo                               
-            -- For simplicity, we'll just cycle through some preset colors when clicked                               
-            local presetColors = {                               
-                Color3.fromRGB(255, 0, 0),     -- Red                               
-                Color3.fromRGB(255, 165, 0),   -- Orange                               
-                Color3.fromRGB(255, 255, 0),   -- Yellow                               
-                Color3.fromRGB(0, 255, 0),     -- Green                               
-                Color3.fromRGB(0, 0, 255),     -- Blue                               
-                Color3.fromRGB(138, 43, 226),  -- Purple                               
-                Color3.fromRGB(255, 0, 255),   -- Pink                               
-                Color3.fromRGB(255, 255, 255), -- White                               
-                Color3.fromRGB(0, 0, 0)        -- Black                               
-            }                               
-                               
-            local currentPresetIndex = 1                               
-                               
-            -- Button click handler                               
-            colorButton.MouseButton1Click:Connect(function()                               
-                currentPresetIndex = (currentPresetIndex % #presetColors) + 1                               
-                updateColor(presetColors[currentPresetIndex])                               
-            end)                               
-                               
-            -- ColorPicker API                               
-            local ColorPickerAPI = {}                               
-                               
-            function ColorPickerAPI:SetColor(color)                               
-                updateColor(color)                               
-            end                               
-                               
-            function ColorPickerAPI:GetColor()                               
-                return currentColor                               
-            end                               
-                               
-            return ColorPickerAPI                               
-        end                               
-                               
-        function SectionAPI:AddLabel(options)                               
-            -- Create label                               
-            local label = Instance.new("TextLabel")                               
-            label.Name = "Label"                               
-            label.Size = UDim2.new(1, 0, 0, 25)                               
-            label.BackgroundTransparency = 1                               
-            label.Font = Enum.Font.Gotham                               
-            label.Text = options.Text or ""                               
-            label.TextColor3 = options.Color or UIColors.SubText                               
-            label.TextSize = 14                               
-            label.TextWrapped = true                               
-            label.TextXAlignment = Enum.TextXAlignment.Left                               
-            label.Parent = SectionContent                               
-                               
-            -- Label API                               
-            local LabelAPI = {}                               
-                               
-            function LabelAPI:SetText(text)                               
-                label.Text = text                               
-            end                               
-                               
-            function LabelAPI:SetColor(color)                               
-                label.TextColor3 = color                               
-            end                               
-                               
-            return LabelAPI                               
-        end                               
-                               
-        return SectionAPI                               
-    end                               
-                               
-    return Tab                               
-end                               
-                               
--- Show notification                               
-function SkyXUI:Notify(title, text, duration)                               
-    if not ScreenGui then return end                               
-    duration = duration or 3                               
-                               
-    local notification = ScreenGui:FindFirstChild("Notification")                               
-    if notification then                               
-        notification.NotifTitle.Text = title                               
-        notification.NotifText.Text = text                               
-        notification.Visible = true                               
-                               
-        -- Fade in                               
-        notification.Position = UDim2.new(1.1, 0, 0, 10)                               
-        TweenService:Create(notification, TweenInfo.new(0.2), {Position = UDim2.new(1, -260, 0, 10)}):Play()                               
-                               
-        -- Fade out after duration                               
-        delay(duration, function()                               
-            if notification and notification.Parent then                               
-                TweenService:Create(notification, TweenInfo.new(0.2), {Position = UDim2.new(1.1, 0, 0, 10)}):Play()                               
-                delay(0.2, function()                               
-                    if notification and notification.Parent then                               
-                        notification.Visible = false                               
-                    end                               
-                end)                               
-            end                               
-        end)                               
-    end                               
-end                               
-                               
--- Initialize UI                               
-SkyXUI:CreateGui()                               
-                               
--- IMPLEMENTATION FOR BLADE BALL FEATURES                               
-                               
--- Create tabs                               
-local AutoParryTab = SkyXUI:CreateTab("Auto Parry")                               
-local AbilitiesTab = SkyXUI:CreateTab("Abilities")                               
-local ESPTab = SkyXUI:CreateTab("ESP")                               
-local SettingsTab = SkyXUI:CreateTab("Settings")                               
-                               
--- AUTO PARRY SECTION                               
-local AutoParryConfig = {                               
-    Enabled = false,                               
-    Distance = 20,                               
-    Delay = 0.2,                               
-    ShowRange = false,                               
-    RangeColor = Color3.fromRGB(255, 50, 50),                               
-    DetectionRange = 30,                               
-    OnlyParryWhenBallApproaching = true,                               
-    AutoParryClash = true,                               
-    SafeParry = true,                               
-    ClosestPlayerBypass = true                               
-}                               
-                               
--- Variables for visualization                               
-local ParryRangeAttachment                               
-local ParryRangeSphere                               
-                               
--- Auto Parry Settings Section                               
-local AutoParrySection = AutoParryTab:CreateSection("Auto Parry Settings")                               
-                               
--- Enable/Disable Auto Parry                               
-AutoParrySection:AddToggle({                               
-    Name = "Enable Auto Parry",                               
-    Default = AutoParryConfig.Enabled,                               
-    Callback = function(Value)                               
-        AutoParryConfig.Enabled = Value                               
-    end                               
-})                               
-                               
--- Auto Parry Detection Range                               
-AutoParrySection:AddSlider({                               
-    Name = "Detection Range",                               
-    Min = 10,                               
-    Max = 100,                               
-    Default = AutoParryConfig.DetectionRange,                               
-    Increment = 1,                               
-    ValueType = " studs",                               
-    Callback = function(Value)                               
-        AutoParryConfig.DetectionRange = Value                               
-                               
-        -- Update visualization if it exists                               
-        if ParryRangeSphere and AutoParryConfig.ShowRange then                               
-            ParryRangeSphere.Size = Vector3.new(Value * 2, Value * 2, Value * 2)                               
-        end                               
-    end                               
-})                               
-                               
--- Auto Parry Delay                               
-AutoParrySection:AddSlider({                               
-    Name = "Parry Delay",                               
-    Min = 0,                               
-    Max = 1,                               
-    Default = AutoParryConfig.Delay,                               
-    Increment = 0.01,                               
-    ValueType = " sec",                               
-    Callback = function(Value)                               
-        AutoParryConfig.Delay = Value                               
-    end                               
-})                               
-                               
--- Show Range Visualization                               
-AutoParrySection:AddToggle({                               
-    Name = "Show Parry Range",                               
-    Default = AutoParryConfig.ShowRange,                               
-    Callback = function(Value)                               
-        AutoParryConfig.ShowRange = Value                               
-                               
-        -- Create or destroy the visualization                               
-        if Value then                               
-            if not ParryRangeAttachment then                               
-                ParryRangeAttachment = Instance.new("Attachment")                               
-                ParryRangeAttachment.Parent = HumanoidRootPart                               
-                                               
-                ParryRangeSphere = Instance.new("SphereHandleAdornment")                               
-                ParryRangeSphere.Radius = AutoParryConfig.DetectionRange                               
-                ParryRangeSphere.Color3 = AutoParryConfig.RangeColor                               
-                ParryRangeSphere.Transparency = 0.7                               
-                ParryRangeSphere.Adornee = HumanoidRootPart                               
-                ParryRangeSphere.AlwaysOnTop = true                               
-                ParryRangeSphere.ZIndex = 10                               
-                ParryRangeSphere.Attachment = ParryRangeAttachment                               
-                ParryRangeSphere.Parent = HumanoidRootPart                               
-            else                               
-                ParryRangeSphere.Visible = true                               
-                ParryRangeSphere.Radius = AutoParryConfig.DetectionRange                               
-            end                               
-        else                               
-            if ParryRangeSphere then                               
-                ParryRangeSphere.Visible = false                               
-            end                               
-        end                               
-    end                               
-})                               
-                               
--- Advanced Auto Parry Options                               
-local AdvancedParrySection = AutoParryTab:CreateSection("Advanced Options")                               
-                               
--- Only Parry When Ball is Approaching                               
-AdvancedParrySection:AddToggle({                               
-    Name = "Only Parry When Ball Approaching",                               
-    Default = AutoParryConfig.OnlyParryWhenBallApproaching,                               
-    Callback = function(Value)                               
-        AutoParryConfig.OnlyParryWhenBallApproaching = Value                               
-    end                               
-})                               
-                               
--- Auto Parry Clash                               
-AdvancedParrySection:AddToggle({                               
-    Name = "Auto Parry Clash",                               
-    Default = AutoParryConfig.AutoParryClash,                               
-    Callback = function(Value)                               
-        AutoParryConfig.AutoParryClash = Value                               
-    end                               
-})                               
-                               
--- Safe Parry (Prevent over-parrying)                               
-AdvancedParrySection:AddToggle({                               
-    Name = "Safe Parry",                               
-    Default = AutoParryConfig.SafeParry,                               
-    Callback = function(Value)                               
-        AutoParryConfig.SafeParry = Value                               
-    end                               
-})                               
-                               
--- Closest Player Bypass (Ignores who the ball is aimed at)                               
-AdvancedParrySection:AddToggle({                               
-    Name = "Ignore Ball Target",                               
-    Default = AutoParryConfig.ClosestPlayerBypass,                               
-    Callback = function(Value)                               
-        AutoParryConfig.ClosestPlayerBypass = Value                               
-    end                               
-})                               
-                               
--- ABILITIES SECTION                               
-local AutoAbilityConfig = {                               
-    Enabled = false,                               
-    UseAtLowHealth = true,                               
-    HealthThreshold = 30,                               
-    PreferredAbilities = {"Dash", "Forcefield", "Raging Deflection", "Super Jump"},                               
-    UseOnBallApproach = false,                               
-    SpamAbilities = false                               
-}                               
-                               
--- Auto Abilities Section                               
-local AbilitiesSection = AbilitiesTab:CreateSection("Auto Abilities Settings")                               
-                               
--- Enable/Disable Auto Abilities                               
-AbilitiesSection:AddToggle({                               
-    Name = "Enable Auto Abilities",                               
-    Default = AutoAbilityConfig.Enabled,                               
-    Callback = function(Value)                               
-        AutoAbilityConfig.Enabled = Value                               
-    end                               
-})                               
-                               
--- Use At Low Health                               
-AbilitiesSection:AddToggle({                               
-    Name = "Use At Low Health",                               
-    Default = AutoAbilityConfig.UseAtLowHealth,                               
-    Callback = function(Value)                               
-        AutoAbilityConfig.UseAtLowHealth = Value                               
-    end                               
-})                               
-                               
--- Health Threshold                               
-AbilitiesSection:AddSlider({                               
-    Name = "Health Threshold",                               
-    Min = 10,                               
-    Max = 90,                               
-    Default = AutoAbilityConfig.HealthThreshold,                               
-    Increment = 5,                               
-    ValueType = "%",                               
-    Callback = function(Value)                               
-        AutoAbilityConfig.HealthThreshold = Value                               
-    end                               
-})                               
-                               
--- Use On Ball Approach                               
-AbilitiesSection:AddToggle({                               
-    Name = "Use When Ball Approaches",                               
-    Default = AutoAbilityConfig.UseOnBallApproach,                               
-    Callback = function(Value)                               
-        AutoAbilityConfig.UseOnBallApproach = Value                               
-    end                               
-})                               
-                               
--- Spam Abilities                               
-AbilitiesSection:AddToggle({                               
-    Name = "Spam Abilities (Risk Ban!)",                               
-    Default = AutoAbilityConfig.SpamAbilities,                               
-    Callback = function(Value)                               
-        AutoAbilityConfig.SpamAbilities = Value                               
-    end                               
-})                               
-                               
--- ESP SECTION                               
-local ESPConfig = {                               
-    Enabled = false,                               
-    ShowPlayers = true,                               
-    ShowBall = true,                               
-    PlayerBoxes = true,                               
-    PlayerNames = true,                               
-    PlayerDistance = true,                               
-    PlayerHealth = true,                               
-    BallSpeed = true,                               
-    BallTarget = true,                               
-    BallPrediction = true,                               
-    BallTrajectory = true,                               
-    TeamColor = true,                               
-    TextSize = 14,                               
-    TextOutline = true,                               
-    MaxDistance = 1000,                               
-    RefreshRate = 10,                               
-    PlayerColor = Color3.fromRGB(0, 150, 255),                               
-    BallColor = Color3.fromRGB(255, 50, 50),                               
-    PredictionColor = Color3.fromRGB(255, 255, 0)                               
-}                               
-                               
--- Main ESP Section                               
-local ESPSection = ESPTab:CreateSection("ESP Settings")                               
-                               
--- Enable/Disable ESP                               
-ESPSection:AddToggle({                               
-    Name = "Master Toggle",                               
-    Default = ESPConfig.Enabled,                               
-    Callback = function(Value)                               
-        ESPConfig.Enabled = Value                               
-    end                               
-})                               
-                               
--- Player ESP                               
-ESPSection:AddToggle({                               
-    Name = "Show Players",                               
-    Default = ESPConfig.ShowPlayers,                               
-    Callback = function(Value)                               
-        ESPConfig.ShowPlayers = Value                               
-    end                               
-})                               
-                               
--- Ball ESP                               
-ESPSection:AddToggle({                               
-    Name = "Show Ball",                               
-    Default = ESPConfig.ShowBall,                               
-    Callback = function(Value)                               
-        ESPConfig.ShowBall = Value                               
-    end                               
-})                               
-                               
--- Player ESP Options                               
-local PlayerESPSection = ESPTab:CreateSection("Player ESP Options")                               
-                               
--- Player Boxes                               
-PlayerESPSection:AddToggle({                               
-    Name = "Show Boxes",                               
-    Default = ESPConfig.PlayerBoxes,                               
-    Callback = function(Value)                               
-        ESPConfig.PlayerBoxes = Value                               
-    end                               
-})                               
-                               
--- Player Names                               
-PlayerESPSection:AddToggle({                               
-    Name = "Show Names",                               
-    Default = ESPConfig.PlayerNames,                               
-    Callback = function(Value)                               
-        ESPConfig.PlayerNames = Value                               
-    end                               
-})                               
-                               
--- Player Distance                               
-PlayerESPSection:AddToggle({                               
-    Name = "Show Distance",                               
-    Default = ESPConfig.PlayerDistance,                               
-    Callback = function(Value)                               
-        ESPConfig.PlayerDistance = Value                               
-    end                               
-})                               
-                               
--- Player Health                               
-PlayerESPSection:AddToggle({                               
-    Name = "Show Health",                               
-    Default = ESPConfig.PlayerHealth,                               
-    Callback = function(Value)                               
-        ESPConfig.PlayerHealth = Value                               
-    end                               
-})                               
-                               
--- SETTINGS SECTION                               
-local SettingsSection = SettingsTab:CreateSection("Script Settings")                               
-                               
--- Keybind to toggle UI                               
-SettingsSection:AddKeybind({                               
-    Name = "Toggle UI",                               
-    Default = Enum.KeyCode.RightShift,                               
-    Callback = function(Value)                               
-        -- Callback runs when keybind is changed                               
-    end,                               
-    KeyCallback = function()                               
-        -- This runs when the keybind is pressed                               
-        ScreenGui.Enabled = not ScreenGui.Enabled                               
-    end                               
-})                               
-                               
--- Performance section                               
-local PerformanceSection = SettingsTab:CreateSection("Performance")                               
-                               
--- ESP Refresh Rate                               
-PerformanceSection:AddSlider({                               
-    Name = "ESP Refresh Rate",                               
-    Min = 1,                               
-    Max = 60,                               
-    Default = ESPConfig.RefreshRate,                               
-    Increment = 1,                               
-    ValueType = " fps",                               
-    Callback = function(Value)                               
-        ESPConfig.RefreshRate = Value                               
-    end                               
-})                               
-                               
--- IMPLEMENT THE GAME FUNCTIONALITY                               
-                               
--- Initialize modules and game references                               
-local function initializeGameReferences()                               
-    -- Find the ball folder                               
-    if Workspace:FindFirstChild("Balls") then                               
-        BallFolder = Workspace.Balls                               
-    elseif Workspace:FindFirstChild("Ball") then                               
-        BallFolder = Workspace.Ball                               
-    else                               
-        for _, v in pairs(Workspace:GetChildren()) do                               
-            if v:IsA("Folder") and (v.Name:lower():find("ball") or #v:GetChildren() > 0 and v:FindFirstChildOfClass("Part") and v:FindFirstChildOfClass("Part").Shape == Enum.PartType.Ball) then                               
-                BallFolder = v                               
-                break                               
-            end                               
-        end                               
-    end                               
-                               
-    -- Find ability folder                               
-    AbilityFolder = ReplicatedStorage:FindFirstChild("Abilities") or ReplicatedStorage:FindFirstChild("AbilityAssets")                               
-                               
-    -- Find game events                               
-    for _, v in pairs(ReplicatedStorage:GetDescendants()) do                               
-        if v:IsA("RemoteEvent") and (v.Name:lower():find("parry") or v.Name:lower():find("ability")) then                               
-            GameEvents = GameEvents or {}                               
-            GameEvents[v.Name] = v                               
-        end                               
-    end                               
-                               
-    -- Success message                               
-    if BallFolder then                               
-        SkyXUI:Notify("Success", "Ball folder found: " .. BallFolder.Name, 3)                               
-    else                               
-        SkyXUI:Notify("Warning", "Ball folder not found - some features may not work", 5)                               
-    end                               
-                               
-    -- Successfully initialized                               
-    return true                               
- end                               
-                               
--- Initialize game references                               
-initializeGameReferences()                               
-                               
--- Success notification                               
-SkyXUI:Notify("SkyX Hub", "Blade Ball loaded successfully! Press RightShift to toggle UI", 5)                               
-                               
--- Implement AutoParry functionality                               
-RunService.Heartbeat:Connect(function()                               
-    if not AutoParryConfig.Enabled then return end                               
-    -- Ball detection and parry logic would go here                               
-    -- This would contain the same logic as in the original script                               
-    -- For demo purposes, we'll just add a placeholder                               
-                               
-    if BallFolder then                               
-        for _, ball in pairs(BallFolder:GetChildren()) do                               
-            if ball:IsA("BasePart") then                               
-                local distance = (ball.Position - HumanoidRootPart.Position).Magnitude                               
-                                               
-                -- Log distance to ball in real-time (good for debugging)                               
-                if distance < AutoParryConfig.DetectionRange and game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.P) then                               
-                    print("Ball distance: " .. distance)                               
-                end                               
-            end                               
-        end                               
-    end                               
- end)                               
-                               
--- Set up debug keybind to enable/disable features (for testing)                               
-UserInputService.InputBegan:Connect(function(input, gameProcessed)                               
-    if gameProcessed then return end                               
-                               
-    if input.KeyCode == Enum.KeyCode.End then                               
-        AutoParryConfig.Enabled = not AutoParryConfig.Enabled                               
-        SkyXUI:Notify("Auto Parry", "Auto Parry " .. (AutoParryConfig.Enabled and "Enabled" or "Disabled"), 2)                               
-    elseif input.KeyCode == Enum.KeyCode.Home then                               
-        ESPConfig.Enabled = not ESPConfig.Enabled                               
-        SkyXUI:Notify("ESP", "ESP " .. (ESPConfig.Enabled and "Enabled" or "Disabled"), 2)                               
-    end                               
-end)                               
-                               
--- Print success message                               
-print("✓ SkyX Blade Ball Custom UI successfully loaded!")
+-- Load the OrionX-UI library
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))() 
+
+-- Apply Dark theme immediately
+OrionLib.Themes:SetTheme("Dark")
+
+-- Game detection
+if game.PlaceId ~= 13772394625 and game.PlaceId ~= 14732610803 and game.PlaceId ~= 15216371542 then
+    OrionLib:MakeNotification({
+        Name = "Game Not Supported",
+        Content = "This script only works in Blade Ball! Please join a supported game.",
+        Image = "warning",
+        Time = 10
+    })
+    return
+end
+
+-- Variables
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Settings with default values
+local Settings = {
+    AutoParry = false,
+    ParryDistance = 20,
+    ParryTiming = 0.25,
+    ESP = false,
+    AutoFarm = false,
+    TargetPlayer = nil,
+    PingBased = true
+}
+
+-- Helper functions
+local function GetBall()
+    for _, ball in pairs(workspace:GetChildren()) do
+        if ball.Name == "Ball" and ball:IsA("BasePart") then
+            return ball
+        end
+    end
+    return nil
+end
+
+local function GetDistanceFromBall(ball)
+    if not ball or not HumanoidRootPart then return 999 end
+    return (ball.Position - HumanoidRootPart.Position).Magnitude
+end
+
+local function DetectBallMovingTowardsPlayer(ball)
+    if not ball or not HumanoidRootPart then return false end
+    local ballVelocity = ball.Velocity
+    local playerPosition = HumanoidRootPart.Position
+    local ballPosition = ball.Position
+    local direction = (playerPosition - ballPosition).Unit
+    local dotProduct = ballVelocity:Dot(direction)
+    
+    return dotProduct > 0 -- Ball is moving towards the player
+end
+
+local function AutoParry()
+    local ball = GetBall()
+    if not ball then return end
+    
+    local distance = GetDistanceFromBall(ball)
+    local isMovingTowardsPlayer = DetectBallMovingTowardsPlayer(ball)
+    local speed = ball.Velocity.Magnitude
+    
+    if distance <= Settings.ParryDistance and isMovingTowardsPlayer then
+        local timeToImpact = distance / speed
+        
+        if Settings.PingBased then
+            -- Adjust timing based on ping
+            local ping = game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() / 1000
+            timeToImpact = timeToImpact - (ping / 2) -- Compensate for ping
+        end
+        
+        if timeToImpact <= Settings.ParryTiming and timeToImpact > 0 then
+            -- Trigger parry
+            local args = {[1] = 0.5} -- Parry timing argument
+            game:GetService("ReplicatedStorage").Remotes.ParryButtonPress:FireServer(unpack(args))
+            
+            -- Show notification
+            OrionLib:MakeNotification({
+                Name = "Auto Parry",
+                Content = "Parried ball at distance: " .. math.floor(distance) .. "m",
+                Image = "check",
+                Time = 1
+            })
+        end
+    end
+end
+
+local function ToggleESP(enabled)
+    if enabled then
+        -- Create ESP highlights
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character then
+                local highlight = Instance.new("Highlight")
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.FillTransparency = 0.5
+                highlight.OutlineTransparency = 0
+                highlight.Adornee = player.Character
+                highlight.Parent = player.Character
+                highlight.Name = "SkyXESP"
+            end
+        end
+        
+        -- Create ESP for balls
+        local ball = GetBall()
+        if ball then
+            local highlight = Instance.new("Highlight")
+            highlight.FillColor = Color3.fromRGB(0, 255, 0)
+            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+            highlight.FillTransparency = 0.3
+            highlight.OutlineTransparency = 0
+            highlight.Adornee = ball
+            highlight.Parent = ball
+            highlight.Name = "SkyXESP"
+        end
+    else
+        -- Remove all ESP highlights
+        for _, player in pairs(Players:GetPlayers()) do
+            if player.Character then
+                local highlight = player.Character:FindFirstChild("SkyXESP")
+                if highlight then highlight:Destroy() end
+            end
+        end
+        
+        local ball = GetBall()
+        if ball then
+            local highlight = ball:FindFirstChild("SkyXESP")
+            if highlight then highlight:Destroy() end
+        end
+    end
+end
+
+local function StartAutoFarm()
+    -- Teleport to the center of the arena
+    HumanoidRootPart.CFrame = CFrame.new(0, 50, 0)
+    
+    -- Enable auto parry if not already enabled
+    Settings.AutoParry = true
+end
+
+local function StopAutoFarm()
+    Settings.AutoParry = false
+end
+
+local function TeleportToPlayer(targetPlayer)
+    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+    end
+end
+
+-- Create main window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX | Blade Ball",
+    HidePremium = false,
+    SaveConfig = true,
+    ConfigFolder = "SkyXBladeBall",
+    IntroEnabled = true,
+    IntroText = "SkyX Hub",
+    IntroIcon = "rbxassetid://10618644218",  -- Replace with your actual icon
+    Icon = "rbxassetid://10618644218"        -- Replace with your actual icon
+})
+
+-- Main tab
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "sword",
+    PremiumOnly = false
+})
+
+local InfoSection = MainTab:AddSection({
+    Name = "Information"
+})
+
+InfoSection:AddParagraph("Welcome to SkyX Blade Ball", "This script provides various utilities for Blade Ball including auto parry, ESP, and auto farm.")
+
+-- Auto Parry section
+local AutoParrySection = MainTab:AddSection({
+    Name = "Auto Parry"
+})
+
+AutoParrySection:AddToggle({
+    Name = "Auto Parry",
+    Default = false,
+    Flag = "AutoParry",
+    Save = true,
+    Callback = function(Value)
+        Settings.AutoParry = Value
+    end
+})
+
+AutoParrySection:AddSlider({
+    Name = "Parry Distance",
+    Min = 5,
+    Max = 50,
+    Default = 20,
+    Color = Color3.fromRGB(60, 100, 200),
+    Increment = 1,
+    ValueName = "meters",
+    Flag = "ParryDistance",
+    Save = true,
+    Callback = function(Value)
+        Settings.ParryDistance = Value
+    end    
+})
+
+AutoParrySection:AddSlider({
+    Name = "Parry Timing",
+    Min = 0.1,
+    Max = 1,
+    Default = 0.25,
+    Color = Color3.fromRGB(60, 200, 100),
+    Increment = 0.01,
+    ValueName = "seconds",
+    Flag = "ParryTiming",
+    Save = true,
+    Callback = function(Value)
+        Settings.ParryTiming = Value
+    end    
+})
+
+AutoParrySection:AddToggle({
+    Name = "Ping-Based Timing",
+    Default = true,
+    Flag = "PingBased",
+    Save = true,
+    Callback = function(Value)
+        Settings.PingBased = Value
+    end
+})
+
+-- Visual tab
+local VisualsTab = Window:MakeTab({
+    Name = "Visuals",
+    Icon = "eye",
+    PremiumOnly = false
+})
+
+local ESPSection = VisualsTab:AddSection({
+    Name = "ESP"
+})
+
+ESPSection:AddToggle({
+    Name = "ESP",
+    Default = false,
+    Flag = "ESP",
+    Save = true,
+    Callback = function(Value)
+        Settings.ESP = Value
+        ToggleESP(Value)
+    end
+})
+
+-- Teleport tab
+local TeleportTab = Window:MakeTab({
+    Name = "Teleport",
+    Icon = "bolt",
+    PremiumOnly = false
+})
+
+local TeleportSection = TeleportTab:AddSection({
+    Name = "Teleport Options"
+})
+
+-- Create dropdown of players
+local playerList = {}
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        table.insert(playerList, player.Name)
+    end
+end
+
+local PlayerDropdown = TeleportTab:AddDropdown({
+    Name = "Select Player",
+    Default = "",
+    Options = playerList,
+    Flag = "TargetPlayer",
+    Save = false,
+    Callback = function(Value)
+        for _, player in pairs(Players:GetPlayers()) do
+            if player.Name == Value then
+                Settings.TargetPlayer = player
+                break
+            end
+        end
+    end    
+})
+
+TeleportTab:AddButton({
+    Name = "Refresh Player List",
+    Callback = function()
+        local newPlayerList = {}
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer then
+                table.insert(newPlayerList, player.Name)
+            end
+        end
+        PlayerDropdown:Refresh(newPlayerList, true)
+    end    
+})
+
+TeleportTab:AddButton({
+    Name = "Teleport to Player",
+    Callback = function()
+        if Settings.TargetPlayer then
+            TeleportToPlayer(Settings.TargetPlayer)
+        else
+            OrionLib:MakeNotification({
+                Name = "Teleport Failed",
+                Content = "Please select a player first!",
+                Image = "warning",
+                Time = 3
+            })
+        end
+    end    
+})
+
+TeleportTab:AddButton({
+    Name = "Teleport to Center",
+    Callback = function()
+        HumanoidRootPart.CFrame = CFrame.new(0, 50, 0)
+    end    
+})
+
+-- Auto farm tab
+local FarmTab = Window:MakeTab({
+    Name = "Auto Farm",
+    Icon = "rotate",
+    PremiumOnly = false
+})
+
+local FarmSection = FarmTab:AddSection({
+    Name = "Auto Farm"
+})
+
+FarmSection:AddToggle({
+    Name = "Auto Farm",
+    Default = false,
+    Flag = "AutoFarm",
+    Save = true,
+    Callback = function(Value)
+        Settings.AutoFarm = Value
+        if Value then
+            StartAutoFarm()
+        else
+            StopAutoFarm()
+        end
+    end
+})
+
+FarmSection:AddParagraph("How Auto Farm Works", "Auto Farm teleports you to the center of the arena and automatically parries incoming balls to accumulate wins.")
+
+-- Theme tab
+local ThemeTab = Window:MakeTab({
+    Name = "Theme",
+    Icon = "palette",
+    PremiumOnly = false
+})
+
+local ThemeSection = ThemeTab:AddSection({
+    Name = "UI Theme"
+})
+
+local themes = {"Default", "Dark", "Light", "Ocean", "Blood"}
+
+for _, themeName in pairs(themes) do
+    ThemeTab:AddButton({
+        Name = "Switch to " .. themeName,
+        Callback = function()
+            OrionLib.Themes:SetTheme(themeName)
+            OrionLib:MakeNotification({
+                Name = "Theme Changed",
+                Content = "Switched to " .. themeName .. " theme",
+                Image = "check",
+                Time = 3
+            })
+        end
+    })
+end
+
+-- Mobile support
+local MobileSection = ThemeTab:AddSection({
+    Name = "Mobile Support"
+})
+
+MobileSection:AddToggle({
+    Name = "Show Mobile Toggle",
+    Default = true,
+    Callback = function(Value)
+        OrionLib.Mobile:SetToggleVisibility(Value)
+    end
+})
+
+MobileSection:AddDropdown({
+    Name = "Toggle Position",
+    Default = "TopRight",
+    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
+    Callback = function(Value)
+        OrionLib.Mobile:SetTogglePosition(Value)
+    end
+})
+
+-- Credits tab
+local CreditsTab = Window:MakeTab({
+    Name = "Credits",
+    Icon = "info",
+    PremiumOnly = false
+})
+
+CreditsTab:AddParagraph("SkyX Hub", "Created by SkyX Team")
+CreditsTab:AddParagraph("UI Library", "Using OrionX-UI - An enhanced version of Orion Library")
+
+-- Initialize connections
+RunService.Heartbeat:Connect(function()
+    if Settings.AutoParry then
+        AutoParry()
+    end
+    
+    if Settings.ESP then
+        -- Refresh ESP on new players or balls
+        ToggleESP(true)
+    end
+})
+
+-- Handle player joining
+Players.PlayerAdded:Connect(function(player)
+    local newPlayerList = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(newPlayerList, p.Name)
+        end
+    end
+    PlayerDropdown:Refresh(newPlayerList, true)
+    
+    -- Add ESP to new player if enabled
+    if Settings.ESP and player ~= LocalPlayer and player.Character then
+        local highlight = Instance.new("Highlight")
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.5
+        highlight.OutlineTransparency = 0
+        highlight.Adornee = player.Character
+        highlight.Parent = player.Character
+        highlight.Name = "SkyXESP"
+    end
+})
+
+-- Handle player leaving
+Players.PlayerRemoving:Connect(function(player)
+    local newPlayerList = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p ~= player then
+            table.insert(newPlayerList, p.Name)
+        end
+    end
+    PlayerDropdown:Refresh(newPlayerList, true)
+    
+    -- Reset target player if they leave
+    if Settings.TargetPlayer == player then
+        Settings.TargetPlayer = nil
+    end
+})
+
+-- Initialize the library
+OrionLib:Init()
