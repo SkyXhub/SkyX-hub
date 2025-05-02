@@ -1,207 +1,136 @@
 --[[    
-    Complete OrionX-UI Example
-    Demonstrates all UI elements and parameters
+    SkyX UI Executor Ready Version
+    - Uses direct web loading instead of local files
+    - Fixed icons from SkyX-hub repository
+    - Complete game UI demonstration
 ]]
 
--- Load the OrionX-UI library 
+-- Load the Orion UI library directly from the web
+-- This version already has the SkyX-hub icons integrated
 local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))()
 
--- Create window with all options
+-- Create the main window
 local Window = OrionLib:MakeWindow({
-    Name = "Complete OrionX UI", 
+    Name = "SkyX Executor Demo",
     HidePremium = false,
-    SaveConfig = true, 
-    ConfigFolder = "OrionXComplete",
+    SaveConfig = true,
+    ConfigFolder = "SkyXIcons", 
     IntroEnabled = true,
-    IntroText = "OrionX UI",
-    IntroIcon = "rbxassetid://10618644218",
-    Icon = "rbxassetid://10618644218",
-    CloseCallback = function()
-        print("UI was closed")
-    end
+    IntroText = "SkyX Hub",
+    IntroIcon = "sword", -- Using your sword icon for intro
+    Icon = "star" -- Using your star icon for window
 })
 
--- Create main tab
+-- Main tab using home icon
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "home", 
+    Icon = "home", -- From your icon.json
     PremiumOnly = false
 })
 
--- Create information section
-local InfoSection = MainTab:AddSection({
-    Name = "Information"
+-- About section
+local AboutSection = MainTab:AddSection({
+    Name = "About SkyX Hub"
 })
 
--- Add a paragraph
-InfoSection:AddParagraph("Welcome to OrionX-UI", "This example demonstrates all UI elements and parameters available in the library.")
+AboutSection:AddParagraph("SkyX Icon Library", "This demo showcases all the icons available in your custom icon.json file")
 
--- Add a label
-InfoSection:AddLabel("This is a basic label")
-
--- Create a controls section
-local ControlsSection = MainTab:AddSection({
-    Name = "UI Controls"
+-- Main features section
+local FeaturesSection = MainTab:AddSection({
+    Name = "Game Features"
 })
 
--- Add a button with all parameters
-ControlsSection:AddButton({
-    Name = "Click Me",
+-- Add toggles with icons in callbacks
+FeaturesSection:AddToggle({
+    Name = "ESP Players",
+    Default = false,
+    Callback = function(Value)
+        OrionLib:MakeNotification({
+            Name = Value and "ESP Enabled" or "ESP Disabled",
+            Content = Value and "Players are now visible through walls" or "Players are no longer visible through walls",
+            Image = Value and "check-circle" or "x-circle", -- Using your icon.json icons
+            Time = 3
+        })
+    end
+})
+
+FeaturesSection:AddToggle({
+    Name = "Lock Items",
+    Default = true,
+    Callback = function(Value)
+        OrionLib:MakeNotification({
+            Name = Value and "Items Locked" or "Items Unlocked",
+            Content = Value and "Your items are now protected" or "Your items can now be modified",
+            Image = Value and "lock" or "unlock", -- Using your icon.json icons
+            Time = 3
+        })
+    end
+})
+
+-- Add buttons using custom icons in notifications
+FeaturesSection:AddButton({
+    Name = "Collect Rewards",
     Callback = function()
         OrionLib:MakeNotification({
-            Name = "Button Clicked",
-            Content = "You clicked the button!",
-            Image = "check",
+            Name = "Rewards Collected",
+            Content = "You received 500 coins and 2 special items",
+            Image = "gift", -- Using your gift icon
             Time = 5
         })
     end
 })
 
--- Add a toggle with saving
-local MyToggle = ControlsSection:AddToggle({
-    Name = "Toggle Example",
+FeaturesSection:AddButton({
+    Name = "Teleport to Marker",
+    Callback = function()
+        OrionLib:MakeNotification({
+            Name = "Teleporting",
+            Content = "You have been teleported to your marker",
+            Image = "map-pin", -- Using your map-pin icon
+            Time = 5
+        })
+    end
+})
+
+-- Create Combat tab with sword icon
+local CombatTab = Window:MakeTab({
+    Name = "Combat",
+    Icon = "sword", -- Using your sword icon
+    PremiumOnly = false
+})
+
+-- Add combat options
+CombatTab:AddToggle({
+    Name = "Auto Parry",
     Default = false,
-    Save = true,
-    Flag = "toggleExample",
     Callback = function(Value)
-        print("Toggle:", Value)
+        print("Auto Parry:", Value)
     end
 })
 
--- Add button to demonstrate toggle manipulation
-ControlsSection:AddButton({
-    Name = "Toggle ON",
-    Callback = function()
-        MyToggle:Set(true)
-    end
-})
-
--- Add a slider with all parameters
-ControlsSection:AddSlider({
-    Name = "Slider Example",
-    Min = 0,
-    Max = 100,
-    Default = 50,
-    Color = Color3.fromRGB(60, 120, 220),
-    Increment = 1,
-    ValueName = "units",
-    Save = true,
-    Flag = "sliderExample",
+CombatTab:AddToggle({
+    Name = "Shield Mode",
+    Default = false,
     Callback = function(Value)
-        print("Slider value:", Value)
+        OrionLib:MakeNotification({
+            Name = Value and "Shield Activated" or "Shield Deactivated",
+            Content = Value and "You're now protected from attacks" or "Your shield is down",
+            Image = "shield", -- Using your shield icon
+            Time = 3
+        })
     end
 })
 
--- Add a dropdown with all parameters
-local MyDropdown = ControlsSection:AddDropdown({
-    Name = "Dropdown Example",
-    Default = "Option 1",
-    Options = {"Option 1", "Option 2", "Option 3"},
-    Save = true,
-    Flag = "dropdownExample", 
-    Callback = function(Value)
-        print("Selected:", Value)
-    end
-})
-
--- Add button to refresh dropdown options
-ControlsSection:AddButton({
-    Name = "Refresh Dropdown",
-    Callback = function()
-        MyDropdown:Refresh({"New Option 1", "New Option 2", "New Option 3", "New Option 4"}, true) -- true to clear old options
-    end
-})
-
--- Add a selectable dropdown value
-ControlsSection:AddButton({
-    Name = "Set Dropdown to New Option 2",
-    Callback = function()
-        MyDropdown:Set("New Option 2")
-    end
-})
-
--- Add a textbox
-ControlsSection:AddTextbox({
-    Name = "Textbox Example",
-    Default = "Type here...",
-    TextDisappear = false,
-    Callback = function(Value)
-        print("Textbox value:", Value)
-    end
-})
-
--- Add a colorpicker
-local MyColorPicker = ControlsSection:AddColorpicker({
-    Name = "Colorpicker Example",
-    Default = Color3.fromRGB(255, 0, 0),
-    Save = true,
-    Flag = "colorExample",
-    Callback = function(Value)
-        print("Color picked:", Value)
-    end
-})
-
--- Set a default color
-ControlsSection:AddButton({
-    Name = "Set Color to Blue",
-    Callback = function()
-        MyColorPicker:Set(Color3.fromRGB(0, 0, 255))
-    end
-})
-
--- Add a keybind
-ControlsSection:AddBind({
-    Name = "Keybind Example",
-    Default = Enum.KeyCode.E,
-    Hold = false,
-    Save = true,
-    Flag = "keybindExample",
-    Callback = function()
-        print("Keybind triggered")
-    end
-})
-
--- Create a Mobile tab
-local MobileTab = Window:MakeTab({
-    Name = "Mobile",
-    Icon = "settings",
+-- Create Settings tab with settings icon
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "settings", -- From your icon.json
     PremiumOnly = false
 })
 
--- Create a mobile section
-local MobileSection = MobileTab:AddSection({
-    Name = "Mobile Settings"
-})
-
--- Add mobile toggle button visibility toggle
-MobileSection:AddToggle({
-    Name = "Show Mobile Toggle",
-    Default = true,
-    Callback = function(Value)
-        OrionLib.Mobile:SetToggleVisibility(Value)
-    end
-})
-
--- Add mobile toggle position dropdown
-MobileSection:AddDropdown({
-    Name = "Mobile Toggle Position",
-    Default = "TopRight",
-    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
-    Callback = function(Value)
-        OrionLib.Mobile:SetTogglePosition(Value)
-    end
-})
-
--- Create a Theme tab
-local ThemeTab = Window:MakeTab({
-    Name = "Themes",
-    Icon = "palette",
-    PremiumOnly = false
-})
-
--- Create a theme section
-local ThemeSection = ThemeTab:AddSection({
-    Name = "Theme Options"
+-- Theme section
+local ThemeSection = SettingsTab:AddSection({
+    Name = "Theme Settings"
 })
 
 -- Available themes
@@ -216,115 +145,79 @@ for _, themeName in pairs(themes) do
             OrionLib:MakeNotification({
                 Name = "Theme Changed",
                 Content = "Switched to " .. themeName .. " theme",
-                Image = "check",
+                Image = "check", -- From your icon.json
                 Time = 3
             })
         end
     })
 end
 
--- Create a custom theme
-ThemeSection:AddButton({
-    Name = "Create Custom Purple Theme",
+-- User section
+local UserSection = SettingsTab:AddSection({
+    Name = "User Settings"
+})
+
+UserSection:AddButton({
+    Name = "Manage Account",
     Callback = function()
-        -- Add a custom theme
-        OrionLib.Themes:AddTheme("Purple", {
-            Main = Color3.fromRGB(40, 30, 60),
-            Second = Color3.fromRGB(50, 40, 70),
-            Stroke = Color3.fromRGB(80, 70, 100),
-            Divider = Color3.fromRGB(80, 70, 100),
-            Text = Color3.fromRGB(240, 230, 255),
-            TextDark = Color3.fromRGB(170, 160, 190)
-        })
-        
-        -- Apply the custom theme
-        OrionLib.Themes:SetTheme("Purple")
-        
-        -- Notification
         OrionLib:MakeNotification({
-            Name = "Custom Theme Created",
-            Content = "Created and applied Purple theme",
-            Image = "check",
+            Name = "Account Manager",
+            Content = "Opening account settings...",
+            Image = "user", -- Using your user icon
             Time = 3
         })
     end
 })
 
--- Create a flags tab to demonstrate flags
-local FlagsTab = Window:MakeTab({
-    Name = "Flags",
-    Icon = "key",
+UserSection:AddButton({
+    Name = "Invite Friends",
+    Callback = function()
+        OrionLib:MakeNotification({
+            Name = "Friend System",
+            Content = "Opening friend invite menu...",
+            Image = "users", -- Using your users icon
+            Time = 3
+        })
+    end
+})
+
+-- Create icon showcase tab
+local IconsTab = Window:MakeTab({
+    Name = "Icons Demo",
+    Icon = "star", -- From your icon.json
     PremiumOnly = false
 })
 
--- Create a flags section
-local FlagsSection = FlagsTab:AddSection({
-    Name = "Saved Values"
-})
+-- Group icons by categories
+local iconGroups = {
+    {name = "Navigation", icons = {"home", "settings", "search", "menu", "arrow-right", "arrow-left", "map-pin"}},
+    {name = "Actions", icons = {"check", "plus", "minus", "close", "minimize", "maximize", "trash"}},
+    {name = "Game Elements", icons = {"sword", "shield", "heart", "star", "tree", "gift", "key"}},
+    {name = "Status & Alerts", icons = {"alert", "info", "check-circle", "x-circle", "lock", "unlock"}},
+    {name = "Users", icons = {"user", "users"}}
+}
 
--- Add button to print all flag values
-FlagsSection:AddButton({
-    Name = "Print All Flag Values",
-    Callback = function()
-        -- Loop through all flags
-        for flagName, flagData in pairs(OrionLib.Flags) do
-            print(flagName .. " = " .. tostring(flagData.Value))
-        end
-    end
-})
-
--- Add buttons to show individual flags
-FlagsSection:AddButton({
-    Name = "Show Toggle Value",
-    Callback = function()
-        local value = OrionLib.Flags["toggleExample"].Value
-        OrionLib:MakeNotification({
-            Name = "Toggle Flag Value",
-            Content = "Value: " .. tostring(value),
-            Image = "info",
-            Time = 5
+-- Create sections for each icon group
+for _, group in pairs(iconGroups) do
+    local IconSection = IconsTab:AddSection({
+        Name = group.name .. " Icons"
+    })
+    
+    -- Add buttons for each icon in the group
+    for _, iconName in pairs(group.icons) do
+        IconSection:AddButton({
+            Name = iconName,
+            Callback = function()
+                OrionLib:MakeNotification({
+                    Name = "Icon: " .. iconName,
+                    Content = "This notification uses the " .. iconName .. " icon",
+                    Image = iconName,
+                    Time = 3
+                })
+            end
         })
     end
-})
-
-FlagsSection:AddButton({
-    Name = "Show Slider Value",
-    Callback = function()
-        local value = OrionLib.Flags["sliderExample"].Value
-        OrionLib:MakeNotification({
-            Name = "Slider Flag Value",
-            Content = "Value: " .. tostring(value),
-            Image = "info",
-            Time = 5
-        })
-    end
-})
-
-FlagsSection:AddButton({
-    Name = "Show Dropdown Value",
-    Callback = function()
-        local value = OrionLib.Flags["dropdownExample"].Value
-        OrionLib:MakeNotification({
-            Name = "Dropdown Flag Value",
-            Content = "Value: " .. tostring(value),
-            Image = "info",
-            Time = 5
-        })
-    end
-})
-
--- Create Utility Section
-local UtilitySection = FlagsTab:AddSection({
-    Name = "Utility"
-})
-
--- Destroy UI button
-UtilitySection:AddButton({
-    Name = "Destroy UI",
-    Callback = function()
-        OrionLib:Destroy()
-    end
-})
+end
 
 -- Initialize the library
 OrionLib:Init()
