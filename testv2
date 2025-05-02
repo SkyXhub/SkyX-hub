@@ -1,53 +1,212 @@
 --[[    
-    Simple OrionX UI for Executor
-    Minimal example for Roblox executors
+    Orion Original Example
+    Using documentation URL: https://raw.githubusercontent.com/jensonhirst/Orion/main/source
 ]]
 
--- Load the OrionX-UI library 
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))()
+-- Load the Orion Library (using original URL from documentation)
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))() 
 
-
--- Create a simple window
+-- Create the main window
 local Window = OrionLib:MakeWindow({
-    Name = "Simple OrionX UI", 
+    Name = "Orion Original Example",
     HidePremium = false,
-    SaveConfig = true, 
-    ConfigFolder = "SimpleOrionX"
+    SaveConfig = true,
+    ConfigFolder = "OrionExample", 
+    IntroEnabled = true,
+    IntroText = "Orion Library",
+    IntroIcon = "rbxassetid://4483345998",
+    Icon = "rbxassetid://4483345998",
+    CloseCallback = function()
+        print("UI closed")
+    end
 })
 
--- Create a single tab
+-- Create first tab
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "home", 
+    Icon = "rbxassetid://4483345998",
     PremiumOnly = false
 })
 
 -- Add a section
-local Section = MainTab:AddSection({
-    Name = "Test Section"
+local MainSection = MainTab:AddSection({
+    Name = "Main Section"
 })
 
--- Add a button
-MainTab:AddButton({
-    Name = "Click Me",
+-- Add a notification example
+MainSection:AddButton({
+    Name = "Show Notification",
     Callback = function()
         OrionLib:MakeNotification({
-            Name = "Button Clicked",
-            Content = "It works!",
-            Image = "check",
+            Name = "Notification Title",
+            Content = "Notification content... what will it say??",
+            Image = "rbxassetid://4483345998",
             Time = 5
         })
     end
 })
 
--- Add a toggle
-MainTab:AddToggle({
-    Name = "Toggle",
+-- Add a button
+MainSection:AddButton({
+    Name = "Button Example",
+    Callback = function()
+        print("Button pressed")
+    end
+})
+
+-- Add a toggle with save flag
+local MyToggle = MainSection:AddToggle({
+    Name = "Toggle Example",
     Default = false,
+    Save = true,
+    Flag = "toggleExample",
     Callback = function(Value)
         print("Toggle:", Value)
     end
 })
 
--- Initialize the library
+-- Add a button to update toggle
+MainSection:AddButton({
+    Name = "Set Toggle to True",
+    Callback = function()
+        MyToggle:Set(true)
+    end
+})
+
+-- Add a color picker
+local MyColorPicker = MainSection:AddColorpicker({
+    Name = "Color Picker",
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(Value)
+        print("Color picked:", Value)
+    end
+})
+
+-- Add a slider
+local MySlider = MainSection:AddSlider({
+    Name = "Slider Example",
+    Min = 0,
+    Max = 20,
+    Default = 5,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "bananas",
+    Save = true,
+    Flag = "sliderExample",
+    Callback = function(Value)
+        print("Slider:", Value)
+    end
+})
+
+-- Add a label
+local MyLabel = MainSection:AddLabel("This is a label")
+
+-- Add a button to update label
+MainSection:AddButton({
+    Name = "Update Label",
+    Callback = function()
+        MyLabel:Set("Label Updated!")
+    end
+})
+
+-- Add a paragraph
+local MyParagraph = MainSection:AddParagraph("Paragraph Title", "This is the content of the paragraph that can contain a lot more text...")
+
+-- Add a button to update paragraph
+MainSection:AddButton({
+    Name = "Update Paragraph",
+    Callback = function()
+        MyParagraph:Set("New Title", "This is the updated content of the paragraph!")
+    end
+})
+
+-- Add a textbox
+MainSection:AddTextbox({
+    Name = "Textbox Example",
+    Default = "Default text",
+    TextDisappear = true,
+    Callback = function(Value)
+        print("Textbox:", Value)
+    end
+})
+
+-- Add a keybind
+MainSection:AddBind({
+    Name = "Keybind Example",
+    Default = Enum.KeyCode.E,
+    Hold = false,
+    Callback = function()
+        print("Keybind pressed")
+    end
+})
+
+-- Add a dropdown
+local MyDropdown = MainSection:AddDropdown({
+    Name = "Dropdown Example",
+    Default = "Option 1",
+    Options = {"Option 1", "Option 2", "Option 3"},
+    Callback = function(Value)
+        print("Dropdown:", Value)
+    end
+})
+
+-- Add a button to refresh dropdown
+MainSection:AddButton({
+    Name = "Refresh Dropdown",
+    Callback = function()
+        MyDropdown:Refresh({"New Option 1", "New Option 2", "New Option 3"}, true) -- true to clear old options
+    end
+})
+
+-- Add a button to set dropdown value
+MainSection:AddButton({
+    Name = "Set Dropdown Value",
+    Callback = function()
+        MyDropdown:Set("New Option 2")
+    end
+})
+
+-- Create a second tab for flags
+local FlagsTab = Window:MakeTab({
+    Name = "Flags",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Add a section for flags
+local FlagsSection = FlagsTab:AddSection({
+    Name = "Flags Example"
+})
+
+-- Add a button to print flags
+FlagsSection:AddButton({
+    Name = "Print Toggle Flag",
+    Callback = function()
+        print("Toggle flag value:", OrionLib.Flags["toggleExample"].Value)
+    end
+})
+
+FlagsSection:AddButton({
+    Name = "Print Slider Flag",
+    Callback = function()
+        print("Slider flag value:", OrionLib.Flags["sliderExample"].Value)
+    end
+})
+
+-- Create a tab for Destroy functionality
+local DestroyTab = Window:MakeTab({
+    Name = "Destroy UI",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Add a button to destroy the UI
+DestroyTab:AddButton({
+    Name = "Destroy Interface",
+    Callback = function()
+        OrionLib:Destroy()
+    end
+})
+
+-- Initialize the library (REQUIRED)
 OrionLib:Init()
