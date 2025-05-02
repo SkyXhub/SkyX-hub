@@ -1,223 +1,244 @@
---[[    
-    SkyX UI Executor Ready Version
-    - Uses direct web loading instead of local files
-    - Fixed icons from SkyX-hub repository
-    - Complete game UI demonstration
+--[[
+    SkyX Executor-Ready Script with SkyXBlue Theme
+    This script is designed for direct use in Roblox executors
+    Author: SkyXhub
+    Version: 1.0.0
 ]]
 
--- Load the Orion UI library directly from the web
--- This version already has the SkyX-hub icons integrated
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))()
+-- Load OrionLib using the standard loading pattern
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI')))()
 
--- Create the main window
+-- Simple notification that the library has loaded
+pcall(function()
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "SkyX Hub",
+        Text = "Library loaded successfully",
+        Duration = 3
+    })
+end)
+
+-- Create window with SkyXBlue theme
 local Window = OrionLib:MakeWindow({
-    Name = "SkyX Executor Demo",
+    Name = "SkyX Hub",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFolder = "SkyXIcons", 
+    ConfigFolder = "SkyXExecutor",
     IntroEnabled = true,
     IntroText = "SkyX Hub",
-    IntroIcon = "sword", -- Using your sword icon for intro
-    Icon = "star" -- Using your star icon for window
+    IntroIcon = "rbxassetid://10618644218", -- SkyX logo
+    Icon = "rbxassetid://10618644218"
 })
 
--- Main tab using home icon
+-- Set the theme to SkyXBlue
+OrionLib:SetTheme("SkyXBlue")
+
+-- Create main tab
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "home", -- From your icon.json
+    Icon = "home", -- Using built-in icon
     PremiumOnly = false
 })
 
--- About section
-local AboutSection = MainTab:AddSection({
-    Name = "About SkyX Hub"
+-- Add a welcome section
+local WelcomeSection = MainTab:AddSection({
+    Name = "Welcome to SkyX Hub"
 })
 
-AboutSection:AddParagraph("SkyX Icon Library", "This demo showcases all the icons available in your custom icon.json file")
+-- Show game info
+WelcomeSection:AddParagraph("Game Information", "Game: " .. game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name .. "\nPlace ID: " .. game.PlaceId)
 
--- Main features section
+-- Add user info
+local playerName = game.Players.LocalPlayer.Name
+local playerDisplayName = game.Players.LocalPlayer.DisplayName
+WelcomeSection:AddParagraph("User Information", "Username: " .. playerName .. "\nDisplay Name: " .. playerDisplayName)
+
+-- Create a features section
 local FeaturesSection = MainTab:AddSection({
-    Name = "Game Features"
+    Name = "Features"
 })
 
--- Add toggles with icons in callbacks
+-- Add some basic features common in most executors
 FeaturesSection:AddToggle({
     Name = "ESP Players",
     Default = false,
     Callback = function(Value)
+        -- ESP implementation would go here
         OrionLib:MakeNotification({
-            Name = Value and "ESP Enabled" or "ESP Disabled",
-            Content = Value and "Players are now visible through walls" or "Players are no longer visible through walls",
-            Image = Value and "check-circle" or "x-circle", -- Using your icon.json icons
+            Name = "Feature Toggled",
+            Content = "ESP Players: " .. (Value and "Enabled" or "Disabled"),
+            Image = "info",
             Time = 3
         })
     end
 })
 
 FeaturesSection:AddToggle({
-    Name = "Lock Items",
-    Default = true,
+    Name = "Infinite Jump",
+    Default = false,
     Callback = function(Value)
+        -- Basic infinite jump implementation
+        _G.InfiniteJump = Value
+        
+        if _G.InfiniteJumpConnection then
+            _G.InfiniteJumpConnection:Disconnect()
+            _G.InfiniteJumpConnection = nil
+        end
+        
+        if Value then
+            _G.InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+                if _G.InfiniteJump then
+                    game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                end
+            end)
+        end
+        
         OrionLib:MakeNotification({
-            Name = Value and "Items Locked" or "Items Unlocked",
-            Content = Value and "Your items are now protected" or "Your items can now be modified",
-            Image = Value and "lock" or "unlock", -- Using your icon.json icons
+            Name = "Feature Toggled",
+            Content = "Infinite Jump: " .. (Value and "Enabled" or "Disabled"),
+            Image = "info",
             Time = 3
         })
     end
 })
 
--- Add buttons using custom icons in notifications
-FeaturesSection:AddButton({
-    Name = "Collect Rewards",
-    Callback = function()
-        OrionLib:MakeNotification({
-            Name = "Rewards Collected",
-            Content = "You received 500 coins and 2 special items",
-            Image = "gift", -- Using your gift icon
-            Time = 5
-        })
-    end
-})
-
-FeaturesSection:AddButton({
-    Name = "Teleport to Marker",
-    Callback = function()
-        OrionLib:MakeNotification({
-            Name = "Teleporting",
-            Content = "You have been teleported to your marker",
-            Image = "map-pin", -- Using your map-pin icon
-            Time = 5
-        })
-    end
-})
-
--- Create Combat tab with sword icon
-local CombatTab = Window:MakeTab({
-    Name = "Combat",
-    Icon = "sword", -- Using your sword icon
-    PremiumOnly = false
-})
-
--- Add combat options
-CombatTab:AddToggle({
-    Name = "Auto Parry",
-    Default = false,
+FeaturesSection:AddSlider({
+    Name = "WalkSpeed",
+    Min = 16,
+    Max = 500,
+    Default = 16,
+    Color = Color3.fromRGB(80, 170, 255), -- SkyXBlue color
+    Increment = 1,
+    ValueName = "Speed",
     Callback = function(Value)
-        print("Auto Parry:", Value)
-    end
+        -- Set the player's walkspeed
+        pcall(function()
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+        end)
+    end    
 })
 
-CombatTab:AddToggle({
-    Name = "Shield Mode",
-    Default = false,
+FeaturesSection:AddSlider({
+    Name = "JumpPower",
+    Min = 50,
+    Max = 500,
+    Default = 50,
+    Color = Color3.fromRGB(80, 170, 255), -- SkyXBlue color
+    Increment = 1,
+    ValueName = "Power",
     Callback = function(Value)
-        OrionLib:MakeNotification({
-            Name = Value and "Shield Activated" or "Shield Deactivated",
-            Content = Value and "You're now protected from attacks" or "Your shield is down",
-            Image = "shield", -- Using your shield icon
-            Time = 3
-        })
+        -- Set the player's jump power
+        pcall(function()
+            game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+        end)
+    end    
+})
+
+-- Create a teleport section
+local TeleportSection = MainTab:AddSection({
+    Name = "Teleport"
+})
+
+-- Add player list to teleport to
+local playerList = {}
+for _, player in pairs(game.Players:GetPlayers()) do
+    if player ~= game.Players.LocalPlayer then
+        table.insert(playerList, player.Name)
     end
-})
+end
 
--- Create Settings tab with settings icon
-local SettingsTab = Window:MakeTab({
-    Name = "Settings",
-    Icon = "settings", -- From your icon.json
-    PremiumOnly = false
-})
-
--- Theme section
-local ThemeSection = SettingsTab:AddSection({
-    Name = "Theme Settings"
-})
-
--- Available themes
-local themes = {"Default", "Dark", "Light", "Ocean", "Blood"}
-
--- Add theme buttons
-for _, themeName in pairs(themes) do
-    ThemeSection:AddButton({
-        Name = "Set " .. themeName .. " Theme",
-        Callback = function()
-            OrionLib.Themes:SetTheme(themeName)
+TeleportSection:AddDropdown({
+    Name = "Teleport to Player",
+    Default = "",
+    Options = playerList,
+    Callback = function(Value)
+        -- Teleport to the selected player
+        local targetPlayer = game.Players:FindFirstChild(Value)
+        if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") and game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+            
             OrionLib:MakeNotification({
-                Name = "Theme Changed",
-                Content = "Switched to " .. themeName .. " theme",
-                Image = "check", -- From your icon.json
+                Name = "Teleport",
+                Content = "Teleported to " .. Value,
+                Image = "check",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Teleport Failed",
+                Content = "Could not teleport to " .. Value,
+                Image = "error",
                 Time = 3
             })
         end
-    })
-end
-
--- User section
-local UserSection = SettingsTab:AddSection({
-    Name = "User Settings"
+    end    
 })
 
-UserSection:AddButton({
-    Name = "Manage Account",
-    Callback = function()
-        OrionLib:MakeNotification({
-            Name = "Account Manager",
-            Content = "Opening account settings...",
-            Image = "user", -- Using your user icon
-            Time = 3
-        })
-    end
-})
-
-UserSection:AddButton({
-    Name = "Invite Friends",
-    Callback = function()
-        OrionLib:MakeNotification({
-            Name = "Friend System",
-            Content = "Opening friend invite menu...",
-            Image = "users", -- Using your users icon
-            Time = 3
-        })
-    end
-})
-
--- Create icon showcase tab
-local IconsTab = Window:MakeTab({
-    Name = "Icons Demo",
-    Icon = "star", -- From your icon.json
+-- Create utility tab
+local UtilityTab = Window:MakeTab({
+    Name = "Utility",
+    Icon = "settings", -- Using built-in icon
     PremiumOnly = false
 })
 
--- Group icons by categories
-local iconGroups = {
-    {name = "Navigation", icons = {"home", "settings", "search", "menu", "arrow-right", "arrow-left", "map-pin"}},
-    {name = "Actions", icons = {"check", "plus", "minus", "close", "minimize", "maximize", "trash"}},
-    {name = "Game Elements", icons = {"sword", "shield", "heart", "star", "tree", "gift", "key"}},
-    {name = "Status & Alerts", icons = {"alert", "info", "check-circle", "x-circle", "lock", "unlock"}},
-    {name = "Users", icons = {"user", "users"}}
-}
+-- Add a settings section
+local SettingsSection = UtilityTab:AddSection({
+    Name = "Settings"
+})
 
--- Create sections for each icon group
-for _, group in pairs(iconGroups) do
-    local IconSection = IconsTab:AddSection({
-        Name = group.name .. " Icons"
-    })
-    
-    -- Add buttons for each icon in the group
-    for _, iconName in pairs(group.icons) do
-        IconSection:AddButton({
-            Name = iconName,
-            Callback = function()
-                OrionLib:MakeNotification({
-                    Name = "Icon: " .. iconName,
-                    Content = "This notification uses the " .. iconName .. " icon",
-                    Image = iconName,
-                    Time = 3
-                })
-            end
+-- Add theme selector
+local themes = {"Default", "Dark", "Light", "Ocean", "Blood", "SkyXBlue", "Blurple", "Emerald", "Cyberpunk"}
+SettingsSection:AddDropdown({
+    Name = "UI Theme",
+    Default = "SkyXBlue",
+    Options = themes,
+    Callback = function(Value)
+        -- Change the UI theme
+        OrionLib:SetTheme(Value)
+        
+        OrionLib:MakeNotification({
+            Name = "Theme Changed",
+            Content = "UI Theme set to " .. Value,
+            Image = "palette",
+            Time = 3
         })
-    end
-end
+    end    
+})
+
+-- Add about section
+local AboutSection = UtilityTab:AddSection({
+    Name = "About"
+})
+
+AboutSection:AddParagraph("SkyX Hub", "Version: 1.0.0\nDeveloped by: SkyXhub\nExecutor-ready script with SkyXBlue theme\nThanks for using SkyX Hub!")
+
+-- Add a credits button
+AboutSection:AddButton({
+    Name = "Credits",
+    Callback = function()
+        OrionLib:MakeNotification({
+            Name = "Credits",
+            Content = "UI Library: Orion (Modified)\nTheme: SkyXBlue\nDeveloped by SkyXhub",
+            Image = "info",
+            Time = 5
+        })
+    end    
+})
+
+-- Add a discord button that copies the invite
+AboutSection:AddButton({
+    Name = "Join Discord",
+    Callback = function()
+        -- This is a placeholder Discord invite, replace with your actual Discord
+        setclipboard("https://discord.gg/skyx")
+        
+        OrionLib:MakeNotification({
+            Name = "Discord Invite",
+            Content = "Discord invite copied to clipboard!",
+            Image = "discord",
+            Time = 5
+        })
+    end    
+})
 
 -- Initialize the library
 OrionLib:Init()
