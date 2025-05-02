@@ -1,248 +1,1636 @@
--- Compiled from MoonScript
+--[[
+    SkyX Blade Ball Script
+    Made with Orion UI Library
+    
+    Features:
+    - Auto Parry
+    - Auto Clash
+    - ESP for Players
+    - Ball ESP/Prediction
+    - Auto Ability
+]]
 
-local util
-util = {
-  log = function(msg)
-    return print("[SkyX] " .. tostring(msg))
-  end,
-  warn = function(msg)
-    return warn("[SkyX Warning] " .. tostring(msg))
-  end
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- Variables
+local LocalPlayer = Players.LocalPlayer
+local Character
+local Humanoid
+local HumanoidRootPart
+local Camera = Workspace.CurrentCamera
+
+-- Game specific references
+local BallFolder
+local AbilityFolder
+local GameEvents
+
+-- Auto-reconnect character references when player respawns
+LocalPlayer.CharacterAdded:Connect(function(Char)
+    Character = Char
+    Humanoid = Character:WaitForChild("Humanoid")
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+end)
+
+-- Load Orion Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
+
+-- Create Window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX Blade Ball", 
+    HidePremium = true,
+    SaveConfig = true, 
+    ConfigFolder = "SkyXBladeBall",
+    IntroEnabled = true,
+    IntroText = "SkyX Hub - Blade Ball"
+})
+
+------------------------------------------
+-- AUTO PARRY SECTION
+------------------------------------------
+
+-- Variables for auto parry
+local AutoParryConfig = {
+    Enabled = false,
+    Distance = 20,
+    Delay = 0.2,
+    ShowRange = false,
+    RangeColor = Color3.fromRGB(255, 50, 50),
+    DetectionRange = 30,
+    OnlyParryWhenBallApproaching = true,
+    AutoParryClash = true,
+    SafeParry = true,
+    ClosestPlayerBypass = true
 }
 
-local SkyX
-SkyX = {
-  name = "SkyX Blade Ball",
-  version = "1.0.0",
-  autoParryEnabled = false,
-  autoAbilityEnabled = false,
-  parryDistance = 20,
-  speedThreshold = 10,
-  connections = { },
-  setup = function(self)
-    self.services = {
-      replicatedStorage = game:GetService("ReplicatedStorage"),
-      players = game:GetService("Players"),
-      runService = game:GetService("RunService"),
-      userInputService = game:GetService("UserInputService")
-    }
-    self.localPlayer = self.services.players.LocalPlayer
-    self.isBladeGame = game.PlaceId == 13772394625
-    self:loadUI()
-    self:createUI()
-    return util.log("SkyX Blade Ball initialized!")
-  end,
-  loadUI = function(self)
-    local success, result = pcall(function()
-      return loadstring(game:HttpGet('https://raw.githubusercontent.com/jensonhirst/Orion/main/source'))()
-    end)
-    if success then
-      self.ui = result
-      return util.log("UI Library loaded")
-    else
-      return util.warn("Failed to load UI library: " .. tostring(result))
-    end
-  end,
-  createUI = function(self)
-    if not (self.ui) then
-      return 
-    end
-    self.window = self.ui:MakeWindow({
-      Name = self.name,
-      HidePremium = true,
-      SaveConfig = true,
-      ConfigFolder = "SkyXScripts"
-    })
-    self:createAutoParryTab()
-    return self:createVisualTab()
-  end,
-  createAutoParryTab = function(self)
-    self.autoParryTab = self.window:MakeTab({
-      Name = "Auto Parry",
-      Icon = "rbxassetid://4483345998",
-      PremiumOnly = false
-    })
-    self.autoParryTab:AddToggle({
-      Name = "Auto Parry",
-      Default = false,
-      Callback = function(value)
-        return self:toggleAutoParry(value)
-      end
-    })
-    self.autoParryTab:AddSlider({
-      Name = "Detection Range",
-      Min = 10,
-      Max = 50,
-      Default = 20,
-      Color = Color3.fromRGB(255, 255, 255),
-      Increment = 1,
-      Callback = function(value)
-        return self:setParryRange(value)
-      end
-    })
-    self.autoParryTab:AddSlider({
-      Name = "Ball Speed Threshold",
-      Min = 5,
-      Max = 30,
-      Default = 10,
-      Color = Color3.fromRGB(255, 255, 255),
-      Increment = 1,
-      Callback = function(value)
-        return self:setSpeedThreshold(value)
-      end
-    })
-    return self.autoParryTab:AddToggle({
-      Name = "Auto Use Ability",
-      Default = false,
-      Callback = function(value)
-        return self:toggleAutoAbility(value)
-      end
-    })
-  end,
-  createVisualTab = function(self)
-    self.visualTab = self.window:MakeTab({
-      Name = "Visual",
-      Icon = "rbxassetid://4483345998",
-      PremiumOnly = false
-    })
-    self.visualTab:AddToggle({
-      Name = "Ball ESP",
-      Default = false,
-      Callback = function(value)
-        return self:toggleBallESP(value)
-      end
-    })
-    return self.visualTab:AddToggle({
-      Name = "Player ESP",
-      Default = false,
-      Callback = function(value)
-        return self:togglePlayerESP(value)
-      end
-    })
-  end,
-  toggleAutoParry = function(self, enabled)
-    self.autoParryEnabled = enabled
-    if enabled then
-      util.log("Auto parry enabled!")
-      local remotes = self.services.replicatedStorage:WaitForChild("Remotes", 9e9)
-      local parry = remotes:WaitForChild("Parry", 9e9)
-      local ballsFolder = workspace:WaitForChild("Balls", 9e9)
-      self.connections.autoParry = self.services.runService.Heartbeat:Connect(function()
-        for _, ball in pairs(ballsFolder:GetChildren()) do
-          if ball:IsA("BasePart") then
-            local character = SkyX.localPlayer.Character
-            if not (character and character:FindFirstChild("HumanoidRootPart")) then
-              goto _continue_1
+-- Variables for visualization
+local ParryRangeAttachment
+local ParryRangeSphere
+
+-- Create Auto Parry Tab
+local AutoParryTab = Window:MakeTab({
+    Name = "Auto Parry",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local AutoParrySection = AutoParryTab:AddSection({
+    Name = "Auto Parry Settings"
+})
+
+-- Enable/Disable Auto Parry
+AutoParrySection:AddToggle({
+    Name = "Enable Auto Parry",
+    Default = AutoParryConfig.Enabled,
+    Callback = function(Value)
+        AutoParryConfig.Enabled = Value
+    end    
+})
+
+-- Auto Parry Detection Range
+AutoParrySection:AddSlider({
+    Name = "Detection Range",
+    Min = 10,
+    Max = 100,
+    Default = AutoParryConfig.DetectionRange,
+    Color = Color3.fromRGB(255, 50, 50),
+    Increment = 1,
+    ValueName = "studs",
+    Callback = function(Value)
+        AutoParryConfig.DetectionRange = Value
+        
+        -- Update visualization if it exists
+        if ParryRangeSphere and AutoParryConfig.ShowRange then
+            ParryRangeSphere.Size = Vector3.new(Value * 2, Value * 2, Value * 2)
+        end
+    end    
+})
+
+-- Auto Parry Delay
+AutoParrySection:AddSlider({
+    Name = "Parry Delay",
+    Min = 0,
+    Max = 1,
+    Default = AutoParryConfig.Delay,
+    Color = Color3.fromRGB(255, 150, 50),
+    Increment = 0.01,
+    ValueName = "seconds",
+    Callback = function(Value)
+        AutoParryConfig.Delay = Value
+    end    
+})
+
+-- Show Range Visualization
+AutoParrySection:AddToggle({
+    Name = "Show Parry Range",
+    Default = AutoParryConfig.ShowRange,
+    Callback = function(Value)
+        AutoParryConfig.ShowRange = Value
+        
+        -- Create or destroy the visualization
+        if Value then
+            if not ParryRangeAttachment then
+                ParryRangeAttachment = Instance.new("Attachment")
+                ParryRangeAttachment.Parent = HumanoidRootPart
+                
+                ParryRangeSphere = Instance.new("SphereHandleAdornment")
+                ParryRangeSphere.Radius = AutoParryConfig.DetectionRange
+                ParryRangeSphere.Color3 = AutoParryConfig.RangeColor
+                ParryRangeSphere.Transparency = 0.7
+                ParryRangeSphere.Adornee = HumanoidRootPart
+                ParryRangeSphere.AlwaysOnTop = true
+                ParryRangeSphere.ZIndex = 10
+                ParryRangeSphere.Attachment = ParryRangeAttachment
+                ParryRangeSphere.Parent = HumanoidRootPart
+            else
+                ParryRangeSphere.Visible = true
+                ParryRangeSphere.Radius = AutoParryConfig.DetectionRange
             end
-            local rootPart = character.HumanoidRootPart
-            local distance = (rootPart.Position - ball.Position).Magnitude
-            local ballVel = ball.Velocity.Magnitude
-            if distance < SkyX.parryDistance and ballVel > SkyX.speedThreshold then
-              parry:FireServer()
-              if SkyX.autoAbilityEnabled then
-                local abilityRemote = remotes:WaitForChild("AbilityRemote", 1)
-                if abilityRemote then
-                  abilityRemote:FireServer()
+        else
+            if ParryRangeSphere then
+                ParryRangeSphere.Visible = false
+            end
+        end
+    end    
+})
+
+-- Range Visualization Color
+AutoParrySection:AddColorpicker({
+    Name = "Range Color",
+    Default = AutoParryConfig.RangeColor,
+    Callback = function(Value)
+        AutoParryConfig.RangeColor = Value
+        
+        -- Update visualization if it exists
+        if ParryRangeSphere then
+            ParryRangeSphere.Color3 = Value
+        end
+    end  
+})
+
+-- Only Parry When Ball is Approaching
+AutoParrySection:AddToggle({
+    Name = "Only Parry When Ball Approaching",
+    Default = AutoParryConfig.OnlyParryWhenBallApproaching,
+    Callback = function(Value)
+        AutoParryConfig.OnlyParryWhenBallApproaching = Value
+    end    
+})
+
+-- Auto Parry Clash
+AutoParrySection:AddToggle({
+    Name = "Auto Parry Clash",
+    Default = AutoParryConfig.AutoParryClash,
+    Callback = function(Value)
+        AutoParryConfig.AutoParryClash = Value
+    end    
+})
+
+-- Safe Parry (Prevent over-parrying)
+AutoParrySection:AddToggle({
+    Name = "Safe Parry",
+    Default = AutoParryConfig.SafeParry,
+    Callback = function(Value)
+        AutoParryConfig.SafeParry = Value
+    end    
+})
+
+-- Closest Player Bypass (Ignores who the ball is aimed at)
+AutoParrySection:AddToggle({
+    Name = "Ignore Ball Target",
+    Default = AutoParryConfig.ClosestPlayerBypass,
+    Callback = function(Value)
+        AutoParryConfig.ClosestPlayerBypass = Value
+    end    
+})
+
+------------------------------------------
+-- AUTO ABILITIES SECTION
+------------------------------------------
+
+-- Variables for auto abilities
+local AutoAbilityConfig = {
+    Enabled = false,
+    UseAtLowHealth = true,
+    HealthThreshold = 30,
+    PreferredAbilities = {"Dash", "Forcefield", "Raging Deflection", "Super Jump"},
+    UseOnBallApproach = false,
+    SpamAbilities = false
+}
+
+-- Create Auto Abilities Tab
+local AbilitiesTab = Window:MakeTab({
+    Name = "Abilities",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local AbilitiesSection = AbilitiesTab:AddSection({
+    Name = "Auto Abilities Settings"
+})
+
+-- Enable/Disable Auto Abilities
+AbilitiesSection:AddToggle({
+    Name = "Enable Auto Abilities",
+    Default = AutoAbilityConfig.Enabled,
+    Callback = function(Value)
+        AutoAbilityConfig.Enabled = Value
+    end    
+})
+
+-- Use At Low Health
+AbilitiesSection:AddToggle({
+    Name = "Use At Low Health",
+    Default = AutoAbilityConfig.UseAtLowHealth,
+    Callback = function(Value)
+        AutoAbilityConfig.UseAtLowHealth = Value
+    end    
+})
+
+-- Health Threshold
+AbilitiesSection:AddSlider({
+    Name = "Health Threshold",
+    Min = 10,
+    Max = 90,
+    Default = AutoAbilityConfig.HealthThreshold,
+    Color = Color3.fromRGB(50, 200, 50),
+    Increment = 5,
+    ValueName = "%",
+    Callback = function(Value)
+        AutoAbilityConfig.HealthThreshold = Value
+    end    
+})
+
+-- Use On Ball Approach
+AbilitiesSection:AddToggle({
+    Name = "Use When Ball Approaches",
+    Default = AutoAbilityConfig.UseOnBallApproach,
+    Callback = function(Value)
+        AutoAbilityConfig.UseOnBallApproach = Value
+    end    
+})
+
+-- Spam Abilities
+AbilitiesSection:AddToggle({
+    Name = "Spam Abilities (Risk Ban!)",
+    Default = AutoAbilityConfig.SpamAbilities,
+    Callback = function(Value)
+        AutoAbilityConfig.SpamAbilities = Value
+    end    
+})
+
+-- Ability Priorities Section
+local AbilityPrioritySection = AbilitiesTab:AddSection({
+    Name = "Ability Priorities"
+})
+
+-- Get list of available abilities
+local AvailableAbilities = {}
+for _, ability in pairs(AbilityFolder:GetChildren()) do
+    if ability:IsA("ModuleScript") then
+        table.insert(AvailableAbilities, ability.Name)
+    end
+end
+
+-- Create a dropdown for each priority slot
+for i = 1, 4 do
+    AbilityPrioritySection:AddDropdown({
+        Name = "Priority " .. i,
+        Default = AutoAbilityConfig.PreferredAbilities[i] or "",
+        Options = AvailableAbilities,
+        Callback = function(Value)
+            AutoAbilityConfig.PreferredAbilities[i] = Value
+        end    
+    })
+end
+
+------------------------------------------
+-- ESP SECTION
+------------------------------------------
+
+-- Variables for ESP
+local ESPConfig = {
+    Enabled = false,
+    ShowPlayers = true,
+    ShowBall = true,
+    PlayerBoxes = true,
+    PlayerNames = true,
+    PlayerDistance = true,
+    PlayerHealth = true,
+    BallSpeed = true,
+    BallTarget = true,
+    BallPrediction = true,
+    BallTrajectory = true,
+    TeamColor = true,
+    TextSize = 14,
+    TextOutline = true,
+    MaxDistance = 1000,
+    RefreshRate = 10,
+    PlayerColor = Color3.fromRGB(0, 150, 255),
+    BallColor = Color3.fromRGB(255, 50, 50),
+    PredictionColor = Color3.fromRGB(255, 255, 0)
+}
+
+-- Create ESP Tab
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local ESPSection = ESPTab:AddSection({
+    Name = "ESP Settings"
+})
+
+-- Enable/Disable ESP
+ESPSection:AddToggle({
+    Name = "Master Toggle",
+    Default = ESPConfig.Enabled,
+    Callback = function(Value)
+        ESPConfig.Enabled = Value
+    end    
+})
+
+-- Player ESP
+ESPSection:AddToggle({
+    Name = "Show Players",
+    Default = ESPConfig.ShowPlayers,
+    Callback = function(Value)
+        ESPConfig.ShowPlayers = Value
+    end    
+})
+
+-- Ball ESP
+ESPSection:AddToggle({
+    Name = "Show Ball",
+    Default = ESPConfig.ShowBall,
+    Callback = function(Value)
+        ESPConfig.ShowBall = Value
+    end    
+})
+
+-- Player ESP Options
+local PlayerESPSection = ESPTab:AddSection({
+    Name = "Player ESP Options"
+})
+
+-- Player Boxes
+PlayerESPSection:AddToggle({
+    Name = "Show Boxes",
+    Default = ESPConfig.PlayerBoxes,
+    Callback = function(Value)
+        ESPConfig.PlayerBoxes = Value
+    end    
+})
+
+-- Player Names
+PlayerESPSection:AddToggle({
+    Name = "Show Names",
+    Default = ESPConfig.PlayerNames,
+    Callback = function(Value)
+        ESPConfig.PlayerNames = Value
+    end    
+})
+
+-- Player Distance
+PlayerESPSection:AddToggle({
+    Name = "Show Distance",
+    Default = ESPConfig.PlayerDistance,
+    Callback = function(Value)
+        ESPConfig.PlayerDistance = Value
+    end    
+})
+
+-- Player Health
+PlayerESPSection:AddToggle({
+    Name = "Show Health",
+    Default = ESPConfig.PlayerHealth,
+    Callback = function(Value)
+        ESPConfig.PlayerHealth = Value
+    end    
+})
+
+-- Team Color
+PlayerESPSection:AddToggle({
+    Name = "Use Team Colors",
+    Default = ESPConfig.TeamColor,
+    Callback = function(Value)
+        ESPConfig.TeamColor = Value
+    end    
+})
+
+-- Ball ESP Options
+local BallESPSection = ESPTab:AddSection({
+    Name = "Ball ESP Options"
+})
+
+-- Ball Speed
+BallESPSection:AddToggle({
+    Name = "Show Ball Speed",
+    Default = ESPConfig.BallSpeed,
+    Callback = function(Value)
+        ESPConfig.BallSpeed = Value
+    end    
+})
+
+-- Ball Target
+BallESPSection:AddToggle({
+    Name = "Show Ball Target",
+    Default = ESPConfig.BallTarget,
+    Callback = function(Value)
+        ESPConfig.BallTarget = Value
+    end    
+})
+
+-- Ball Prediction
+BallESPSection:AddToggle({
+    Name = "Show Prediction",
+    Default = ESPConfig.BallPrediction,
+    Callback = function(Value)
+        ESPConfig.BallPrediction = Value
+    end    
+})
+
+-- Ball Trajectory
+BallESPSection:AddToggle({
+    Name = "Show Trajectory",
+    Default = ESPConfig.BallTrajectory,
+    Callback = function(Value)
+        ESPConfig.BallTrajectory = Value
+    end    
+})
+
+-- ESP Colors
+local ESPColorSection = ESPTab:AddSection({
+    Name = "ESP Colors"
+})
+
+-- Player Color
+ESPColorSection:AddColorpicker({
+    Name = "Player Color",
+    Default = ESPConfig.PlayerColor,
+    Callback = function(Value)
+        ESPConfig.PlayerColor = Value
+    end  
+})
+
+-- Ball Color
+ESPColorSection:AddColorpicker({
+    Name = "Ball Color",
+    Default = ESPConfig.BallColor,
+    Callback = function(Value)
+        ESPConfig.BallColor = Value
+    end  
+})
+
+-- Prediction Color
+ESPColorSection:AddColorpicker({
+    Name = "Prediction Color",
+    Default = ESPConfig.PredictionColor,
+    Callback = function(Value)
+        ESPConfig.PredictionColor = Value
+    end  
+})
+
+-- ESP Advanced Settings
+local ESPAdvancedSection = ESPTab:AddSection({
+    Name = "ESP Advanced Settings"
+})
+
+-- Text Size
+ESPAdvancedSection:AddSlider({
+    Name = "Text Size",
+    Min = 10,
+    Max = 24,
+    Default = ESPConfig.TextSize,
+    Color = Color3.fromRGB(50, 200, 50),
+    Increment = 1,
+    ValueName = "px",
+    Callback = function(Value)
+        ESPConfig.TextSize = Value
+    end    
+})
+
+-- Text Outline
+ESPAdvancedSection:AddToggle({
+    Name = "Text Outline",
+    Default = ESPConfig.TextOutline,
+    Callback = function(Value)
+        ESPConfig.TextOutline = Value
+    end    
+})
+
+-- Max Distance
+ESPAdvancedSection:AddSlider({
+    Name = "Max Distance",
+    Min = 100,
+    Max = 5000,
+    Default = ESPConfig.MaxDistance,
+    Color = Color3.fromRGB(50, 200, 50),
+    Increment = 100,
+    ValueName = "studs",
+    Callback = function(Value)
+        ESPConfig.MaxDistance = Value
+    end    
+})
+
+-- Refresh Rate
+ESPAdvancedSection:AddSlider({
+    Name = "Refresh Rate",
+    Min = 1,
+    Max = 60,
+    Default = ESPConfig.RefreshRate,
+    Color = Color3.fromRGB(50, 200, 50),
+    Increment = 1,
+    ValueName = "fps",
+    Callback = function(Value)
+        ESPConfig.RefreshRate = Value
+    end    
+})
+
+------------------------------------------
+-- MISCELLANEOUS SECTION
+------------------------------------------
+
+-- Variables for miscellaneous features
+local MiscConfig = {
+    NoStun = false,
+    IncreaseSpeed = false,
+    SpeedMultiplier = 1.5,
+    NoRagdoll = false,
+    InstantRespawn = false,
+    InfiniteMidairJumps = false,
+    HideName = false,
+    AntiAFK = true,
+    SpamChat = false,
+    ChatMessage = "SkyX on top",
+    AutoJoinEvent = false
+}
+
+-- Create Misc Tab
+local MiscTab = Window:MakeTab({
+    Name = "Misc",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local MiscSection = MiscTab:AddSection({
+    Name = "Miscellaneous Settings"
+})
+
+-- No Stun
+MiscSection:AddToggle({
+    Name = "No Stun (Risky)",
+    Default = MiscConfig.NoStun,
+    Callback = function(Value)
+        MiscConfig.NoStun = Value
+    end    
+})
+
+-- Speed Multiplier
+MiscSection:AddToggle({
+    Name = "Speed Boost",
+    Default = MiscConfig.IncreaseSpeed,
+    Callback = function(Value)
+        MiscConfig.IncreaseSpeed = Value
+    end    
+})
+
+MiscSection:AddSlider({
+    Name = "Speed Multiplier",
+    Min = 1,
+    Max = 3,
+    Default = MiscConfig.SpeedMultiplier,
+    Color = Color3.fromRGB(50, 200, 50),
+    Increment = 0.1,
+    ValueName = "x",
+    Callback = function(Value)
+        MiscConfig.SpeedMultiplier = Value
+    end    
+})
+
+-- No Ragdoll
+MiscSection:AddToggle({
+    Name = "No Ragdoll (Risky)",
+    Default = MiscConfig.NoRagdoll,
+    Callback = function(Value)
+        MiscConfig.NoRagdoll = Value
+    end    
+})
+
+-- Instant Respawn
+MiscSection:AddToggle({
+    Name = "Instant Respawn",
+    Default = MiscConfig.InstantRespawn,
+    Callback = function(Value)
+        MiscConfig.InstantRespawn = Value
+    end    
+})
+
+-- Infinite Midair Jumps
+MiscSection:AddToggle({
+    Name = "Infinite Jumps",
+    Default = MiscConfig.InfiniteMidairJumps,
+    Callback = function(Value)
+        MiscConfig.InfiniteMidairJumps = Value
+    end    
+})
+
+-- Hide Name
+MiscSection:AddToggle({
+    Name = "Hide Name",
+    Default = MiscConfig.HideName,
+    Callback = function(Value)
+        MiscConfig.HideName = Value
+    end    
+})
+
+-- Anti AFK
+MiscSection:AddToggle({
+    Name = "Anti AFK",
+    Default = MiscConfig.AntiAFK,
+    Callback = function(Value)
+        MiscConfig.AntiAFK = Value
+    end    
+})
+
+-- Chat Section
+local ChatSection = MiscTab:AddSection({
+    Name = "Chat Settings"
+})
+
+-- Spam Chat
+ChatSection:AddToggle({
+    Name = "Spam Chat (Risky)",
+    Default = MiscConfig.SpamChat,
+    Callback = function(Value)
+        MiscConfig.SpamChat = Value
+    end    
+})
+
+-- Chat Message
+ChatSection:AddTextbox({
+    Name = "Chat Message",
+    Default = MiscConfig.ChatMessage,
+    TextDisappear = false,
+    Callback = function(Value)
+        MiscConfig.ChatMessage = Value
+    end  
+})
+
+-- Auto Join Event
+ChatSection:AddToggle({
+    Name = "Auto Join Event",
+    Default = MiscConfig.AutoJoinEvent,
+    Callback = function(Value)
+        MiscConfig.AutoJoinEvent = Value
+    end    
+})
+
+------------------------------------------
+-- SETTINGS SECTION
+------------------------------------------
+
+-- Variables for script settings
+local ScriptSettings = {
+    ToggleKeybind = Enum.KeyCode.RightControl,
+    AntiCheatBypass = true,
+    UseSecureMode = true,
+    AutoUpdate = true,
+    DebugMode = false
+}
+
+-- Create Settings Tab
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local SettingsSection = SettingsTab:AddSection({
+    Name = "Script Settings"
+})
+
+-- UI Toggle Keybind
+SettingsSection:AddKeybind({
+    Name = "Toggle UI",
+    Default = ScriptSettings.ToggleKeybind,
+    Callback = function()
+        -- This will be handled by the library
+    end,
+    ChangedCallback = function(Key)
+        ScriptSettings.ToggleKeybind = Key
+    end
+})
+
+-- Anti-Cheat Bypass
+SettingsSection:AddToggle({
+    Name = "Anti-Cheat Bypass (Required)",
+    Default = ScriptSettings.AntiCheatBypass,
+    Callback = function(Value)
+        ScriptSettings.AntiCheatBypass = Value
+    end    
+})
+
+-- Secure Mode
+SettingsSection:AddToggle({
+    Name = "Secure Mode",
+    Default = ScriptSettings.UseSecureMode,
+    Callback = function(Value)
+        ScriptSettings.UseSecureMode = Value
+    end    
+})
+
+-- Auto Update
+SettingsSection:AddToggle({
+    Name = "Auto Update",
+    Default = ScriptSettings.AutoUpdate,
+    Callback = function(Value)
+        ScriptSettings.AutoUpdate = Value
+    end    
+})
+
+-- Debug Mode
+SettingsSection:AddToggle({
+    Name = "Debug Mode",
+    Default = ScriptSettings.DebugMode,
+    Callback = function(Value)
+        ScriptSettings.DebugMode = Value
+    end    
+})
+
+local CreditsSection = SettingsTab:AddSection({
+    Name = "Credits"
+})
+
+-- Credits
+CreditsSection:AddLabel("SkyX Hub - Blade Ball")
+CreditsSection:AddLabel("UI: Orion Library")
+CreditsSection:AddLabel("Version: 1.0.0")
+
+-- Buttons
+CreditsSection:AddButton({
+    Name = "Join Discord",
+    Callback = function()
+        if syn and syn.request then
+            syn.request({
+                Url = "http://127.0.0.1:6463/rpc?v=1",
+                Method = "POST",
+                Headers = {
+                    ["Content-Type"] = "application/json",
+                    ["Origin"] = "https://discord.com"
+                },
+                Body = game:GetService("HttpService"):JSONEncode({
+                    cmd = "INVITE_BROWSER",
+                    args = {code = "skyx"},
+                    nonce = game:GetService("HttpService"):GenerateGUID(false)
+                })
+            })
+        elseif pcall(function() return queue_on_teleport end) then
+            local httpService = game:GetService("HttpService")
+            local requestFunc = http_request or request or HttpPost or syn and syn.request
+            if requestFunc then
+                requestFunc({
+                    Url = "http://127.0.0.1:6463/rpc?v=1",
+                    Method = "POST",
+                    Headers = {
+                        ["Content-Type"] = "application/json",
+                        ["Origin"] = "https://discord.com"
+                    },
+                    Body = httpService:JSONEncode({
+                        cmd = "INVITE_BROWSER",
+                        args = {code = "skyx"},
+                        nonce = httpService:GenerateGUID(false)
+                    })
+                })
+            end
+        end
+        OrionLib:MakeNotification({
+            Name = "Discord",
+            Content = "Invite link opened in your browser",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+})
+
+CreditsSection:AddButton({
+    Name = "Copy Discord Link",
+    Callback = function()
+        if setclipboard then 
+            setclipboard("https://discord.gg/skyx")
+        end
+        OrionLib:MakeNotification({
+            Name = "Discord",
+            Content = "Invite link copied to clipboard",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+})
+
+------------------------------------------
+-- IMPLEMENTATION FUNCTIONS
+------------------------------------------
+
+-- Auto Parry Implementation
+local LastParryTime = 0
+local ParryCooldown = 1.25 -- Standard Blade Ball parry cooldown time
+
+-- Get the main active ball
+local function GetActiveBall()
+    local ClosestBall = nil
+    local ClosestDistance = math.huge
+    
+    for _, ball in pairs(BallFolder:GetChildren()) do
+        if ball:IsA("BasePart") and ball:GetAttribute("realBall") == true then
+            local distance = (HumanoidRootPart.Position - ball.Position).Magnitude
+            if distance < ClosestDistance then
+                ClosestDistance = distance
+                ClosestBall = ball
+            end
+        end
+    end
+    
+    return ClosestBall
+end
+
+-- Check if the ball is approaching the player
+local function IsBallApproaching(ball)
+    if not ball then return false end
+    
+    local ballVelocity = ball.Velocity
+    local ballDirection = ballVelocity.Unit
+    local playerToBall = (ball.Position - HumanoidRootPart.Position).Unit
+    
+    -- Calculate dot product to determine if ball is moving toward player
+    local dotProduct = ballDirection:Dot(playerToBall)
+    
+    -- If dot product is negative, ball is moving toward player
+    return dotProduct < -0.3
+end
+
+-- Get the target player of the ball
+local function GetBallTarget(ball)
+    if not ball then return nil end
+    
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    local ballVelocity = ball.Velocity
+    
+    if ballVelocity.Magnitude < 5 then return nil end
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local playerRoot = player.Character.HumanoidRootPart
+            local playerPosition = playerRoot.Position
+            
+            -- Calculate how aligned the ball's velocity is with the direction to the player
+            local directionToPlayer = (playerPosition - ball.Position).Unit
+            local alignment = ballVelocity.Unit:Dot(directionToPlayer)
+            
+            -- If the ball is heading vaguely in the player's direction
+            if alignment > 0.8 then
+                local distance = (playerPosition - ball.Position).Magnitude
+                if distance < closestDistance then
+                    closestDistance = distance
+                    closestPlayer = player
                 end
-              end
             end
-          end
-          ::_continue_1::
         end
-      end)
-    else
-      util.log("Auto parry disabled!")
-      if self.connections.autoParry then
-        self.connections.autoParry:Disconnect()
-        self.connections.autoParry = nil
-      end
     end
-  end,
-  setParryRange = function(self, value)
-    self.parryDistance = value
-    return util.log("Parry range set to: " .. tostring(value))
-  end,
-  setSpeedThreshold = function(self, value)
-    self.speedThreshold = value
-    return util.log("Ball speed threshold set to: " .. tostring(value))
-  end,
-  toggleAutoAbility = function(self, enabled)
-    self.autoAbilityEnabled = enabled
-    return util.log("Auto ability " .. tostring(enabled and "enabled" or "disabled"))
-  end,
-  toggleBallESP = function(self, enabled)
-    if enabled then
-      util.log("Ball ESP enabled")
-      local ballsFolder = workspace:WaitForChild("Balls", 9e9)
-      self.connections.ballESP = self.services.runService.RenderStepped:Connect(function()
-        for _, ball in pairs(ballsFolder:GetChildren()) do
-          if ball:IsA("BasePart") then
-            if not ball:FindFirstChild("BallHighlight") then
-              local highlight = Instance.new("Highlight")
-              highlight.Name = "BallHighlight"
-              highlight.FillColor = Color3.fromRGB(255, 50, 50)
-              highlight.OutlineColor = Color3.fromRGB(255, 255, 0)
-              highlight.FillTransparency = 0.3
-              highlight.OutlineTransparency = 0
-              highlight.Parent = ball
-            end
-          end
-        end
-      end)
-    else
-      util.log("Ball ESP disabled")
-      if self.connections.ballESP then
-        self.connections.ballESP:Disconnect()
-        self.connections.ballESP = nil
-      end
-      local ballsFolder = workspace:WaitForChild("Balls", 9e9)
-      for _, ball in pairs(ballsFolder:GetChildren()) do
-        local highlight = ball:FindFirstChild("BallHighlight")
-        if highlight then
-          highlight:Destroy()
-        end
-      end
-    end
-  end,
-  togglePlayerESP = function(self, enabled)
-    if enabled then
-      util.log("Player ESP enabled")
-      self.connections.playerESP = self.services.runService.RenderStepped:Connect(function()
-        for _, player in pairs(game.Players:GetPlayers()) do
-          if player ~= game.Players.LocalPlayer then
-            local character = player.Character
-            if character and character:FindFirstChild("HumanoidRootPart") then
-              if not character:FindFirstChild("PlayerHighlight") then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "PlayerHighlight"
-                highlight.FillColor = Color3.fromRGB(0, 120, 255)
-                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                highlight.FillTransparency = 0.5
-                highlight.OutlineTransparency = 0.2
-                highlight.Parent = character
-              end
-            end
-          end
-        end
-      end)
-    else
-      util.log("Player ESP disabled")
-      if self.connections.playerESP then
-        self.connections.playerESP:Disconnect()
-        self.connections.playerESP = nil
-      end
-      for _, player in pairs(game.Players:GetPlayers()) do
-        if player.Character then
-          local highlight = player.Character:FindFirstChild("PlayerHighlight")
-          if highlight then
-            highlight:Destroy()
-          end
-        end
-      end
-    end
-  end
-}
+    
+    return closestPlayer
+end
 
-local script = SkyX:setup()
+-- Check if we can parry (time since last parry > cooldown)
+local function CanParry()
+    return (tick() - LastParryTime) > ParryCooldown
+end
 
-return SkyX
+-- Try to parry the ball
+local function TryParry()
+    if not CanParry() then 
+        if ScriptSettings.DebugMode then
+            print("Cannot parry, on cooldown")
+        end
+        return 
+    end
+    
+    -- Attempt to call the parry remote
+    local ParryRemote = ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("ParryButtonPress")
+    if ParryRemote then
+        ParryRemote:FireServer()
+        LastParryTime = tick()
+        if ScriptSettings.DebugMode then
+            print("Parry attempted")
+        end
+        
+        -- Create a notification for debugging
+        if ScriptSettings.DebugMode then
+            OrionLib:MakeNotification({
+                Name = "Auto Parry",
+                Content = "Parried ball",
+                Image = "rbxassetid://4483345998",
+                Time = 2
+            })
+        end
+        
+        return true
+    else
+        if ScriptSettings.DebugMode then
+            print("Parry remote not found")
+        end
+        return false
+    end
+end
+
+-- Find best ability to use
+local function GetBestAbility()
+    local availableAbilities = {}
+    
+    -- Check the player's abilities
+    for _, ability in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if ability:IsA("Tool") and ability.Name ~= "Parry" then
+            table.insert(availableAbilities, ability.Name)
+        end
+    end
+    
+    -- Check for equipped ability
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Tool") then
+        local equipped = LocalPlayer.Character:FindFirstChildOfClass("Tool")
+        if equipped.Name ~= "Parry" then
+            table.insert(availableAbilities, equipped.Name)
+        end
+    end
+    
+    -- Return the highest priority ability
+    for _, preferredAbility in ipairs(AutoAbilityConfig.PreferredAbilities) do
+        for _, availableAbility in ipairs(availableAbilities) do
+            if availableAbility == preferredAbility then
+                return availableAbility
+            end
+        end
+    end
+    
+    -- Return first available if no preferred match
+    return availableAbilities[1]
+end
+
+-- Use ability
+local function UseAbility(abilityName)
+    if not abilityName then return false end
+    
+    -- Check if we have the ability in backpack
+    local abilityTool = LocalPlayer.Backpack:FindFirstChild(abilityName)
+    
+    -- Check if we already have it equipped
+    if not abilityTool and LocalPlayer.Character then
+        abilityTool = LocalPlayer.Character:FindFirstChild(abilityName)
+        if abilityTool and abilityTool:IsA("Tool") then
+            -- Already equipped, just use it
+            abilityTool:Activate()
+            if ScriptSettings.DebugMode then
+                print("Used equipped ability: " .. abilityName)
+            end
+            return true
+        end
+    end
+    
+    -- If found in backpack, equip and use
+    if abilityTool and abilityTool:IsA("Tool") then
+        abilityTool.Parent = LocalPlayer.Character
+        abilityTool:Activate()
+        if ScriptSettings.DebugMode then
+            print("Equipped and used ability: " .. abilityName)
+        end
+        return true
+    end
+    
+    return false
+end
+
+-- Main Auto Parry Loop
+task.spawn(function()
+    while task.wait(0.01) do -- Run at ~100hz for precision
+        if not AutoParryConfig.Enabled then goto continue end
+        
+        local Ball = GetActiveBall()
+        if not Ball then goto continue end
+        
+        local Distance = (Ball.Position - HumanoidRootPart.Position).Magnitude
+        
+        -- Check if the ball is within our detection range
+        if Distance <= AutoParryConfig.DetectionRange then
+            -- Check if the ball is approaching us
+            if AutoParryConfig.OnlyParryWhenBallApproaching and not IsBallApproaching(Ball) then
+                goto continue
+            end
+            
+            -- Check if the ball is targeting us
+            local targetPlayer = GetBallTarget(Ball)
+            if not AutoParryConfig.ClosestPlayerBypass and targetPlayer ~= LocalPlayer then
+                goto continue
+            end
+            
+            -- Adjust timing based on distance and ball speed
+            local ballSpeed = Ball.Velocity.Magnitude
+            local adjustedDelay = AutoParryConfig.Delay * (1 - (ballSpeed / 500))
+            
+            -- Add a small random variation for human-like behavior
+            adjustedDelay = adjustedDelay + (math.random() * 0.05 - 0.025)
+            
+            -- Schedule the parry with delay
+            task.delay(adjustedDelay, function()
+                if Ball and Ball.Parent and AutoParryConfig.Enabled then
+                    -- Double check the ball is still relevant
+                    local currentDist = (Ball.Position - HumanoidRootPart.Position).Magnitude
+                    if currentDist <= AutoParryConfig.DetectionRange then
+                        TryParry()
+                    end
+                end
+            end)
+            
+            -- Prevent multiple parry attempts for the same ball approach
+            task.wait(0.5)
+        end
+        
+        ::continue::
+    end
+end)
+
+-- Auto Ability Loop
+task.spawn(function()
+    while task.wait(0.5) do
+        if not AutoAbilityConfig.Enabled then goto continue end
+        
+        -- Check for health threshold condition
+        if AutoAbilityConfig.UseAtLowHealth and Humanoid.Health <= (Humanoid.MaxHealth * (AutoAbilityConfig.HealthThreshold / 100)) then
+            local bestAbility = GetBestAbility()
+            if bestAbility then
+                UseAbility(bestAbility)
+                
+                -- Don't spam abilities unless configured to
+                if not AutoAbilityConfig.SpamAbilities then
+                    task.wait(5) -- Wait a bit after using ability
+                end
+            end
+        end
+        
+        -- Check for ball approach condition
+        if AutoAbilityConfig.UseOnBallApproach then
+            local Ball = GetActiveBall()
+            if Ball and IsBallApproaching(Ball) then
+                local distance = (Ball.Position - HumanoidRootPart.Position).Magnitude
+                
+                -- Only use ability if ball is close enough
+                if distance <= 30 then
+                    local bestAbility = GetBestAbility()
+                    if bestAbility then
+                        UseAbility(bestAbility)
+                        
+                        -- Don't spam abilities unless configured to
+                        if not AutoAbilityConfig.SpamAbilities then
+                            task.wait(5) -- Wait a bit after using ability
+                        end
+                    end
+                end
+            end
+        end
+        
+        -- If spam is enabled, just use abilities whenever they're available
+        if AutoAbilityConfig.SpamAbilities then
+            local bestAbility = GetBestAbility()
+            if bestAbility then
+                UseAbility(bestAbility)
+            end
+        end
+        
+        ::continue::
+    end
+end)
+
+-- Draw ESP
+local ESPObjects = {}
+
+-- Clean up ESP
+local function CleanupESP()
+    for _, object in pairs(ESPObjects) do
+        if object.Type == "Line" or object.Type == "Circle" then
+            object.Drawing:Remove()
+        elseif object.Type == "Text" or object.Type == "Square" then
+            object.Drawing:Remove()
+        end
+    end
+    ESPObjects = {}
+end
+
+-- Create ESP for players
+local function CreatePlayerESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player == LocalPlayer then goto continue_player end
+        
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+            local humanoidRootPart = player.Character.HumanoidRootPart
+            local humanoid = player.Character.Humanoid
+            local distance = (humanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+            
+            -- Check if within distance limit
+            if distance > ESPConfig.MaxDistance then goto continue_player end
+            
+            -- Determine color (team-based or default)
+            local espColor = ESPConfig.PlayerColor
+            if ESPConfig.TeamColor and player.Team then
+                espColor = player.TeamColor.Color
+            end
+            
+            -- Create box ESP
+            if ESPConfig.PlayerBoxes then
+                local boxOutline = Drawing.new("Square")
+                boxOutline.Visible = true
+                boxOutline.Color = Color3.new(0, 0, 0)
+                boxOutline.Thickness = 3
+                boxOutline.Transparency = 1
+                boxOutline.Filled = false
+                
+                local box = Drawing.new("Square")
+                box.Visible = true
+                box.Color = espColor
+                box.Thickness = 1
+                box.Transparency = 1
+                box.Filled = false
+                
+                table.insert(ESPObjects, {Type = "Square", Drawing = boxOutline, Player = player})
+                table.insert(ESPObjects, {Type = "Square", Drawing = box, Player = player})
+            end
+            
+            -- Create name ESP
+            if ESPConfig.PlayerNames then
+                local nameText = Drawing.new("Text")
+                nameText.Visible = true
+                nameText.Color = espColor
+                nameText.Size = ESPConfig.TextSize
+                nameText.Center = true
+                nameText.Outline = ESPConfig.TextOutline
+                nameText.Text = player.Name
+                
+                table.insert(ESPObjects, {Type = "Text", Drawing = nameText, Player = player, Position = "Top"})
+            end
+            
+            -- Create distance ESP
+            if ESPConfig.PlayerDistance then
+                local distanceText = Drawing.new("Text")
+                distanceText.Visible = true
+                distanceText.Color = espColor
+                distanceText.Size = ESPConfig.TextSize
+                distanceText.Center = true
+                distanceText.Outline = ESPConfig.TextOutline
+                distanceText.Text = math.floor(distance) .. "m"
+                
+                table.insert(ESPObjects, {Type = "Text", Drawing = distanceText, Player = player, Position = "Bottom"})
+            end
+            
+            -- Create health ESP
+            if ESPConfig.PlayerHealth then
+                local healthText = Drawing.new("Text")
+                healthText.Visible = true
+                healthText.Color = Color3.fromRGB(
+                    255 - (255 * (humanoid.Health / humanoid.MaxHealth)),
+                    255 * (humanoid.Health / humanoid.MaxHealth),
+                    0
+                )
+                healthText.Size = ESPConfig.TextSize
+                healthText.Center = true
+                healthText.Outline = ESPConfig.TextOutline
+                healthText.Text = math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
+                
+                table.insert(ESPObjects, {Type = "Text", Drawing = healthText, Player = player, Position = "BottomOffset"})
+            end
+        end
+        ::continue_player::
+    end
+end
+
+-- Create ESP for the ball
+local function CreateBallESP()
+    local Ball = GetActiveBall()
+    if not Ball then return end
+    
+    -- Create ball ESP
+    local ballDistance = (Ball.Position - HumanoidRootPart.Position).Magnitude
+    
+    -- Ball box ESP
+    local boxOutline = Drawing.new("Square")
+    boxOutline.Visible = true
+    boxOutline.Color = Color3.new(0, 0, 0)
+    boxOutline.Thickness = 3
+    boxOutline.Transparency = 1
+    boxOutline.Filled = false
+    
+    local box = Drawing.new("Square")
+    box.Visible = true
+    box.Color = ESPConfig.BallColor
+    box.Thickness = 1
+    box.Transparency = 1
+    box.Filled = false
+    
+    table.insert(ESPObjects, {Type = "Square", Drawing = boxOutline, Ball = Ball})
+    table.insert(ESPObjects, {Type = "Square", Drawing = box, Ball = Ball})
+    
+    -- Ball speed ESP
+    if ESPConfig.BallSpeed then
+        local speedText = Drawing.new("Text")
+        speedText.Visible = true
+        speedText.Color = ESPConfig.BallColor
+        speedText.Size = ESPConfig.TextSize
+        speedText.Center = true
+        speedText.Outline = ESPConfig.TextOutline
+        speedText.Text = "Speed: " .. math.floor(Ball.Velocity.Magnitude) .. " stud/s"
+        
+        table.insert(ESPObjects, {Type = "Text", Drawing = speedText, Ball = Ball, Position = "Top"})
+    end
+    
+    -- Ball target ESP
+    if ESPConfig.BallTarget then
+        local targetPlayer = GetBallTarget(Ball)
+        local targetText = Drawing.new("Text")
+        targetText.Visible = true
+        targetText.Color = ESPConfig.BallColor
+        targetText.Size = ESPConfig.TextSize
+        targetText.Center = true
+        targetText.Outline = ESPConfig.TextOutline
+        targetText.Text = "Target: " .. (targetPlayer and targetPlayer.Name or "None")
+        
+        table.insert(ESPObjects, {Type = "Text", Drawing = targetText, Ball = Ball, Position = "TopOffset"})
+    end
+    
+    -- Ball distance ESP
+    local distanceText = Drawing.new("Text")
+    distanceText.Visible = true
+    distanceText.Color = ESPConfig.BallColor
+    distanceText.Size = ESPConfig.TextSize
+    distanceText.Center = true
+    distanceText.Outline = ESPConfig.TextOutline
+    distanceText.Text = math.floor(ballDistance) .. "m"
+    
+    table.insert(ESPObjects, {Type = "Text", Drawing = distanceText, Ball = Ball, Position = "Bottom"})
+    
+    -- Ball trajectory line
+    if ESPConfig.BallTrajectory then
+        local trajectory = Drawing.new("Line")
+        trajectory.Visible = true
+        trajectory.Color = ESPConfig.BallColor
+        trajectory.Thickness = 1
+        trajectory.Transparency = 1
+        
+        table.insert(ESPObjects, {Type = "Line", Drawing = trajectory, Ball = Ball})
+    end
+    
+    -- Ball prediction (where it will hit)
+    if ESPConfig.BallPrediction then
+        local prediction = Drawing.new("Circle")
+        prediction.Visible = true
+        prediction.Color = ESPConfig.PredictionColor
+        prediction.Thickness = 2
+        prediction.Transparency = 1
+        prediction.Filled = false
+        prediction.NumSides = 32
+        prediction.Radius = 10
+        
+        table.insert(ESPObjects, {Type = "Circle", Drawing = prediction, Ball = Ball, Prediction = true})
+    end
+end
+
+-- Update ESP positions and information
+local function UpdateESP()
+    for _, object in pairs(ESPObjects) do
+        if object.Type == "Square" then
+            -- Update square ESP for players or ball
+            local targetPosition, targetSize
+            
+            if object.Player and object.Player.Character and object.Player.Character:FindFirstChild("HumanoidRootPart") then
+                local humanoidRootPart = object.Player.Character.HumanoidRootPart
+                local vector, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                
+                if onScreen then
+                    -- Calculate box size based on distance
+                    local distance = (humanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+                    local size = 1000 / distance
+                    
+                    -- Update box position and size
+                    object.Drawing.Size = Vector2.new(size, size * 2)
+                    object.Drawing.Position = Vector2.new(vector.X - size / 2, vector.Y - size)
+                    object.Drawing.Visible = true
+                else
+                    object.Drawing.Visible = false
+                end
+            elseif object.Ball and object.Ball.Parent then
+                local vector, onScreen = Camera:WorldToViewportPoint(object.Ball.Position)
+                
+                if onScreen then
+                    -- Calculate box size based on ball size and distance
+                    local ballSize = object.Ball.Size.X
+                    local distance = (object.Ball.Position - HumanoidRootPart.Position).Magnitude
+                    local size = (ballSize * 15) * (100 / distance)
+                    
+                    -- Update box position and size
+                    object.Drawing.Size = Vector2.new(size, size)
+                    object.Drawing.Position = Vector2.new(vector.X - size / 2, vector.Y - size / 2)
+                    object.Drawing.Visible = true
+                else
+                    object.Drawing.Visible = false
+                end
+            else
+                object.Drawing.Visible = false
+            end
+        elseif object.Type == "Text" then
+            -- Update text ESP for players or ball
+            local targetPosition, text
+            
+            if object.Player and object.Player.Character and object.Player.Character:FindFirstChild("HumanoidRootPart") then
+                local humanoidRootPart = object.Player.Character.HumanoidRootPart
+                local vector, onScreen = Camera:WorldToViewportPoint(humanoidRootPart.Position)
+                
+                if onScreen then
+                    -- Calculate position based on text type
+                    local distance = (humanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+                    local size = 1000 / distance
+                    
+                    if object.Position == "Top" then
+                        object.Drawing.Position = Vector2.new(vector.X, vector.Y - size - 15)
+                        if object.Player.Name ~= object.Drawing.Text then
+                            object.Drawing.Text = object.Player.Name
+                        end
+                    elseif object.Position == "Bottom" then
+                        object.Drawing.Position = Vector2.new(vector.X, vector.Y + 5)
+                        object.Drawing.Text = math.floor(distance) .. "m"
+                    elseif object.Position == "BottomOffset" then
+                        object.Drawing.Position = Vector2.new(vector.X, vector.Y + 20)
+                        
+                        -- Update health text
+                        if object.Player.Character:FindFirstChild("Humanoid") then
+                            local humanoid = object.Player.Character.Humanoid
+                            object.Drawing.Text = math.floor(humanoid.Health) .. "/" .. math.floor(humanoid.MaxHealth)
+                            object.Drawing.Color = Color3.fromRGB(
+                                255 - (255 * (humanoid.Health / humanoid.MaxHealth)),
+                                255 * (humanoid.Health / humanoid.MaxHealth),
+                                0
+                            )
+                        end
+                    end
+                    
+                    object.Drawing.Visible = true
+                else
+                    object.Drawing.Visible = false
+                end
+            elseif object.Ball and object.Ball.Parent then
+                local vector, onScreen = Camera:WorldToViewportPoint(object.Ball.Position)
+                
+                if onScreen then
+                    -- Calculate box size based on ball size and distance
+                    local ballSize = object.Ball.Size.X
+                    local distance = (object.Ball.Position - HumanoidRootPart.Position).Magnitude
+                    local size = (ballSize * 15) * (100 / distance)
+                    
+                    if object.Position == "Top" then
+                        object.Drawing.Position = Vector2.new(vector.X, vector.Y - size - 15)
+                        object.Drawing.Text = "Speed: " .. math.floor(object.Ball.Velocity.Magnitude) .. " stud/s"
+                    elseif object.Position == "TopOffset" then
+                        object.Drawing.Position = Vector2.new(vector.X, vector.Y - size - 30)
+                        local targetPlayer = GetBallTarget(object.Ball)
+                        object.Drawing.Text = "Target: " .. (targetPlayer and targetPlayer.Name or "None")
+                    elseif object.Position == "Bottom" then
+                        object.Drawing.Position = Vector2.new(vector.X, vector.Y + size / 2 + 5)
+                        object.Drawing.Text = math.floor(distance) .. "m"
+                    end
+                    
+                    object.Drawing.Visible = true
+                else
+                    object.Drawing.Visible = false
+                end
+            else
+                object.Drawing.Visible = false
+            end
+        elseif object.Type == "Line" and object.Ball and object.Ball.Parent then
+            -- Update trajectory line
+            local startPoint, onScreen1 = Camera:WorldToViewportPoint(object.Ball.Position)
+            local endPoint, onScreen2 = Camera:WorldToViewportPoint(object.Ball.Position + (object.Ball.Velocity * 0.2))
+            
+            if onScreen1 and onScreen2 then
+                object.Drawing.From = Vector2.new(startPoint.X, startPoint.Y)
+                object.Drawing.To = Vector2.new(endPoint.X, endPoint.Y)
+                object.Drawing.Visible = true
+            else
+                object.Drawing.Visible = false
+            end
+        elseif object.Type == "Circle" and object.Ball and object.Ball.Parent then
+            -- Update prediction circle
+            if object.Prediction then
+                -- Calculate where the ball is likely to hit based on velocity and gravity
+                local gravity = Vector3.new(0, -196.2, 0)
+                local startPos = object.Ball.Position
+                local startVel = object.Ball.Velocity
+                
+                -- Simple projectile motion calculation
+                local timeToHit = 0
+                local hitPos = startPos
+                
+                -- Find where the ball will hit a surface
+                local maxIterations = 10
+                for i = 1, maxIterations do
+                    -- Predict position at time t
+                    local t = i * 0.1
+                    local predictedPos = startPos + startVel * t + 0.5 * gravity * t^2
+                    
+                    -- Cast a ray to see if we hit anything
+                    local rayDirection = predictedPos - startPos
+                    local rayResult = workspace:Raycast(startPos, rayDirection)
+                    
+                    if rayResult then
+                        hitPos = rayResult.Position
+                        break
+                    end
+                end
+                
+                -- Draw the prediction at hit position
+                local hitVector, onScreen = Camera:WorldToViewportPoint(hitPos)
+                
+                if onScreen then
+                    object.Drawing.Position = Vector2.new(hitVector.X, hitVector.Y)
+                    object.Drawing.Visible = true
+                else
+                    object.Drawing.Visible = false
+                end
+            end
+        end
+    end
+end
+
+-- ESP Loop
+task.spawn(function()
+    while task.wait(1 / ESPConfig.RefreshRate) do
+        if ESPConfig.Enabled then
+            -- Clean existing ESP
+            CleanupESP()
+            
+            -- Create new ESP
+            if ESPConfig.ShowPlayers then
+                CreatePlayerESP()
+            end
+            
+            if ESPConfig.ShowBall then
+                CreateBallESP()
+            end
+            
+            -- Update ESP positions
+            UpdateESP()
+        else
+            -- Clean up ESP if disabled
+            CleanupESP()
+            task.wait(0.5) -- Wait a bit longer when disabled
+        end
+    end
+end)
+
+-- Miscellaneous Features Implementation
+local JumpCount = 0
+
+-- Handle various misc features
+task.spawn(function()
+    while task.wait(0.1) do
+        -- No Stun
+        if MiscConfig.NoStun and Character and Character:FindFirstChild("Humanoid") then
+            local stun = Character:FindFirstChild("Ragdoll")
+            if stun and stun:IsA("BoolValue") and stun.Value == true then
+                stun.Value = false
+            end
+        end
+        
+        -- Speed Boost
+        if MiscConfig.IncreaseSpeed and Character and Character:FindFirstChild("Humanoid") then
+            Humanoid.WalkSpeed = 16 * MiscConfig.SpeedMultiplier -- Default walk speed is 16
+        end
+        
+        -- No Ragdoll
+        if MiscConfig.NoRagdoll and Character then
+            for _, v in pairs(Character:GetChildren()) do
+                if v.Name == "Ragdoll" or v.Name == "Stun" then
+                    v:Destroy()
+                end
+            end
+        end
+        
+        -- Hide Name
+        if MiscConfig.HideName and LocalPlayer and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
+            local head = LocalPlayer.Character.Head
+            for _, v in pairs(head:GetChildren()) do
+                if v:IsA("BillboardGui") then
+                    v.Enabled = false
+                end
+            end
+        end
+    end
+end)
+
+-- Handle instant respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    task.wait(0.5) -- Wait for character to be fully loaded
+    
+    if MiscConfig.NoStun or MiscConfig.NoRagdoll then
+        for _, v in pairs(char:GetChildren()) do
+            if v.Name == "Ragdoll" or v.Name == "Stun" then
+                v:Destroy()
+            end
+        end
+    end
+    
+    if MiscConfig.IncreaseSpeed then
+        local humanoid = char:WaitForChild("Humanoid")
+        humanoid.WalkSpeed = 16 * MiscConfig.SpeedMultiplier
+    end
+    
+    if MiscConfig.HideName then
+        local head = char:WaitForChild("Head")
+        for _, v in pairs(head:GetChildren()) do
+            if v:IsA("BillboardGui") then
+                v.Enabled = false
+            end
+        end
+    end
+    
+    -- Reset jump count for infinite jumps
+    JumpCount = 0
+end)
+
+-- Handle infinite mid-air jumps
+UserInputService.JumpRequest:Connect(function()
+    if MiscConfig.InfiniteMidairJumps and Character and Character:FindFirstChild("Humanoid") then
+        -- Allow only one normal jump
+        if Humanoid:GetState() == Enum.HumanoidStateType.Freefall and JumpCount == 0 then
+            Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            JumpCount = 1
+        elseif Humanoid:GetState() == Enum.HumanoidStateType.Jumping then
+            JumpCount = 0
+        end
+    end
+end)
+
+-- Anti AFK
+if MiscConfig.AntiAFK then
+    local VirtualUser = game:GetService("VirtualUser")
+    LocalPlayer.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+    end)
+end
+
+-- Spam Chat
+task.spawn(function()
+    while task.wait(2) do
+        if MiscConfig.SpamChat then
+            local ChatRemote = ReplicatedStorage:FindFirstChild("DefaultChatSystemChatEvents"):FindFirstChild("SayMessageRequest")
+            if ChatRemote then
+                ChatRemote:FireServer(MiscConfig.ChatMessage, "All")
+            end
+        end
+    end
+end)
+
+-- Auto Join Event
+task.spawn(function()
+    while task.wait(5) do
+        if MiscConfig.AutoJoinEvent then
+            for _, v in pairs(Workspace:GetChildren()) do
+                if v.Name:match("EventPortal") then
+                    local prompt = v:FindFirstChild("JoinEventPrompt")
+                    if prompt and prompt:IsA("ProximityPrompt") then
+                        local distance = (v.Position - HumanoidRootPart.Position).Magnitude
+                        if distance < 20 then
+                            fireproximityprompt(prompt)
+                            task.wait(1)
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
+
+-- Notification on load
+OrionLib:MakeNotification({
+    Name = "SkyX Blade Ball",
+    Content = "Script loaded successfully!",
+    Image = "rbxassetid://4483345998",
+    Time = 5
+})
+
+-- Initialize
+print("SkyX Blade Ball script loaded!")
+OrionLib:Init()
