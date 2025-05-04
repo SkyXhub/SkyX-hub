@@ -1,5 +1,5 @@
---[[mmmm
-    SkyX Hub - Grow A Garden Script (Custom UI)
+--[[
+    SkyX nnnnHub - Grow A Garden Script (Custom UI)
     
     Features:
     - Auto-plant and auto-harvest with reliability improvements
@@ -215,15 +215,43 @@ local Farming = {}
 function Farming.Plant(seedType)
     local plantingArea, distance = GetClosestPlantingArea()
     if not plantingArea or distance > 30 then
-        return false, "No planting area nearby"
+        -- Search for any planting area in the workspace
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:lower():match("plant") or obj.Name:lower():match("garden") or 
+                obj.Name:lower():match("soil") or obj.Name:lower():match("plot") or 
+                obj.Name:lower():match("farm")) and 
+                (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+                
+                plantingArea = obj
+                distance = (HumanoidRootPart.Position - obj.Position).Magnitude
+                break
+            end
+        end
+        
+        if not plantingArea then
+            return false, "No planting area found in the game"
+        end
     end
     
-    -- Try to get close to the planting area
-    if distance > 10 then
-        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
+    -- Try to get close to the planting area with better positioning
+    if distance > 5 then
+        -- Find a safe position near the planting area
+        local rayParams = RaycastParams.new()
+        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+        rayParams.FilterDescendantsInstances = {Character}
+        
+        local targetPos = plantingArea.Position + Vector3.new(0, 3, 0)
+        local rayResult = workspace:Raycast(targetPos + Vector3.new(0, 10, 0), Vector3.new(0, -20, 0), rayParams)
+        
+        if rayResult and rayResult.Position then
+            targetPos = rayResult.Position + Vector3.new(0, 3, 0)
+        end
+        
+        TeleportTo(targetPos)
+        wait(0.3) -- Wait for teleport to complete
     end
     
-    -- Try direct remote invocation first
+    -- APPROACH 1: Try direct remote invocation first
     if Remotes.Plant then
         local success, result = ActionWithRetry(function()
             return Remotes.Plant:FireServer(seedType, plantingArea)
@@ -234,78 +262,299 @@ function Farming.Plant(seedType)
         end
     end
     
-    -- Fallback: Tool-based planting
-    local seedTool = nil
-    for _, item in pairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") and item.Name == seedType then
-            seedTool = item
-            break
+    -- APPROACH 2: Use RemoteFunction/RemoteEvent from hierarchy
+    local allRemotes = {}
+    for _, instance in pairs(game:GetDescendants()) do
+        if instance:IsA("RemoteFunction") or instance:IsA("RemoteEvent") then
+            if instance.Name:lower():match("plant") or instance.Name:lower():match("seed") or
+               instance.Name:lower():match("farm") or instance.Name:lower():match("grow") then
+                table.insert(allRemotes, instance)
+            end
         end
     end
     
-    if not seedTool then
-        return false, "Seed not found in inventory"
+    -- Try each remote event/function
+    for _, remote in pairs(allRemotes) do
+        local success, result = pcall(function()
+            if remote:IsA("RemoteEvent") then
+                remote:FireServer(seedType, plantingArea)
+            else
+                remote:InvokeServer(seedType, plantingArea)
+            end
+            return true
+        end)
+        
+        if success then
+            Remotes.Plant = remote -- Save for future use
+            wait(0.5) -- Wait to see if it worked
+            return true, "Successfully planted using discovered remote: " .. remote.Name
+        end
     end
     
-    -- Equip and use the tool
+    -- APPROACH 3: Tool-based planting with enhanced detection
+    local seedTool = nil
+    
+    -- First check equipped tool
+    local equippedTool = Character:FindFirstChildOfClass("Tool")
+    if equippedTool and (equippedTool.Name == seedType or equippedTool.Name:lower():match("seed")) then
+        seedTool = equippedTool
+    end
+    
+    -- Then check backpack
+    if not seedTool then
+        for _, item in pairs(Player.Backpack:GetChildren()) do
+            if item:IsA("Tool") and (item.Name == seedType or 
+                                      item.Name:lower():match("seed") or 
+                                      item.Name:lower():match("plant")) then
+                seedTool = item
+                break
+            end
+        end
+    end
+    
+    -- If we found a seed tool, use it
+    if seedTool then
+        local success, result = ActionWithRetry(function()
+            -- Ensure we're looking at the planting area
+            local lookAt = (plantingArea.Position - HumanoidRootPart.Position).Unit
+            HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, HumanoidRootPart.Position + lookAt)
+            
+            -- Equip the tool if not already equipped
+            if seedTool.Parent ~= Character then
+                seedTool.Parent = Character
+                wait(0.3)
+            end
+            
+            -- Try different activation patterns
+            for i = 1, 3 do
+                seedTool:Activate()
+                wait(0.2)
+            end
+            
+            -- Return the tool to the backpack
+            wait(0.3)
+            seedTool.Parent = Player.Backpack
+            return true
+        end, RETRY_COUNT + 2, RETRY_DELAY) -- More retries for tool usage
+        
+        if success then
+            return true, "Successfully planted using tool"
+        else
+            return false, "Failed to plant with tool"
+        end
+    end
+    
+    -- APPROACH 4: Simulate clicks on the planting area
     local success, result = ActionWithRetry(function()
-        seedTool.Parent = Character
-        wait(0.2)
-        seedTool:Activate()
-        wait(0.5)
-        seedTool.Parent = Player.Backpack
+        -- Fire a mouse click at the planting area
+        local clickPos = plantingArea.Position
+        
+        -- Use virtual input system to click
+        VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        wait(0.1)
+        VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        
+        wait(0.5) -- Wait to see if anything happened
         return true
     end, RETRY_COUNT, RETRY_DELAY)
     
-    return success, success and "Successfully planted using tool" or "Failed to plant"
+    return false, "Could not find a way to plant seeds"
 end
 
 function Farming.Harvest()
-    local plantingArea, distance = GetClosestPlantingArea()
-    if not plantingArea or distance > 30 then
-        return false, "No planting area nearby"
+    -- Find all planting areas with grown plants
+    local potentialAreas = {}
+    local nearestArea = nil
+    local shortestDistance = math.huge
+    
+    -- First, look for objects that might be grown plants
+    for _, obj in pairs(workspace:GetDescendants()) do
+        -- Look for grown plants or plant models that might need harvesting
+        if (obj.Name:lower():match("plant") or obj.Name:lower():match("crop") or 
+            obj.Name:lower():match("grown") or obj.Name:lower():match("mature") or
+            obj.Name:lower():match("harvest")) and
+           (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+            
+            local primaryPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+            if primaryPart then
+                local distance = (HumanoidRootPart.Position - primaryPart.Position).Magnitude
+                table.insert(potentialAreas, {part = primaryPart, distance = distance})
+                
+                if distance < shortestDistance then
+                    shortestDistance = distance
+                    nearestArea = primaryPart
+                end
+            end
+        end
     end
     
-    -- Try to get close to the planting area
-    if distance > 10 then
-        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
+    -- If we didn't find any specific plants, fall back to regular planting areas
+    if #potentialAreas == 0 then
+        local plantingArea, distance = GetClosestPlantingArea()
+        if plantingArea then
+            nearestArea = plantingArea
+            shortestDistance = distance
+            table.insert(potentialAreas, {part = plantingArea, distance = distance})
+        end
     end
     
-    -- Try direct remote invocation first
-    if Remotes.Harvest then
-        local success, result = ActionWithRetry(function()
-            return Remotes.Harvest:FireServer(plantingArea)
-        end, RETRY_COUNT, RETRY_DELAY)
+    if not nearestArea then
+        return false, "No plants or planting areas found to harvest"
+    end
+    
+    -- Sort areas by distance
+    table.sort(potentialAreas, function(a, b) return a.distance < b.distance end)
+    
+    -- Try to harvest from closest areas first
+    local harvestedAny = false
+    local attemptedAreas = 0
+    local maxAttempts = math.min(5, #potentialAreas) -- Limit to 5 closest areas to prevent too much time spent
+    
+    for i = 1, maxAttempts do
+        local area = potentialAreas[i].part
+        local distance = potentialAreas[i].distance
         
-        if success then
-            return true, "Successfully harvested using remote"
+        -- Try to get close to the area
+        if distance > 5 then
+            -- Find a safe position near the area
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+            rayParams.FilterDescendantsInstances = {Character}
+            
+            local targetPos = area.Position + Vector3.new(0, 3, 0)
+            local rayResult = workspace:Raycast(targetPos + Vector3.new(0, 10, 0), Vector3.new(0, -20, 0), rayParams)
+            
+            if rayResult and rayResult.Position then
+                targetPos = rayResult.Position + Vector3.new(0, 3, 0)
+            end
+            
+            TeleportTo(targetPos)
+            wait(0.3) -- Wait for teleport to complete
         end
-    end
-    
-    -- Fallback: Tool-based harvesting
-    local harvestTool = nil
-    for _, item in pairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") and (item.Name:lower():match("harvester") or item.Name:lower():match("cutter") or item.Name:lower():match("collect")) then
-            harvestTool = item
-            break
+        
+        attemptedAreas = attemptedAreas + 1
+        
+        -- APPROACH 1: Try direct remote invocation first
+        if Remotes.Harvest then
+            local success, result = ActionWithRetry(function()
+                return Remotes.Harvest:FireServer(area)
+            end, RETRY_COUNT, RETRY_DELAY)
+            
+            if success then
+                harvestedAny = true
+                -- Continue to next area without trying other methods
+                continue
+            end
         end
+        
+        -- APPROACH 2: Use RemoteFunction/RemoteEvent from hierarchy
+        local harvestRemotes = {}
+        for _, instance in pairs(game:GetDescendants()) do
+            if instance:IsA("RemoteFunction") or instance:IsA("RemoteEvent") then
+                if instance.Name:lower():match("harvest") or instance.Name:lower():match("collect") or
+                   instance.Name:lower():match("gather") or instance.Name:lower():match("crop") then
+                    table.insert(harvestRemotes, instance)
+                end
+            end
+        end
+        
+        for _, remote in pairs(harvestRemotes) do
+            local success, result = pcall(function()
+                if remote:IsA("RemoteEvent") then
+                    remote:FireServer(area)
+                else
+                    remote:InvokeServer(area)
+                end
+                return true
+            end)
+            
+            if success then
+                Remotes.Harvest = remote -- Save for future use
+                harvestedAny = true
+                wait(0.5) -- Wait to see if it worked
+                break -- Exit remote loop but continue to next area
+            end
+        end
+        
+        -- APPROACH 3: Tool-based harvesting with enhanced detection
+        local harvestTool = nil
+        
+        -- First check equipped tool
+        local equippedTool = Character:FindFirstChildOfClass("Tool")
+        if equippedTool and (equippedTool.Name:lower():match("harvest") or 
+                            equippedTool.Name:lower():match("cutter") or 
+                            equippedTool.Name:lower():match("collect") or
+                            equippedTool.Name:lower():match("sickle")) then
+            harvestTool = equippedTool
+        end
+        
+        -- Then check backpack
+        if not harvestTool then
+            for _, item in pairs(Player.Backpack:GetChildren()) do
+                if item:IsA("Tool") and (item.Name:lower():match("harvest") or 
+                                          item.Name:lower():match("cutter") or 
+                                          item.Name:lower():match("collect") or
+                                          item.Name:lower():match("sickle") or
+                                          item.Name:lower():match("scythe")) then
+                    harvestTool = item
+                    break
+                end
+            end
+        end
+        
+        -- If we found a harvest tool, use it
+        if harvestTool then
+            local success, result = ActionWithRetry(function()
+                -- Ensure we're looking at the planting area
+                local lookAt = (area.Position - HumanoidRootPart.Position).Unit
+                HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, HumanoidRootPart.Position + lookAt)
+                
+                -- Equip the tool if not already equipped
+                if harvestTool.Parent ~= Character then
+                    harvestTool.Parent = Character
+                    wait(0.3)
+                end
+                
+                -- Try different activation patterns
+                for i = 1, 3 do
+                    harvestTool:Activate()
+                    wait(0.3)
+                end
+                
+                -- Return the tool to the backpack
+                wait(0.3)
+                harvestTool.Parent = Player.Backpack
+                return true
+            end, RETRY_COUNT + 2, RETRY_DELAY) -- More retries for tool usage
+            
+            if success then
+                harvestedAny = true
+            end
+        end
+        
+        -- APPROACH 4: Simulate clicks on the area
+        local success, result = ActionWithRetry(function()
+            -- Aim at the area
+            local targetPosition = area.Position
+            local cameraPosition = workspace.CurrentCamera.CFrame.Position
+            local aimCFrame = CFrame.new(cameraPosition, targetPosition)
+            workspace.CurrentCamera.CFrame = aimCFrame
+            
+            -- Use virtual input system to click
+            VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            wait(0.1)
+            VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            
+            wait(0.5) -- Wait to see if anything happened
+            return true
+        end, 2, RETRY_DELAY) -- Just a couple tries for clicking
     end
     
-    if not harvestTool then
-        return false, "Harvesting tool not found in inventory"
+    if harvestedAny then
+        return true, "Successfully harvested from " .. attemptedAreas .. " areas"
+    else
+        return false, "Attempted but failed to harvest from " .. attemptedAreas .. " areas"
     end
-    
-    -- Equip and use the tool
-    local success, result = ActionWithRetry(function()
-        harvestTool.Parent = Character
-        wait(0.2)
-        harvestTool:Activate()
-        wait(0.5)
-        harvestTool.Parent = Player.Backpack
-        return true
-    end, RETRY_COUNT, RETRY_DELAY)
-    
-    return success, success and "Successfully harvested using tool" or "Failed to harvest"
 end
 
 function Farming.Water()
@@ -361,35 +610,203 @@ local Collection = {}
 
 function Collection.CollectNearbyItems()
     local itemsCollected = 0
+    local foundAny = false
     
-    -- Gather all collectible items
-    local collectibles = {}
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if (obj.Name:lower():match("collect") or obj.Name:lower():match("reward") or obj.Name:lower():match("pickup") or obj.Name:lower():match("coin") or obj.Name:lower():match("seed")) and 
-            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            table.insert(collectibles, obj)
-        end
-    end
+    -- Define patterns for identifying collectible items
+    local collectibleNamePatterns = {
+        "collect", "reward", "pickup", "loot", "drop", "gem", "coin", "token",
+        "seed", "fruit", "vegetable", "crop", "harvest", "resource", "material"
+    }
     
-    -- Try to collect each item
-    for _, item in pairs(collectibles) do
-        local primaryPart = item:IsA("Model") and item.PrimaryPart or item
-        if primaryPart then
-            local distance = (HumanoidRootPart.Position - primaryPart.Position).Magnitude
-            if distance < 50 then
-                -- Try to collect by touching the item
-                TeleportTo(primaryPart.Position)
-                wait(0.2)
-                
-                -- Check if item was collected (might disappear)
-                if not item:IsDescendantOf(workspace) then
-                    itemsCollected = itemsCollected + 1
+    -- Advanced collector using spatial partitioning (sectors)
+    local function CollectInRadius(position, radius)
+        local collected = 0
+        local collectedItems = {}
+        
+        -- Create sectors for better organization and collection
+        local sectors = {}
+        local sectorSize = 10 -- Size of each sector
+        
+        -- First pass: Organize items into sectors
+        for _, obj in pairs(workspace:GetDescendants()) do
+            -- Check if it's likely a collectible by name pattern
+            local isCollectible = false
+            local objNameLower = obj.Name:lower()
+            
+            for _, pattern in ipairs(collectibleNamePatterns) do
+                if objNameLower:match(pattern) then
+                    isCollectible = true
+                    break
+                end
+            end
+            
+            -- Check by appearance/size for small objects (likely collectibles)
+            if not isCollectible and (obj:IsA("Part") or obj:IsA("MeshPart")) then
+                -- Small objects are often collectibles
+                local size = obj.Size
+                if size.Magnitude < 5 then -- Small objects
+                    isCollectible = true
+                end
+            end
+            
+            if isCollectible and (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+                local primaryPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                if primaryPart then
+                    local objPos = primaryPart.Position
+                    local distance = (position - objPos).Magnitude
+                    
+                    if distance <= radius then
+                        foundAny = true -- Mark that we found collectibles
+                        
+                        -- Assign to a sector based on position
+                        local sectorX = math.floor(objPos.X / sectorSize)
+                        local sectorY = math.floor(objPos.Y / sectorSize)
+                        local sectorZ = math.floor(objPos.Z / sectorSize)
+                        local sectorKey = sectorX .. "," .. sectorY .. "," .. sectorZ
+                        
+                        if not sectors[sectorKey] then
+                            sectors[sectorKey] = {}
+                        end
+                        
+                        table.insert(sectors[sectorKey], {
+                            object = obj,
+                            part = primaryPart,
+                            position = objPos,
+                            distance = distance
+                        })
+                    end
                 end
             end
         end
+        
+        -- Second pass: Collect items by sector (closer sectors first)
+        local sectorList = {}
+        for key, items in pairs(sectors) do
+            local x, y, z = key:match("([^,]+),([^,]+),([^,]+)")
+            local sectorPos = Vector3.new(
+                (tonumber(x) + 0.5) * sectorSize,
+                (tonumber(y) + 0.5) * sectorSize,
+                (tonumber(z) + 0.5) * sectorSize
+            )
+            
+            local sectorDistance = (position - sectorPos).Magnitude
+            table.insert(sectorList, {
+                key = key,
+                distance = sectorDistance
+            })
+        end
+        
+        -- Sort sectors by distance
+        table.sort(sectorList, function(a, b) return a.distance < b.distance end)
+        
+        -- Process sectors in order
+        for _, sectorInfo in ipairs(sectorList) do
+            local sectorItems = sectors[sectorInfo.key]
+            
+            -- Sort items in sector by distance
+            table.sort(sectorItems, function(a, b) return a.distance < b.distance end)
+            
+            -- Collect items in this sector
+            for _, item in ipairs(sectorItems) do
+                -- Skip if we've already collected this object
+                if collectedItems[item.object] then
+                    continue
+                end
+                
+                -- Try various collection methods
+                local wasCollected = false
+                
+                -- Method 1: Remote events for collection
+                for _, instance in pairs(game:GetDescendants()) do
+                    if (instance:IsA("RemoteEvent") or instance:IsA("RemoteFunction")) and
+                       (instance.Name:lower():match("collect") or instance.Name:lower():match("pickup") or
+                        instance.Name:lower():match("grab") or instance.Name:lower():match("loot")) then
+                        
+                        local success = pcall(function()
+                            if instance:IsA("RemoteEvent") then
+                                instance:FireServer(item.object)
+                            else
+                                instance:InvokeServer(item.object)
+                            end
+                        end)
+                        
+                        if success then
+                            Remotes.Collect = instance -- Save for future use
+                            wait(0.1) -- Short wait to see if it worked
+                            wasCollected = true
+                            break
+                        end
+                    end
+                end
+                
+                -- Method 2: Proximity collection (touching)
+                if not wasCollected then
+                    local originalPosition = HumanoidRootPart.Position
+                    TeleportTo(item.position)
+                    wait(0.2)
+                    
+                    -- Check if item was collected (disappeared)
+                    wasCollected = not item.part:IsDescendantOf(workspace)
+                    
+                    -- If we've collected many items nearby, don't teleport back
+                    if collected < 5 then
+                        TeleportTo(originalPosition)
+                        wait(0.1)
+                    end
+                end
+                
+                -- Method 3: Click interaction
+                if not wasCollected then
+                    -- Aim at the object
+                    local objectPosition = item.position
+                    local cameraPosition = workspace.CurrentCamera.CFrame.Position
+                    local aimCFrame = CFrame.new(cameraPosition, objectPosition)
+                    workspace.CurrentCamera.CFrame = aimCFrame
+                    
+                    -- Click on it
+                    VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                    wait(0.1)
+                    VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+                    
+                    wait(0.3) -- Wait to see if it worked
+                    wasCollected = not item.part:IsDescendantOf(workspace)
+                end
+                
+                if wasCollected then
+                    collected = collected + 1
+                    collectedItems[item.object] = true
+                end
+                
+                -- Add a small delay between collections to avoid overwhelming the server
+                wait(0.05)
+            end
+        end
+        
+        return collected
     end
     
-    return itemsCollected > 0, "Collected " .. itemsCollected .. " items"
+    -- Collect in increasing radius bands for efficiency
+    local playerPos = HumanoidRootPart.Position
+    itemsCollected = CollectInRadius(playerPos, 50) -- Start with nearby items
+    
+    -- If we have a dedicated collection remote, use it to sweep the area
+    if Remotes.Collect and Config.CollectionRadius and Config.CollectionRadius > 0 then
+        local success, result = pcall(function()
+            if Remotes.Collect:IsA("RemoteEvent") then
+                Remotes.Collect:FireServer(Config.CollectionRadius)
+            else
+                Remotes.Collect:InvokeServer(Config.CollectionRadius)
+            end
+        end)
+    end
+    
+    if itemsCollected > 0 then
+        return true, "Collected " .. itemsCollected .. " items"
+    elseif foundAny then
+        return false, "Found items but couldn't collect them"
+    else
+        return false, "No collectible items found nearby"
+    end
 end
 
 -- Upgrade Module
@@ -583,27 +1000,27 @@ local success, analysis = AnalyzeGameFramework()
 -- UI Settings
 local UI = {
     Theme = {
-        Primary = Color3.fromRGB(30, 30, 45),      -- Main background
-        Secondary = Color3.fromRGB(40, 40, 60),    -- Section backgrounds
-        Accent = Color3.fromRGB(90, 120, 200),     -- Accent color for highlights
+        Primary = Color3.fromRGB(20, 20, 30),      -- Main background (darker)
+        Secondary = Color3.fromRGB(30, 30, 45),    -- Section backgrounds 
+        Accent = Color3.fromRGB(65, 105, 225),     -- Accent color (Royal Blue)
         Text = Color3.fromRGB(240, 240, 250),      -- Text color
         TextDark = Color3.fromRGB(180, 180, 200),  -- Secondary text
         Outline = Color3.fromRGB(50, 50, 75),      -- Outline color
-        Success = Color3.fromRGB(100, 200, 100),   -- Success color
+        Success = Color3.fromRGB(80, 180, 120),    -- Success color
         Warning = Color3.fromRGB(230, 180, 80),    -- Warning color
         Error = Color3.fromRGB(200, 80, 80)        -- Error color
     },
     Font = Enum.Font.GothamBold,
     TextSize = 14,
-    CornerRadius = 6,
-    Padding = 8,
-    IconSize = 24,
-    ButtonHeight = 32,
-    ToggleSize = 24,
-    SliderHeight = 16,
-    TabHeight = 36,
-    SectionSpacing = 12,
-    WindowWidth = 350,
+    CornerRadius = 5,                          -- Smaller corner radius
+    Padding = 6,                               -- Smaller padding
+    IconSize = 20,                             -- Smaller icons
+    ButtonHeight = 26,                         -- Shorter buttons
+    ToggleSize = 20,                           -- Smaller toggles
+    SliderHeight = 12,                         -- Thinner slider
+    TabHeight = 30,                            -- Shorter tab bar
+    SectionSpacing = 8,                        -- Less space between sections
+    WindowWidth = 300,                         -- Narrower window
     Visible = true,
     CurrentTab = "Main",
     Tabs = {}
@@ -862,6 +1279,8 @@ local function CreateMainUI()
     gui.Name = "SkyX_Garden_UI"
     gui.ResetOnSpawn = false
     gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    gui.DisplayOrder = 100
+    gui.IgnoreGuiInset = true
     
     -- Create main frame
     local mainFrame = Instance.new("Frame")
@@ -962,18 +1381,32 @@ local function CreateMainUI()
     -- Tab buttons container
     local tabButtonsFrame = Instance.new("Frame")
     tabButtonsFrame.Name = "TabButtons"
-    tabButtonsFrame.Size = UDim2.new(1, -20, 0, UI.TabHeight)
-    tabButtonsFrame.Position = UDim2.new(0, 10, 0, 6)
-    tabButtonsFrame.BackgroundTransparency = 1
+    tabButtonsFrame.Size = UDim2.new(1, -10, 0, UI.TabHeight)
+    tabButtonsFrame.Position = UDim2.new(0, 5, 0, 6)
+    tabButtonsFrame.BackgroundColor3 = UI.Theme.Primary
+    tabButtonsFrame.BackgroundTransparency = 0.4
+    tabButtonsFrame.BorderSizePixel = 0
     tabButtonsFrame.ZIndex = 3
+    tabButtonsFrame.ClipsDescendants = true
     tabButtonsFrame.Parent = contentFrame
+    
+    local tabCorner = Instance.new("UICorner")
+    tabCorner.CornerRadius = UDim.new(0, UI.CornerRadius)
+    tabCorner.Parent = tabButtonsFrame
     
     local tabButtonLayout = Instance.new("UIListLayout")
     tabButtonLayout.FillDirection = Enum.FillDirection.Horizontal
     tabButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
     tabButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabButtonLayout.Padding = UDim.new(0, 6)
+    tabButtonLayout.Padding = UDim.new(0, 1)
     tabButtonLayout.Parent = tabButtonsFrame
+    
+    local tabButtonPadding = Instance.new("UIPadding")
+    tabButtonPadding.PaddingLeft = UDim.new(0, 2)
+    tabButtonPadding.PaddingRight = UDim.new(0, 2)
+    tabButtonPadding.PaddingTop = UDim.new(0, 2)
+    tabButtonPadding.PaddingBottom = UDim.new(0, 2)
+    tabButtonPadding.Parent = tabButtonsFrame
     
     -- Tab content container
     local tabContentFrame = Instance.new("Frame")
@@ -1076,15 +1509,18 @@ local function CreateMainUI()
     function TabSystem:CreateTab(name, icon, iconColor)
         iconColor = iconColor or UI.Theme.Accent
         
+        -- Calculate tab width for fixed-width tabs
+        local tabCount = 6 -- Expected total number of tabs
+        local tabWidth = (self.ButtonsFrame.AbsoluteSize.X - 20) / tabCount
+        
         -- Create tab button
         local tabButton = Instance.new("TextButton")
         tabButton.Name = name .. "Button"
-        tabButton.Size = UDim2.new(0, 0, 1, 0)
+        tabButton.Size = UDim2.new(0, tabWidth, 1, -4)
         tabButton.BackgroundColor3 = UI.Theme.Secondary
-        tabButton.BackgroundTransparency = 1
+        tabButton.BackgroundTransparency = 0.9
         tabButton.BorderSizePixel = 0
         tabButton.ZIndex = 4
-        tabButton.AutomaticSize = Enum.AutomaticSize.X
         tabButton.Font = UI.Font
         tabButton.TextSize = UI.TextSize
         tabButton.TextColor3 = UI.Theme.Text
@@ -1096,10 +1532,10 @@ local function CreateMainUI()
         corner.Parent = tabButton
         
         local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 8)
-        padding.PaddingRight = UDim.new(0, 12)
-        padding.PaddingTop = UDim.new(0, 0)
-        padding.PaddingBottom = UDim.new(0, 0)
+        padding.PaddingLeft = UDim.new(0, 4)
+        padding.PaddingRight = UDim.new(0, 4)
+        padding.PaddingTop = UDim.new(0, 2)
+        padding.PaddingBottom = UDim.new(0, 2)
         padding.Parent = tabButton
         
         -- Create tab content
@@ -1123,42 +1559,42 @@ local function CreateMainUI()
             -- Create icon
             local iconLabel = Instance.new("TextLabel")
             iconLabel.Name = "Icon"
-            iconLabel.Size = UDim2.new(0, 24, 0, 24)
-            iconLabel.Position = UDim2.new(0, 8, 0.5, -12)
+            iconLabel.Size = UDim2.new(0, 16, 0, 16)
+            iconLabel.AnchorPoint = Vector2.new(0, 0.5)
+            iconLabel.Position = UDim2.new(0, 4, 0.5, 0)
             iconLabel.BackgroundTransparency = 1
             iconLabel.ZIndex = 4
             iconLabel.Text = icon
             iconLabel.TextColor3 = iconColor
             iconLabel.Font = Enum.Font.GothamBold
-            iconLabel.TextSize = 16
+            iconLabel.TextSize = 12
             iconLabel.Parent = tabButton
             
-            -- Create label
+            -- Create condensed label
             local label = Instance.new("TextLabel")
             label.Name = "Label"
-            label.Size = UDim2.new(0, 0, 1, 0)
-            label.Position = UDim2.new(0, 40, 0, 0)
+            label.Size = UDim2.new(1, -24, 1, 0)
+            label.Position = UDim2.new(0, 24, 0, 0)
             label.BackgroundTransparency = 1
             label.ZIndex = 4
             label.Text = name
             label.TextColor3 = UI.Theme.Text
             label.Font = UI.Font
-            label.TextSize = UI.TextSize
-            label.AutomaticSize = Enum.AutomaticSize.X
+            label.TextSize = UI.TextSize - 1 -- Smaller text
+            label.TextXAlignment = Enum.TextXAlignment.Left
             label.Parent = tabButton
         else
-            -- Create label without icon
+            -- Create centered label without icon
             local label = Instance.new("TextLabel")
             label.Name = "Label"
-            label.Size = UDim2.new(0, 0, 1, 0)
-            label.Position = UDim2.new(0, 8, 0, 0)
+            label.Size = UDim2.new(1, 0, 1, 0)
             label.BackgroundTransparency = 1
             label.ZIndex = 4
             label.Text = name
             label.TextColor3 = UI.Theme.Text
             label.Font = UI.Font
-            label.TextSize = UI.TextSize
-            label.AutomaticSize = Enum.AutomaticSize.X
+            label.TextSize = UI.TextSize - 1
+            label.TextXAlignment = Enum.TextXAlignment.Center
             label.Parent = tabButton
         end
         
@@ -1194,8 +1630,17 @@ local function CreateMainUI()
             -- Reset tab button appearance
             local button = self.TabButtons[tabName]
             TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundTransparency = 1
+                BackgroundTransparency = 0.9,
+                BackgroundColor3 = UI.Theme.Secondary
             }):Play()
+            
+            -- Find label and dim it
+            local label = button:FindFirstChild("Label")
+            if label then
+                TweenService:Create(label, TweenInfo.new(0.2), {
+                    TextColor3 = UI.Theme.TextDark
+                }):Play()
+            end
         end
         
         -- Show selected tab
@@ -1205,8 +1650,17 @@ local function CreateMainUI()
             -- Highlight selected tab button
             local button = self.TabButtons[name]
             TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundTransparency = 0.4
+                BackgroundTransparency = 0.2,
+                BackgroundColor3 = UI.Theme.Accent
             }):Play()
+            
+            -- Find label and brighten it
+            local label = button:FindFirstChild("Label")
+            if label then
+                TweenService:Create(label, TweenInfo.new(0.2), {
+                    TextColor3 = UI.Theme.Text
+                }):Play()
+            end
             
             self.CurrentTab = name
         end
@@ -1325,20 +1779,62 @@ local function CreateMainUI()
                 corner.CornerRadius = UDim.new(0, UI.CornerRadius)
                 corner.Parent = button
                 
+                -- Add ripple effect for buttons
+                local ripple = Instance.new("Frame")
+                ripple.Name = "Ripple"
+                ripple.AnchorPoint = Vector2.new(0.5, 0.5)
+                ripple.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+                ripple.BackgroundTransparency = 0.8
+                ripple.BorderSizePixel = 0
+                ripple.ZIndex = 5
+                ripple.Size = UDim2.new(0, 0, 0, 0)
+                ripple.ClipsDescendants = true
+                ripple.Parent = button
+                
+                local rippleCorner = Instance.new("UICorner")
+                rippleCorner.CornerRadius = UDim.new(1, 0) -- Circle
+                rippleCorner.Parent = ripple
+                
+                button.MouseButton1Down:Connect(function(inputObject, gameProcessed)
+                    -- Create ripple effect at mouse position
+                    local mousePos = UserInputService:GetMouseLocation() - Vector2.new(button.AbsolutePosition.X, button.AbsolutePosition.Y)
+                    ripple.Position = UDim2.new(0, mousePos.X, 0, mousePos.Y)
+                    
+                    -- Get the corner-to-corner distance
+                    local size = math.max(button.AbsoluteSize.X, button.AbsoluteSize.Y) * 2
+                    
+                    -- Animate the ripple
+                    ripple.Size = UDim2.new(0, 0, 0, 0)
+                    ripple.BackgroundTransparency = 0.7
+                    
+                    -- Tween to expand
+                    TweenService:Create(ripple, TweenInfo.new(0.5), {
+                        Size = UDim2.new(0, size, 0, size),
+                        BackgroundTransparency = 1
+                    }):Play()
+                    
+                    -- Change button color
+                    TweenService:Create(button, TweenInfo.new(0.1), {
+                        BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.2)
+                    }):Play()
+                end)
+                
                 button.MouseEnter:Connect(function()
-                    TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.1)}):Play()
+                    TweenService:Create(button, TweenInfo.new(0.2), {
+                        BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.1)
+                    }):Play()
                 end)
                 
                 button.MouseLeave:Connect(function()
-                    TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = UI.Theme.Accent}):Play()
-                end)
-                
-                button.MouseButton1Down:Connect(function()
-                    TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.2)}):Play()
+                    TweenService:Create(button, TweenInfo.new(0.2), {
+                        BackgroundColor3 = UI.Theme.Accent
+                    }):Play()
                 end)
                 
                 button.MouseButton1Up:Connect(function()
-                    TweenService:Create(button, TweenInfo.new(0.1), {BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.1)}):Play()
+                    TweenService:Create(button, TweenInfo.new(0.1), {
+                        BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.1)
+                    }):Play()
                 end)
                 
                 button.MouseButton1Click:Connect(function()
@@ -2103,53 +2599,219 @@ Player.CharacterAdded:Connect(function(newCharacter)
     Humanoid.JumpPower = Config.JumpPower
 end)
 
--- Main Automation Loops
-RunService:BindToRenderStep("FarmingLoop", Enum.RenderPriority.Character.Value, function()
-    -- Auto-plant
+-- Enhanced Auto-farm System with Task Scheduler
+local TaskScheduler = {
+    Tasks = {},
+    Running = false,
+    DebugMode = false
+}
+
+function TaskScheduler:Init()
+    self.Running = true
+    self.Thread = coroutine.create(function()
+        while self.Running do
+            self:ProcessTasks()
+            wait(0.1) -- Short wait to prevent excessive CPU usage
+        end
+    end)
+    coroutine.resume(self.Thread)
+    return self
+end
+
+function TaskScheduler:AddTask(id, interval, callback, priority)
+    self.Tasks[id] = {
+        Interval = interval,
+        Callback = callback,
+        LastRun = 0,
+        Running = false,
+        Priority = priority or 5,
+        Failures = 0,
+        Status = "Waiting"
+    }
+    if self.DebugMode then
+        print("[TaskScheduler] Added task: " .. id)
+    end
+end
+
+function TaskScheduler:RemoveTask(id)
+    if self.Tasks[id] then
+        self.Tasks[id] = nil
+        if self.DebugMode then
+            print("[TaskScheduler] Removed task: " .. id)
+        end
+    end
+end
+
+function TaskScheduler:EnableTask(id, enabled)
+    if self.Tasks[id] then
+        self.Tasks[id].Enabled = enabled
+        self.Tasks[id].Status = enabled and "Enabled" or "Disabled"
+    end
+end
+
+function TaskScheduler:ProcessTasks()
+    local currentTime = tick()
+    local tasksByPriority = {}
+    
+    -- Organize tasks by priority
+    for id, task in pairs(self.Tasks) do
+        if task.Enabled ~= false then -- Skip disabled tasks
+            local priorityBucket = tasksByPriority[task.Priority] or {}
+            table.insert(priorityBucket, {id = id, task = task})
+            tasksByPriority[task.Priority] = priorityBucket
+        end
+    end
+    
+    -- Process tasks by priority (highest first)
+    for i = 10, 1, -1 do
+        if tasksByPriority[i] then
+            for _, taskData in ipairs(tasksByPriority[i]) do
+                local id, task = taskData.id, taskData.task
+                
+                if not task.Running and (currentTime - task.LastRun >= task.Interval) then
+                    task.Running = true
+                    task.Status = "Running"
+                    
+                    local success, result = pcall(function()
+                        return task.Callback()
+                    end)
+                    
+                    task.LastRun = tick()
+                    task.Running = false
+                    
+                    if success then
+                        task.Status = "Success"
+                        task.Failures = 0
+                    else
+                        task.Status = "Failed: " .. tostring(result)
+                        task.Failures = task.Failures + 1
+                        
+                        if self.DebugMode then
+                            warn("[TaskScheduler] Task '" .. id .. "' failed: " .. tostring(result))
+                        end
+                        
+                        -- If too many failures, disable the task
+                        if task.Failures >= 10 then
+                            task.Enabled = false
+                            task.Status = "Disabled (Too many failures)"
+                            if self.DebugMode then
+                                warn("[TaskScheduler] Task '" .. id .. "' disabled due to too many failures")
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+
+function TaskScheduler:Stop()
+    self.Running = false
+end
+
+function TaskScheduler:Status()
+    local status = {}
+    for id, task in pairs(self.Tasks) do
+        status[id] = {
+            LastRun = task.LastRun,
+            Status = task.Status,
+            Enabled = task.Enabled ~= false,
+            Failures = task.Failures
+        }
+    end
+    return status
+end
+
+-- Initialize the task scheduler
+local scheduler = TaskScheduler:Init()
+
+-- Add farming tasks
+scheduler:AddTask("Planting", AUTO_PLANT_INTERVAL, function()
     if Config.AutoPlant then
-        -- Only run on an interval
-        if not Farming.LastPlant or tick() - Farming.LastPlant >= AUTO_PLANT_INTERVAL then
-            local success, message = Farming.Plant(Config.SelectedSeed)
-            Farming.LastPlant = tick()
-        end
+        local success, message = Farming.Plant(Config.SelectedSeed)
+        return {success = success, message = message}
     end
-    
-    -- Auto-harvest
+    return {success = true, message = "Planting disabled"}
+end, 10) -- High priority
+
+scheduler:AddTask("Harvesting", AUTO_HARVEST_INTERVAL, function()
     if Config.AutoHarvest then
-        if not Farming.LastHarvest or tick() - Farming.LastHarvest >= AUTO_HARVEST_INTERVAL then
-            local success, message = Farming.Harvest()
-            Farming.LastHarvest = tick()
-        end
+        local success, message = Farming.Harvest()
+        return {success = success, message = message}
+    end
+    return {success = true, message = "Harvesting disabled"}
+end, 9)
+
+scheduler:AddTask("Watering", AUTO_WATER_INTERVAL, function()
+    if Config.AutoWater then
+        local success, message = Farming.Water()
+        return {success = success, message = message}
+    end
+    return {success = true, message = "Watering disabled"}
+end, 8)
+
+scheduler:AddTask("Collecting", AUTO_COLLECT_INTERVAL, function()
+    if Config.AutoCollect then
+        local success, message = Collection.CollectNearbyItems()
+        return {success = success, message = message}
+    end
+    return {success = true, message = "Collection disabled"}
+end, 7)
+
+scheduler:AddTask("Upgrading", AUTO_UPGRADE_INTERVAL, function()
+    if Config.AutoUpgrade then
+        local success, message = Upgrade.TryUpgradeTool()
+        return {success = success, message = message}
+    end
+    return {success = true, message = "Upgrading disabled"}
+end, 6)
+
+-- Task for monitoring and error recovery
+scheduler:AddTask("MonitoringAndRecovery", 30, function()
+    -- Check character and humanoid
+    if not Character or not Character:IsDescendantOf(workspace) or not Humanoid or Humanoid.Health <= 0 then
+        Character = Player.Character or Player.CharacterAdded:Wait()
+        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+        Humanoid = Character:WaitForChild("Humanoid")
+        
+        -- Apply settings to new character
+        Humanoid.WalkSpeed = Config.WalkSpeed
+        Humanoid.JumpPower = Config.JumpPower
+        
+        return {success = true, message = "Character restored"}
     end
     
-    -- Auto-water
-    if Config.AutoWater then
-        if not Farming.LastWater or tick() - Farming.LastWater >= AUTO_WATER_INTERVAL then
-            local success, message = Farming.Water()
-            Farming.LastWater = tick()
-        end
+    -- Re-analyze game framework if needed
+    if #PlantingAreas == 0 and #Seeds == 0 then
+        local success, analysis = AnalyzeGameFramework()
+        return {success = success, message = "Game framework re-analyzed"}
     end
-end)
+    
+    return {success = true, message = "Monitoring completed"}
+end, 3) -- Lower priority
 
-RunService:BindToRenderStep("CollectionLoop", Enum.RenderPriority.Character.Value + 1, function()
-    -- Auto-collect
-    if Config.AutoCollect then
-        if not Collection.LastCollect or tick() - Collection.LastCollect >= AUTO_COLLECT_INTERVAL then
-            local success, message = Collection.CollectNearbyItems()
-            Collection.LastCollect = tick()
-        end
-    end
-end)
+-- Task for updating UI elements based on status
+scheduler:AddTask("UIUpdates", 5, function()
+    -- This could update UI elements with the current status of auto-farming
+    return {success = true, message = "UI Updated"}
+end, 2) -- Lower priority
 
-RunService:BindToRenderStep("UpgradeLoop", Enum.RenderPriority.Character.Value + 2, function()
-    -- Auto-upgrade
-    if Config.AutoUpgrade then
-        if not Upgrade.LastUpgrade or tick() - Upgrade.LastUpgrade >= AUTO_UPGRADE_INTERVAL then
-            local success, message = Upgrade.TryUpgradeTool()
-            Upgrade.LastUpgrade = tick()
-        end
+-- Clean up when UI is destroyed
+local originalDestroy = OrionLib.Destroy
+OrionLib.Destroy = function()
+    -- Stop the scheduler
+    scheduler:Stop()
+    
+    -- Unbind any other services
+    for _, name in pairs({"FarmingLoop", "CollectionLoop", "UpgradeLoop"}) do
+        pcall(function()
+            RunService:UnbindFromRenderStep(name)
+        end)
     end
-end)
+    
+    -- Call original destroy
+    originalDestroy()
+end
 
 -- Display initial notification
 NotificationSystem:Show("SkyX Hub", "Grow A Garden script loaded successfully!", 5, "success")
