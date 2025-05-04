@@ -1,206 +1,1047 @@
 --[[
-    Simple OrionX UI - Executor Ready
-    A compact, enhanced UI script for Roblox exploits with no theme options
+    SkyX Hub - Grow A Garden Script (OrionX UI)
+    
+    Features:
+    - Auto-plant and auto-harvest with reliability improvements
+    - Auto-water plants with timing controls
+    - Auto-collect rewards and seeds
+    - Teleportation to different zones
+    - Auto-upgrading tools
+    - ESP for rare plants and items
+    
+    Using OrionX UI with modular design for better organization
 ]]
 
--- Load the OrionX-UI Library
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI.lua'))()
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
 
--- Create the main window
+-- Variables
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Humanoid = Character:WaitForChild("Humanoid")
+local Camera = workspace.CurrentCamera
+
+-- Anti-AFK
+Player.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
+    wait(1)
+    VirtualUser:Button2Up(Vector2.new(0, 0), Camera.CFrame)
+end)
+
+-- Remotes and Game Framework Detection
+local Remotes = {}
+local PlantingAreas = {}
+local Tools = {}
+local Seeds = {}
+local RewardsAndItems = {}
+local Zones = {}
+
+-- OrionX UI Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI')))()
+
+-- Constants
+local RETRY_COUNT = 3
+local RETRY_DELAY = 0.5
+local AUTO_PLANT_INTERVAL = 1.5
+local AUTO_HARVEST_INTERVAL = 2
+local AUTO_WATER_INTERVAL = 5
+local AUTO_COLLECT_INTERVAL = 3
+local AUTO_UPGRADE_INTERVAL = 10
+
+-- Script Configuration
+local Config = {
+    AutoPlant = false,
+    AutoHarvest = false,
+    AutoWater = false,
+    AutoCollect = false,
+    SelectedSeed = "Default",
+    WalkSpeed = 16,
+    JumpPower = 50,
+    TeleportMethod = "Instant", -- Instant or Tween
+    AutoUpgrade = false,
+    ESP = {
+        Enabled = false,
+        RarePlants = true,
+        Items = true,
+        Distance = true
+    }
+}
+
+-- ESP Objects
+local ESPObjects = {}
+
+-- Game Framework Detection
+local function AnalyzeGameFramework()
+    local success = false
+    local analysis = ""
+    
+    -- Check for remotes in ReplicatedStorage
+    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+            local name = obj.Name:lower()
+            
+            -- Detect planting related remotes
+            if name:match("plant") or name:match("grow") or name:match("seed") then
+                Remotes.Plant = obj
+                analysis = analysis .. "Found planting remote: " .. obj:GetFullName() .. "\n"
+            end
+            
+            -- Detect harvesting related remotes
+            if name:match("harvest") or name:match("collect") or name:match("gather") then
+                Remotes.Harvest = obj
+                analysis = analysis .. "Found harvesting remote: " .. obj:GetFullName() .. "\n"
+            end
+            
+            -- Detect watering related remotes
+            if name:match("water") or name:match("hydrate") then
+                Remotes.Water = obj
+                analysis = analysis .. "Found watering remote: " .. obj:GetFullName() .. "\n"
+            end
+            
+            -- Detect upgrading related remotes
+            if name:match("upgrade") or name:match("improve") or name:match("enhance") then
+                Remotes.Upgrade = obj
+                analysis = analysis .. "Found upgrading remote: " .. obj:GetFullName() .. "\n"
+            end
+        end
+    end
+    
+    -- Find planting areas in workspace
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if (obj.Name:lower():match("plant") or obj.Name:lower():match("garden") or obj.Name:lower():match("soil") or obj.Name:lower():match("plot")) and 
+            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+            table.insert(PlantingAreas, obj)
+            analysis = analysis .. "Found planting area: " .. obj:GetFullName() .. "\n"
+        end
+        
+        -- Find zones
+        if (obj.Name:lower():match("zone") or obj.Name:lower():match("area") or obj.Name:lower():match("region")) and 
+            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+            table.insert(Zones, obj)
+            analysis = analysis .. "Found zone: " .. obj:GetFullName() .. "\n"
+        end
+        
+        -- Find rare plants and collectibles for ESP
+        if (obj.Name:lower():match("rare") or obj.Name:lower():match("unique") or obj.Name:lower():match("special")) and
+            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+            table.insert(RewardsAndItems, obj)
+            analysis = analysis .. "Found rare item: " .. obj:GetFullName() .. "\n"
+        end
+    end
+    
+    -- Find tools in player inventory
+    for _, item in pairs(Player.Backpack:GetChildren()) do
+        if item:IsA("Tool") then
+            -- Categorize tools
+            if item.Name:lower():match("seed") then
+                table.insert(Seeds, item.Name)
+                analysis = analysis .. "Found seed: " .. item.Name .. "\n"
+            else
+                table.insert(Tools, item.Name)
+                analysis = analysis .. "Found tool: " .. item.Name .. "\n"
+            end
+        end
+    end
+    
+    -- Check if we found enough game elements
+    if #PlantingAreas > 0 or Remotes.Plant then
+        success = true
+    end
+    
+    return success, analysis
+end
+
+-- Utility Functions
+local function GetClosestPlantingArea()
+    local closestDist = math.huge
+    local closest = nil
+    
+    for _, area in pairs(PlantingAreas) do
+        local dist = (HumanoidRootPart.Position - area.Position).Magnitude
+        if dist < closestDist then
+            closestDist = dist
+            closest = area
+        end
+    end
+    
+    return closest, closestDist
+end
+
+local function ActionWithRetry(actionFn, retryCount, retryDelay)
+    local retries = 0
+    local success = false
+    local result = nil
+    
+    repeat
+        success, result = pcall(actionFn)
+        if not success then
+            retries = retries + 1
+            wait(retryDelay)
+        end
+    until success or retries >= retryCount
+    
+    return success, result
+end
+
+local function TeleportTo(position)
+    if Config.TeleportMethod == "Instant" then
+        HumanoidRootPart.CFrame = CFrame.new(position)
+    else
+        local distance = (HumanoidRootPart.Position - position).Magnitude
+        local tweenInfo = TweenInfo.new(
+            math.clamp(distance / 50, 0.5, 3), -- Time based on distance
+            Enum.EasingStyle.Quad,
+            Enum.EasingDirection.Out
+        )
+        
+        local tween = TweenService:Create(
+            HumanoidRootPart, 
+            tweenInfo, 
+            {CFrame = CFrame.new(position)}
+        )
+        tween:Play()
+        tween.Completed:Wait()
+    end
+end
+
+-- Farming Module
+local Farming = {}
+
+function Farming.Plant(seedType)
+    local plantingArea, distance = GetClosestPlantingArea()
+    if not plantingArea or distance > 30 then
+        return false, "No planting area nearby"
+    end
+    
+    -- Try to get close to the planting area
+    if distance > 10 then
+        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
+    end
+    
+    -- Try direct remote invocation first
+    if Remotes.Plant then
+        local success, result = ActionWithRetry(function()
+            return Remotes.Plant:FireServer(seedType, plantingArea)
+        end, RETRY_COUNT, RETRY_DELAY)
+        
+        if success then
+            return true, "Successfully planted using remote"
+        end
+    end
+    
+    -- Fallback: Tool-based planting
+    local seedTool = nil
+    for _, item in pairs(Player.Backpack:GetChildren()) do
+        if item:IsA("Tool") and item.Name == seedType then
+            seedTool = item
+            break
+        end
+    end
+    
+    if not seedTool then
+        return false, "Seed not found in inventory"
+    end
+    
+    -- Equip and use the tool
+    local success, result = ActionWithRetry(function()
+        seedTool.Parent = Character
+        wait(0.2)
+        seedTool:Activate()
+        wait(0.5)
+        seedTool.Parent = Player.Backpack
+        return true
+    end, RETRY_COUNT, RETRY_DELAY)
+    
+    return success, success and "Successfully planted using tool" or "Failed to plant"
+end
+
+function Farming.Harvest()
+    local plantingArea, distance = GetClosestPlantingArea()
+    if not plantingArea or distance > 30 then
+        return false, "No planting area nearby"
+    end
+    
+    -- Try to get close to the planting area
+    if distance > 10 then
+        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
+    end
+    
+    -- Try direct remote invocation first
+    if Remotes.Harvest then
+        local success, result = ActionWithRetry(function()
+            return Remotes.Harvest:FireServer(plantingArea)
+        end, RETRY_COUNT, RETRY_DELAY)
+        
+        if success then
+            return true, "Successfully harvested using remote"
+        end
+    end
+    
+    -- Fallback: Tool-based harvesting
+    local harvestTool = nil
+    for _, item in pairs(Player.Backpack:GetChildren()) do
+        if item:IsA("Tool") and (item.Name:lower():match("harvester") or item.Name:lower():match("cutter") or item.Name:lower():match("collect")) then
+            harvestTool = item
+            break
+        end
+    end
+    
+    if not harvestTool then
+        return false, "Harvesting tool not found in inventory"
+    end
+    
+    -- Equip and use the tool
+    local success, result = ActionWithRetry(function()
+        harvestTool.Parent = Character
+        wait(0.2)
+        harvestTool:Activate()
+        wait(0.5)
+        harvestTool.Parent = Player.Backpack
+        return true
+    end, RETRY_COUNT, RETRY_DELAY)
+    
+    return success, success and "Successfully harvested using tool" or "Failed to harvest"
+end
+
+function Farming.Water()
+    local plantingArea, distance = GetClosestPlantingArea()
+    if not plantingArea or distance > 30 then
+        return false, "No planting area nearby"
+    end
+    
+    -- Try to get close to the planting area
+    if distance > 10 then
+        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
+    end
+    
+    -- Try direct remote invocation first
+    if Remotes.Water then
+        local success, result = ActionWithRetry(function()
+            return Remotes.Water:FireServer(plantingArea)
+        end, RETRY_COUNT, RETRY_DELAY)
+        
+        if success then
+            return true, "Successfully watered using remote"
+        end
+    end
+    
+    -- Fallback: Tool-based watering
+    local waterTool = nil
+    for _, item in pairs(Player.Backpack:GetChildren()) do
+        if item:IsA("Tool") and (item.Name:lower():match("water") or item.Name:lower():match("can") or item.Name:lower():match("hydrate")) then
+            waterTool = item
+            break
+        end
+    end
+    
+    if not waterTool then
+        return false, "Watering tool not found in inventory"
+    end
+    
+    -- Equip and use the tool
+    local success, result = ActionWithRetry(function()
+        waterTool.Parent = Character
+        wait(0.2)
+        waterTool:Activate()
+        wait(0.5)
+        waterTool.Parent = Player.Backpack
+        return true
+    end, RETRY_COUNT, RETRY_DELAY)
+    
+    return success, success and "Successfully watered using tool" or "Failed to water"
+end
+
+-- Collection Module
+local Collection = {}
+
+function Collection.CollectNearbyItems()
+    local itemsCollected = 0
+    
+    -- Gather all collectible items
+    local collectibles = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if (obj.Name:lower():match("collect") or obj.Name:lower():match("reward") or obj.Name:lower():match("pickup") or obj.Name:lower():match("coin") or obj.Name:lower():match("seed")) and 
+            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+            table.insert(collectibles, obj)
+        end
+    end
+    
+    -- Try to collect each item
+    for _, item in pairs(collectibles) do
+        local primaryPart = item:IsA("Model") and item.PrimaryPart or item
+        if primaryPart then
+            local distance = (HumanoidRootPart.Position - primaryPart.Position).Magnitude
+            if distance < 50 then
+                -- Try to collect by touching the item
+                TeleportTo(primaryPart.Position)
+                wait(0.2)
+                
+                -- Check if item was collected (might disappear)
+                if not item:IsDescendantOf(workspace) then
+                    itemsCollected = itemsCollected + 1
+                end
+            end
+        end
+    end
+    
+    return itemsCollected > 0, "Collected " .. itemsCollected .. " items"
+end
+
+-- Upgrade Module
+local Upgrade = {}
+
+function Upgrade.TryUpgradeTool()
+    -- Try direct remote invocation first
+    if Remotes.Upgrade then
+        local success, result = ActionWithRetry(function()
+            -- Try to upgrade each tool
+            for _, toolName in pairs(Tools) do
+                Remotes.Upgrade:FireServer(toolName)
+                wait(0.2)
+            end
+            return true
+        end, RETRY_COUNT, RETRY_DELAY)
+        
+        if success then
+            return true, "Attempted to upgrade tools using remote"
+        end
+    end
+    
+    -- Fallback: Interface-based upgrading
+    local upgradeGUI = Player.PlayerGui:FindFirstChild("UpgradeGUI") or Player.PlayerGui:FindFirstChild("ShopGUI")
+    if upgradeGUI then
+        local upgradeButtons = {}
+        for _, obj in pairs(upgradeGUI:GetDescendants()) do
+            if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and 
+               (obj.Name:lower():match("upgrade") or obj.Name:lower():match("buy") or obj.Name:lower():match("purchase")) then
+                table.insert(upgradeButtons, obj)
+            end
+        end
+        
+        local clickedAny = false
+        for _, button in pairs(upgradeButtons) do
+            -- Simulate clicking upgrade buttons
+            firesignal(button.MouseButton1Click)
+            wait(0.3)
+            clickedAny = true
+        end
+        
+        if clickedAny then
+            return true, "Attempted to upgrade using GUI buttons"
+        end
+    end
+    
+    return false, "No upgrade method found"
+end
+
+-- ESP Module
+local ESP = {}
+
+function ESP.CreateHighlight(obj, color)
+    local highlight = Instance.new("Highlight")
+    highlight.FillColor = color
+    highlight.OutlineColor = color
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = obj
+    highlight.Parent = obj
+    
+    return highlight
+end
+
+function ESP.SetupESP()
+    -- Clear existing ESP
+    ESP.ClearESP()
+    
+    -- If ESP is disabled, stop here
+    if not Config.ESP.Enabled then
+        return
+    end
+    
+    -- Apply ESP to rare plants
+    if Config.ESP.RarePlants then
+        for _, plant in pairs(RewardsAndItems) do
+            if plant:IsA("Model") or plant:IsA("Part") or plant:IsA("MeshPart") then
+                local highlight = ESP.CreateHighlight(plant, Color3.fromRGB(255, 215, 0)) -- Gold color for rare items
+                table.insert(ESPObjects, highlight)
+                
+                -- Add distance label if configured
+                if Config.ESP.Distance then
+                    local billboardGui = Instance.new("BillboardGui")
+                    billboardGui.Adornee = plant:IsA("Model") and plant.PrimaryPart or plant
+                    billboardGui.Size = UDim2.new(0, 200, 0, 50)
+                    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+                    billboardGui.AlwaysOnTop = true
+                    
+                    local distanceLabel = Instance.new("TextLabel")
+                    distanceLabel.BackgroundTransparency = 1
+                    distanceLabel.Size = UDim2.new(1, 0, 1, 0)
+                    distanceLabel.Font = Enum.Font.GothamBold
+                    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    distanceLabel.TextStrokeTransparency = 0
+                    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                    distanceLabel.TextSize = 14
+                    distanceLabel.Parent = billboardGui
+                    
+                    RunService:BindToRenderStep("UpdateDistance" .. plant:GetFullName(), Enum.RenderPriority.Camera.Value, function()
+                        if plant:IsDescendantOf(workspace) and HumanoidRootPart and plant then
+                            local targetPart = plant:IsA("Model") and (plant.PrimaryPart or plant:FindFirstChildWhichIsA("BasePart")) or plant
+                            if targetPart then
+                                local distance = (HumanoidRootPart.Position - targetPart.Position).Magnitude
+                                distanceLabel.Text = string.format("%.1f studs", distance)
+                            end
+                        else
+                            RunService:UnbindFromRenderStep("UpdateDistance" .. plant:GetFullName())
+                            billboardGui:Destroy()
+                        end
+                    end)
+                    
+                    billboardGui.Parent = game:GetService("CoreGui")
+                    table.insert(ESPObjects, billboardGui)
+                end
+            end
+        end
+    end
+    
+    -- Apply ESP to collectible items
+    if Config.ESP.Items then
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if (obj.Name:lower():match("collect") or obj.Name:lower():match("reward") or obj.Name:lower():match("pickup") or obj.Name:lower():match("coin") or obj.Name:lower():match("seed")) and 
+                (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+                
+                local highlight = ESP.CreateHighlight(obj, Color3.fromRGB(0, 255, 255)) -- Cyan color for collectibles
+                table.insert(ESPObjects, highlight)
+                
+                -- Add distance label if configured (similar code as above)
+                if Config.ESP.Distance then
+                    local billboardGui = Instance.new("BillboardGui")
+                    billboardGui.Adornee = obj:IsA("Model") and obj.PrimaryPart or obj
+                    billboardGui.Size = UDim2.new(0, 200, 0, 50)
+                    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
+                    billboardGui.AlwaysOnTop = true
+                    
+                    local distanceLabel = Instance.new("TextLabel")
+                    distanceLabel.BackgroundTransparency = 1
+                    distanceLabel.Size = UDim2.new(1, 0, 1, 0)
+                    distanceLabel.Font = Enum.Font.GothamBold
+                    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                    distanceLabel.TextStrokeTransparency = 0
+                    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+                    distanceLabel.TextSize = 14
+                    distanceLabel.Parent = billboardGui
+                    
+                    RunService:BindToRenderStep("UpdateDistance" .. obj:GetFullName(), Enum.RenderPriority.Camera.Value, function()
+                        if obj:IsDescendantOf(workspace) and HumanoidRootPart and obj then
+                            local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                            if targetPart then
+                                local distance = (HumanoidRootPart.Position - targetPart.Position).Magnitude
+                                distanceLabel.Text = string.format("%.1f studs", distance)
+                            end
+                        else
+                            RunService:UnbindFromRenderStep("UpdateDistance" .. obj:GetFullName())
+                            billboardGui:Destroy()
+                        end
+                    end)
+                    
+                    billboardGui.Parent = game:GetService("CoreGui")
+                    table.insert(ESPObjects, billboardGui)
+                end
+            end
+        end
+    end
+end
+
+function ESP.ClearESP()
+    for _, obj in pairs(ESPObjects) do
+        if obj and obj.Parent then
+            obj:Destroy()
+        end
+    end
+    
+    ESPObjects = {}
+    
+    -- Unbind any render steps
+    for _, name in pairs({"UpdateDistance"}) do
+        pcall(function()
+            RunService:UnbindFromRenderStep(name)
+        end)
+    end
+end
+
+-- Initialize the script
+local success, analysis = AnalyzeGameFramework()
+
+-- Set theme
+OrionLib.Themes:SetTheme("SkyXBlue")
+
+-- Create UI Window
 local Window = OrionLib:MakeWindow({
-    Name = "SkyX Enhanced UI", 
-    IntroEnabled = true,
-    IntroText = "SkyX Enhanced UI",
-    IntroIcon = "flower",
-    Icon = "flower",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "SkyXConfig"
+    Name = "SkyX Hub - Grow A Garden", 
+    HidePremium = true, 
+    SaveConfig = true, 
+    ConfigFolder = "SkyXSaves",
+    IntroText = "SkyX Hub",
+    IntroIcon = "sword",
+    Icon = "tree"
 })
 
--- Main Tab
-local MainTab = Window:MakeTab({
-    Name = "Player",
-    Icon = "person",
+-- Information Tab
+local InfoTab = Window:MakeTab({
+    Name = "Information",
+    Icon = "info",
     PremiumOnly = false
 })
 
--- Information
-MainTab:AddParagraph("SkyX Enhanced UI", "This exploit UI features enhanced typography with GothamBold fonts, better spacing, and improved interactive elements.")
+InfoTab:AddParagraph("Welcome to SkyX Hub - Grow A Garden", "A comprehensive automation script for Grow A Garden with multiple features designed for reliability.")
 
-MainTab:AddButton({
-    Name = "Show Notification",
-    Callback = function()
-        OrionLib:Notify("Enhanced UI", "You're using the improved OrionX-UI with better visuals!", "info", 5)
+-- If framework analysis was successful, show details
+if success then
+    InfoTab:AddParagraph("Game Detection", "Successfully analyzed game framework!")
+else
+    InfoTab:AddParagraph("Game Detection", "Warning: Could not fully analyze game framework. Some features might not work reliably.")
+end
+
+-- Main Tab
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "home",
+    PremiumOnly = false
+})
+
+-- Seed selection
+local seedsDropdown = {"Default"}
+if #Seeds > 0 then
+    seedsDropdown = Seeds
+end
+
+MainTab:AddDropdown({
+    Name = "Select Seed",
+    Default = seedsDropdown[1],
+    Options = seedsDropdown,
+    Callback = function(Value)
+        Config.SelectedSeed = Value
     end    
 })
 
--- Player section
-local PlayerSection = MainTab:AddSection({
-    Name = "Player Features"
-})
-
--- Walk Speed
-PlayerSection:AddToggle({
-    Name = "Speed Boost",
+-- Farming toggles
+MainTab:AddToggle({
+    Name = "Auto Plant",
     Default = false,
-    Flag = "speedToggle",
     Callback = function(Value)
-        if Value then
-            -- Apply speed boost
-            if game.Players.LocalPlayer.Character and 
-               game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
-                
-                -- Store original speed
-                if not _G.OrigSpeed then
-                    _G.OrigSpeed = game.Players.LocalPlayer.Character.Humanoid.WalkSpeed
-                end
-                
-                -- Apply boost
-                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = 50
+        Config.AutoPlant = Value
+    end
+})
+
+MainTab:AddToggle({
+    Name = "Auto Harvest",
+    Default = false,
+    Callback = function(Value)
+        Config.AutoHarvest = Value
+    end
+})
+
+MainTab:AddToggle({
+    Name = "Auto Water",
+    Default = false,
+    Callback = function(Value)
+        Config.AutoWater = Value
+    end
+})
+
+MainTab:AddToggle({
+    Name = "Auto Collect Items",
+    Default = false,
+    Callback = function(Value)
+        Config.AutoCollect = Value
+    end
+})
+
+MainTab:AddToggle({
+    Name = "Auto Upgrade Tools",
+    Default = false,
+    Callback = function(Value)
+        Config.AutoUpgrade = Value
+    end
+})
+
+-- Manual action buttons
+MainTab:AddLabel("Manual Actions")
+
+MainTab:AddButton({
+    Name = "Plant Now",
+    Callback = function()
+        local success, message = Farming.Plant(Config.SelectedSeed)
+        OrionLib:MakeNotification({
+            Name = "Plant Action",
+            Content = message,
+            Image = "plus",
+            Time = 5
+        })
+    end
+})
+
+MainTab:AddButton({
+    Name = "Harvest Now",
+    Callback = function()
+        local success, message = Farming.Harvest()
+        OrionLib:MakeNotification({
+            Name = "Harvest Action",
+            Content = message,
+            Image = "check",
+            Time = 5
+        })
+    end
+})
+
+MainTab:AddButton({
+    Name = "Water Now",
+    Callback = function()
+        local success, message = Farming.Water()
+        OrionLib:MakeNotification({
+            Name = "Water Action",
+            Content = message,
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+})
+
+MainTab:AddButton({
+    Name = "Collect Items Now",
+    Callback = function()
+        local success, message = Collection.CollectNearbyItems()
+        OrionLib:MakeNotification({
+            Name = "Collection Action",
+            Content = message,
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+})
+
+MainTab:AddButton({
+    Name = "Try Upgrade Tools",
+    Callback = function()
+        local success, message = Upgrade.TryUpgradeTool()
+        OrionLib:MakeNotification({
+            Name = "Upgrade Action",
+            Content = message,
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
+    end
+})
+
+-- Teleport Tab
+local TeleportTab = Window:MakeTab({
+    Name = "Teleport",
+    Icon = "map-pin",
+    PremiumOnly = false
+})
+
+TeleportTab:AddDropdown({
+    Name = "Teleport Method",
+    Default = "Instant",
+    Options = {"Instant", "Tween"},
+    Callback = function(Value)
+        Config.TeleportMethod = Value
+    end    
+})
+
+-- Add buttons for each detected zone
+if #Zones > 0 then
+    for i, zone in pairs(Zones) do
+        TeleportTab:AddButton({
+            Name = "Teleport to " .. zone.Name,
+            Callback = function()
+                local pos = zone:IsA("Model") and zone:GetModelCFrame().Position or zone.Position
+                TeleportTo(pos + Vector3.new(0, 5, 0))
+                OrionLib:MakeNotification({
+                    Name = "Teleport",
+                    Content = "Teleported to " .. zone.Name,
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
             end
+        })
+    end
+else
+    TeleportTab:AddParagraph("No Zones Detected", "Couldn't find any teleportable zones in the game.")
+    
+    -- Add fallback teleport to origin
+    TeleportTab:AddButton({
+        Name = "Teleport to Origin",
+        Callback = function()
+            TeleportTo(Vector3.new(0, 50, 0))
+            OrionLib:MakeNotification({
+                Name = "Teleport",
+                Content = "Teleported to origin",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    })
+end
+
+-- Add teleport to closest planting area
+TeleportTab:AddButton({
+    Name = "Teleport to Closest Planting Area",
+    Callback = function()
+        local area, distance = GetClosestPlantingArea()
+        if area then
+            TeleportTo(area.Position + Vector3.new(0, 3, 0))
+            OrionLib:MakeNotification({
+                Name = "Teleport",
+                Content = "Teleported to closest planting area",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
         else
-            -- Restore original speed
-            if game.Players.LocalPlayer.Character and 
-               game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") and
-               _G.OrigSpeed then
-                
-                game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = _G.OrigSpeed
-            end
+            OrionLib:MakeNotification({
+                Name = "Teleport Failed",
+                Content = "No planting areas found",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
         end
     end
 })
 
--- Jump Power
-PlayerSection:AddSlider({
-    Name = "Jump Power",
-    Min = 50,
-    Max = 250,
-    Default = 50,
-    Color = Color3.fromRGB(31, 120, 200),
-    Increment = 1,
+-- ESP Tab
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "eye", 
+    PremiumOnly = false
+})
+
+ESPTab:AddToggle({
+    Name = "ESP Enabled",
+    Default = false,
     Callback = function(Value)
-        if game.Players.LocalPlayer.Character and 
-           game.Players.LocalPlayer.Character:FindFirstChild("Humanoid") then
-            
-            game.Players.LocalPlayer.Character.Humanoid.JumpPower = Value
+        Config.ESP.Enabled = Value
+        if Value then
+            ESP.SetupESP()
+        else
+            ESP.ClearESP()
         end
     end
 })
 
--- UI Elements Tab
-local UITab = Window:MakeTab({
-    Name = "UI Elements",
+ESPTab:AddToggle({
+    Name = "Show Rare Plants",
+    Default = true,
+    Callback = function(Value)
+        Config.ESP.RarePlants = Value
+        if Config.ESP.Enabled then
+            ESP.SetupESP()
+        end
+    end
+})
+
+ESPTab:AddToggle({
+    Name = "Show Collectible Items",
+    Default = true,
+    Callback = function(Value)
+        Config.ESP.Items = Value
+        if Config.ESP.Enabled then
+            ESP.SetupESP()
+        end
+    end
+})
+
+ESPTab:AddToggle({
+    Name = "Show Distance",
+    Default = true,
+    Callback = function(Value)
+        Config.ESP.Distance = Value
+        if Config.ESP.Enabled then
+            ESP.SetupESP()
+        end
+    end
+})
+
+ESPTab:AddButton({
+    Name = "Refresh ESP",
+    Callback = function()
+        ESP.SetupESP()
+        OrionLib:MakeNotification({
+            Name = "ESP",
+            Content = "ESP refreshed",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+-- Settings Tab
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
     Icon = "settings",
     PremiumOnly = false
 })
 
--- Dropdowns section
-local DropdownSection = UITab:AddSection({
-    Name = "Enhanced Dropdowns"
-})
-
-DropdownSection:AddDropdown({
-    Name = "Select Game",
-    Default = "Current",
-    Options = {"Current", "Blox Fruits", "Adopt Me", "BedWars", "Pet Sim X"},
+SettingsTab:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 100,
+    Default = 16,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "studs/s",
     Callback = function(Value)
-        print("Game selected: " .. Value)
-    end    
-})
-
--- Multi-select dropdown with improved styling
-DropdownSection:AddDropdown({
-    Name = "Multi-Select",
-    Default = "Option 1",
-    Multiple = true,
-    Options = {"Option 1", "Option 2", "Option 3", "Option 4"},
-    Callback = function(Value)
-        print("Multi-selection made")
-    end    
-})
-
--- Input controls with enhanced styling
-local InputSection = UITab:AddSection({
-    Name = "Enhanced Inputs"
-})
-
-InputSection:AddTextbox({
-    Name = "Text Input",
-    Default = "Type here...",
-    TextDisappear = false,
-    Callback = function(Value)
-        print("Input text: " .. Value)
-    end  
-})
-
--- Keybind with improved visibility (32x32px)
-InputSection:AddKeybind({
-    Name = "Action Key",
-    Default = Enum.KeyCode.E,
-    Hold = false,
-    Callback = function()
-        OrionLib:Notify("Keybind", "Key pressed!", "bell", 2)
-    end    
-})
-
--- Hold-type keybind
-InputSection:AddKeybind({
-    Name = "Hold Action",
-    Default = Enum.KeyCode.F,
-    Hold = true,
-    Callback = function(state)
-        if state then
-            print("Key is being held")
-        else
-            print("Key was released")
+        Config.WalkSpeed = Value
+        if Humanoid then
+            Humanoid.WalkSpeed = Value
         end
     end    
 })
 
--- Color picker with enhanced UI
-local ColorSection = UITab:AddSection({
-    Name = "Enhanced Colors"
-})
-
-ColorSection:AddColorpicker({
-    Name = "UI Color",
-    Default = Color3.fromRGB(50, 120, 200),
+SettingsTab:AddSlider({
+    Name = "Jump Power",
+    Min = 50,
+    Max = 150,
+    Default = 50,
+    Color = Color3.fromRGB(255, 255, 255),
+    Increment = 1,
+    ValueName = "",
     Callback = function(Value)
-        print("Color picked")
+        Config.JumpPower = Value
+        if Humanoid then
+            Humanoid.JumpPower = Value
+        end
     end    
 })
 
--- Mobile Tab
-local MobileTab = Window:MakeTab({
-    Name = "Mobile",
-    Icon = "mobile",
+SettingsTab:AddButton({
+    Name = "Reset Character",
+    Callback = function()
+        if Character and Humanoid then
+            Humanoid.Health = 0
+        end
+    end
+})
+
+SettingsTab:AddButton({
+    Name = "Destroy GUI",
+    Callback = function()
+        -- Clean up ESP
+        ESP.ClearESP()
+        
+        -- Stop all automation
+        Config.AutoPlant = false
+        Config.AutoHarvest = false
+        Config.AutoWater = false
+        Config.AutoCollect = false
+        Config.AutoUpgrade = false
+        
+        -- Unbind all RunService bindings
+        for _, bindName in pairs({"FarmingLoop", "CollectionLoop", "UpgradeLoop"}) do
+            pcall(function()
+                RunService:UnbindFromRenderStep(bindName)
+            end)
+        end
+        
+        -- Destroy the UI
+        OrionLib:Destroy()
+    end
+})
+
+-- Debug Tab
+local DebugTab = Window:MakeTab({
+    Name = "Debug",
+    Icon = "alert",
     PremiumOnly = false
 })
 
--- Mobile support section
-local MobileSection = MobileTab:AddSection({
-    Name = "Mobile Support"
-})
+DebugTab:AddParagraph("Game Analysis", analysis or "No analysis available")
 
-MobileSection:AddToggle({
-    Name = "Mobile Button",
-    Default = true,
-    Callback = function(Value)
-        -- Enable/disable mobile toggle button
-        OrionLib.ToggleMobileButton(Value)
+DebugTab:AddButton({
+    Name = "Refresh Game Analysis",
+    Callback = function()
+        local newSuccess, newAnalysis = AnalyzeGameFramework()
+        DebugTab:AddParagraph("Updated Game Analysis", newAnalysis or "No analysis available")
+        
+        OrionLib:MakeNotification({
+            Name = "Game Analysis",
+            Content = newSuccess and "Successfully analyzed game framework!" or "Warning: Could not fully analyze game framework.",
+            Image = "rbxassetid://4483345998",
+            Time = 5
+        })
     end
 })
 
-MobileSection:AddDropdown({
-    Name = "Button Position",
-    Default = "TopRight",
-    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
-    Callback = function(Value)
-        -- Set mobile button position
-        OrionLib.SetMobileButtonPosition(Value)
+-- Handle Character Changes
+Player.CharacterAdded:Connect(function(newCharacter)
+    Character = newCharacter
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    Humanoid = Character:WaitForChild("Humanoid")
+    
+    -- Apply settings to new character
+    Humanoid.WalkSpeed = Config.WalkSpeed
+    Humanoid.JumpPower = Config.JumpPower
+end)
+
+-- Main Automation Loops
+RunService:BindToRenderStep("FarmingLoop", Enum.RenderPriority.Character.Value, function()
+    -- Auto-plant
+    if Config.AutoPlant then
+        -- Only run on an interval
+        if not Farming.LastPlant or tick() - Farming.LastPlant >= AUTO_PLANT_INTERVAL then
+            local success, message = Farming.Plant(Config.SelectedSeed)
+            Farming.LastPlant = tick()
+        end
     end
+    
+    -- Auto-harvest
+    if Config.AutoHarvest then
+        if not Farming.LastHarvest or tick() - Farming.LastHarvest >= AUTO_HARVEST_INTERVAL then
+            local success, message = Farming.Harvest()
+            Farming.LastHarvest = tick()
+        end
+    end
+    
+    -- Auto-water
+    if Config.AutoWater then
+        if not Farming.LastWater or tick() - Farming.LastWater >= AUTO_WATER_INTERVAL then
+            local success, message = Farming.Water()
+            Farming.LastWater = tick()
+        end
+    end
+end)
+
+RunService:BindToRenderStep("CollectionLoop", Enum.RenderPriority.Character.Value + 1, function()
+    -- Auto-collect
+    if Config.AutoCollect then
+        if not Collection.LastCollect or tick() - Collection.LastCollect >= AUTO_COLLECT_INTERVAL then
+            local success, message = Collection.CollectNearbyItems()
+            Collection.LastCollect = tick()
+        end
+    end
+end)
+
+RunService:BindToRenderStep("UpgradeLoop", Enum.RenderPriority.Character.Value + 2, function()
+    -- Auto-upgrade
+    if Config.AutoUpgrade then
+        if not Upgrade.LastUpgrade or tick() - Upgrade.LastUpgrade >= AUTO_UPGRADE_INTERVAL then
+            local success, message = Upgrade.TryUpgradeTool()
+            Upgrade.LastUpgrade = tick()
+        end
+    end
+end)
+
+-- Display initial notification
+OrionLib:MakeNotification({
+    Name = "SkyX Hub - Grow A Garden",
+    Content = "Script loaded successfully!",
+    Image = "tree",
+    Time = 5
 })
 
--- Welcome notification
-OrionLib:Notify("SkyX Enhanced UI", "Loaded with improved visuals & controls. Press RightControl to toggle.", "check", 5)
+-- Initialize UI
+OrionLib:Init()
