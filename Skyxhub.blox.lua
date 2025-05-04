@@ -1,1799 +1,347 @@
---[[
-    SkyX Premium MM2 Script (Advanced Rayfield Edition)
-    20+ Powerful Features with custom engine
-]]
+--[[  
+    SkyX Complete OrionX UI - Executor Example
+    This script demonstrates the correct OrionX-UI syntax based on the documentation
+]]--
 
--- Load Rayfield UI Library
-local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
+-- Load the SkyX modded OrionX UI Library from GitHub
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI')))()
 
--- Game check
-if game.PlaceId ~= 142823291 and game.PlaceId ~= 881738579 then
-    Rayfield:Notify({
-        Title = "SkyX MM2 Script",
-        Content = "This script is only for Murder Mystery 2!",
-        Duration = 5,
-        Image = 4483362458,
-        Actions = {
-            Ignore = {
-                Name = "Okay",
-                Callback = function()
-                    -- Do nothing
-                end
-            },
-        },
-    })
-    return
-end
-
--- Services
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
-local CoreGui = game:GetService("CoreGui")
-
--- Variables
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-local Camera = workspace.CurrentCamera
-local Mouse = LocalPlayer:GetMouse()
-
--- Cached roles
-local PlayerRoles = {}
-local Murderer = nil
-local Sheriff = nil
-
--- MM2 Values
-local GunDrop = nil
-local Knife = nil
-
--- ESP Settings
-local ESPSettings = {
-    Enabled = false,
-    ShowMurderer = true,
-    ShowSheriff = true,
-    ShowGun = true,
-    MurdererColor = Color3.fromRGB(255, 0, 0),
-    SheriffColor = Color3.fromRGB(0, 0, 255),
-    PlayerColor = Color3.fromRGB(0, 255, 0),
-    GunColor = Color3.fromRGB(0, 255, 255),
-    RainbowESP = false,
-    ShowDistance = true,
-    ShowNames = true,
-    ShowBoxes = true,
-    BoxOutline = true,
-    UseTeamColors = false
-}
-
--- Coin Collection Settings
-local CoinSettings = {
-    Enabled = false,
-    CollectDistance = 20,
-    CollectDelay = 0.1,
-    CollectingCoins = false, -- State tracking
-    LastCoinTime = 0
-}
-
--- Auto Farm Settings
-local AutoFarmSettings = {
-    Enabled = false,
-    SafeMode = true,
-    HidePlayerName = true
-}
-
--- Kill Aura Settings
-local KillAuraSettings = {
-    Enabled = false,
-    Range = 10,
-    TargetMurderer = false,
-    Cooldown = 0.5,
-    LastKill = 0
-}
-
--- Anti-Sheriff Settings
-local AntiSheriffSettings = {
-    Enabled = false,
-    Dodging = false,
-    Range = 15,
-    DodgeDistance = 15
-}
-
--- Player Settings
-local PlayerSettings = {
-    SpeedEnabled = false,
-    SpeedValue = 16,
-    JumpEnabled = false,
-    JumpPower = 50,
-    NoClip = false,
-    Invisible = false,
-    AntiRagdoll = false,
-    AutoGrabGun = false,
-    GodMode = false,
-    FlightEnabled = false,
-    FlightSpeed = 50
-}
-
--- Aimbot Settings
-local AimbotSettings = {
-    Enabled = false,
-    TargetPart = "Head",
-    TeamCheck = true,
-    AimAtMurderer = true,
-    Sensitivity = 0.5,
-    FOV = 150,
-    ShowFOV = true,
-    FOVColor = Color3.fromRGB(255, 255, 255),
-    Locked = false,
-    CurrentTarget = nil
-}
-
--- Teleport Settings
-local TeleportSettings = {
-    LoopTP = false,
-    TPTarget = nil
-}
-
--- Emote Settings
-local EmoteSettings = {
-    Enabled = false,
-    CurrentEmote = "floss",
-    LoopEmotes = false
-}
-
--- Character respawn handling
-LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
-    Character = NewCharacter
-    Humanoid = Character:WaitForChild("Humanoid")
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-    
-    -- Reapply player settings
-    if PlayerSettings.SpeedEnabled then
-        Humanoid.WalkSpeed = PlayerSettings.SpeedValue
-    end
-    
-    if PlayerSettings.JumpEnabled then
-        Humanoid.JumpPower = PlayerSettings.JumpPower
-    end
-    
-    if PlayerSettings.AntiRagdoll then
-        EnableAntiRagdoll()
-    end
-    
-    wait(1) -- Wait for character to load fully
-    UpdateRoles() -- Refresh roles cache
- end)
-
--- Functions
-local SkyXFunctions = {}
-
--- Get player role
-function SkyXFunctions:GetPlayerRole(player)
-    if player and player.Character then
-        local Backpack = player:FindFirstChild("Backpack")
-        
-        if Backpack then
-            if Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
-                return "Murderer"
-            elseif Backpack:FindFirstChild("Gun") or player.Character:FindFirstChild("Gun") then
-                return "Sheriff"
-            end
-        end
-    end
-    return "Innocent"
-end
-
--- Update all player roles
-function UpdateRoles()
-    PlayerRoles = {}
-    Murderer = nil
-    Sheriff = nil
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        local role = SkyXFunctions:GetPlayerRole(player)
-        PlayerRoles[player.Name] = role
-        
-        if role == "Murderer" then
-            Murderer = player
-        elseif role == "Sheriff" then
-            Sheriff = player
-        end
-        
-        -- Find knife
-        if role == "Murderer" and player.Character then
-            local knife = player.Character:FindFirstChild("Knife") or 
-                        (player.Backpack and player.Backpack:FindFirstChild("Knife"))
-            if knife then
-                Knife = knife
-            end
-        end
-    end
-    
-    -- Look for dropped gun
-    for _, item in pairs(Workspace:GetChildren()) do
-        if item.Name == "GunDrop" then
-            GunDrop = item
-            break
-        end
-    end
-end
-
--- Create ESP
-local ESPObjects = {}
-
-function CreateESP()
-    -- Remove old ESP
-    for obj, _ in pairs(ESPObjects) do
-        if obj and obj:IsA("Folder") then
-            obj:Destroy()
-        end
-    end
-    ESPObjects = {}
-    
-    -- Create new ESP
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local role = PlayerRoles[player.Name] or SkyXFunctions:GetPlayerRole(player)
-            
-            -- Only show if enabled
-            if (role == "Murderer" and ESPSettings.ShowMurderer) or 
-               (role == "Sheriff" and ESPSettings.ShowSheriff) or 
-               (role == "Innocent") then
-                
-                local espFolder = Instance.new("Folder")
-                espFolder.Name = player.Name .. "_ESP"
-                espFolder.Parent = CoreGui
-                
-                local boxOutline = nil
-                local box = nil
-                
-                if ESPSettings.ShowBoxes then
-                    if ESPSettings.BoxOutline then
-                        boxOutline = Instance.new("BoxHandleAdornment")
-                        boxOutline.Name = "BoxOutline"
-                        boxOutline.Size = Vector3.new(4, 6, 4)
-                        boxOutline.Color3 = Color3.new(0, 0, 0)
-                        boxOutline.Transparency = 0.5
-                        boxOutline.ZIndex = 0
-                        boxOutline.AlwaysOnTop = true
-                        boxOutline.Visible = true
-                        boxOutline.Adornee = player.Character
-                        boxOutline.Parent = espFolder
-                    end
-                    
-                    box = Instance.new("BoxHandleAdornment")
-                    box.Name = "Box"
-                    box.Size = Vector3.new(3.5, 5.5, 3.5)
-                    box.Transparency = 0.5
-                    box.ZIndex = 1
-                    box.AlwaysOnTop = true
-                    box.Visible = true
-                    box.Adornee = player.Character
-                    box.Parent = espFolder
-                end
-                
-                local nameLabel = nil
-                if ESPSettings.ShowNames then
-                    nameLabel = Instance.new("BillboardGui")
-                    nameLabel.Name = "NameLabel"
-                    nameLabel.Size = UDim2.new(0, 200, 0, 50)
-                    nameLabel.Adornee = player.Character:FindFirstChild("Head")
-                    nameLabel.StudsOffset = Vector3.new(0, 2, 0)
-                    nameLabel.AlwaysOnTop = true
-                    nameLabel.Parent = espFolder
-                    
-                    local nameText = Instance.new("TextLabel")
-                    nameText.Name = "NameText"
-                    nameText.Size = UDim2.new(0, 200, 0, 50)
-                    nameText.BackgroundTransparency = 1
-                    nameText.TextSize = 16
-                    nameText.Font = Enum.Font.GothamBold
-                    nameText.TextStrokeTransparency = 0.5
-                    nameText.TextStrokeColor3 = Color3.new(0, 0, 0)
-                    nameText.Parent = nameLabel
-                    
-                    -- Set text based on ESP settings
-                    if ESPSettings.ShowDistance then
-                        local distance = math.floor((player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude)
-                        nameText.Text = player.Name .. " [" .. role .. "] [" .. distance .. "m]"
-                    else
-                        nameText.Text = player.Name .. " [" .. role .. "]"
-                    end
-                end
-                
-                -- Determine color
-                local color = ESPSettings.PlayerColor
-                if role == "Murderer" then
-                    color = ESPSettings.MurdererColor
-                elseif role == "Sheriff" then
-                    color = ESPSettings.SheriffColor
-                end
-                
-                -- Apply colors
-                if box then box.Color3 = color end
-                if nameLabel and nameLabel:FindFirstChild("NameText") then
-                    nameLabel.NameText.TextColor3 = color
-                end
-                
-                -- Add to ESP objects
-                ESPObjects[espFolder] = {
-                    Player = player,
-                    Box = box,
-                    BoxOutline = boxOutline,
-                    NameLabel = nameLabel,
-                    Role = role
-                }
-            end
-        end
-    end
-    
-    -- Create ESP for dropped gun if enabled
-    if ESPSettings.ShowGun and GunDrop then
-        local gunEspFolder = Instance.new("Folder")
-        gunEspFolder.Name = "GunDrop_ESP"
-        gunEspFolder.Parent = CoreGui
-        
-        local gunBox = Instance.new("BoxHandleAdornment")
-        gunBox.Name = "Box"
-        gunBox.Size = Vector3.new(2, 2, 2)
-        gunBox.Color3 = ESPSettings.GunColor
-        gunBox.Transparency = 0.5
-        gunBox.ZIndex = 1
-        gunBox.AlwaysOnTop = true
-        gunBox.Visible = true
-        gunBox.Adornee = GunDrop
-        gunBox.Parent = gunEspFolder
-        
-        local gunLabel = Instance.new("BillboardGui")
-        gunLabel.Name = "GunLabel"
-        gunLabel.Size = UDim2.new(0, 200, 0, 50)
-        gunLabel.Adornee = GunDrop
-        gunLabel.StudsOffset = Vector3.new(0, 1, 0)
-        gunLabel.AlwaysOnTop = true
-        gunLabel.Parent = gunEspFolder
-        
-        local gunText = Instance.new("TextLabel")
-        gunText.Name = "GunText"
-        gunText.Size = UDim2.new(0, 200, 0, 50)
-        gunText.BackgroundTransparency = 1
-        gunText.Text = "Gun"
-        gunText.TextColor3 = ESPSettings.GunColor
-        gunText.TextSize = 16
-        gunText.Font = Enum.Font.GothamBold
-        gunText.TextStrokeTransparency = 0.5
-        gunText.TextStrokeColor3 = Color3.new(0, 0, 0)
-        gunText.Parent = gunLabel
-        
-        -- Add distance if enabled
-        if ESPSettings.ShowDistance then
-            local distance = math.floor((GunDrop.Position - HumanoidRootPart.Position).Magnitude)
-            gunText.Text = "Gun [" .. distance .. "m]"
-        end
-        
-        -- Add to ESP objects
-        ESPObjects[gunEspFolder] = {
-            Gun = GunDrop,
-            Box = gunBox,
-            Label = gunLabel
-        }
-    end
-end
-
--- Update ESP
-function UpdateESP()
-    if not ESPSettings.Enabled then return end
-    
-    for folder, data in pairs(ESPObjects) do
-        if folder and folder:IsA("Folder") then
-            -- For player ESP
-            if data.Player and data.Player.Character and data.Player.Character:FindFirstChild("HumanoidRootPart") then
-                -- Update distance
-                if ESPSettings.ShowDistance and data.NameLabel and data.NameLabel:FindFirstChild("NameText") then
-                    local distance = math.floor((data.Player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude)
-                    data.NameLabel.NameText.Text = data.Player.Name .. " [" .. data.Role .. "] [" .. distance .. "m]"
-                end
-                
-                -- Rainbow color
-                if ESPSettings.RainbowESP then
-                    local hue = tick() % 10 / 10
-                    local color = Color3.fromHSV(hue, 1, 1)
-                    
-                    if data.Box then data.Box.Color3 = color end
-                    if data.NameLabel and data.NameLabel:FindFirstChild("NameText") then
-                        data.NameLabel.NameText.TextColor3 = color
-                    end
-                end
-            end
-            
-            -- For gun ESP
-            if data.Gun then
-                if ESPSettings.ShowDistance and data.Label and data.Label:FindFirstChild("GunText") then
-                    local distance = math.floor((data.Gun.Position - HumanoidRootPart.Position).Magnitude)
-                    data.Label.GunText.Text = "Gun [" .. distance .. "m]"
-                end
-                
-                if ESPSettings.RainbowESP then
-                    local hue = tick() % 10 / 10
-                    local color = Color3.fromHSV(hue, 1, 1)
-                    
-                    if data.Box then data.Box.Color3 = color end
-                    if data.Label and data.Label:FindFirstChild("GunText") then
-                        data.Label.GunText.TextColor3 = color
-                    end
-                end
-            end
-        end
-    end
-end
-
--- Auto collect coins
-function CollectCoins()
-    if not CoinSettings.Enabled then return end
-    if CoinSettings.CollectingCoins then return end
-    if os.time() - CoinSettings.LastCoinTime < CoinSettings.CollectDelay then return end
-    
-    CoinSettings.CollectingCoins = true
-    CoinSettings.LastCoinTime = os.time()
-    
-    -- Find coins
-    local coins = {}
-    for _, obj in pairs(Workspace:GetDescendants()) do
-        if obj.Name == "Coin" and obj:IsA("Part") then
-            local distance = (obj.Position - HumanoidRootPart.Position).Magnitude
-            if distance <= CoinSettings.CollectDistance then
-                table.insert(coins, obj)
-            end
-        end
-    end
-    
-    -- Collect nearest coin
-    if #coins > 0 then
-        table.sort(coins, function(a, b)
-            return (a.Position - HumanoidRootPart.Position).Magnitude < 
-                   (b.Position - HumanoidRootPart.Position).Magnitude
-        end)
-        
-        local coin = coins[1]
-        local oldPosition = HumanoidRootPart.CFrame
-        HumanoidRootPart.CFrame = CFrame.new(coin.Position)
-        wait(0.1) -- Wait for collection
-        HumanoidRootPart.CFrame = oldPosition
-    end
-    
-    CoinSettings.CollectingCoins = false
-end
-
--- Check if safe to teleport
-function IsSafeTeleport(position)
-    if not AutoFarmSettings.SafeMode then return true end
-    if not Murderer then UpdateRoles() end
-    
-    if Murderer and Murderer.Character and Murderer.Character:FindFirstChild("HumanoidRootPart") then
-        local distance = (position - Murderer.Character.HumanoidRootPart.Position).Magnitude
-        if distance < 10 then -- Don't teleport near murderer
-            return false
-        end
-    end
-    
-    return true
-end
-
--- Auto farm
-function AutoFarm()
-    if not AutoFarmSettings.Enabled then return end
-    
-    -- Hide name if enabled
-    if AutoFarmSettings.HidePlayerName then
-        local playerHead = Character:FindFirstChild("Head")
-        if playerHead then
-            local nameTag = playerHead:FindFirstChild("Overhead")
-            if nameTag then
-                nameTag.Enabled = false
-            end
-        end
-    end
-    
-    -- Auto collect coins with safety check
-    if CoinSettings.Enabled then
-        local coins = {}
-        for _, obj in pairs(Workspace:GetDescendants()) do
-            if obj.Name == "Coin" and obj:IsA("Part") then
-                local distance = (obj.Position - HumanoidRootPart.Position).Magnitude
-                if distance <= 100 then -- Search in wider range
-                    table.insert(coins, obj)
-                end
-            end
-        end
-        
-        if #coins > 0 then
-            table.sort(coins, function(a, b)
-                return (a.Position - HumanoidRootPart.Position).Magnitude < 
-                       (b.Position - HumanoidRootPart.Position).Magnitude
-            end)
-            
-            -- Check if coin is safe to collect
-            for _, coin in ipairs(coins) do
-                if IsSafeTeleport(coin.Position) then
-                    local oldPosition = HumanoidRootPart.CFrame
-                    HumanoidRootPart.CFrame = CFrame.new(coin.Position)
-                    wait(0.1) -- Wait for collection
-                    HumanoidRootPart.CFrame = oldPosition
-                    break
-                end
-            end
-        end
-    end
-    
-    -- Auto grab gun if sheriff drops it
-    if PlayerSettings.AutoGrabGun and GunDrop then
-        if IsSafeTeleport(GunDrop.Position) then
-            local oldPosition = HumanoidRootPart.CFrame
-            HumanoidRootPart.CFrame = CFrame.new(GunDrop.Position)
-            wait(0.2) -- Wait to grab gun
-            HumanoidRootPart.CFrame = oldPosition
-        end
-    end
-end
-
--- Kill Aura
-function KillAura()
-    if not KillAuraSettings.Enabled then return end
-    if os.time() - KillAuraSettings.LastKill < KillAuraSettings.Cooldown then return end
-    
-    local role = SkyXFunctions:GetPlayerRole(LocalPlayer)
-    if role ~= "Murderer" then return end
-    
-    local knife = Character:FindFirstChild("Knife") or
-                 (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Knife"))
-    if not knife then return end
-    
-    -- Equip the knife if not already equipped
-    if knife.Parent ~= Character then
-        knife.Parent = Character
-    end
-    
-    -- Find closest target
-    local closestPlayer = nil
-    local closestDistance = KillAuraSettings.Range
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and 
-           player.Character:FindFirstChild("HumanoidRootPart") and
-           player.Character:FindFirstChild("Humanoid") and 
-           player.Character.Humanoid.Health > 0 then
-            
-            -- Skip murderer if targeting murderer is disabled
-            if KillAuraSettings.TargetMurderer == false and PlayerRoles[player.Name] == "Murderer" then
-                continue
-            end
-            
-            local distance = (player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
-            if distance < closestDistance then
-                closestPlayer = player
-                closestDistance = distance
-            end
-        end
-    end
-    
-    -- Attempt to kill the target
-    if closestPlayer then
-        KillAuraSettings.LastKill = os.time()
-        
-        -- Teleport to the player briefly
-        local oldPosition = HumanoidRootPart.CFrame
-        HumanoidRootPart.CFrame = closestPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 2)
-        wait(0.1)
-        
-        -- Use knife/stab
-        local knifeEvent = knife:FindFirstChild("StabEvent") or knife:FindFirstChild("Use")
-        if knifeEvent and knifeEvent:IsA("RemoteEvent") then
-            knifeEvent:FireServer()
-        end
-        
-        wait(0.1)
-        HumanoidRootPart.CFrame = oldPosition
-    end
-end
-
--- Anti-Sheriff
-function AntiSheriff()
-    if not AntiSheriffSettings.Enabled then return end
-    if AntiSheriffSettings.Dodging then return end
-    
-    local role = SkyXFunctions:GetPlayerRole(LocalPlayer)
-    if role ~= "Murderer" then return end
-    
-    if Sheriff and Sheriff.Character and Sheriff.Character:FindFirstChild("HumanoidRootPart") then
-        local sheriffDistance = (Sheriff.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
-        
-        -- Check if sheriff is aiming at us (has equipped gun)
-        local sheriffHasGunEquipped = Sheriff.Character:FindFirstChild("Gun") ~= nil
-        
-        if sheriffHasGunEquipped and sheriffDistance <= AntiSheriffSettings.Range then
-            AntiSheriffSettings.Dodging = true
-            
-            -- Quick teleport away in a random direction
-            local direction = Vector3.new(math.random(-10, 10), 0, math.random(-10, 10)).Unit
-            local targetPosition = HumanoidRootPart.Position + direction * AntiSheriffSettings.DodgeDistance
-            
-            -- Make sure we don't teleport into walls
-            local ray = Ray.new(HumanoidRootPart.Position, direction * AntiSheriffSettings.DodgeDistance)
-            local hit, hitPos = workspace:FindPartOnRayWithIgnoreList(ray, {Character})
-            
-            if hit then
-                targetPosition = hitPos - direction * 2 -- Stay 2 studs away from the wall
-            end
-            
-            HumanoidRootPart.CFrame = CFrame.new(targetPosition)
-            
-            wait(1) -- Cooldown
-            AntiSheriffSettings.Dodging = false
-        end
-    end
-end
-
--- Aimbot functions
-local FOVCircle = Drawing.new("Circle")
-FOVCircle.Thickness = 2
-FOVCircle.NumSides = 120
-FOVCircle.Radius = AimbotSettings.FOV
-FOVCircle.Filled = false
-FOVCircle.Visible = AimbotSettings.ShowFOV
-FOVCircle.ZIndex = 1
-FOVCircle.Transparency = 1
-FOVCircle.Color = AimbotSettings.FOVColor
-
-function UpdateFOVCircle()
-    if not AimbotSettings.ShowFOV then
-        FOVCircle.Visible = false
-        return
-    end
-    
-    FOVCircle.Visible = true
-    FOVCircle.Radius = AimbotSettings.FOV
-    FOVCircle.Color = AimbotSettings.FOVColor
-    FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
-end
-
-function GetClosestPlayerToCursor()
-    if not AimbotSettings.Enabled then
-        AimbotSettings.CurrentTarget = nil
-        return nil
-    end
-    
-    local closestPlayer = nil
-    local shortestDistance = math.huge
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and 
-           player.Character:FindFirstChild("HumanoidRootPart") and
-           player.Character:FindFirstChild("Humanoid") and 
-           player.Character.Humanoid.Health > 0 then
-            
-            -- Team check
-            if AimbotSettings.TeamCheck then
-                local role = PlayerRoles[player.Name] or SkyXFunctions:GetPlayerRole(player)
-                
-                -- Skip sheriff if we're the murderer
-                if role == "Sheriff" and SkyXFunctions:GetPlayerRole(LocalPlayer) == "Murderer" then
-                    continue
-                end
-                
-                -- Only target murderer if that option is enabled
-                if AimbotSettings.AimAtMurderer and role ~= "Murderer" then
-                    continue
-                end
-            end
-            
-            local targetPart = player.Character:FindFirstChild(AimbotSettings.TargetPart) or 
-                              player.Character:FindFirstChild("HumanoidRootPart")
-            
-            if targetPart then
-                local screenPos, onScreen = Camera:WorldToScreenPoint(targetPart.Position)
-                
-                if onScreen then
-                    local distFromMouse = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
-                    
-                    if distFromMouse < AimbotSettings.FOV then
-                        if distFromMouse < shortestDistance then
-                            closestPlayer = player
-                            shortestDistance = distFromMouse
-                        end
-                    end
-                end
-            end
-        end
-    end
-    
-    AimbotSettings.CurrentTarget = closestPlayer
-    return closestPlayer
-end
-
-function EnableAimbot()
-    UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if not gameProcessed and input.UserInputType == Enum.UserInputType.MouseButton2 then
-            AimbotSettings.Locked = true
-        end
-    end)
-    
-    UserInputService.InputEnded:Connect(function(input, gameProcessed)
-        if input.UserInputType == Enum.UserInputType.MouseButton2 then
-            AimbotSettings.Locked = false
-        end
-    end)
-    
-    RunService.RenderStepped:Connect(function()
-        UpdateFOVCircle()
-        
-        if AimbotSettings.Enabled and AimbotSettings.Locked then
-            local target = GetClosestPlayerToCursor()
-            
-            if target and target.Character then
-                local targetPart = target.Character:FindFirstChild(AimbotSettings.TargetPart) or 
-                                  target.Character:FindFirstChild("HumanoidRootPart")
-                if targetPart then
-                    local screenPos, onScreen = Camera:WorldToScreenPoint(targetPart.Position)
-                    
-                    if onScreen then
-                        local moveX = (screenPos.X - Mouse.X) * AimbotSettings.Sensitivity
-                        local moveY = (screenPos.Y - Mouse.Y) * AimbotSettings.Sensitivity
-                        
-                        mousemoverel(moveX, moveY)
-                    end
-                end
-            end
-        end
-    end)
-end
-
--- Anti-Ragdoll function
-function EnableAntiRagdoll()
-    if not Character then return end
-    
-    local function disableRagdoll()
-        for _, limb in pairs(Character:GetChildren()) do
-            if limb:IsA("BasePart") and limb.Name ~= "HumanoidRootPart" then
-                if limb:FindFirstChild("RagdollBallSocket") then
-                    limb.RagdollBallSocket.Enabled = false
-                end
-                
-                if limb:FindFirstChild("RagdollHingeConstraint") then
-                    limb.RagdollHingeConstraint.Enabled = false
-                end
-            end
-        end
-    end
-    
-    disableRagdoll() -- Initial call
-    
-    -- Watch for new constraints
-    Character.ChildAdded:Connect(function(child)
-        if child:IsA("BasePart") then
-            child.ChildAdded:Connect(function(constraint)
-                if constraint.Name:match("Ragdoll") and PlayerSettings.AntiRagdoll then
-                    constraint.Enabled = false
-                end
-            end)
-        end
-    end)
- end
-
--- Flight function
-local Flying = false
-local FlyConnection = nil
-
-function ToggleFlight(enabled)
-    if enabled and not Flying then
-        Flying = true
-        
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Parent = HumanoidRootPart
-        
-        FlyConnection = RunService.RenderStepped:Connect(function()
-            if Flying then
-                local flyDirection = Vector3.new(0, 0, 0)
-                
-                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                    flyDirection = flyDirection + Camera.CFrame.LookVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                    flyDirection = flyDirection - Camera.CFrame.LookVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                    flyDirection = flyDirection - Camera.CFrame.RightVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                    flyDirection = flyDirection + Camera.CFrame.RightVector
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                    flyDirection = flyDirection + Vector3.new(0, 1, 0)
-                end
-                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-                    flyDirection = flyDirection - Vector3.new(0, 1, 0)
-                end
-                
-                -- Normalize the direction if it's not zero
-                if flyDirection.Magnitude > 0 then
-                    flyDirection = flyDirection.Unit
-                end
-                
-                -- Apply the flight speed
-                bodyVelocity.Velocity = flyDirection * PlayerSettings.FlightSpeed
-            end
-        end)
-    elseif not enabled and Flying then
-        Flying = false
-        
-        if FlyConnection then
-            FlyConnection:Disconnect()
-            FlyConnection = nil
-        end
-        
-        for _, child in pairs(HumanoidRootPart:GetChildren()) do
-            if child:IsA("BodyVelocity") then
-                child:Destroy()
-            end
-        end
-    end
-end
-
--- NoClip function
-local NoClipConnection = nil
-
-function ToggleNoClip(enabled)
-    if enabled and not NoClipConnection then
-        NoClipConnection = RunService.Stepped:Connect(function()
-            if not Character then return end
-            
-            for _, part in pairs(Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end)
-    elseif not enabled and NoClipConnection then
-        NoClipConnection:Disconnect()
-        NoClipConnection = nil
-        
-        -- Re-enable collisions
-        for _, part in pairs(Character:GetDescendants()) do
-            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                part.CanCollide = true
-            end
-        end
-    end
-end
-
--- GodMode function
-function EnableGodMode()
-    if not Character then return end
-    
-    -- Basic god mode method for MM2
-    local clone = Character.Head:Clone()
-    Character.Head:Destroy()
-    clone.Parent = Character
-    Humanoid.BreakJointsOnDeath = false
-    
-    -- Backup method
-    for _, obj in pairs(Character:GetDescendants()) do
-        if obj:IsA("Humanoid") then
-            -- Set health properties
-            obj.MaxHealth = math.huge
-            obj.Health = math.huge
-        end
-    end
-end
-
--- Create Rayfield Window
-local Window = Rayfield:CreateWindow({
-    Name = "SkyX MM2 Hub",
-    LoadingTitle = "SkyX MM2 Hub",
-    LoadingSubtitle = "By SkyX Hub",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "SkyXConfig",
-        FileName = "MM2"
-    },
-    Discord = {
-        Enabled = true,
-        Invite = "skyx", -- No https://discord.gg/ needed
-        RememberJoins = true
-    },
-    KeySystem = false, -- Leave as false for now
-    KeySettings = {
-        Title = "SkyX Key System",
-        Subtitle = "Key Required",
-        Note = "Join the discord (discord.gg/skyx)",
-        FileName = "SkyXKey",
-        SaveKey = true,
-        GrabKeyFromSite = false,
-        Key = {"SkyX"}
-    }
+-- Create main window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX Executor Example", 
+    HidePremium = false,
+    SaveConfig = true, 
+    ConfigFolder = "SkyXConfig",
+    IntroEnabled = true,
+    IntroText = "SkyX Enhanced",
+    IntroIcon = "rbxassetid://7733960981"
 })
 
--- Create tabs
-local MainTab = Window:CreateTab("Main", 4483362458)
-local ESPTab = Window:CreateTab("ESP", 4483362458)
-local PlayerTab = Window:CreateTab("Player", 4483362458)
-local CombatTab = Window:CreateTab("Combat", 4483362458)
-local TeleportTab = Window:CreateTab("Teleport", 4483362458)
-local MiscTab = Window:CreateTab("Misc", 4483362458)
+-- Mobile Support Configuration
+OrionLib.Mobile:SetToggleVisibility(true) -- Show the mobile toggle button
+OrionLib.Mobile:SetTogglePosition("TopRight") -- Position the toggle button
 
--- Main Tab
-local RoleSectionMain = MainTab:CreateSection("Role Information")
+-- Set Theme
+OrionLib.Themes:SetTheme("Ocean") -- Available themes: "Default", "Dark", "Light", "Ocean", "Blood"
 
--- Role display labels
-local MurdererLabel = MainTab:CreateLabel("Murderer: Unknown")
-local SheriffLabel = MainTab:CreateLabel("Sheriff: Unknown")
-local MyRoleLabel = MainTab:CreateLabel("Your Role: Unknown")
-
--- Auto-track roles
-MainTab:CreateToggle({
-    Name = "Auto-Track Roles",
-    CurrentValue = true,
-    Flag = "AutoTrackRoles",
-    Callback = function(Value)
-        -- This is handled in the main loop anyway
-    end,
+-- Create a custom theme
+OrionLib.Themes:AddTheme("SkyX", {
+    Main = Color3.fromRGB(40, 40, 70),
+    Second = Color3.fromRGB(50, 50, 80),
+    Stroke = Color3.fromRGB(80, 80, 110),
+    Divider = Color3.fromRGB(80, 80, 110),
+    Text = Color3.fromRGB(240, 240, 250),
+    TextDark = Color3.fromRGB(170, 170, 190)
 })
 
--- Coin collection section
-local CoinSection = MainTab:CreateSection("Coin Collection")
+-- Apply our custom theme
+OrionLib.Themes:SetTheme("SkyX")
 
-MainTab:CreateToggle({
-    Name = "Auto Collect Coins",
-    CurrentValue = false,
-    Flag = "AutoCollectCoins",
-    Callback = function(Value)
-        CoinSettings.Enabled = Value
-    end,
+-- Create main tab
+local MainTab = Window:MakeTab({
+    Name = "Main Functions",
+    Icon = "rbxassetid://7733960981", -- Using asset ID that's known to work
+    PremiumOnly = false
 })
 
-MainTab:CreateSlider({
-    Name = "Collection Distance",
-    Range = {5, 50},
-    Increment = 1,
-    Suffix = "studs",
-    CurrentValue = 20,
-    Flag = "CoinDistance", 
-    Callback = function(Value)
-        CoinSettings.CollectDistance = Value
-    end,
+-- Create ESP section
+local ESPSection = MainTab:AddSection({
+    Name = "ESP Options"
 })
 
-MainTab:CreateSlider({
-    Name = "Collection Delay",
-    Range = {0.1, 2},
-    Increment = 0.1,
-    Suffix = "sec",
-    CurrentValue = 0.5,
-    Flag = "CoinDelay", 
-    Callback = function(Value)
-        CoinSettings.CollectDelay = Value
-    end,
-})
-
--- Auto Farm section
-local FarmSection = MainTab:CreateSection("Auto Farm")
-
-MainTab:CreateToggle({
-    Name = "Auto Farm",
-    CurrentValue = false,
-    Flag = "AutoFarm",
-    Callback = function(Value)
-        AutoFarmSettings.Enabled = Value
-    end,
-})
-
-MainTab:CreateToggle({
-    Name = "Safe Mode",
-    CurrentValue = true,
-    Flag = "SafeMode",
-    Callback = function(Value)
-        AutoFarmSettings.SafeMode = Value
-    end,
-})
-
-MainTab:CreateToggle({
-    Name = "Hide Player Name",
-    CurrentValue = true,
-    Flag = "HidePlayerName",
-    Callback = function(Value)
-        AutoFarmSettings.HidePlayerName = Value
-    end,
-})
-
--- ESP Tab
-local ESPSection = ESPTab:CreateSection("ESP Settings")
-
-ESPTab:CreateToggle({
+-- ESP Toggle with Save flag
+local ESPToggle = ESPSection:AddToggle({
     Name = "Enable ESP",
-    CurrentValue = false,
-    Flag = "EnableESP",
+    Default = false,
+    Save = true,
+    Flag = "espEnabled",
     Callback = function(Value)
-        ESPSettings.Enabled = Value
-        
+        -- ESP Logic would go here
         if Value then
-            CreateESP()
+            OrionLib:MakeNotification({
+                Name = "ESP Enabled",
+                Content = "ESP has been activated",
+                Image = "rbxassetid://7733658803",
+                Time = 5
+            })
         else
-            -- Remove ESP objects
-            for obj, _ in pairs(ESPObjects) do
-                if obj and obj:IsA("Folder") then
-                    obj:Destroy()
-                end
-            end
-            ESPObjects = {}
-        end
-    end,
-})
-
-ESPTab:CreateToggle({
-    Name = "Show Murderer",
-    CurrentValue = true,
-    Flag = "ShowMurderer",
-    Callback = function(Value)
-        ESPSettings.ShowMurderer = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end,
-})
-
-ESPTab:CreateToggle({
-    Name = "Show Sheriff",
-    CurrentValue = true,
-    Flag = "ShowSheriff",
-    Callback = function(Value)
-        ESPSettings.ShowSheriff = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end,
-})
-
-ESPTab:CreateToggle({
-    Name = "Show Gun",
-    CurrentValue = true,
-    Flag = "ShowGun",
-    Callback = function(Value)
-        ESPSettings.ShowGun = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end,
-})
-
-ESPTab:CreateToggle({
-    Name = "Show Names",
-    CurrentValue = true,
-    Flag = "ShowNames",
-    Callback = function(Value)
-        ESPSettings.ShowNames = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end,
-})
-
-ESPTab:CreateToggle({
-    Name = "Show Distance",
-    CurrentValue = true,
-    Flag = "ShowDistance",
-    Callback = function(Value)
-        ESPSettings.ShowDistance = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end,
-})
-
-ESPTab:CreateToggle({
-    Name = "Show Boxes",
-    CurrentValue = true,
-    Flag = "ShowBoxes",
-    Callback = function(Value)
-        ESPSettings.ShowBoxes = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end,
-})
-
-ESPTab:CreateToggle({
-    Name = "Box Outlines",
-    CurrentValue = true,
-    Flag = "BoxOutline",
-    Callback = function(Value)
-        ESPSettings.BoxOutline = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end,
-})
-
-ESPTab:CreateToggle({
-    Name = "Rainbow ESP",
-    CurrentValue = false,
-    Flag = "RainbowESP",
-    Callback = function(Value)
-        ESPSettings.RainbowESP = Value
-    end,
-})
-
--- ESP Color pickers
-ESPTab:CreateSection("ESP Colors")
-
-ESPTab:CreateColorPicker({
-    Name = "Murderer Color",
-    Color = ESPSettings.MurdererColor,
-    Flag = "MurdererColor",
-    Callback = function(Value)
-        ESPSettings.MurdererColor = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end
-})
-
-ESPTab:CreateColorPicker({
-    Name = "Sheriff Color",
-    Color = ESPSettings.SheriffColor,
-    Flag = "SheriffColor",
-    Callback = function(Value)
-        ESPSettings.SheriffColor = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end
-})
-
-ESPTab:CreateColorPicker({
-    Name = "Innocent Color",
-    Color = ESPSettings.PlayerColor,
-    Flag = "PlayerColor",
-    Callback = function(Value)
-        ESPSettings.PlayerColor = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end
-})
-
-ESPTab:CreateColorPicker({
-    Name = "Gun Color",
-    Color = ESPSettings.GunColor,
-    Flag = "GunColor",
-    Callback = function(Value)
-        ESPSettings.GunColor = Value
-        if ESPSettings.Enabled then CreateESP() end
-    end
-})
-
--- Player Tab
-local PlayerSection = PlayerTab:CreateSection("Character Modifications")
-
-PlayerTab:CreateToggle({
-    Name = "Walk Speed",
-    CurrentValue = false,
-    Flag = "WalkSpeed", 
-    Callback = function(Value)
-        PlayerSettings.SpeedEnabled = Value
-        if Value then
-            Humanoid.WalkSpeed = PlayerSettings.SpeedValue
-        else
-            Humanoid.WalkSpeed = 16 -- Default
-        end
-    end,
-})
-
-PlayerTab:CreateSlider({
-    Name = "Speed Value",
-    Range = {16, 150},
-    Increment = 1,
-    Suffix = "speed",
-    CurrentValue = 50,
-    Flag = "SpeedValue", 
-    Callback = function(Value)
-        PlayerSettings.SpeedValue = Value
-        if PlayerSettings.SpeedEnabled then
-            Humanoid.WalkSpeed = Value
-        end
-    end,
-})
-
-PlayerTab:CreateToggle({
-    Name = "Jump Power",
-    CurrentValue = false,
-    Flag = "JumpPower", 
-    Callback = function(Value)
-        PlayerSettings.JumpEnabled = Value
-        if Value then
-            Humanoid.JumpPower = PlayerSettings.JumpPower
-        else
-            Humanoid.JumpPower = 50 -- Default
-        end
-    end,
-})
-
-PlayerTab:CreateSlider({
-    Name = "Jump Power Value",
-    Range = {50, 200},
-    Increment = 5,
-    Suffix = "power",
-    CurrentValue = 100,
-    Flag = "JumpValue", 
-    Callback = function(Value)
-        PlayerSettings.JumpPower = Value
-        if PlayerSettings.JumpEnabled then
-            Humanoid.JumpPower = Value
-        end
-    end,
-})
-
-PlayerTab:CreateToggle({
-    Name = "NoClip",
-    CurrentValue = false,
-    Flag = "NoClip", 
-    Callback = function(Value)
-        PlayerSettings.NoClip = Value
-        ToggleNoClip(Value)
-    end,
-})
-
-PlayerTab:CreateToggle({
-    Name = "Flight",
-    CurrentValue = false,
-    Flag = "Flight", 
-    Callback = function(Value)
-        PlayerSettings.FlightEnabled = Value
-        ToggleFlight(Value)
-    end,
-})
-
-PlayerTab:CreateSlider({
-    Name = "Flight Speed",
-    Range = {10, 200},
-    Increment = 5,
-    Suffix = "speed",
-    CurrentValue = 50,
-    Flag = "FlightSpeed", 
-    Callback = function(Value)
-        PlayerSettings.FlightSpeed = Value
-    end,
-})
-
-PlayerTab:CreateToggle({
-    Name = "Anti-Ragdoll",
-    CurrentValue = false,
-    Flag = "AntiRagdoll", 
-    Callback = function(Value)
-        PlayerSettings.AntiRagdoll = Value
-        if Value then
-            EnableAntiRagdoll()
-        end
-    end,
-})
-
-PlayerTab:CreateToggle({
-    Name = "Auto Grab Gun",
-    CurrentValue = false,
-    Flag = "AutoGrabGun", 
-    Callback = function(Value)
-        PlayerSettings.AutoGrabGun = Value
-    end,
-})
-
-PlayerTab:CreateButton({
-    Name = "God Mode (Risky)",
-    Callback = function()
-        PlayerSettings.GodMode = true
-        EnableGodMode()
-        Rayfield:Notify({
-            Title = "God Mode",
-            Content = "God Mode enabled! Note: This is risky and may be detected.",
-            Duration = 5,
-            Image = 4483362458,
-        })
-    end,
-})
-
--- Combat Tab
-local CombatSection = CombatTab:CreateSection("Combat Features")
-
-CombatTab:CreateToggle({
-    Name = "Kill Aura",
-    CurrentValue = false,
-    Flag = "KillAura", 
-    Callback = function(Value)
-        KillAuraSettings.Enabled = Value
-    end,
-})
-
-CombatTab:CreateSlider({
-    Name = "Kill Aura Range",
-    Range = {5, 30},
-    Increment = 1,
-    Suffix = "studs",
-    CurrentValue = 10,
-    Flag = "KillRange", 
-    Callback = function(Value)
-        KillAuraSettings.Range = Value
-    end,
-})
-
-CombatTab:CreateToggle({
-    Name = "Target Murderer Only",
-    CurrentValue = false,
-    Flag = "TargetMurderer", 
-    Callback = function(Value)
-        KillAuraSettings.TargetMurderer = Value
-    end,
-})
-
-CombatTab:CreateSlider({
-    Name = "Kill Cooldown",
-    Range = {0.1, 2},
-    Increment = 0.1,
-    Suffix = "sec",
-    CurrentValue = 0.5,
-    Flag = "KillCooldown", 
-    Callback = function(Value)
-        KillAuraSettings.Cooldown = Value
-    end,
-})
-
--- Anti-Sheriff section
-local AntiSheriffSect = CombatTab:CreateSection("Anti-Sheriff")
-
-CombatTab:CreateToggle({
-    Name = "Anti-Sheriff",
-    CurrentValue = false,
-    Flag = "AntiSheriff", 
-    Callback = function(Value)
-        AntiSheriffSettings.Enabled = Value
-    end,
-})
-
-CombatTab:CreateSlider({
-    Name = "Detection Range",
-    Range = {5, 30},
-    Increment = 1,
-    Suffix = "studs",
-    CurrentValue = 15,
-    Flag = "SheriffRange", 
-    Callback = function(Value)
-        AntiSheriffSettings.Range = Value
-    end,
-})
-
-CombatTab:CreateSlider({
-    Name = "Dodge Distance",
-    Range = {5, 30},
-    Increment = 1,
-    Suffix = "studs",
-    CurrentValue = 15,
-    Flag = "DodgeDistance", 
-    Callback = function(Value)
-        AntiSheriffSettings.DodgeDistance = Value
-    end,
-})
-
--- Aimbot section
-local AimbotSect = CombatTab:CreateSection("Aimbot")
-
-CombatTab:CreateToggle({
-    Name = "Enable Aimbot",
-    CurrentValue = false,
-    Flag = "Aimbot", 
-    Callback = function(Value)
-        AimbotSettings.Enabled = Value
-    end,
-})
-
-CombatTab:CreateToggle({
-    Name = "Show FOV Circle",
-    CurrentValue = true,
-    Flag = "ShowFOV", 
-    Callback = function(Value)
-        AimbotSettings.ShowFOV = Value
-        FOVCircle.Visible = Value
-    end,
-})
-
-CombatTab:CreateSlider({
-    Name = "FOV Size",
-    Range = {30, 500},
-    Increment = 10,
-    Suffix = "px",
-    CurrentValue = 150,
-    Flag = "FOVSize", 
-    Callback = function(Value)
-        AimbotSettings.FOV = Value
-    end,
-})
-
-CombatTab:CreateSlider({
-    Name = "Aimbot Sensitivity",
-    Range = {0.1, 2},
-    Increment = 0.1,
-    CurrentValue = 0.5,
-    Flag = "AimbotSensitivity", 
-    Callback = function(Value)
-        AimbotSettings.Sensitivity = Value
-    end,
-})
-
-CombatTab:CreateToggle({
-    Name = "Team Check",
-    CurrentValue = true,
-    Flag = "TeamCheck", 
-    Callback = function(Value)
-        AimbotSettings.TeamCheck = Value
-    end,
-})
-
-CombatTab:CreateToggle({
-    Name = "Aim at Murderer Only",
-    CurrentValue = true,
-    Flag = "AimAtMurderer", 
-    Callback = function(Value)
-        AimbotSettings.AimAtMurderer = Value
-    end,
-})
-
-CombatTab:CreateDropdown({
-    Name = "Target Part",
-    Options = {"Head", "HumanoidRootPart", "Torso"},
-    CurrentOption = "Head",
-    Flag = "TargetPart", 
-    Callback = function(Value)
-        AimbotSettings.TargetPart = Value
-    end,
-})
-
-CombatTab:CreateColorPicker({
-    Name = "FOV Circle Color",
-    Color = AimbotSettings.FOVColor,
-    Flag = "FOVColor",
-    Callback = function(Value)
-        AimbotSettings.FOVColor = Value
-        FOVCircle.Color = Value
-    end
-})
-
--- Teleport Tab
-local TeleportSect = TeleportTab:CreateSection("Quick Teleports")
-
--- Common MM2 map locations
-local mapLocations = {
-    {Name = "Lobby", Position = Vector3.new(-108, 138, 77)},
-    {Name = "Map Voting", Position = Vector3.new(-108, 141, 85)},
-    {Name = "Sheriff Spawn", Position = Vector3.new(0, 0, 0)}, -- Placeholder
-    {Name = "Murderer Spawn", Position = Vector3.new(0, 0, 0)}, -- Placeholder
-    {Name = "Safe Room", Position = Vector3.new(0, 0, 0)} -- Placeholder
-}
-
--- Create teleport buttons
-for _, location in pairs(mapLocations) do
-    TeleportTab:CreateButton({
-        Name = "Teleport to " .. location.Name,
-        Callback = function()
-            -- Check if teleport is safe
-            if IsSafeTeleport(location.Position) or not AutoFarmSettings.SafeMode then
-                HumanoidRootPart.CFrame = CFrame.new(location.Position)
-                Rayfield:Notify({
-                    Title = "Teleport",
-                    Content = "Teleported to " .. location.Name,
-                    Duration = 3,
-                    Image = 4483362458,
-                })
-            else
-                Rayfield:Notify({
-                    Title = "Teleport Failed",
-                    Content = "Cannot teleport - Murderer nearby. Disable Safe Mode to override.",
-                    Duration = 3,
-                    Image = 4483362458,
-                })
-            end
-        end,
-    })
-end
-
--- Teleport to player section
-local PlayerTPSect = TeleportTab:CreateSection("Player Teleports")
-
--- Get all players
-local playerList = {}
-for _, player in pairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        table.insert(playerList, player.Name)
-    end
-end
-
--- Player dropdown
-local PlayerDropdown = TeleportTab:CreateDropdown({
-    Name = "Select Player",
-    Options = playerList,
-    CurrentOption = playerList[1] or "",
-    Flag = "PlayerTP", 
-    Callback = function(Value)
-        TeleportSettings.TPTarget = Value
-    end,
-})
-
--- Teleport button
-TeleportTab:CreateButton({
-    Name = "Teleport to Player",
-    Callback = function()
-        if TeleportSettings.TPTarget then
-            local targetPlayer = Players:FindFirstChild(TeleportSettings.TPTarget)
-            if targetPlayer and targetPlayer.Character and 
-               targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                -- Check if teleport is safe
-                if IsSafeTeleport(targetPlayer.Character.HumanoidRootPart.Position) or not AutoFarmSettings.SafeMode then
-                    HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
-                    Rayfield:Notify({
-                        Title = "Teleport",
-                        Content = "Teleported to " .. targetPlayer.Name,
-                        Duration = 3,
-                        Image = 4483362458,
-                    })
-                else
-                    Rayfield:Notify({
-                        Title = "Teleport Failed",
-                        Content = "Cannot teleport - Murderer nearby. Disable Safe Mode to override.",
-                        Duration = 3,
-                        Image = 4483362458,
-                    })
-                end
-            else
-                Rayfield:Notify({
-                    Title = "Teleport Failed",
-                    Content = "Player not found or too far away",
-                    Duration = 3,
-                    Image = 4483362458,
-                })
-            end
-        else
-            Rayfield:Notify({
-                Title = "Teleport Failed",
-                Content = "No player selected",
-                Duration = 3,
-                Image = 4483362458,
+            OrionLib:MakeNotification({
+                Name = "ESP Disabled",
+                Content = "ESP has been deactivated",
+                Image = "error",
+                Time = 5
             })
         end
-    end,
+    end    
 })
 
--- Loop teleport toggle
-TeleportTab:CreateToggle({
-    Name = "Loop Teleport (Follow)",
-    CurrentValue = false,
-    Flag = "LoopTP", 
+-- ESP Color Picker with Save flag
+local ESPColorPicker = ESPSection:AddColorpicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Save = true,
+    Flag = "espColor",
     Callback = function(Value)
-        TeleportSettings.LoopTP = Value
-    end,
+        -- Color update logic would go here
+        OrionLib:MakeNotification({
+            Name = "ESP Color Updated",
+            Content = "ESP color has been changed",
+            Image = "rbxassetid://7733964148",
+            Time = 3
+        })
+    end  
 })
 
--- Misc Tab
-local EmoteSect = MiscTab:CreateSection("Emotes")
-
--- Emote dropdown
-MiscTab:CreateDropdown({
-    Name = "Select Emote",
-    Options = {"floss", "zombie", "ninja", "dab", "sit"},
-    CurrentOption = "floss",
-    Flag = "EmoteSelect", 
+-- ESP Distance Slider with Save flag
+local ESPDistanceSlider = ESPSection:AddSlider({
+    Name = "ESP Distance",
+    Min = 10,
+    Max = 1000,
+    Default = 500,
+    Color = Color3.fromRGB(0, 120, 215),
+    Increment = 10,
+    Save = true,
+    Flag = "espDistance",
+    ValueName = "studs",
     Callback = function(Value)
-        EmoteSettings.CurrentEmote = Value
-    end,
+        -- Distance update logic would go here
+        print("ESP Distance set to: " .. Value)
+    end    
 })
 
--- Play emote button
-MiscTab:CreateButton({
-    Name = "Play Emote",
-    Callback = function()
-        -- Look for emote remote event
-        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-            if (obj.Name:match("Emote") or obj.Name:match("Dance")) and obj:IsA("RemoteEvent") then
-                obj:FireServer(EmoteSettings.CurrentEmote)
-                break
-            end
+-- Create Movement section
+local MovementSection = MainTab:AddSection({
+    Name = "Movement Options"
+})
+
+-- Speed Slider with Save flag
+local SpeedSlider = MovementSection:AddSlider({
+    Name = "Walk Speed",
+    Min = 16,
+    Max = 500,
+    Default = 16,
+    Color = Color3.fromRGB(0, 120, 215),
+    Increment = 1,
+    Save = true,
+    Flag = "walkSpeed",
+    ValueName = "speed",
+    Callback = function(Value)
+        -- This is where the actual speed change would happen
+        pcall(function()
+            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+        end)
+    end    
+})
+
+-- Flight Toggle with Save flag
+local FlightToggle = MovementSection:AddToggle({
+    Name = "Enable Flight",
+    Default = false,
+    Save = true,
+    Flag = "flightEnabled",
+    Callback = function(Value)
+        -- Flight logic would go here
+        OrionLib:MakeNotification({
+            Name = Value and "Flight Enabled" or "Flight Disabled",
+            Content = Value and "You can now fly around the map" or "Flight has been deactivated",
+            Image = "rbxassetid://7734053426",
+            Time = 5
+        })
+    end    
+})
+
+-- Create Teleport section
+local TeleportSection = MainTab:AddSection({
+    Name = "Teleport Options"
+})
+
+-- Teleport to Player Dropdown
+local PlayerDropdown = TeleportSection:AddDropdown({
+    Name = "Select Player",
+    Default = "",
+    Options = {"Loading players..."},
+    Save = false,
+    Flag = "selectedPlayer",
+    Callback = function(Value)
+        -- Logic for saving selected player
+        print("Selected player: " .. Value)
+    end    
+})
+
+-- Function to refresh player list
+local function RefreshPlayerList()
+    local Players = game:GetService("Players")
+    local playerNames = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Players.LocalPlayer then
+            table.insert(playerNames, player.Name)
         end
-    end,
-})
+    end
+    
+    if #playerNames == 0 then
+        table.insert(playerNames, "No other players")
+    end
+    
+    -- Use the Refresh method as shown in documentation
+    PlayerDropdown:Refresh(playerNames, true)
+end
 
--- Loop emotes toggle
-MiscTab:CreateToggle({
-    Name = "Loop Emotes",
-    CurrentValue = false,
-    Flag = "LoopEmotes", 
-    Callback = function(Value)
-        EmoteSettings.LoopEmotes = Value
-    end,
-})
+-- Refresh the player list
+RefreshPlayerList()
 
--- Server section
-local ServerSect = MiscTab:CreateSection("Server")
-
--- Rejoin button
-MiscTab:CreateButton({
-    Name = "Rejoin Server",
+-- Refresh Button
+TeleportSection:AddButton({
+    Name = "Refresh Player List",
     Callback = function()
-        Rayfield:Notify({
-            Title = "Server",
-            Content = "Rejoining server...",
-            Duration = 3,
-            Image = 4483362458,
+        RefreshPlayerList()
+        OrionLib:MakeNotification({
+            Name = "Player List Updated",
+            Content = "The player list has been refreshed",
+            Image = "rbxassetid://7733658133",
+            Time = 3
         })
-        game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-    end,
+    end    
 })
 
--- Server hop button
-MiscTab:CreateButton({
-    Name = "Server Hop",
+-- Teleport Button
+TeleportSection:AddButton({
+    Name = "Teleport to Player",
     Callback = function()
-        Rayfield:Notify({
-            Title = "Server",
-            Content = "Looking for another server...",
-            Duration = 3,
-            Image = 4483362458,
-        })
+        -- Access the flag value as shown in documentation
+        local selectedPlayer = OrionLib.Flags["selectedPlayer"].Value
         
-        local servers = {}
-        local req = game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
-        local data = game:GetService("HttpService"):JSONDecode(req)
-        
-        if data and data.data then
-            for _, server in pairs(data.data) do
-                if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                    table.insert(servers, server.id)
-                end
-            end
+        if selectedPlayer and selectedPlayer ~= "No other players" then
+            -- This is where the actual teleport would happen
+            local Players = game:GetService("Players")
+            local targetPlayer = Players:FindFirstChild(selectedPlayer)
             
-            if #servers > 0 then
-                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)])
-            else
-                Rayfield:Notify({
-                    Title = "Server Hop Failed",
-                    Content = "No available servers found",
-                    Duration = 3,
-                    Image = 4483362458,
+            if targetPlayer and targetPlayer.Character then
+                OrionLib:MakeNotification({
+                    Name = "Teleporting",
+                    Content = "Teleporting to " .. selectedPlayer,
+                    Image = "rbxassetid://7733964148",
+                    Time = 5
                 })
+                
+                -- Teleport logic would go here
+                game.Players.LocalPlayer.Character:SetPrimaryPartCFrame(targetPlayer.Character.HumanoidRootPart.CFrame)
             end
+        else
+            OrionLib:MakeNotification({
+                Name = "Error",
+                Content = "Please select a valid player first",
+                Image = "error",
+                Time = 5
+            })
         end
-    end,
+    end    
 })
 
--- Update player list when players join/leave
-Players.PlayerAdded:Connect(function(player)
-    -- Update the player dropdown
-    local newPlayerList = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer then
-            table.insert(newPlayerList, p.Name)
-        end
-    end
-    
-    PlayerDropdown:Set(newPlayerList[1] or "", newPlayerList)
-    
-    -- Update roles
-    wait(3) -- Wait for role assignment
-    UpdateRoles()
- end)
+-- Create Game tab
+local GameTab = Window:MakeTab({
+    Name = "Game Options",
+    Icon = "rbxassetid://7743878358", -- Using an asset ID that's known to work
+    PremiumOnly = false
+})
 
-Players.PlayerRemoving:Connect(function(player)
-    -- Update the player dropdown
-    local newPlayerList = {}
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p ~= player then
-            table.insert(newPlayerList, p.Name)
-        end
-    end
-    
-    PlayerDropdown:Set(newPlayerList[1] or "", newPlayerList)
-    
-    -- Update roles
-    UpdateRoles()
- end)
+-- Add a paragraph to the game tab
+GameTab:AddParagraph("Game Info", "This tab would contain game-specific options.")
 
--- Credits section
-local CreditSect = MiscTab:CreateSection("Credits")
-
-MiscTab:CreateLabel("Script created by SkyX Hub")
-MiscTab:CreateLabel("discord.gg/skyx")
-
-MiscTab:CreateButton({
-    Name = "Copy Discord Invite",
+-- Create Keybind example
+GameTab:AddBind({
+    Name = "Toggle UI",
+    Default = Enum.KeyCode.RightControl,
+    Hold = false,
+    Save = true,
+    Flag = "toggleUIBind",
     Callback = function()
-        setclipboard("discord.gg/skyx")
-        Rayfield:Notify({
-            Title = "Discord",
-            Content = "Discord invite copied to clipboard!",
-            Duration = 3,
-            Image = 4483362458,
+        print("UI Toggle Hotkey Pressed")
+    end    
+})
+
+-- Create Settings tab
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "rbxassetid://7734053926", -- Using an asset ID that's known to work
+    PremiumOnly = false
+})
+
+-- Add textbox for configuration
+SettingsTab:AddTextbox({
+    Name = "Custom Name",
+    Default = "SkyX User",
+    TextDisappear = false,
+    Callback = function(Value)
+        OrionLib:MakeNotification({
+            Name = "Name Updated",
+            Content = "Your custom name is now: " .. Value,
+            Image = "rbxassetid://7733658803",
+            Time = 3
         })
-    end,
-})
-
--- Initialize
-UpdateRoles()
-EnableAimbot()
-
--- Main loop
-spawn(function()
-    while true do
-        wait(0.1)
-        
-        -- Update roles periodically
-        if tick() % 3 < 0.1 then -- Every ~3 seconds
-            UpdateRoles()
-            
-            -- Update role labels
-            if Murderer then
-                MurdererLabel:Set("Murderer: " .. Murderer.Name)
-            else
-                MurdererLabel:Set("Murderer: Unknown")
-            end
-            
-            if Sheriff then
-                SheriffLabel:Set("Sheriff: " .. Sheriff.Name)
-            else
-                SheriffLabel:Set("Sheriff: Unknown")
-            end
-            
-            local myRole = SkyXFunctions:GetPlayerRole(LocalPlayer)
-            MyRoleLabel:Set("Your Role: " .. myRole)
-        end
-        
-        -- Update ESP
-        if ESPSettings.Enabled then
-            UpdateESP()
-        end
-        
-        -- Auto collect coins
-        if CoinSettings.Enabled then
-            CollectCoins()
-        end
-        
-        -- Auto farm
-        if AutoFarmSettings.Enabled then
-            AutoFarm()
-        end
-        
-        -- Kill aura
-        if KillAuraSettings.Enabled then
-            KillAura()
-        end
-        
-        -- Anti-Sheriff
-        if AntiSheriffSettings.Enabled then
-            AntiSheriff()
-        end
-        
-        -- Loop teleport to target player
-        if TeleportSettings.LoopTP and TeleportSettings.TPTarget then
-            local targetPlayer = Players:FindFirstChild(TeleportSettings.TPTarget)
-            if targetPlayer and targetPlayer.Character and 
-               targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                if IsSafeTeleport(targetPlayer.Character.HumanoidRootPart.Position) or not AutoFarmSettings.SafeMode then
-                    HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
-                end
-            end
-        end
-        
-        -- Loop emotes
-        if EmoteSettings.LoopEmotes then
-            for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-                if (obj.Name:match("Emote") or obj.Name:match("Dance")) and obj:IsA("RemoteEvent") then
-                    obj:FireServer(EmoteSettings.CurrentEmote)
-                    break
-                end
-            end
-        end
     end
-end)
-
--- Welcome notification
-Rayfield:Notify({
-    Title = "SkyX MM2 Hub",
-    Content = "Script loaded successfully!",
-    Duration = 5,
-    Image = 4483362458,
-    Actions = { -- Notification Buttons
-        Ignore = {
-            Name = "Okay!",
-            Callback = function()
-                -- Do nothing
-            end
-        },
-    },
 })
 
-return SkyXFunctions
+-- Create About Tab
+local AboutTab = Window:MakeTab({
+    Name = "About",
+    Icon = "rbxassetid://7734053926", -- Using an asset ID that's known to work
+    PremiumOnly = false
+})
+
+AboutTab:AddParagraph("SkyX Enhanced OrionX UI", "This script demonstrates the proper usage of the OrionX UI Library by SkyX.")
+
+AboutTab:AddParagraph("Features", [[• Modern interface with multiple themes
+• Mobile support with toggle button
+• Auto-save system for all settings
+• Custom theme creation
+• Enhanced animations for UI elements
+• Better notification system
+• SkyX branding integration]])
+
+AboutTab:AddLabel("Version: 1.0.0")
+
+-- Add a label that we'll update later
+local StatusLabel = AboutTab:AddLabel("Status: Loading...")
+
+-- Update label example
+wait(2) -- Wait for intro to finish
+StatusLabel:Set("Status: Ready!")
+
+-- Credits Button
+AboutTab:AddButton({
+    Name = "Copy Discord Link",
+    Callback = function()
+        -- This would copy a Discord link to clipboard in a real executor
+        setclipboard("https://discord.gg/skyx")
+        OrionLib:MakeNotification({
+            Name = "Discord Link",
+            Content = "Discord invite link copied to clipboard!",
+            Image = "rbxassetid://7733964148",
+            Time = 5
+        })
+    end    
+})
+
+-- Initialize library to trigger intro sequence and auto-save system
+OrionLib:Init()
+
+-- Welcome notification after a delay
+wait(2) -- Wait for intro to finish
+OrionLib:MakeNotification({
+    Name = "Welcome",
+    Content = "Welcome to the SkyX Enhanced Executor! Explore the tabs to discover all features.",
+    Image = "rocket",
+    Time = 7
+})
+
+-- Demonstrate setting toggle value programmatically
+wait(5)
+ESPToggle:Set(true) -- This will call the callback and show a notification
+
+-- Demonstrate setting color programmatically
+wait(2)
+ESPColorPicker:Set(Color3.fromRGB(0, 255, 0)) -- Changes the color to green
+
+-- Demonstrate setting slider value programmatically
+wait(2)
+ESPDistanceSlider:Set(750) -- This will update the slider to 750
