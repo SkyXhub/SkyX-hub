@@ -1,4 +1,4 @@
---[[
+--[[mmmm
     SkyX Hub - Grow A Garden Script (Custom UI)
     
     Features:
@@ -612,11 +612,40 @@ local UI = {
 -- Cleanup function to destroy UI elements
 local function CleanupUI()
     -- Find and destroy existing UI with the same name
-    for _, gui in pairs(CoreGui:GetChildren()) do
-        if gui.Name == "SkyX_Garden_UI" then
-            gui:Destroy()
+    pcall(function()
+        -- Try CoreGui first
+        for _, gui in pairs(CoreGui:GetChildren()) do
+            if gui.Name == "SkyX_Garden_UI" then
+                gui:Destroy()
+            end
         end
-    end
+    end)
+    
+    -- Also check PlayerGui
+    pcall(function()
+        for _, gui in pairs(Player.PlayerGui:GetChildren()) do
+            if gui.Name == "SkyX_Garden_UI" then
+                gui:Destroy()
+            end
+        end
+    end)
+    
+    -- Check for notification GUI as well
+    pcall(function()
+        for _, gui in pairs(CoreGui:GetChildren()) do
+            if gui.Name == "SkyX_Notifications" then
+                gui:Destroy()
+            end
+        end
+    end)
+    
+    pcall(function()
+        for _, gui in pairs(Player.PlayerGui:GetChildren()) do
+            if gui.Name == "SkyX_Notifications" then
+                gui:Destroy()
+            end
+        end
+    end)
 end
 
 -- Create notification system
@@ -627,6 +656,7 @@ function NotificationSystem:Init()
     self.Container.Name = "SkyX_Notifications"
     self.Container.ResetOnSpawn = false
     self.Container.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    self.Container.DisplayOrder = 999
     
     -- Set position and size
     local frame = Instance.new("Frame")
@@ -644,7 +674,17 @@ function NotificationSystem:Init()
     layout.Parent = frame
     
     self.Frame = frame
-    self.Container.Parent = CoreGui
+    
+    -- Try to parent to CoreGui first, fallback to PlayerGui
+    pcall(function()
+        self.Container.Parent = CoreGui
+    end)
+    
+    if not self.Container.Parent then
+        pcall(function()
+            self.Container.Parent = Player.PlayerGui
+        end)
+    end
     
     -- Active notifications
     self.ActiveNotifications = {}
@@ -1849,6 +1889,21 @@ end
 
 -- Initialize the UI
 local UI_Interface = CreateMainUI()
+
+-- Set proper parent for the GUI
+pcall(function()
+    UI_Interface.GUI.Parent = game:GetService("CoreGui")
+end)
+
+-- Fallback if CoreGui access is restricted
+if not UI_Interface.GUI.Parent then
+    UI_Interface.GUI.Parent = Player:WaitForChild("PlayerGui")
+end
+
+-- Add extra visibility check
+UI_Interface.MainFrame.Visible = true
+UI_Interface.GUI.Enabled = true
+UI_Interface.GUI.DisplayOrder = 999
 
 -- Create Information Tab content
 local InfoSection = UI_Interface.Tabs.Info.CreateSection("Welcome")
