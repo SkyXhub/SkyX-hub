@@ -1,5 +1,5 @@
 --[[
-    SkyX nnnnHub - Grow A Garden Script (Custom UI)
+    SkyX Hub - Grow A Garden Script (Custom UI)
     
     Features:
     - Auto-plant and auto-harvest with reliability improvements
@@ -558,51 +558,216 @@ function Farming.Harvest()
 end
 
 function Farming.Water()
-    local plantingArea, distance = GetClosestPlantingArea()
-    if not plantingArea or distance > 30 then
-        return false, "No planting area nearby"
-    end
+    -- Find all planting areas that might need watering
+    local areasToWater = {}
+    local foundAny = false
     
-    -- Try to get close to the planting area
-    if distance > 10 then
-        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
-    end
-    
-    -- Try direct remote invocation first
-    if Remotes.Water then
-        local success, result = ActionWithRetry(function()
-            return Remotes.Water:FireServer(plantingArea)
-        end, RETRY_COUNT, RETRY_DELAY)
-        
-        if success then
-            return true, "Successfully watered using remote"
+    -- First look for plants that specifically need water (by appearance or property)
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if (obj.Name:lower():match("plant") or obj.Name:lower():match("crop") or 
+            obj.Name:lower():match("plot") or obj.Name:lower():match("farm") or
+            obj.Name:lower():match("garden")) and
+           (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
+            
+            local primaryPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+            if primaryPart then
+                local distance = (HumanoidRootPart.Position - primaryPart.Position).Magnitude
+                
+                -- Check if this plant has a water level property or appears dry
+                local needsWater = false
+                
+                -- Check for properties that might indicate water level
+                if obj:FindFirstChild("WaterLevel") or obj:FindFirstChild("Watered") or 
+                   obj:FindFirstChild("NeedsWater") or obj:FindFirstChild("Thirsty") then
+                    needsWater = true
+                end
+                
+                -- Even if we didn't determine it needs water, still add it as a candidate
+                -- with a slightly lower priority - we'll try all plants anyway
+                foundAny = true
+                table.insert(areasToWater, {
+                    part = primaryPart,
+                    distance = distance,
+                    priority = needsWater and 10 or 5 -- Higher priority for plants that need water
+                })
+            end
         end
     end
     
-    -- Fallback: Tool-based watering
+    -- If we didn't find any specific plants, fall back to regular planting areas
+    if #areasToWater == 0 then
+        local plantingArea, distance = GetClosestPlantingArea()
+        if plantingArea then
+            table.insert(areasToWater, {
+                part = plantingArea,
+                distance = distance,
+                priority = 1 -- Low priority as it's just a fallback
+            })
+            foundAny = true
+        end
+    end
+    
+    if #areasToWater == 0 then
+        return false, "No plants or planting areas found to water"
+    end
+    
+    -- Sort by priority first, then by distance
+    table.sort(areasToWater, function(a, b) 
+        if a.priority == b.priority then
+            return a.distance < b.distance
+        else
+            return a.priority > b.priority
+        end
+    end)
+    
+    -- Try to find the watering tool first before we start teleporting around
     local waterTool = nil
-    for _, item in pairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") and (item.Name:lower():match("water") or item.Name:lower():match("can") or item.Name:lower():match("hydrate")) then
-            waterTool = item
-            break
+    
+    -- First check equipped tool
+    local equippedTool = Character:FindFirstChildOfClass("Tool")
+    if equippedTool and (equippedTool.Name:lower():match("water") or 
+                        equippedTool.Name:lower():match("can") or 
+                        equippedTool.Name:lower():match("sprinkler") or
+                        equippedTool.Name:lower():match("hydrate")) then
+        waterTool = equippedTool
+    end
+    
+    -- Then check backpack
+    if not waterTool then
+        for _, item in pairs(Player.Backpack:GetChildren()) do
+            if item:IsA("Tool") and (item.Name:lower():match("water") or 
+                                      item.Name:lower():match("can") or 
+                                      item.Name:lower():match("sprinkler") or
+                                      item.Name:lower():match("hydrate")) then
+                waterTool = item
+                break
+            end
         end
     end
     
-    if not waterTool then
-        return false, "Watering tool not found in inventory"
+    -- Limit to the 5 most probable areas to save time
+    local maxAttempts = math.min(5, #areasToWater)
+    local wateredAny = false
+    local attemptedAreas = 0
+    
+    for i = 1, maxAttempts do
+        local area = areasToWater[i].part
+        local distance = areasToWater[i].distance
+        
+        -- Try to get close to the area
+        if distance > 5 then
+            -- Find a safe position near the area
+            local rayParams = RaycastParams.new()
+            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+            rayParams.FilterDescendantsInstances = {Character}
+            
+            local targetPos = area.Position + Vector3.new(0, 3, 0)
+            local rayResult = workspace:Raycast(targetPos + Vector3.new(0, 10, 0), Vector3.new(0, -20, 0), rayParams)
+            
+            if rayResult and rayResult.Position then
+                targetPos = rayResult.Position + Vector3.new(0, 3, 0)
+            end
+            
+            TeleportTo(targetPos)
+            wait(0.3) -- Wait for teleport to complete
+        end
+        
+        attemptedAreas = attemptedAreas + 1
+        
+        -- APPROACH 1: Try direct remote invocation first
+        if Remotes.Water then
+            local success, result = ActionWithRetry(function()
+                return Remotes.Water:FireServer(area)
+            end, RETRY_COUNT, RETRY_DELAY)
+            
+            if success then
+                wateredAny = true
+                continue
+            end
+        end
+        
+        -- APPROACH 2: Use RemoteFunction/RemoteEvent from hierarchy
+        local waterRemotes = {}
+        for _, instance in pairs(game:GetDescendants()) do
+            if instance:IsA("RemoteFunction") or instance:IsA("RemoteEvent") then
+                if instance.Name:lower():match("water") or instance.Name:lower():match("hydrate") or
+                   instance.Name:lower():match("irrigate") or instance.Name:lower():match("sprinkle") then
+                    table.insert(waterRemotes, instance)
+                end
+            end
+        end
+        
+        for _, remote in pairs(waterRemotes) do
+            local success, result = pcall(function()
+                if remote:IsA("RemoteEvent") then
+                    remote:FireServer(area)
+                else
+                    remote:InvokeServer(area)
+                end
+                return true
+            end)
+            
+            if success then
+                Remotes.Water = remote -- Save for future use
+                wateredAny = true
+                wait(0.5) -- Wait to see if it worked
+                break
+            end
+        end
+        
+        -- APPROACH 3: Tool-based watering
+        if waterTool then
+            local success, result = ActionWithRetry(function()
+                -- Ensure we're looking at the area
+                local lookAt = (area.Position - HumanoidRootPart.Position).Unit
+                HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, HumanoidRootPart.Position + lookAt)
+                
+                -- Equip the tool if not already equipped
+                if waterTool.Parent ~= Character then
+                    waterTool.Parent = Character
+                    wait(0.3)
+                end
+                
+                -- Try different activation patterns
+                for i = 1, 3 do
+                    waterTool:Activate()
+                    wait(0.3)
+                end
+                
+                -- Return the tool to the backpack
+                wait(0.3)
+                waterTool.Parent = Player.Backpack
+                return true
+            end, RETRY_COUNT + 2, RETRY_DELAY) -- More retries for tool usage
+            
+            if success then
+                wateredAny = true
+            end
+        end
+        
+        -- APPROACH 4: Simulate clicks on the area
+        local success, result = ActionWithRetry(function()
+            -- Aim at the area
+            local targetPosition = area.Position
+            local cameraPosition = workspace.CurrentCamera.CFrame.Position
+            local aimCFrame = CFrame.new(cameraPosition, targetPosition)
+            workspace.CurrentCamera.CFrame = aimCFrame
+            
+            -- Use virtual input system to click
+            VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            wait(0.1)
+            VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+            
+            wait(0.5) -- Wait to see if anything happened
+            return true
+        end, 2, RETRY_DELAY) -- Just a couple tries for clicking
     end
     
-    -- Equip and use the tool
-    local success, result = ActionWithRetry(function()
-        waterTool.Parent = Character
-        wait(0.2)
-        waterTool:Activate()
-        wait(0.5)
-        waterTool.Parent = Player.Backpack
-        return true
-    end, RETRY_COUNT, RETRY_DELAY)
-    
-    return success, success and "Successfully watered using tool" or "Failed to water"
+    if wateredAny then
+        return true, "Successfully watered plants in " .. attemptedAreas .. " areas"
+    else
+        return false, "Attempted but failed to water plants in " .. attemptedAreas .. " areas"
+    end
 end
 
 -- Collection Module
