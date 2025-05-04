@@ -1,2982 +1,828 @@
---[[
-    SkyX Hub - Grow A Garden Script (Custom UI)
-    
-    Features:
-    - Auto-plant and auto-harvest with reliability improvements
-    - Auto-water plants with timing controls
-    - Auto-collect rewards and seeds
-    - Teleportation to different zones
-    - Auto-upgrading tools
-    - ESP for rare plants and items
-    
-    Using custom UI built from scratch
+--[[  
+    SkyX ESP Script with Luna UI
+    This demonstrates how to create an ESP system with Luna Interface Suite
+    Fixed version with proper tab and button loading
 ]]
+
+-- Load the Luna library
+local Luna = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/main/source.lua", true))()
+
+-- Create the window
+local Window = Luna:CreateWindow({
+    Name = "SkyX ESP System",
+    Subtitle = "by SkyX Hub",
+    LoadingEnabled = true,
+    LoadingTitle = "SkyX ESP",
+    LoadingSubtitle = "Premium ESP System",
+    ConfigSettings = {
+        ConfigFolder = "SkyX_ESP"
+    }
+})
+
+-- Create tabs (simplified syntax based on Luna documentation)
+local MainTab = Window:CreateTab({
+    Name = "Main",
+    Icon = "home",
+    ImageSource = "Material"
+})
+
+local PlayersTab = Window:CreateTab({
+    Name = "Players",
+    Icon = "account_circle",
+    ImageSource = "Material"
+})
+
+local WorldTab = Window:CreateTab({
+    Name = "World",
+    Icon = "public",
+    ImageSource = "Material"
+})
+
+local SettingsTab = Window:CreateTab({
+    Name = "Settings",
+    Icon = "settings", 
+    ImageSource = "Material"
+})
+
+-- Create sections
+MainTab:CreateSection("ESP Controls")
+PlayersTab:CreateSection("Player ESP")
+WorldTab:CreateSection("World ESP")
+SettingsTab:CreateSection("Visual Settings")
+SettingsTab:CreateSection("Configuration")
+
+-- ESP Configuration (Default Settings)
+local Config = {
+    Enabled = false,
+    Players = {
+        Enabled = false,
+        ShowName = true,
+        ShowDistance = true,
+        ShowHealth = true,
+        ShowBoxes = true,
+        ShowTracers = false,
+        NameColor = Color3.fromRGB(255, 255, 255),
+        BoxColor = Color3.fromRGB(255, 0, 0),
+        TracerColor = Color3.fromRGB(0, 255, 0),
+        TeamCheck = true,
+        TeamColor = true,
+        MaxDistance = 1000
+    },
+    Objects = {
+        Enabled = false,
+        Items = {},
+        ItemColor = Color3.fromRGB(0, 255, 255),
+        ShowDistance = true,
+        MaxDistance = 500
+    },
+    Visuals = {
+        Transparency = 0.5,
+        TextSize = 14,
+        TextOutline = true,
+        BoxesOutline = true,
+        TracerOrigin = "Bottom" -- "Bottom", "Center", "Mouse"
+    }
+}
+
+-- ESP Drawing Objects
+local ESPObjects = {}
+local DrawnItems = {}
 
 -- Services
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser")
-local CoreGui = game:GetService("CoreGui")
-local TextService = game:GetService("TextService")
-
--- Variables
-local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-local Humanoid = Character:WaitForChild("Humanoid")
 local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
 
--- Anti-AFK
-Player.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
-    wait(1)
-    VirtualUser:Button2Up(Vector2.new(0, 0), Camera.CFrame)
-end)
-
--- Remotes and Game Framework Detection
-local Remotes = {}
-local PlantingAreas = {}
-local Tools = {}
-local Seeds = {}
-local RewardsAndItems = {}
-local Zones = {}
-
--- Constants
-local RETRY_COUNT = 3
-local RETRY_DELAY = 0.5
-local AUTO_PLANT_INTERVAL = 1.5
-local AUTO_HARVEST_INTERVAL = 2
-local AUTO_WATER_INTERVAL = 5
-local AUTO_COLLECT_INTERVAL = 3
-local AUTO_UPGRADE_INTERVAL = 10
-
--- Script Configuration
-local Config = {
-    AutoPlant = false,
-    AutoHarvest = false,
-    AutoWater = false,
-    AutoCollect = false,
-    SelectedSeed = "Default",
-    WalkSpeed = 16,
-    JumpPower = 50,
-    TeleportMethod = "Instant", -- Instant or Tween
-    AutoUpgrade = false,
-    ESP = {
-        Enabled = false,
-        RarePlants = true,
-        Items = true,
-        Distance = true
-    }
-}
-
--- ESP Objects
-local ESPObjects = {}
-
--- Game Framework Detection
-local function AnalyzeGameFramework()
-    local success = false
-    local analysis = ""
-    
-    -- Check for remotes in ReplicatedStorage
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-            local name = obj.Name:lower()
-            
-            -- Detect planting related remotes
-            if name:match("plant") or name:match("grow") or name:match("seed") then
-                Remotes.Plant = obj
-                analysis = analysis .. "Found planting remote: " .. obj:GetFullName() .. "\n"
-            end
-            
-            -- Detect harvesting related remotes
-            if name:match("harvest") or name:match("collect") or name:match("gather") then
-                Remotes.Harvest = obj
-                analysis = analysis .. "Found harvesting remote: " .. obj:GetFullName() .. "\n"
-            end
-            
-            -- Detect watering related remotes
-            if name:match("water") or name:match("hydrate") then
-                Remotes.Water = obj
-                analysis = analysis .. "Found watering remote: " .. obj:GetFullName() .. "\n"
-            end
-            
-            -- Detect upgrading related remotes
-            if name:match("upgrade") or name:match("improve") or name:match("enhance") then
-                Remotes.Upgrade = obj
-                analysis = analysis .. "Found upgrading remote: " .. obj:GetFullName() .. "\n"
-            end
-        end
-    end
-    
-    -- Find planting areas in workspace
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if (obj.Name:lower():match("plant") or obj.Name:lower():match("garden") or obj.Name:lower():match("soil") or obj.Name:lower():match("plot")) and 
-            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            table.insert(PlantingAreas, obj)
-            analysis = analysis .. "Found planting area: " .. obj:GetFullName() .. "\n"
-        end
-        
-        -- Find zones
-        if (obj.Name:lower():match("zone") or obj.Name:lower():match("area") or obj.Name:lower():match("region")) and 
-            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            table.insert(Zones, obj)
-            analysis = analysis .. "Found zone: " .. obj:GetFullName() .. "\n"
-        end
-        
-        -- Find rare plants and collectibles for ESP
-        if (obj.Name:lower():match("rare") or obj.Name:lower():match("unique") or obj.Name:lower():match("special")) and
-            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            table.insert(RewardsAndItems, obj)
-            analysis = analysis .. "Found rare item: " .. obj:GetFullName() .. "\n"
-        end
-    end
-    
-    -- Find tools in player inventory
-    for _, item in pairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") then
-            -- Categorize tools
-            if item.Name:lower():match("seed") then
-                table.insert(Seeds, item.Name)
-                analysis = analysis .. "Found seed: " .. item.Name .. "\n"
-            else
-                table.insert(Tools, item.Name)
-                analysis = analysis .. "Found tool: " .. item.Name .. "\n"
-            end
-        end
-    end
-    
-    -- Check if we found enough game elements
-    if #PlantingAreas > 0 or Remotes.Plant then
-        success = true
-    end
-    
-    return success, analysis
+-- ESP Helper Functions
+local function CalculateDistance(position)
+    return (Camera.CFrame.Position - position).Magnitude
 end
 
--- Utility Functions
-local function GetClosestPlantingArea()
-    local closestDist = math.huge
-    local closest = nil
-    
-    for _, area in pairs(PlantingAreas) do
-        local dist = (HumanoidRootPart.Position - area.Position).Magnitude
-        if dist < closestDist then
-            closestDist = dist
-            closest = area
-        end
-    end
-    
-    return closest, closestDist
-end
-
-local function ActionWithRetry(actionFn, retryCount, retryDelay)
-    local retries = 0
-    local success = false
-    local result = nil
-    
-    repeat
-        success, result = pcall(actionFn)
-        if not success then
-            retries = retries + 1
-            wait(retryDelay)
-        end
-    until success or retries >= retryCount
-    
-    return success, result
-end
-
-local function TeleportTo(position)
-    if Config.TeleportMethod == "Instant" then
-        HumanoidRootPart.CFrame = CFrame.new(position)
+local function GetPlayerColor(player)
+    if Config.Players.TeamColor and player.Team then
+        return player.TeamColor.Color
     else
-        local distance = (HumanoidRootPart.Position - position).Magnitude
-        local tweenInfo = TweenInfo.new(
-            math.clamp(distance / 50, 0.5, 3), -- Time based on distance
-            Enum.EasingStyle.Quad,
-            Enum.EasingDirection.Out
-        )
-        
-        local tween = TweenService:Create(
-            HumanoidRootPart, 
-            tweenInfo, 
-            {CFrame = CFrame.new(position)}
-        )
-        tween:Play()
-        tween.Completed:Wait()
+        return Config.Players.BoxColor
     end
 end
 
--- Farming Module
-local Farming = {}
-
-function Farming.Plant(seedType)
-    local plantingArea, distance = GetClosestPlantingArea()
-    if not plantingArea or distance > 30 then
-        -- Search for any planting area in the workspace
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():match("plant") or obj.Name:lower():match("garden") or 
-                obj.Name:lower():match("soil") or obj.Name:lower():match("plot") or 
-                obj.Name:lower():match("farm")) and 
-                (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-                
-                plantingArea = obj
-                distance = (HumanoidRootPart.Position - obj.Position).Magnitude
-                break
-            end
-        end
-        
-        if not plantingArea then
-            return false, "No planting area found in the game"
-        end
-    end
-    
-    -- Try to get close to the planting area with better positioning
-    if distance > 5 then
-        -- Find a safe position near the planting area
-        local rayParams = RaycastParams.new()
-        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-        rayParams.FilterDescendantsInstances = {Character}
-        
-        local targetPos = plantingArea.Position + Vector3.new(0, 3, 0)
-        local rayResult = workspace:Raycast(targetPos + Vector3.new(0, 10, 0), Vector3.new(0, -20, 0), rayParams)
-        
-        if rayResult and rayResult.Position then
-            targetPos = rayResult.Position + Vector3.new(0, 3, 0)
-        end
-        
-        TeleportTo(targetPos)
-        wait(0.3) -- Wait for teleport to complete
-    end
-    
-    -- APPROACH 1: Try direct remote invocation first
-    if Remotes.Plant then
-        local success, result = ActionWithRetry(function()
-            return Remotes.Plant:FireServer(seedType, plantingArea)
-        end, RETRY_COUNT, RETRY_DELAY)
-        
-        if success then
-            return true, "Successfully planted using remote"
-        end
-    end
-    
-    -- APPROACH 2: Use RemoteFunction/RemoteEvent from hierarchy
-    local allRemotes = {}
-    for _, instance in pairs(game:GetDescendants()) do
-        if instance:IsA("RemoteFunction") or instance:IsA("RemoteEvent") then
-            if instance.Name:lower():match("plant") or instance.Name:lower():match("seed") or
-               instance.Name:lower():match("farm") or instance.Name:lower():match("grow") then
-                table.insert(allRemotes, instance)
-            end
-        end
-    end
-    
-    -- Try each remote event/function
-    for _, remote in pairs(allRemotes) do
-        local success, result = pcall(function()
-            if remote:IsA("RemoteEvent") then
-                remote:FireServer(seedType, plantingArea)
-            else
-                remote:InvokeServer(seedType, plantingArea)
-            end
-            return true
-        end)
-        
-        if success then
-            Remotes.Plant = remote -- Save for future use
-            wait(0.5) -- Wait to see if it worked
-            return true, "Successfully planted using discovered remote: " .. remote.Name
-        end
-    end
-    
-    -- APPROACH 3: Tool-based planting with enhanced detection
-    local seedTool = nil
-    
-    -- First check equipped tool
-    local equippedTool = Character:FindFirstChildOfClass("Tool")
-    if equippedTool and (equippedTool.Name == seedType or equippedTool.Name:lower():match("seed")) then
-        seedTool = equippedTool
-    end
-    
-    -- Then check backpack
-    if not seedTool then
-        for _, item in pairs(Player.Backpack:GetChildren()) do
-            if item:IsA("Tool") and (item.Name == seedType or 
-                                      item.Name:lower():match("seed") or 
-                                      item.Name:lower():match("plant")) then
-                seedTool = item
-                break
-            end
-        end
-    end
-    
-    -- If we found a seed tool, use it
-    if seedTool then
-        local success, result = ActionWithRetry(function()
-            -- Ensure we're looking at the planting area
-            local lookAt = (plantingArea.Position - HumanoidRootPart.Position).Unit
-            HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, HumanoidRootPart.Position + lookAt)
-            
-            -- Equip the tool if not already equipped
-            if seedTool.Parent ~= Character then
-                seedTool.Parent = Character
-                wait(0.3)
-            end
-            
-            -- Try different activation patterns
-            for i = 1, 3 do
-                seedTool:Activate()
-                wait(0.2)
-            end
-            
-            -- Return the tool to the backpack
-            wait(0.3)
-            seedTool.Parent = Player.Backpack
-            return true
-        end, RETRY_COUNT + 2, RETRY_DELAY) -- More retries for tool usage
-        
-        if success then
-            return true, "Successfully planted using tool"
-        else
-            return false, "Failed to plant with tool"
-        end
-    end
-    
-    -- APPROACH 4: Simulate clicks on the planting area
-    local success, result = ActionWithRetry(function()
-        -- Fire a mouse click at the planting area
-        local clickPos = plantingArea.Position
-        
-        -- Use virtual input system to click
-        VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-        wait(0.1)
-        VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-        
-        wait(0.5) -- Wait to see if anything happened
-        return true
-    end, RETRY_COUNT, RETRY_DELAY)
-    
-    return false, "Could not find a way to plant seeds"
+local function IsOnScreen(position)
+    local _, onScreen = Camera:WorldToScreenPoint(position)
+    return onScreen
 end
 
-function Farming.Harvest()
-    -- Find all planting areas with grown plants
-    local potentialAreas = {}
-    local nearestArea = nil
-    local shortestDistance = math.huge
-    
-    -- First, look for objects that might be grown plants
-    for _, obj in pairs(workspace:GetDescendants()) do
-        -- Look for grown plants or plant models that might need harvesting
-        if (obj.Name:lower():match("plant") or obj.Name:lower():match("crop") or 
-            obj.Name:lower():match("grown") or obj.Name:lower():match("mature") or
-            obj.Name:lower():match("harvest")) and
-           (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            
-            local primaryPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-            if primaryPart then
-                local distance = (HumanoidRootPart.Position - primaryPart.Position).Magnitude
-                table.insert(potentialAreas, {part = primaryPart, distance = distance})
-                
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    nearestArea = primaryPart
-                end
-            end
-        end
+local function CreateDrawingObject(type, properties)
+    local object = Drawing.new(type)
+    for prop, value in pairs(properties) do
+        object[prop] = value
     end
-    
-    -- If we didn't find any specific plants, fall back to regular planting areas
-    if #potentialAreas == 0 then
-        local plantingArea, distance = GetClosestPlantingArea()
-        if plantingArea then
-            nearestArea = plantingArea
-            shortestDistance = distance
-            table.insert(potentialAreas, {part = plantingArea, distance = distance})
-        end
-    end
-    
-    if not nearestArea then
-        return false, "No plants or planting areas found to harvest"
-    end
-    
-    -- Sort areas by distance
-    table.sort(potentialAreas, function(a, b) return a.distance < b.distance end)
-    
-    -- Try to harvest from closest areas first
-    local harvestedAny = false
-    local attemptedAreas = 0
-    local maxAttempts = math.min(5, #potentialAreas) -- Limit to 5 closest areas to prevent too much time spent
-    
-    for i = 1, maxAttempts do
-        local area = potentialAreas[i].part
-        local distance = potentialAreas[i].distance
-        
-        -- Try to get close to the area
-        if distance > 5 then
-            -- Find a safe position near the area
-            local rayParams = RaycastParams.new()
-            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-            rayParams.FilterDescendantsInstances = {Character}
-            
-            local targetPos = area.Position + Vector3.new(0, 3, 0)
-            local rayResult = workspace:Raycast(targetPos + Vector3.new(0, 10, 0), Vector3.new(0, -20, 0), rayParams)
-            
-            if rayResult and rayResult.Position then
-                targetPos = rayResult.Position + Vector3.new(0, 3, 0)
-            end
-            
-            TeleportTo(targetPos)
-            wait(0.3) -- Wait for teleport to complete
-        end
-        
-        attemptedAreas = attemptedAreas + 1
-        
-        -- APPROACH 1: Try direct remote invocation first
-        if Remotes.Harvest then
-            local success, result = ActionWithRetry(function()
-                return Remotes.Harvest:FireServer(area)
-            end, RETRY_COUNT, RETRY_DELAY)
-            
-            if success then
-                harvestedAny = true
-                -- Continue to next area without trying other methods
-                continue
-            end
-        end
-        
-        -- APPROACH 2: Use RemoteFunction/RemoteEvent from hierarchy
-        local harvestRemotes = {}
-        for _, instance in pairs(game:GetDescendants()) do
-            if instance:IsA("RemoteFunction") or instance:IsA("RemoteEvent") then
-                if instance.Name:lower():match("harvest") or instance.Name:lower():match("collect") or
-                   instance.Name:lower():match("gather") or instance.Name:lower():match("crop") then
-                    table.insert(harvestRemotes, instance)
-                end
-            end
-        end
-        
-        for _, remote in pairs(harvestRemotes) do
-            local success, result = pcall(function()
-                if remote:IsA("RemoteEvent") then
-                    remote:FireServer(area)
-                else
-                    remote:InvokeServer(area)
-                end
-                return true
-            end)
-            
-            if success then
-                Remotes.Harvest = remote -- Save for future use
-                harvestedAny = true
-                wait(0.5) -- Wait to see if it worked
-                break -- Exit remote loop but continue to next area
-            end
-        end
-        
-        -- APPROACH 3: Tool-based harvesting with enhanced detection
-        local harvestTool = nil
-        
-        -- First check equipped tool
-        local equippedTool = Character:FindFirstChildOfClass("Tool")
-        if equippedTool and (equippedTool.Name:lower():match("harvest") or 
-                            equippedTool.Name:lower():match("cutter") or 
-                            equippedTool.Name:lower():match("collect") or
-                            equippedTool.Name:lower():match("sickle")) then
-            harvestTool = equippedTool
-        end
-        
-        -- Then check backpack
-        if not harvestTool then
-            for _, item in pairs(Player.Backpack:GetChildren()) do
-                if item:IsA("Tool") and (item.Name:lower():match("harvest") or 
-                                          item.Name:lower():match("cutter") or 
-                                          item.Name:lower():match("collect") or
-                                          item.Name:lower():match("sickle") or
-                                          item.Name:lower():match("scythe")) then
-                    harvestTool = item
-                    break
-                end
-            end
-        end
-        
-        -- If we found a harvest tool, use it
-        if harvestTool then
-            local success, result = ActionWithRetry(function()
-                -- Ensure we're looking at the planting area
-                local lookAt = (area.Position - HumanoidRootPart.Position).Unit
-                HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, HumanoidRootPart.Position + lookAt)
-                
-                -- Equip the tool if not already equipped
-                if harvestTool.Parent ~= Character then
-                    harvestTool.Parent = Character
-                    wait(0.3)
-                end
-                
-                -- Try different activation patterns
-                for i = 1, 3 do
-                    harvestTool:Activate()
-                    wait(0.3)
-                end
-                
-                -- Return the tool to the backpack
-                wait(0.3)
-                harvestTool.Parent = Player.Backpack
-                return true
-            end, RETRY_COUNT + 2, RETRY_DELAY) -- More retries for tool usage
-            
-            if success then
-                harvestedAny = true
-            end
-        end
-        
-        -- APPROACH 4: Simulate clicks on the area
-        local success, result = ActionWithRetry(function()
-            -- Aim at the area
-            local targetPosition = area.Position
-            local cameraPosition = workspace.CurrentCamera.CFrame.Position
-            local aimCFrame = CFrame.new(cameraPosition, targetPosition)
-            workspace.CurrentCamera.CFrame = aimCFrame
-            
-            -- Use virtual input system to click
-            VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-            wait(0.1)
-            VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-            
-            wait(0.5) -- Wait to see if anything happened
-            return true
-        end, 2, RETRY_DELAY) -- Just a couple tries for clicking
-    end
-    
-    if harvestedAny then
-        return true, "Successfully harvested from " .. attemptedAreas .. " areas"
-    else
-        return false, "Attempted but failed to harvest from " .. attemptedAreas .. " areas"
-    end
+    return object
 end
 
-function Farming.Water()
-    -- Find all planting areas that might need watering
-    local areasToWater = {}
-    local foundAny = false
+local function SetupPlayerESP(player)
+    if player == LocalPlayer then return end
     
-    -- First look for plants that specifically need water (by appearance or property)
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if (obj.Name:lower():match("plant") or obj.Name:lower():match("crop") or 
-            obj.Name:lower():match("plot") or obj.Name:lower():match("farm") or
-            obj.Name:lower():match("garden")) and
-           (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            
-            local primaryPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-            if primaryPart then
-                local distance = (HumanoidRootPart.Position - primaryPart.Position).Magnitude
-                
-                -- Check if this plant has a water level property or appears dry
-                local needsWater = false
-                
-                -- Check for properties that might indicate water level
-                if obj:FindFirstChild("WaterLevel") or obj:FindFirstChild("Watered") or 
-                   obj:FindFirstChild("NeedsWater") or obj:FindFirstChild("Thirsty") then
-                    needsWater = true
-                end
-                
-                -- Even if we didn't determine it needs water, still add it as a candidate
-                -- with a slightly lower priority - we'll try all plants anyway
-                foundAny = true
-                table.insert(areasToWater, {
-                    part = primaryPart,
-                    distance = distance,
-                    priority = needsWater and 10 or 5 -- Higher priority for plants that need water
-                })
-            end
-        end
-    end
-    
-    -- If we didn't find any specific plants, fall back to regular planting areas
-    if #areasToWater == 0 then
-        local plantingArea, distance = GetClosestPlantingArea()
-        if plantingArea then
-            table.insert(areasToWater, {
-                part = plantingArea,
-                distance = distance,
-                priority = 1 -- Low priority as it's just a fallback
-            })
-            foundAny = true
-        end
-    end
-    
-    if #areasToWater == 0 then
-        return false, "No plants or planting areas found to water"
-    end
-    
-    -- Sort by priority first, then by distance
-    table.sort(areasToWater, function(a, b) 
-        if a.priority == b.priority then
-            return a.distance < b.distance
-        else
-            return a.priority > b.priority
-        end
-    end)
-    
-    -- Try to find the watering tool first before we start teleporting around
-    local waterTool = nil
-    
-    -- First check equipped tool
-    local equippedTool = Character:FindFirstChildOfClass("Tool")
-    if equippedTool and (equippedTool.Name:lower():match("water") or 
-                        equippedTool.Name:lower():match("can") or 
-                        equippedTool.Name:lower():match("sprinkler") or
-                        equippedTool.Name:lower():match("hydrate")) then
-        waterTool = equippedTool
-    end
-    
-    -- Then check backpack
-    if not waterTool then
-        for _, item in pairs(Player.Backpack:GetChildren()) do
-            if item:IsA("Tool") and (item.Name:lower():match("water") or 
-                                      item.Name:lower():match("can") or 
-                                      item.Name:lower():match("sprinkler") or
-                                      item.Name:lower():match("hydrate")) then
-                waterTool = item
-                break
-            end
-        end
-    end
-    
-    -- Limit to the 5 most probable areas to save time
-    local maxAttempts = math.min(5, #areasToWater)
-    local wateredAny = false
-    local attemptedAreas = 0
-    
-    for i = 1, maxAttempts do
-        local area = areasToWater[i].part
-        local distance = areasToWater[i].distance
-        
-        -- Try to get close to the area
-        if distance > 5 then
-            -- Find a safe position near the area
-            local rayParams = RaycastParams.new()
-            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-            rayParams.FilterDescendantsInstances = {Character}
-            
-            local targetPos = area.Position + Vector3.new(0, 3, 0)
-            local rayResult = workspace:Raycast(targetPos + Vector3.new(0, 10, 0), Vector3.new(0, -20, 0), rayParams)
-            
-            if rayResult and rayResult.Position then
-                targetPos = rayResult.Position + Vector3.new(0, 3, 0)
-            end
-            
-            TeleportTo(targetPos)
-            wait(0.3) -- Wait for teleport to complete
-        end
-        
-        attemptedAreas = attemptedAreas + 1
-        
-        -- APPROACH 1: Try direct remote invocation first
-        if Remotes.Water then
-            local success, result = ActionWithRetry(function()
-                return Remotes.Water:FireServer(area)
-            end, RETRY_COUNT, RETRY_DELAY)
-            
-            if success then
-                wateredAny = true
-                continue
-            end
-        end
-        
-        -- APPROACH 2: Use RemoteFunction/RemoteEvent from hierarchy
-        local waterRemotes = {}
-        for _, instance in pairs(game:GetDescendants()) do
-            if instance:IsA("RemoteFunction") or instance:IsA("RemoteEvent") then
-                if instance.Name:lower():match("water") or instance.Name:lower():match("hydrate") or
-                   instance.Name:lower():match("irrigate") or instance.Name:lower():match("sprinkle") then
-                    table.insert(waterRemotes, instance)
-                end
-            end
-        end
-        
-        for _, remote in pairs(waterRemotes) do
-            local success, result = pcall(function()
-                if remote:IsA("RemoteEvent") then
-                    remote:FireServer(area)
-                else
-                    remote:InvokeServer(area)
-                end
-                return true
-            end)
-            
-            if success then
-                Remotes.Water = remote -- Save for future use
-                wateredAny = true
-                wait(0.5) -- Wait to see if it worked
-                break
-            end
-        end
-        
-        -- APPROACH 3: Tool-based watering
-        if waterTool then
-            local success, result = ActionWithRetry(function()
-                -- Ensure we're looking at the area
-                local lookAt = (area.Position - HumanoidRootPart.Position).Unit
-                HumanoidRootPart.CFrame = CFrame.new(HumanoidRootPart.Position, HumanoidRootPart.Position + lookAt)
-                
-                -- Equip the tool if not already equipped
-                if waterTool.Parent ~= Character then
-                    waterTool.Parent = Character
-                    wait(0.3)
-                end
-                
-                -- Try different activation patterns
-                for i = 1, 3 do
-                    waterTool:Activate()
-                    wait(0.3)
-                end
-                
-                -- Return the tool to the backpack
-                wait(0.3)
-                waterTool.Parent = Player.Backpack
-                return true
-            end, RETRY_COUNT + 2, RETRY_DELAY) -- More retries for tool usage
-            
-            if success then
-                wateredAny = true
-            end
-        end
-        
-        -- APPROACH 4: Simulate clicks on the area
-        local success, result = ActionWithRetry(function()
-            -- Aim at the area
-            local targetPosition = area.Position
-            local cameraPosition = workspace.CurrentCamera.CFrame.Position
-            local aimCFrame = CFrame.new(cameraPosition, targetPosition)
-            workspace.CurrentCamera.CFrame = aimCFrame
-            
-            -- Use virtual input system to click
-            VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-            wait(0.1)
-            VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-            
-            wait(0.5) -- Wait to see if anything happened
-            return true
-        end, 2, RETRY_DELAY) -- Just a couple tries for clicking
-    end
-    
-    if wateredAny then
-        return true, "Successfully watered plants in " .. attemptedAreas .. " areas"
-    else
-        return false, "Attempted but failed to water plants in " .. attemptedAreas .. " areas"
-    end
-end
-
--- Collection Module
-local Collection = {}
-
-function Collection.CollectNearbyItems()
-    local itemsCollected = 0
-    local foundAny = false
-    
-    -- Define patterns for identifying collectible items
-    local collectibleNamePatterns = {
-        "collect", "reward", "pickup", "loot", "drop", "gem", "coin", "token",
-        "seed", "fruit", "vegetable", "crop", "harvest", "resource", "material"
+    ESPObjects[player] = {
+        Name = CreateDrawingObject("Text", {
+            Text = player.Name,
+            Size = Config.Visuals.TextSize,
+            Center = true,
+            Outline = Config.Visuals.TextOutline,
+            Color = Config.Players.NameColor,
+            Transparency = 1
+        }),
+        Box = CreateDrawingObject("Square", {
+            Thickness = 1,
+            Filled = false,
+            Color = GetPlayerColor(player),
+            Transparency = Config.Visuals.Transparency
+        }),
+        BoxFill = CreateDrawingObject("Square", {
+            Thickness = 1,
+            Filled = true,
+            Color = GetPlayerColor(player),
+            Transparency = Config.Visuals.Transparency * 0.3
+        }),
+        BoxOutline = CreateDrawingObject("Square", {
+            Thickness = 3,
+            Filled = false,
+            Color = Color3.fromRGB(0, 0, 0),
+            Transparency = Config.Visuals.Transparency * 0.5
+        }),
+        Tracer = CreateDrawingObject("Line", {
+            Thickness = 1,
+            Color = Config.Players.TracerColor,
+            Transparency = Config.Visuals.Transparency
+        }),
+        TracerOutline = CreateDrawingObject("Line", {
+            Thickness = 3,
+            Color = Color3.fromRGB(0, 0, 0),
+            Transparency = Config.Visuals.Transparency * 0.5
+        }),
+        HealthBar = CreateDrawingObject("Square", {
+            Thickness = 1,
+            Filled = true,
+            Color = Color3.fromRGB(0, 255, 0),
+            Transparency = Config.Visuals.Transparency
+        }),
+        HealthBarOutline = CreateDrawingObject("Square", {
+            Thickness = 1,
+            Filled = false,
+            Color = Color3.fromRGB(0, 0, 0),
+            Transparency = Config.Visuals.Transparency
+        }),
+        Distance = CreateDrawingObject("Text", {
+            Size = Config.Visuals.TextSize,
+            Center = true,
+            Outline = Config.Visuals.TextOutline,
+            Color = Color3.fromRGB(255, 255, 255),
+            Transparency = 1
+        })
     }
     
-    -- Advanced collector using spatial partitioning (sectors)
-    local function CollectInRadius(position, radius)
-        local collected = 0
-        local collectedItems = {}
-        
-        -- Create sectors for better organization and collection
-        local sectors = {}
-        local sectorSize = 10 -- Size of each sector
-        
-        -- First pass: Organize items into sectors
-        for _, obj in pairs(workspace:GetDescendants()) do
-            -- Check if it's likely a collectible by name pattern
-            local isCollectible = false
-            local objNameLower = obj.Name:lower()
-            
-            for _, pattern in ipairs(collectibleNamePatterns) do
-                if objNameLower:match(pattern) then
-                    isCollectible = true
-                    break
-                end
-            end
-            
-            -- Check by appearance/size for small objects (likely collectibles)
-            if not isCollectible and (obj:IsA("Part") or obj:IsA("MeshPart")) then
-                -- Small objects are often collectibles
-                local size = obj.Size
-                if size.Magnitude < 5 then -- Small objects
-                    isCollectible = true
-                end
-            end
-            
-            if isCollectible and (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-                local primaryPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                if primaryPart then
-                    local objPos = primaryPart.Position
-                    local distance = (position - objPos).Magnitude
-                    
-                    if distance <= radius then
-                        foundAny = true -- Mark that we found collectibles
-                        
-                        -- Assign to a sector based on position
-                        local sectorX = math.floor(objPos.X / sectorSize)
-                        local sectorY = math.floor(objPos.Y / sectorSize)
-                        local sectorZ = math.floor(objPos.Z / sectorSize)
-                        local sectorKey = sectorX .. "," .. sectorY .. "," .. sectorZ
-                        
-                        if not sectors[sectorKey] then
-                            sectors[sectorKey] = {}
-                        end
-                        
-                        table.insert(sectors[sectorKey], {
-                            object = obj,
-                            part = primaryPart,
-                            position = objPos,
-                            distance = distance
-                        })
-                    end
-                end
-            end
+    return ESPObjects[player]
+end
+
+local function RemovePlayerESP(player)
+    if ESPObjects[player] then
+        for _, object in pairs(ESPObjects[player]) do
+            object:Remove()
         end
-        
-        -- Second pass: Collect items by sector (closer sectors first)
-        local sectorList = {}
-        for key, items in pairs(sectors) do
-            local x, y, z = key:match("([^,]+),([^,]+),([^,]+)")
-            local sectorPos = Vector3.new(
-                (tonumber(x) + 0.5) * sectorSize,
-                (tonumber(y) + 0.5) * sectorSize,
-                (tonumber(z) + 0.5) * sectorSize
-            )
-            
-            local sectorDistance = (position - sectorPos).Magnitude
-            table.insert(sectorList, {
-                key = key,
-                distance = sectorDistance
-            })
-        end
-        
-        -- Sort sectors by distance
-        table.sort(sectorList, function(a, b) return a.distance < b.distance end)
-        
-        -- Process sectors in order
-        for _, sectorInfo in ipairs(sectorList) do
-            local sectorItems = sectors[sectorInfo.key]
-            
-            -- Sort items in sector by distance
-            table.sort(sectorItems, function(a, b) return a.distance < b.distance end)
-            
-            -- Collect items in this sector
-            for _, item in ipairs(sectorItems) do
-                -- Skip if we've already collected this object
-                if collectedItems[item.object] then
-                    continue
-                end
-                
-                -- Try various collection methods
-                local wasCollected = false
-                
-                -- Method 1: Remote events for collection
-                for _, instance in pairs(game:GetDescendants()) do
-                    if (instance:IsA("RemoteEvent") or instance:IsA("RemoteFunction")) and
-                       (instance.Name:lower():match("collect") or instance.Name:lower():match("pickup") or
-                        instance.Name:lower():match("grab") or instance.Name:lower():match("loot")) then
-                        
-                        local success = pcall(function()
-                            if instance:IsA("RemoteEvent") then
-                                instance:FireServer(item.object)
-                            else
-                                instance:InvokeServer(item.object)
-                            end
-                        end)
-                        
-                        if success then
-                            Remotes.Collect = instance -- Save for future use
-                            wait(0.1) -- Short wait to see if it worked
-                            wasCollected = true
-                            break
-                        end
-                    end
-                end
-                
-                -- Method 2: Proximity collection (touching)
-                if not wasCollected then
-                    local originalPosition = HumanoidRootPart.Position
-                    TeleportTo(item.position)
-                    wait(0.2)
-                    
-                    -- Check if item was collected (disappeared)
-                    wasCollected = not item.part:IsDescendantOf(workspace)
-                    
-                    -- If we've collected many items nearby, don't teleport back
-                    if collected < 5 then
-                        TeleportTo(originalPosition)
-                        wait(0.1)
-                    end
-                end
-                
-                -- Method 3: Click interaction
-                if not wasCollected then
-                    -- Aim at the object
-                    local objectPosition = item.position
-                    local cameraPosition = workspace.CurrentCamera.CFrame.Position
-                    local aimCFrame = CFrame.new(cameraPosition, objectPosition)
-                    workspace.CurrentCamera.CFrame = aimCFrame
-                    
-                    -- Click on it
-                    VirtualUser:Button1Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-                    wait(0.1)
-                    VirtualUser:Button1Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
-                    
-                    wait(0.3) -- Wait to see if it worked
-                    wasCollected = not item.part:IsDescendantOf(workspace)
-                end
-                
-                if wasCollected then
-                    collected = collected + 1
-                    collectedItems[item.object] = true
-                end
-                
-                -- Add a small delay between collections to avoid overwhelming the server
-                wait(0.05)
-            end
-        end
-        
-        return collected
+        ESPObjects[player] = nil
     end
+end
+
+local function SetupItemESP(item, name, color)
+    if DrawnItems[item] then return DrawnItems[item] end
     
-    -- Collect in increasing radius bands for efficiency
-    local playerPos = HumanoidRootPart.Position
-    itemsCollected = CollectInRadius(playerPos, 50) -- Start with nearby items
+    DrawnItems[item] = {
+        Name = CreateDrawingObject("Text", {
+            Text = name,
+            Size = Config.Visuals.TextSize,
+            Center = true,
+            Outline = Config.Visuals.TextOutline,
+            Color = color or Config.Objects.ItemColor,
+            Transparency = 1
+        }),
+        Distance = CreateDrawingObject("Text", {
+            Size = Config.Visuals.TextSize - 2,
+            Center = true,
+            Outline = Config.Visuals.TextOutline,
+            Color = Color3.fromRGB(255, 255, 255),
+            Transparency = 1
+        })
+    }
     
-    -- If we have a dedicated collection remote, use it to sweep the area
-    if Remotes.Collect and Config.CollectionRadius and Config.CollectionRadius > 0 then
-        local success, result = pcall(function()
-            if Remotes.Collect:IsA("RemoteEvent") then
-                Remotes.Collect:FireServer(Config.CollectionRadius)
+    return DrawnItems[item]
+end
+
+local function RemoveItemESP(item)
+    if DrawnItems[item] then
+        for _, object in pairs(DrawnItems[item]) do
+            object:Remove()
+        end
+        DrawnItems[item] = nil
+    end
+end
+
+local function UpdatePlayerESP()
+    for player, objects in pairs(ESPObjects) do
+        if player and player:IsA("Player") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
+            local humanoid = player.Character:FindFirstChild("Humanoid")
+            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
+            local head = player.Character:FindFirstChild("Head")
+            if not rootPart or not humanoid then continue end
+            
+            local distance = CalculateDistance(rootPart.Position)
+            if distance > Config.Players.MaxDistance then
+                for _, object in pairs(objects) do
+                    object.Visible = false
+                end
+                continue
+            end
+            
+            if Config.Players.TeamCheck and player.Team == LocalPlayer.Team then
+                for _, object in pairs(objects) do
+                    object.Visible = false
+                end
+                continue
+            end
+            
+            -- Determine if player is visible on screen
+            local rootPos = rootPart.Position
+            local screenPos, onScreen = Camera:WorldToScreenPoint(rootPos)
+            if not onScreen then
+                for _, object in pairs(objects) do
+                    object.Visible = false
+                end
+                continue
+            end
+            
+            -- Calculate box size based on distance
+            local sizeMultiplier = 1 / (distance * 0.2)
+            sizeMultiplier = math.clamp(sizeMultiplier, 0.1, 0.75) 
+            
+            local size = Vector2.new(35, 50) * sizeMultiplier
+            local position = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
+            
+            -- Update box
+            objects.Box.Size = size
+            objects.Box.Position = position
+            objects.Box.Visible = Config.Players.ShowBoxes
+            objects.Box.Color = GetPlayerColor(player)
+            
+            -- Update box fill
+            objects.BoxFill.Size = size
+            objects.BoxFill.Position = position
+            objects.BoxFill.Visible = Config.Players.ShowBoxes
+            objects.BoxFill.Color = GetPlayerColor(player)
+            
+            -- Update box outline
+            if Config.Visuals.BoxesOutline then
+                objects.BoxOutline.Size = size
+                objects.BoxOutline.Position = position
+                objects.BoxOutline.Visible = Config.Players.ShowBoxes
             else
-                Remotes.Collect:InvokeServer(Config.CollectionRadius)
+                objects.BoxOutline.Visible = false
             end
-        end)
-    end
-    
-    if itemsCollected > 0 then
-        return true, "Collected " .. itemsCollected .. " items"
-    elseif foundAny then
-        return false, "Found items but couldn't collect them"
-    else
-        return false, "No collectible items found nearby"
+            
+            -- Update name text
+            if Config.Players.ShowName then
+                objects.Name.Text = player.Name
+                objects.Name.Position = Vector2.new(screenPos.X, position.Y - 15)
+                objects.Name.Visible = true
+            else
+                objects.Name.Visible = false
+            end
+            
+            -- Update distance text
+            if Config.Players.ShowDistance then
+                objects.Distance.Text = string.format("[%d m]", math.floor(distance))
+                objects.Distance.Position = Vector2.new(screenPos.X, position.Y + size.Y + 5)
+                objects.Distance.Visible = true
+            else
+                objects.Distance.Visible = false
+            end
+            
+            -- Update health bar
+            if Config.Players.ShowHealth and humanoid then
+                local healthPercent = humanoid.Health / humanoid.MaxHealth
+                local barHeight = size.Y * healthPercent
+                
+                objects.HealthBarOutline.Size = Vector2.new(4, size.Y + 2)
+                objects.HealthBarOutline.Position = Vector2.new(position.X - 7, position.Y - 1)
+                objects.HealthBarOutline.Visible = true
+                
+                objects.HealthBar.Size = Vector2.new(2, barHeight)
+                objects.HealthBar.Position = Vector2.new(position.X - 6, position.Y + (size.Y - barHeight))
+                objects.HealthBar.Visible = true
+                
+                -- Update health bar color based on health percentage
+                objects.HealthBar.Color = Color3.fromRGB(
+                    255 * (1 - healthPercent),
+                    255 * healthPercent,
+                    0
+                )
+            else
+                objects.HealthBar.Visible = false
+                objects.HealthBarOutline.Visible = false
+            end
+            
+            -- Update tracers
+            if Config.Players.ShowTracers then
+                local tracerStart
+                if Config.Visuals.TracerOrigin == "Bottom" then
+                    tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                elseif Config.Visuals.TracerOrigin == "Center" then
+                    tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                elseif Config.Visuals.TracerOrigin == "Mouse" then
+                    tracerStart = UserInputService:GetMouseLocation()
+                end
+                
+                objects.TracerOutline.From = tracerStart
+                objects.TracerOutline.To = Vector2.new(screenPos.X, screenPos.Y)
+                objects.TracerOutline.Visible = true
+                
+                objects.Tracer.From = tracerStart
+                objects.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+                objects.Tracer.Color = GetPlayerColor(player)
+                objects.Tracer.Visible = true
+            else
+                objects.Tracer.Visible = false
+                objects.TracerOutline.Visible = false
+            end
+        else
+            for _, object in pairs(objects) do
+                object.Visible = false
+            end
+        end
     end
 end
 
--- Upgrade Module
-local Upgrade = {}
-
-function Upgrade.TryUpgradeTool()
-    -- Try direct remote invocation first
-    if Remotes.Upgrade then
-        local success, result = ActionWithRetry(function()
-            -- Try to upgrade each tool
-            for _, toolName in pairs(Tools) do
-                Remotes.Upgrade:FireServer(toolName)
-                wait(0.2)
-            end
-            return true
-        end, RETRY_COUNT, RETRY_DELAY)
+local function UpdateItemsESP()
+    for item, objects in pairs(DrawnItems) do
+        if not item or not item:IsA("BasePart") or not item.Parent then
+            RemoveItemESP(item)
+            continue
+        end
         
-        if success then
-            return true, "Attempted to upgrade tools using remote"
+        local distance = CalculateDistance(item.Position)
+        if distance > Config.Objects.MaxDistance then
+            for _, object in pairs(objects) do
+                object.Visible = false
+            end
+            continue
+        end
+        
+        local screenPos, onScreen = Camera:WorldToScreenPoint(item.Position)
+        if not onScreen then
+            for _, object in pairs(objects) do
+                object.Visible = false
+            end
+            continue
+        end
+        
+        -- Update name text
+        objects.Name.Position = Vector2.new(screenPos.X, screenPos.Y - 15)
+        objects.Name.Visible = true
+        
+        -- Update distance text
+        if Config.Objects.ShowDistance then
+            objects.Distance.Text = string.format("[%d m]", math.floor(distance))
+            objects.Distance.Position = Vector2.new(screenPos.X, screenPos.Y + 5)
+            objects.Distance.Visible = true
+        else
+            objects.Distance.Visible = false
         end
     end
-    
-    -- Fallback: Interface-based upgrading
-    local upgradeGUI = Player.PlayerGui:FindFirstChild("UpgradeGUI") or Player.PlayerGui:FindFirstChild("ShopGUI")
-    if upgradeGUI then
-        local upgradeButtons = {}
-        for _, obj in pairs(upgradeGUI:GetDescendants()) do
-            if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and 
-               (obj.Name:lower():match("upgrade") or obj.Name:lower():match("buy") or obj.Name:lower():match("purchase")) then
-                table.insert(upgradeButtons, obj)
+end
+
+-- Main ESP update function
+local function UpdateESP()
+    if not Config.Enabled then
+        for _, objects in pairs(ESPObjects) do
+            for _, object in pairs(objects) do
+                object.Visible = false
             end
         end
         
-        local clickedAny = false
-        for _, button in pairs(upgradeButtons) do
-            -- Simulate clicking upgrade buttons
-            firesignal(button.MouseButton1Click)
-            wait(0.3)
-            clickedAny = true
+        for _, objects in pairs(DrawnItems) do
+            for _, object in pairs(objects) do
+                object.Visible = false
+            end
         end
-        
-        if clickedAny then
-            return true, "Attempted to upgrade using GUI buttons"
-        end
-    end
-    
-    return false, "No upgrade method found"
-end
-
--- ESP Module
-local ESP = {}
-
-function ESP.CreateHighlight(obj, color)
-    local highlight = Instance.new("Highlight")
-    highlight.FillColor = color
-    highlight.OutlineColor = color
-    highlight.FillTransparency = 0.5
-    highlight.OutlineTransparency = 0
-    highlight.Adornee = obj
-    highlight.Parent = obj
-    
-    return highlight
-end
-
-function ESP.SetupESP()
-    -- Clear existing ESP
-    ESP.ClearESP()
-    
-    -- If ESP is disabled, stop here
-    if not Config.ESP.Enabled then
         return
     end
     
-    -- Apply ESP to rare plants
-    if Config.ESP.RarePlants then
-        for _, plant in pairs(RewardsAndItems) do
-            if plant:IsA("Model") or plant:IsA("Part") or plant:IsA("MeshPart") then
-                local highlight = ESP.CreateHighlight(plant, Color3.fromRGB(255, 215, 0)) -- Gold color for rare items
-                table.insert(ESPObjects, highlight)
-                
-                -- Add distance label if configured
-                if Config.ESP.Distance then
-                    local billboardGui = Instance.new("BillboardGui")
-                    billboardGui.Adornee = plant:IsA("Model") and plant.PrimaryPart or plant
-                    billboardGui.Size = UDim2.new(0, 200, 0, 50)
-                    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
-                    billboardGui.AlwaysOnTop = true
-                    
-                    local distanceLabel = Instance.new("TextLabel")
-                    distanceLabel.BackgroundTransparency = 1
-                    distanceLabel.Size = UDim2.new(1, 0, 1, 0)
-                    distanceLabel.Font = Enum.Font.GothamBold
-                    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    distanceLabel.TextStrokeTransparency = 0
-                    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                    distanceLabel.TextSize = 14
-                    distanceLabel.Parent = billboardGui
-                    
-                    RunService:BindToRenderStep("UpdateDistance" .. plant:GetFullName(), Enum.RenderPriority.Camera.Value, function()
-                        if plant:IsDescendantOf(workspace) and HumanoidRootPart and plant then
-                            local targetPart = plant:IsA("Model") and (plant.PrimaryPart or plant:FindFirstChildWhichIsA("BasePart")) or plant
-                            if targetPart then
-                                local distance = (HumanoidRootPart.Position - targetPart.Position).Magnitude
-                                distanceLabel.Text = string.format("%.1f studs", distance)
-                            end
-                        else
-                            RunService:UnbindFromRenderStep("UpdateDistance" .. plant:GetFullName())
-                            billboardGui:Destroy()
-                        end
-                    end)
-                    
-                    billboardGui.Parent = game:GetService("CoreGui")
-                    table.insert(ESPObjects, billboardGui)
-                end
+    if Config.Players.Enabled then
+        UpdatePlayerESP()
+    else
+        for _, objects in pairs(ESPObjects) do
+            for _, object in pairs(objects) do
+                object.Visible = false
             end
         end
     end
     
-    -- Apply ESP to collectible items
-    if Config.ESP.Items then
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():match("collect") or obj.Name:lower():match("reward") or obj.Name:lower():match("pickup") or obj.Name:lower():match("coin") or obj.Name:lower():match("seed")) and 
-                (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-                
-                local highlight = ESP.CreateHighlight(obj, Color3.fromRGB(0, 255, 255)) -- Cyan color for collectibles
-                table.insert(ESPObjects, highlight)
-                
-                -- Add distance label if configured (similar code as above)
-                if Config.ESP.Distance then
-                    local billboardGui = Instance.new("BillboardGui")
-                    billboardGui.Adornee = obj:IsA("Model") and obj.PrimaryPart or obj
-                    billboardGui.Size = UDim2.new(0, 200, 0, 50)
-                    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
-                    billboardGui.AlwaysOnTop = true
-                    
-                    local distanceLabel = Instance.new("TextLabel")
-                    distanceLabel.BackgroundTransparency = 1
-                    distanceLabel.Size = UDim2.new(1, 0, 1, 0)
-                    distanceLabel.Font = Enum.Font.GothamBold
-                    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    distanceLabel.TextStrokeTransparency = 0
-                    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                    distanceLabel.TextSize = 14
-                    distanceLabel.Parent = billboardGui
-                    
-                    RunService:BindToRenderStep("UpdateDistance" .. obj:GetFullName(), Enum.RenderPriority.Camera.Value, function()
-                        if obj:IsDescendantOf(workspace) and HumanoidRootPart and obj then
-                            local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                            if targetPart then
-                                local distance = (HumanoidRootPart.Position - targetPart.Position).Magnitude
-                                distanceLabel.Text = string.format("%.1f studs", distance)
-                            end
-                        else
-                            RunService:UnbindFromRenderStep("UpdateDistance" .. obj:GetFullName())
-                            billboardGui:Destroy()
-                        end
-                    end)
-                    
-                    billboardGui.Parent = game:GetService("CoreGui")
-                    table.insert(ESPObjects, billboardGui)
-                end
+    if Config.Objects.Enabled then
+        UpdateItemsESP()
+    else
+        for _, objects in pairs(DrawnItems) do
+            for _, object in pairs(objects) do
+                object.Visible = false
             end
         end
     end
 end
 
-function ESP.ClearESP()
-    for _, obj in pairs(ESPObjects) do
-        if obj and obj.Parent then
-            obj:Destroy()
+-- Player addition and removal handling
+for _, player in ipairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        SetupPlayerESP(player)
+    end
+end
+
+Players.PlayerAdded:Connect(function(player)
+    if player ~= LocalPlayer then
+        SetupPlayerESP(player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    RemovePlayerESP(player)
+end)
+
+-- Item scanning function
+local function ScanForItems()
+    if not Config.Objects.Enabled then return end
+    
+    -- For this demo, we'll look for certain items in the workspace
+    -- Real implementation should be customized for the specific game
+    for _, item in pairs(Config.Objects.Items) do
+        local parts = workspace:FindPartsInRegion3WithWhiteList(
+            Region3.new(
+                Vector3.new(-10000, -10000, -10000),
+                Vector3.new(10000, 10000, 10000)
+            ),
+            {item.Part},
+            100
+        )
+        
+        for _, part in ipairs(parts) do
+            if part:IsA("BasePart") then
+                SetupItemESP(part, item.Name, item.Color)
+            end
         end
+    end
+end
+
+-- Item scanning periodic check
+local ItemScanConnection = nil
+
+-- UI BUILDING SECTION
+
+-- Main ESP Toggle
+local MainToggle = MainTab:CreateToggle({
+    Name = "Enable ESP",
+    CurrentValue = false,
+    Callback = function(Value)
+        Config.Enabled = Value
+        if Value then
+            Luna:Notification({ 
+                Title = "ESP System",
+                Content = "ESP is now enabled"
+            })
+        else
+            Luna:Notification({ 
+                Title = "ESP System",
+                Content = "ESP is now disabled"
+            })
+        end
+    end
+}, "MainESPToggle")
+
+-- Player ESP Settings
+local PlayerToggle = PlayersTab:CreateToggle({
+    Name = "Player ESP",
+    CurrentValue = false,
+    Callback = function(Value)
+        Config.Players.Enabled = Value
+    end
+}, "PlayerESPToggle")
+
+PlayersTab:CreateToggle({
+    Name = "Show Names",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Players.ShowName = Value
+    end
+}, "ShowNamesToggle")
+
+PlayersTab:CreateToggle({
+    Name = "Show Boxes",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Players.ShowBoxes = Value
+    end
+}, "ShowBoxesToggle")
+
+PlayersTab:CreateToggle({
+    Name = "Show Health",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Players.ShowHealth = Value
+    end
+}, "ShowHealthToggle")
+
+PlayersTab:CreateToggle({
+    Name = "Show Distance",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Players.ShowDistance = Value
+    end
+}, "ShowDistanceToggle")
+
+PlayersTab:CreateToggle({
+    Name = "Show Tracers",
+    CurrentValue = false,
+    Callback = function(Value)
+        Config.Players.ShowTracers = Value
+    end
+}, "ShowTracersToggle")
+
+PlayersTab:CreateDropdown({
+    Name = "Tracer Origin",
+    Options = {"Bottom", "Center", "Mouse"},
+    CurrentOption = "Bottom",
+    MultipleOptions = false,
+    Callback = function(Option)
+        Config.Visuals.TracerOrigin = Option
+    end
+}, "TracerOriginDropdown")
+
+PlayersTab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Players.TeamCheck = Value
+    end
+}, "TeamCheckToggle")
+
+PlayersTab:CreateToggle({
+    Name = "Use Team Color",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Players.TeamColor = Value
+    end
+}, "TeamColorToggle")
+
+PlayersTab:CreateSlider({
+    Name = "Max Distance",
+    Range = {100, 5000},
+    Increment = 100,
+    CurrentValue = 1000,
+    Callback = function(Value)
+        Config.Players.MaxDistance = Value
+    end
+}, "PlayerDistanceSlider")
+
+PlayersTab:CreateColorPicker({
+    Name = "Box Color",
+    Color = Color3.fromRGB(255, 0, 0),
+    Callback = function(Value)
+        Config.Players.BoxColor = Value
+    end
+}, "BoxColorPicker")
+
+PlayersTab:CreateColorPicker({
+    Name = "Tracer Color",
+    Color = Color3.fromRGB(0, 255, 0),
+    Callback = function(Value)
+        Config.Players.TracerColor = Value
+    end
+}, "TracerColorPicker")
+
+PlayersTab:CreateColorPicker({
+    Name = "Name Color",
+    Color = Color3.fromRGB(255, 255, 255),
+    Callback = function(Value)
+        Config.Players.NameColor = Value
+    end
+}, "NameColorPicker")
+
+-- World ESP Settings
+local WorldToggle = WorldTab:CreateToggle({
+    Name = "Item ESP",
+    CurrentValue = false,
+    Callback = function(Value)
+        Config.Objects.Enabled = Value
+        
+        if Value then
+            if not ItemScanConnection then
+                ItemScanConnection = RunService.Heartbeat:Connect(function()
+                    ScanForItems()
+                end)
+            end
+            Luna:Notification({
+                Title = "ESP System",
+                Content = "Item ESP Enabled"
+            })
+        else
+            if ItemScanConnection then
+                ItemScanConnection:Disconnect()
+                ItemScanConnection = nil
+            end
+        end
+    end
+}, "ItemESPToggle")
+
+WorldTab:CreateToggle({
+    Name = "Show Distance",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Objects.ShowDistance = Value
+    end
+}, "ItemDistanceToggle")
+
+WorldTab:CreateSlider({
+    Name = "Max Distance",
+    Range = {100, 2000},
+    Increment = 50,
+    CurrentValue = 500,
+    Callback = function(Value)
+        Config.Objects.MaxDistance = Value
+    end
+}, "ItemDistanceSlider")
+
+WorldTab:CreateColorPicker({
+    Name = "Item Color",
+    Color = Color3.fromRGB(0, 255, 255),
+    Callback = function(Value)
+        Config.Objects.ItemColor = Value
+    end
+}, "ItemColorPicker")
+
+WorldTab:CreateButton({
+    Name = "Add Chests",
+    Callback = function()
+        -- Example: Add chests to the items list
+        table.insert(Config.Objects.Items, {
+            Name = "Chest",
+            Part = workspace:FindFirstChild("Chest") or workspace, -- Replace with actual path in the game
+            Color = Color3.fromRGB(255, 215, 0)
+        })
+        
+        Luna:Notification({
+            Title = "ESP System",
+            Content = "Added Chests to ESP"
+        })
+    end
+})
+
+WorldTab:CreateButton({
+    Name = "Add Collectibles",
+    Callback = function()
+        -- Example: Add collectibles to the items list
+        table.insert(Config.Objects.Items, {
+            Name = "Collectible",
+            Part = workspace:FindFirstChild("Collectible") or workspace, -- Replace with actual path in the game
+            Color = Color3.fromRGB(0, 255, 128)
+        })
+        
+        Luna:Notification({
+            Title = "ESP System",
+            Content = "Added Collectibles to ESP"
+        })
+    end
+})
+
+-- Settings Tab - Visual Settings
+SettingsTab:CreateSlider({
+    Name = "ESP Transparency",
+    Range = {0.1, 1},
+    Increment = 0.05,
+    CurrentValue = 0.5,
+    Callback = function(Value)
+        Config.Visuals.Transparency = Value
+    end
+}, "TransparencySlider")
+
+SettingsTab:CreateSlider({
+    Name = "Text Size",
+    Range = {10, 24},
+    Increment = 1,
+    CurrentValue = 14,
+    Callback = function(Value)
+        Config.Visuals.TextSize = Value
+    end
+}, "TextSizeSlider")
+
+SettingsTab:CreateToggle({
+    Name = "Text Outline",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Visuals.TextOutline = Value
+    end
+}, "TextOutlineToggle")
+
+SettingsTab:CreateToggle({
+    Name = "Box Outline",
+    CurrentValue = true,
+    Callback = function(Value)
+        Config.Visuals.BoxesOutline = Value
+    end
+}, "BoxOutlineToggle")
+
+-- Settings Tab - Config Section
+SettingsTab:CreateButton({
+    Name = "Reset Settings",
+    Callback = function()
+        -- Reset all settings to default
+        Config = {
+            Enabled = false,
+            Players = {
+                Enabled = false,
+                ShowName = true,
+                ShowDistance = true,
+                ShowHealth = true,
+                ShowBoxes = true,
+                ShowTracers = false,
+                NameColor = Color3.fromRGB(255, 255, 255),
+                BoxColor = Color3.fromRGB(255, 0, 0),
+                TracerColor = Color3.fromRGB(0, 255, 0),
+                TeamCheck = true,
+                TeamColor = true,
+                MaxDistance = 1000
+            },
+            Objects = {
+                Enabled = false,
+                Items = {},
+                ItemColor = Color3.fromRGB(0, 255, 255),
+                ShowDistance = true,
+                MaxDistance = 500
+            },
+            Visuals = {
+                Transparency = 0.5,
+                TextSize = 14,
+                TextOutline = true,
+                BoxesOutline = true,
+                TracerOrigin = "Bottom"
+            }
+        }
+        
+        -- Update toggles and sliders to match reset settings
+        MainToggle:Set({CurrentValue = false})
+        PlayerToggle:Set({CurrentValue = false})
+        WorldToggle:Set({CurrentValue = false})
+        
+        Luna:Notification({
+            Title = "ESP System",
+            Content = "Settings Reset to Default"
+        })
+    end
+})
+
+-- Start ESP update loop
+RunService:BindToRenderStep("ESP_Update", 201, UpdateESP)
+
+-- Notification when script loads
+Luna:Notification({
+    Title = "SkyX ESP System",
+    Content = "ESP System loaded successfully!"
+})
+
+-- Clean up on script unload
+local Cleanup = Instance.new("BindableEvent")
+Cleanup.Event:Connect(function()
+    RunService:UnbindFromRenderStep("ESP_Update")
+    
+    for _, objects in pairs(ESPObjects) do
+        for _, object in pairs(objects) do
+            object:Remove()
+        end
+    end
+    
+    for _, objects in pairs(DrawnItems) do
+        for _, object in pairs(objects) do
+            object:Remove()
+        end
+    end
+    
+    if ItemScanConnection then
+        ItemScanConnection:Disconnect()
     end
     
     ESPObjects = {}
+    DrawnItems = {}
+    Config = {}
     
-    -- Unbind any render steps
-    for _, name in pairs({"UpdateDistance"}) do
-        pcall(function()
-            RunService:UnbindFromRenderStep(name)
-        end)
-    end
-end
-
--- Initialize the script and analysis
-local success, analysis = AnalyzeGameFramework()
-
--- ========================================================================
--- CUSTOM UI IMPLEMENTATION
--- ========================================================================
-
--- UI Settings
-local UI = {
-    Theme = {
-        Primary = Color3.fromRGB(20, 20, 30),      -- Main background (darker)
-        Secondary = Color3.fromRGB(30, 30, 45),    -- Section backgrounds 
-        Accent = Color3.fromRGB(65, 105, 225),     -- Accent color (Royal Blue)
-        Text = Color3.fromRGB(240, 240, 250),      -- Text color
-        TextDark = Color3.fromRGB(180, 180, 200),  -- Secondary text
-        Outline = Color3.fromRGB(50, 50, 75),      -- Outline color
-        Success = Color3.fromRGB(80, 180, 120),    -- Success color
-        Warning = Color3.fromRGB(230, 180, 80),    -- Warning color
-        Error = Color3.fromRGB(200, 80, 80)        -- Error color
-    },
-    Font = Enum.Font.GothamBold,
-    TextSize = 14,
-    CornerRadius = 5,                          -- Smaller corner radius
-    Padding = 6,                               -- Smaller padding
-    IconSize = 20,                             -- Smaller icons
-    ButtonHeight = 26,                         -- Shorter buttons
-    ToggleSize = 20,                           -- Smaller toggles
-    SliderHeight = 12,                         -- Thinner slider
-    TabHeight = 30,                            -- Shorter tab bar
-    SectionSpacing = 8,                        -- Less space between sections
-    WindowWidth = 300,                         -- Narrower window
-    Visible = true,
-    CurrentTab = "Main",
-    Tabs = {}
-}
-
--- Cleanup function to destroy UI elements
-local function CleanupUI()
-    -- Find and destroy existing UI with the same name
-    pcall(function()
-        -- Try CoreGui first
-        for _, gui in pairs(CoreGui:GetChildren()) do
-            if gui.Name == "SkyX_Garden_UI" then
-                gui:Destroy()
-            end
-        end
-    end)
-    
-    -- Also check PlayerGui
-    pcall(function()
-        for _, gui in pairs(Player.PlayerGui:GetChildren()) do
-            if gui.Name == "SkyX_Garden_UI" then
-                gui:Destroy()
-            end
-        end
-    end)
-    
-    -- Check for notification GUI as well
-    pcall(function()
-        for _, gui in pairs(CoreGui:GetChildren()) do
-            if gui.Name == "SkyX_Notifications" then
-                gui:Destroy()
-            end
-        end
-    end)
-    
-    pcall(function()
-        for _, gui in pairs(Player.PlayerGui:GetChildren()) do
-            if gui.Name == "SkyX_Notifications" then
-                gui:Destroy()
-            end
-        end
-    end)
-end
-
--- Create notification system
-local NotificationSystem = {}
-
-function NotificationSystem:Init()
-    self.Container = Instance.new("ScreenGui")
-    self.Container.Name = "SkyX_Notifications"
-    self.Container.ResetOnSpawn = false
-    self.Container.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    self.Container.DisplayOrder = 999
-    
-    -- Set position and size
-    local frame = Instance.new("Frame")
-    frame.Name = "NotificationFrame"
-    frame.Size = UDim2.new(0, 270, 0.5, 0)
-    frame.Position = UDim2.new(1, -280, 0, 10)
-    frame.BackgroundTransparency = 1
-    frame.Parent = self.Container
-    
-    local layout = Instance.new("UIListLayout")
-    layout.Padding = UDim.new(0, 8)
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    layout.VerticalAlignment = Enum.VerticalAlignment.Top
-    layout.SortOrder = Enum.SortOrder.LayoutOrder
-    layout.Parent = frame
-    
-    self.Frame = frame
-    
-    -- Try to parent to CoreGui first, fallback to PlayerGui
-    pcall(function()
-        self.Container.Parent = CoreGui
-    end)
-    
-    if not self.Container.Parent then
-        pcall(function()
-            self.Container.Parent = Player.PlayerGui
-        end)
-    end
-    
-    -- Active notifications
-    self.ActiveNotifications = {}
-    
-    return self
-end
-
-function NotificationSystem:Show(title, message, duration, notiType)
-    duration = duration or 3
-    notiType = notiType or "info"
-    
-    -- Notification colors
-    local colors = {
-        info = UI.Theme.Accent,
-        success = UI.Theme.Success,
-        warning = UI.Theme.Warning,
-        error = UI.Theme.Error
-    }
-    
-    -- Create notification frame
-    local notification = Instance.new("Frame")
-    notification.Name = "Notification"
-    notification.Size = UDim2.new(1, 0, 0, 0)
-    notification.BackgroundColor3 = UI.Theme.Secondary
-    notification.BorderSizePixel = 0
-    notification.AutomaticSize = Enum.AutomaticSize.Y
-    notification.BackgroundTransparency = 0.1
-    
-    -- Add corner radius
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, UI.CornerRadius)
-    corner.Parent = notification
-    
-    -- Create top accent bar
-    local accent = Instance.new("Frame")
-    accent.Name = "Accent"
-    accent.Size = UDim2.new(1, 0, 0, 3)
-    accent.Position = UDim2.new(0, 0, 0, 0)
-    accent.BackgroundColor3 = colors[notiType] or colors.info
-    accent.BorderSizePixel = 0
-    accent.ZIndex = 2
-    accent.Parent = notification
-    
-    local accentCorner = Instance.new("UICorner")
-    accentCorner.CornerRadius = UDim.new(0, UI.CornerRadius)
-    accentCorner.Parent = accent
-    
-    -- Create content
-    local content = Instance.new("Frame")
-    content.Name = "Content"
-    content.Size = UDim2.new(1, 0, 0, 0)
-    content.BackgroundTransparency = 1
-    content.Position = UDim2.new(0, 0, 0, 3)
-    content.AutomaticSize = Enum.AutomaticSize.Y
-    content.Parent = notification
-    
-    local padding = Instance.new("UIPadding")
-    padding.PaddingTop = UDim.new(0, UI.Padding)
-    padding.PaddingBottom = UDim.new(0, UI.Padding)
-    padding.PaddingLeft = UDim.new(0, UI.Padding)
-    padding.PaddingRight = UDim.new(0, UI.Padding)
-    padding.Parent = content
-    
-    -- Title
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Name = "Title"
-    titleLabel.Size = UDim2.new(1, 0, 0, 20)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Font = UI.Font
-    titleLabel.TextSize = UI.TextSize + 2
-    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-    titleLabel.TextColor3 = UI.Theme.Text
-    titleLabel.Text = title
-    titleLabel.TextWrapped = true
-    titleLabel.Parent = content
-    
-    -- Message
-    local messageLabel = Instance.new("TextLabel")
-    messageLabel.Name = "Message"
-    messageLabel.Size = UDim2.new(1, 0, 0, 0)
-    messageLabel.BackgroundTransparency = 1
-    messageLabel.Font = Enum.Font.Gotham
-    messageLabel.TextSize = UI.TextSize - 1
-    messageLabel.TextXAlignment = Enum.TextXAlignment.Left
-    messageLabel.TextYAlignment = Enum.TextYAlignment.Top
-    messageLabel.TextColor3 = UI.Theme.TextDark
-    messageLabel.Text = message
-    messageLabel.TextWrapped = true
-    messageLabel.AutomaticSize = Enum.AutomaticSize.Y
-    messageLabel.Position = UDim2.new(0, 0, 0, 22)
-    messageLabel.Parent = content
-    
-    -- Shadow effect
-    local shadow = Instance.new("ImageLabel")
-    shadow.Name = "Shadow"
-    shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-    shadow.BackgroundTransparency = 1
-    shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    shadow.Size = UDim2.new(1, 10, 1, 10)
-    shadow.Image = "rbxassetid://6014257812"
-    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.ImageTransparency = 0.6
-    shadow.ScaleType = Enum.ScaleType.Slice
-    shadow.SliceCenter = Rect.new(49, 49, 450, 450)
-    shadow.ZIndex = 0
-    shadow.Parent = notification
-    
-    -- Add to container
-    notification.Parent = self.Frame
-    
-    -- Animate in
-    notification.BackgroundTransparency = 1
-    accent.BackgroundTransparency = 1
-    titleLabel.TextTransparency = 1
-    messageLabel.TextTransparency = 1
-    shadow.ImageTransparency = 1
-    
-    local info = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    
-    local fadeTween = TweenService:Create(notification, info, {BackgroundTransparency = 0.1})
-    local accentTween = TweenService:Create(accent, info, {BackgroundTransparency = 0})
-    local titleTween = TweenService:Create(titleLabel, info, {TextTransparency = 0})
-    local messageTween = TweenService:Create(messageLabel, info, {TextTransparency = 0})
-    local shadowTween = TweenService:Create(shadow, info, {ImageTransparency = 0.6})
-    
-    fadeTween:Play()
-    accentTween:Play()
-    titleTween:Play()
-    messageTween:Play()
-    shadowTween:Play()
-    
-    -- Remove after duration
-    table.insert(self.ActiveNotifications, notification)
-    
-    spawn(function()
-        wait(duration)
-        -- Animate out
-        local outInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local outFade = TweenService:Create(notification, outInfo, {BackgroundTransparency = 1})
-        local outAccent = TweenService:Create(accent, outInfo, {BackgroundTransparency = 1})
-        local outTitle = TweenService:Create(titleLabel, outInfo, {TextTransparency = 1})
-        local outMessage = TweenService:Create(messageLabel, outInfo, {TextTransparency = 1})
-        local outShadow = TweenService:Create(shadow, outInfo, {ImageTransparency = 1})
-        
-        outFade:Play()
-        outAccent:Play()
-        outTitle:Play()
-        outMessage:Play()
-        outShadow:Play()
-        
-        outFade.Completed:Wait()
-        notification:Destroy()
-        
-        -- Remove from active list
-        for i, noti in ipairs(self.ActiveNotifications) do
-            if noti == notification then
-                table.remove(self.ActiveNotifications, i)
-                break
-            end
-        end
-    end)
-    
-    return notification
-end
-
--- Initialize notification system
-NotificationSystem:Init()
-
--- Create main UI container
-local function CreateMainUI()
-    CleanupUI() -- Clean up existing UI first
-    
-    -- Create main ScreenGui
-    local gui = Instance.new("ScreenGui")
-    gui.Name = "SkyX_Garden_UI"
-    gui.ResetOnSpawn = false
-    gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    gui.DisplayOrder = 100
-    gui.IgnoreGuiInset = true
-    
-    -- Create main frame
-    local mainFrame = Instance.new("Frame")
-    mainFrame.Name = "MainFrame"
-    mainFrame.Size = UDim2.new(0, UI.WindowWidth, 0, 34)
-    mainFrame.Position = UDim2.new(0, 20, 0, 100)
-    mainFrame.BackgroundColor3 = UI.Theme.Primary
-    mainFrame.BorderSizePixel = 0
-    mainFrame.Active = true
-    mainFrame.Draggable = true
-    mainFrame.ZIndex = 2
-    mainFrame.AutomaticSize = Enum.AutomaticSize.Y
-    mainFrame.Parent = gui
-    
-    -- Add corner radius
-    local corner = Instance.new("UICorner")
-    corner.CornerRadius = UDim.new(0, UI.CornerRadius)
-    corner.Parent = mainFrame
-    
-    -- Create header
-    local header = Instance.new("Frame")
-    header.Name = "Header"
-    header.Size = UDim2.new(1, 0, 0, 34)
-    header.BackgroundColor3 = UI.Theme.Accent
-    header.BorderSizePixel = 0
-    header.ZIndex = 3
-    header.Parent = mainFrame
-    
-    local headerCorner = Instance.new("UICorner")
-    headerCorner.CornerRadius = UDim.new(0, UI.CornerRadius)
-    headerCorner.Parent = header
-    
-    -- Header title
-    local title = Instance.new("TextLabel")
-    title.Name = "Title"
-    title.Text = "SkyX Hub - Grow A Garden"
-    title.Font = UI.Font
-    title.TextSize = UI.TextSize + 2
-    title.TextColor3 = UI.Theme.Text
-    title.BackgroundTransparency = 1
-    title.Size = UDim2.new(1, -70, 1, 0)
-    title.Position = UDim2.new(0, 10, 0, 0)
-    title.TextXAlignment = Enum.TextXAlignment.Left
-    title.ZIndex = 4
-    title.Parent = header
-    
-    -- Close button
-    local closeBtn = Instance.new("TextButton")
-    closeBtn.Name = "CloseButton"
-    closeBtn.Text = "✕"
-    closeBtn.Font = UI.Font
-    closeBtn.TextSize = UI.TextSize
-    closeBtn.TextColor3 = UI.Theme.Text
-    closeBtn.BackgroundColor3 = UI.Theme.Error
-    closeBtn.BackgroundTransparency = 1
-    closeBtn.Size = UDim2.new(0, 30, 0, 30)
-    closeBtn.Position = UDim2.new(1, -34, 0, 2)
-    closeBtn.ZIndex = 4
-    closeBtn.BorderSizePixel = 0
-    closeBtn.AutoButtonColor = false
-    closeBtn.Parent = header
-    
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, UI.CornerRadius - 2)
-    btnCorner.Parent = closeBtn
-    
-    -- Minimize button
-    local minimizeBtn = Instance.new("TextButton")
-    minimizeBtn.Name = "MinimizeButton"
-    minimizeBtn.Text = "-"
-    minimizeBtn.Font = UI.Font
-    minimizeBtn.TextSize = UI.TextSize + 6
-    minimizeBtn.TextColor3 = UI.Theme.Text
-    minimizeBtn.BackgroundColor3 = UI.Theme.Secondary
-    minimizeBtn.BackgroundTransparency = 1
-    minimizeBtn.Size = UDim2.new(0, 30, 0, 30)
-    minimizeBtn.Position = UDim2.new(1, -68, 0, 2)
-    minimizeBtn.ZIndex = 4
-    minimizeBtn.BorderSizePixel = 0
-    minimizeBtn.AutoButtonColor = false
-    minimizeBtn.Parent = header
-    
-    local minBtnCorner = Instance.new("UICorner")
-    minBtnCorner.CornerRadius = UDim.new(0, UI.CornerRadius - 2)
-    minBtnCorner.Parent = minimizeBtn
-    
-    -- Content frame
-    local contentFrame = Instance.new("Frame")
-    contentFrame.Name = "Content"
-    contentFrame.Size = UDim2.new(1, 0, 0, 0)
-    contentFrame.Position = UDim2.new(0, 0, 0, 34)
-    contentFrame.BackgroundTransparency = 1
-    contentFrame.BorderSizePixel = 0
-    contentFrame.ZIndex = 2
-    contentFrame.AutomaticSize = Enum.AutomaticSize.Y
-    contentFrame.Parent = mainFrame
-    
-    -- Tab buttons container
-    local tabButtonsFrame = Instance.new("Frame")
-    tabButtonsFrame.Name = "TabButtons"
-    tabButtonsFrame.Size = UDim2.new(1, -10, 0, UI.TabHeight)
-    tabButtonsFrame.Position = UDim2.new(0, 5, 0, 6)
-    tabButtonsFrame.BackgroundColor3 = UI.Theme.Primary
-    tabButtonsFrame.BackgroundTransparency = 0.4
-    tabButtonsFrame.BorderSizePixel = 0
-    tabButtonsFrame.ZIndex = 3
-    tabButtonsFrame.ClipsDescendants = true
-    tabButtonsFrame.Parent = contentFrame
-    
-    local tabCorner = Instance.new("UICorner")
-    tabCorner.CornerRadius = UDim.new(0, UI.CornerRadius)
-    tabCorner.Parent = tabButtonsFrame
-    
-    local tabButtonLayout = Instance.new("UIListLayout")
-    tabButtonLayout.FillDirection = Enum.FillDirection.Horizontal
-    tabButtonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    tabButtonLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    tabButtonLayout.Padding = UDim.new(0, 1)
-    tabButtonLayout.Parent = tabButtonsFrame
-    
-    local tabButtonPadding = Instance.new("UIPadding")
-    tabButtonPadding.PaddingLeft = UDim.new(0, 2)
-    tabButtonPadding.PaddingRight = UDim.new(0, 2)
-    tabButtonPadding.PaddingTop = UDim.new(0, 2)
-    tabButtonPadding.PaddingBottom = UDim.new(0, 2)
-    tabButtonPadding.Parent = tabButtonsFrame
-    
-    -- Tab content container
-    local tabContentFrame = Instance.new("Frame")
-    tabContentFrame.Name = "TabContent"
-    tabContentFrame.Size = UDim2.new(1, -16, 0, 0)
-    tabContentFrame.Position = UDim2.new(0, 8, 0, UI.TabHeight + 12)
-    tabContentFrame.BackgroundTransparency = 1
-    tabContentFrame.BorderSizePixel = 0
-    tabContentFrame.ZIndex = 2
-    tabContentFrame.AutomaticSize = Enum.AutomaticSize.Y
-    tabContentFrame.Parent = contentFrame
-    
-    -- Shadow effect
-    local shadow = Instance.new("ImageLabel")
-    shadow.Name = "Shadow"
-    shadow.AnchorPoint = Vector2.new(0.5, 0.5)
-    shadow.BackgroundTransparency = 1
-    shadow.Position = UDim2.new(0.5, 0, 0.5, 0)
-    shadow.Size = UDim2.new(1, 24, 1, 24)
-    shadow.Image = "rbxassetid://6014257812"
-    shadow.ImageColor3 = Color3.fromRGB(0, 0, 0)
-    shadow.ImageTransparency = 0.5
-    shadow.ScaleType = Enum.ScaleType.Slice
-    shadow.SliceCenter = Rect.new(49, 49, 450, 450)
-    shadow.ZIndex = 1
-    shadow.Parent = mainFrame
-    
-    -- Bottom padding
-    local bottomPadding = Instance.new("Frame")
-    bottomPadding.Name = "BottomPadding"
-    bottomPadding.Size = UDim2.new(1, 0, 0, 8)
-    bottomPadding.BackgroundTransparency = 1
-    bottomPadding.LayoutOrder = 999
-    bottomPadding.Parent = tabContentFrame
-    
-    -- Handle button hover effects
-    local function setupButtonHover(button, color)
-        button.MouseEnter:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.2), {BackgroundTransparency = 0.5}):Play()
-        end)
-        
-        button.MouseLeave:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.2), {BackgroundTransparency = 1}):Play()
-        end)
-        
-        button.MouseButton1Down:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.1), {BackgroundTransparency = 0.3}):Play()
-        end)
-        
-        button.MouseButton1Up:Connect(function()
-            TweenService:Create(button, TweenInfo.new(0.1), {BackgroundTransparency = 0.5}):Play()
-        end)
-    end
-    
-    setupButtonHover(closeBtn, UI.Theme.Error)
-    setupButtonHover(minimizeBtn, UI.Theme.Secondary)
-    
-    -- Button functionality
-    closeBtn.MouseButton1Click:Connect(function()
-        gui:Destroy()
-        -- Clean up ESP and loops
-        ESP.ClearESP()
-        Config.AutoPlant = false
-        Config.AutoHarvest = false
-        Config.AutoWater = false
-        Config.AutoCollect = false
-        Config.AutoUpgrade = false
-        
-        for _, name in pairs({"FarmingLoop", "CollectionLoop", "UpgradeLoop"}) do
-            pcall(function()
-                RunService:UnbindFromRenderStep(name)
-            end)
-        end
-    end)
-    
-    local contentVisible = true
-    minimizeBtn.MouseButton1Click:Connect(function()
-        contentVisible = not contentVisible
-        
-        if contentVisible then
-            contentFrame.Visible = true
-            minimizeBtn.Text = "-"
-            TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, UI.WindowWidth, 0, 34)}):Play()
-        else
-            minimizeBtn.Text = "+"
-            contentFrame.Visible = false
-            TweenService:Create(mainFrame, TweenInfo.new(0.3), {Size = UDim2.new(0, UI.WindowWidth, 0, 34)}):Play()
-        end
-    end)
-    
-    -- Tab system methods
-    local TabSystem = {
-        TabButtons = {},
-        TabContents = {},
-        CurrentTab = nil,
-        ButtonsFrame = tabButtonsFrame,
-        ContentFrame = tabContentFrame
-    }
-    
-    function TabSystem:CreateTab(name, icon, iconColor)
-        iconColor = iconColor or UI.Theme.Accent
-        
-        -- Calculate tab width for fixed-width tabs
-        local tabCount = 6 -- Expected total number of tabs
-        local tabWidth = (self.ButtonsFrame.AbsoluteSize.X - 20) / tabCount
-        
-        -- Create tab button
-        local tabButton = Instance.new("TextButton")
-        tabButton.Name = name .. "Button"
-        tabButton.Size = UDim2.new(0, tabWidth, 1, -4)
-        tabButton.BackgroundColor3 = UI.Theme.Secondary
-        tabButton.BackgroundTransparency = 0.9
-        tabButton.BorderSizePixel = 0
-        tabButton.ZIndex = 4
-        tabButton.Font = UI.Font
-        tabButton.TextSize = UI.TextSize
-        tabButton.TextColor3 = UI.Theme.Text
-        tabButton.Text = ""
-        tabButton.Parent = self.ButtonsFrame
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, UI.CornerRadius)
-        corner.Parent = tabButton
-        
-        local padding = Instance.new("UIPadding")
-        padding.PaddingLeft = UDim.new(0, 4)
-        padding.PaddingRight = UDim.new(0, 4)
-        padding.PaddingTop = UDim.new(0, 2)
-        padding.PaddingBottom = UDim.new(0, 2)
-        padding.Parent = tabButton
-        
-        -- Create tab content
-        local tabContent = Instance.new("Frame")
-        tabContent.Name = name .. "Content"
-        tabContent.Size = UDim2.new(1, 0, 0, 0)
-        tabContent.BackgroundTransparency = 1
-        tabContent.BorderSizePixel = 0
-        tabContent.ZIndex = 3
-        tabContent.AutomaticSize = Enum.AutomaticSize.Y
-        tabContent.Visible = false
-        tabContent.Parent = self.ContentFrame
-        
-        local contentLayout = Instance.new("UIListLayout")
-        contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        contentLayout.Padding = UDim.new(0, UI.SectionSpacing)
-        contentLayout.Parent = tabContent
-        
-        -- Create tab content elements
-        if icon then
-            -- Create icon
-            local iconLabel = Instance.new("TextLabel")
-            iconLabel.Name = "Icon"
-            iconLabel.Size = UDim2.new(0, 16, 0, 16)
-            iconLabel.AnchorPoint = Vector2.new(0, 0.5)
-            iconLabel.Position = UDim2.new(0, 4, 0.5, 0)
-            iconLabel.BackgroundTransparency = 1
-            iconLabel.ZIndex = 4
-            iconLabel.Text = icon
-            iconLabel.TextColor3 = iconColor
-            iconLabel.Font = Enum.Font.GothamBold
-            iconLabel.TextSize = 12
-            iconLabel.Parent = tabButton
-            
-            -- Create condensed label
-            local label = Instance.new("TextLabel")
-            label.Name = "Label"
-            label.Size = UDim2.new(1, -24, 1, 0)
-            label.Position = UDim2.new(0, 24, 0, 0)
-            label.BackgroundTransparency = 1
-            label.ZIndex = 4
-            label.Text = name
-            label.TextColor3 = UI.Theme.Text
-            label.Font = UI.Font
-            label.TextSize = UI.TextSize - 1 -- Smaller text
-            label.TextXAlignment = Enum.TextXAlignment.Left
-            label.Parent = tabButton
-        else
-            -- Create centered label without icon
-            local label = Instance.new("TextLabel")
-            label.Name = "Label"
-            label.Size = UDim2.new(1, 0, 1, 0)
-            label.BackgroundTransparency = 1
-            label.ZIndex = 4
-            label.Text = name
-            label.TextColor3 = UI.Theme.Text
-            label.Font = UI.Font
-            label.TextSize = UI.TextSize - 1
-            label.TextXAlignment = Enum.TextXAlignment.Center
-            label.Parent = tabButton
-        end
-        
-        -- Store tab components
-        self.TabButtons[name] = tabButton
-        self.TabContents[name] = tabContent
-        
-        -- Tab selection logic
-        tabButton.MouseButton1Click:Connect(function()
-            self:SelectTab(name)
-        end)
-        
-        -- Apply hover effect
-        setupButtonHover(tabButton, UI.Theme.Secondary)
-        
-        return {
-            Button = tabButton,
-            Content = tabContent,
-            Name = name,
-            
-            -- Helper to create a section in this tab
-            CreateSection = function(sectionName)
-                return self:CreateSection(name, sectionName)
-            end
-        }
-    end
-    
-    function TabSystem:SelectTab(name)
-        -- Hide all tabs
-        for tabName, content in pairs(self.TabContents) do
-            content.Visible = false
-            
-            -- Reset tab button appearance
-            local button = self.TabButtons[tabName]
-            TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundTransparency = 0.9,
-                BackgroundColor3 = UI.Theme.Secondary
-            }):Play()
-            
-            -- Find label and dim it
-            local label = button:FindFirstChild("Label")
-            if label then
-                TweenService:Create(label, TweenInfo.new(0.2), {
-                    TextColor3 = UI.Theme.TextDark
-                }):Play()
-            end
-        end
-        
-        -- Show selected tab
-        if self.TabContents[name] then
-            self.TabContents[name].Visible = true
-            
-            -- Highlight selected tab button
-            local button = self.TabButtons[name]
-            TweenService:Create(button, TweenInfo.new(0.2), {
-                BackgroundTransparency = 0.2,
-                BackgroundColor3 = UI.Theme.Accent
-            }):Play()
-            
-            -- Find label and brighten it
-            local label = button:FindFirstChild("Label")
-            if label then
-                TweenService:Create(label, TweenInfo.new(0.2), {
-                    TextColor3 = UI.Theme.Text
-                }):Play()
-            end
-            
-            self.CurrentTab = name
-        end
-    end
-    
-    function TabSystem:CreateSection(tabName, sectionName)
-        local tabContent = self.TabContents[tabName]
-        if not tabContent then
-            error("Tab '" .. tabName .. "' not found")
-            return nil
-        end
-        
-        -- Create section container
-        local section = Instance.new("Frame")
-        section.Name = sectionName .. "Section"
-        section.Size = UDim2.new(1, 0, 0, 0)
-        section.BackgroundColor3 = UI.Theme.Secondary
-        section.BorderSizePixel = 0
-        section.ZIndex = 3
-        section.AutomaticSize = Enum.AutomaticSize.Y
-        section.Parent = tabContent
-        
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, UI.CornerRadius)
-        corner.Parent = section
-        
-        -- Section header
-        local header = Instance.new("TextLabel")
-        header.Name = "Header"
-        header.Size = UDim2.new(1, 0, 0, 30)
-        header.BackgroundTransparency = 1
-        header.BorderSizePixel = 0
-        header.ZIndex = 4
-        header.Font = UI.Font
-        header.TextSize = UI.TextSize
-        header.TextColor3 = UI.Theme.Text
-        header.Text = sectionName
-        header.TextXAlignment = Enum.TextXAlignment.Left
-        header.Parent = section
-        
-        local headerPadding = Instance.new("UIPadding")
-        headerPadding.PaddingLeft = UDim.new(0, UI.Padding)
-        headerPadding.Parent = header
-        
-        -- Add divider
-        local divider = Instance.new("Frame")
-        divider.Name = "Divider"
-        divider.Size = UDim2.new(1, -UI.Padding*2, 0, 1)
-        divider.Position = UDim2.new(0, UI.Padding, 0, 30)
-        divider.BackgroundColor3 = UI.Theme.Outline
-        divider.BorderSizePixel = 0
-        divider.ZIndex = 4
-        divider.Parent = section
-        
-        -- Content container
-        local content = Instance.new("Frame")
-        content.Name = "Content"
-        content.Size = UDim2.new(1, 0, 0, 0)
-        content.Position = UDim2.new(0, 0, 0, 31)
-        content.BackgroundTransparency = 1
-        content.BorderSizePixel = 0
-        content.ZIndex = 3
-        content.AutomaticSize = Enum.AutomaticSize.Y
-        content.Parent = section
-        
-        local contentLayout = Instance.new("UIListLayout")
-        contentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-        contentLayout.Padding = UDim.new(0, UI.Padding)
-        contentLayout.Parent = content
-        
-        local contentPadding = Instance.new("UIPadding")
-        contentPadding.PaddingLeft = UDim.new(0, UI.Padding)
-        contentPadding.PaddingRight = UDim.new(0, UI.Padding)
-        contentPadding.PaddingTop = UDim.new(0, UI.Padding)
-        contentPadding.PaddingBottom = UDim.new(0, UI.Padding)
-        contentPadding.Parent = content
-        
-        return {
-            Section = section,
-            Content = content,
-            
-            -- Add UI elements
-            CreateLabel = function(text)
-                local label = Instance.new("TextLabel")
-                label.Name = "Label_" .. text:sub(1, 10)
-                label.Size = UDim2.new(1, 0, 0, 20)
-                label.BackgroundTransparency = 1
-                label.BorderSizePixel = 0
-                label.ZIndex = 4
-                label.Font = UI.Font
-                label.TextSize = UI.TextSize
-                label.TextColor3 = UI.Theme.Text
-                label.Text = text
-                label.TextXAlignment = Enum.TextXAlignment.Left
-                label.TextWrapped = true
-                label.Parent = content
-                
-                return label
-            end,
-            
-            CreateButton = function(text, callback)
-                local button = Instance.new("TextButton")
-                button.Name = "Button_" .. text:sub(1, 10)
-                button.Size = UDim2.new(1, 0, 0, UI.ButtonHeight)
-                button.BackgroundColor3 = UI.Theme.Accent
-                button.BorderSizePixel = 0
-                button.ZIndex = 4
-                button.Font = UI.Font
-                button.TextSize = UI.TextSize
-                button.TextColor3 = UI.Theme.Text
-                button.Text = text
-                button.AutoButtonColor = false
-                button.Parent = content
-                
-                local corner = Instance.new("UICorner")
-                corner.CornerRadius = UDim.new(0, UI.CornerRadius)
-                corner.Parent = button
-                
-                -- Add ripple effect for buttons
-                local ripple = Instance.new("Frame")
-                ripple.Name = "Ripple"
-                ripple.AnchorPoint = Vector2.new(0.5, 0.5)
-                ripple.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-                ripple.BackgroundTransparency = 0.8
-                ripple.BorderSizePixel = 0
-                ripple.ZIndex = 5
-                ripple.Size = UDim2.new(0, 0, 0, 0)
-                ripple.ClipsDescendants = true
-                ripple.Parent = button
-                
-                local rippleCorner = Instance.new("UICorner")
-                rippleCorner.CornerRadius = UDim.new(1, 0) -- Circle
-                rippleCorner.Parent = ripple
-                
-                button.MouseButton1Down:Connect(function(inputObject, gameProcessed)
-                    -- Create ripple effect at mouse position
-                    local mousePos = UserInputService:GetMouseLocation() - Vector2.new(button.AbsolutePosition.X, button.AbsolutePosition.Y)
-                    ripple.Position = UDim2.new(0, mousePos.X, 0, mousePos.Y)
-                    
-                    -- Get the corner-to-corner distance
-                    local size = math.max(button.AbsoluteSize.X, button.AbsoluteSize.Y) * 2
-                    
-                    -- Animate the ripple
-                    ripple.Size = UDim2.new(0, 0, 0, 0)
-                    ripple.BackgroundTransparency = 0.7
-                    
-                    -- Tween to expand
-                    TweenService:Create(ripple, TweenInfo.new(0.5), {
-                        Size = UDim2.new(0, size, 0, size),
-                        BackgroundTransparency = 1
-                    }):Play()
-                    
-                    -- Change button color
-                    TweenService:Create(button, TweenInfo.new(0.1), {
-                        BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.2)
-                    }):Play()
-                end)
-                
-                button.MouseEnter:Connect(function()
-                    TweenService:Create(button, TweenInfo.new(0.2), {
-                        BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.1)
-                    }):Play()
-                end)
-                
-                button.MouseLeave:Connect(function()
-                    TweenService:Create(button, TweenInfo.new(0.2), {
-                        BackgroundColor3 = UI.Theme.Accent
-                    }):Play()
-                end)
-                
-                button.MouseButton1Up:Connect(function()
-                    TweenService:Create(button, TweenInfo.new(0.1), {
-                        BackgroundColor3 = UI.Theme.Accent:Lerp(UI.Theme.Text, 0.1)
-                    }):Play()
-                end)
-                
-                button.MouseButton1Click:Connect(function()
-                    callback()
-                end)
-                
-                return button
-            end,
-            
-            CreateToggle = function(text, default, callback)
-                local toggleValue = default or false
-                
-                -- Container
-                local toggleContainer = Instance.new("Frame")
-                toggleContainer.Name = "Toggle_" .. text:sub(1, 10)
-                toggleContainer.Size = UDim2.new(1, 0, 0, UI.ButtonHeight)
-                toggleContainer.BackgroundTransparency = 1
-                toggleContainer.BorderSizePixel = 0
-                toggleContainer.ZIndex = 4
-                toggleContainer.Parent = content
-                
-                -- Label
-                local label = Instance.new("TextLabel")
-                label.Name = "Label"
-                label.Size = UDim2.new(1, -UI.ToggleSize - 5, 1, 0)
-                label.Position = UDim2.new(0, 0, 0, 0)
-                label.BackgroundTransparency = 1
-                label.BorderSizePixel = 0
-                label.ZIndex = 5
-                label.Font = UI.Font
-                label.TextSize = UI.TextSize
-                label.TextColor3 = UI.Theme.Text
-                label.Text = text
-                label.TextXAlignment = Enum.TextXAlignment.Left
-                label.Parent = toggleContainer
-                
-                -- Toggle background
-                local toggleBg = Instance.new("Frame")
-                toggleBg.Name = "Background"
-                toggleBg.Size = UDim2.new(0, UI.ToggleSize, 0, UI.ToggleSize)
-                toggleBg.Position = UDim2.new(1, -UI.ToggleSize, 0.5, -UI.ToggleSize/2)
-                toggleBg.BackgroundColor3 = UI.Theme.Primary
-                toggleBg.BorderSizePixel = 0
-                toggleBg.ZIndex = 5
-                toggleBg.Parent = toggleContainer
-                
-                local corner = Instance.new("UICorner")
-                corner.CornerRadius = UDim.new(0, UI.CornerRadius - 2)
-                corner.Parent = toggleBg
-                
-                -- Toggle indicator
-                local indicator = Instance.new("Frame")
-                indicator.Name = "Indicator"
-                indicator.Size = UDim2.new(1, -4, 1, -4)
-                indicator.Position = UDim2.new(0, 2, 0, 2)
-                indicator.BackgroundColor3 = toggleValue and UI.Theme.Accent or UI.Theme.TextDark
-                indicator.BorderSizePixel = 0
-                indicator.ZIndex = 6
-                indicator.Parent = toggleBg
-                
-                local indicatorCorner = Instance.new("UICorner")
-                indicatorCorner.CornerRadius = UDim.new(0, UI.CornerRadius - 2)
-                indicatorCorner.Parent = indicator
-                
-                -- Toggle function
-                local function updateToggle(value)
-                    toggleValue = value
-                    TweenService:Create(indicator, TweenInfo.new(0.2), {
-                        BackgroundColor3 = toggleValue and UI.Theme.Accent or UI.Theme.TextDark
-                    }):Play()
-                    callback(toggleValue)
-                end
-                
-                -- Initial state
-                updateToggle(toggleValue)
-                
-                -- Click handler
-                toggleContainer.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        updateToggle(not toggleValue)
-                    end
-                end)
-                
-                toggleBg.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        updateToggle(not toggleValue)
-                    end
-                end)
-                
-                -- Make interactive
-                toggleContainer.Active = true
-                toggleBg.Active = true
-                
-                return {
-                    Container = toggleContainer,
-                    Background = toggleBg,
-                    Indicator = indicator,
-                    SetValue = updateToggle,
-                    GetValue = function() return toggleValue end
-                }
-            end,
-            
-            CreateDropdown = function(text, options, default, callback)
-                local selectedOption = default or options[1] or ""
-                local isOpen = false
-                
-                -- Container
-                local dropdownContainer = Instance.new("Frame")
-                dropdownContainer.Name = "Dropdown_" .. text:sub(1, 10)
-                dropdownContainer.Size = UDim2.new(1, 0, 0, UI.ButtonHeight + 6)
-                dropdownContainer.BackgroundTransparency = 1
-                dropdownContainer.BorderSizePixel = 0
-                dropdownContainer.ZIndex = 4
-                dropdownContainer.AutomaticSize = Enum.AutomaticSize.Y
-                dropdownContainer.ClipsDescendants = false
-                dropdownContainer.Parent = content
-                
-                -- Label
-                local label = Instance.new("TextLabel")
-                label.Name = "Label"
-                label.Size = UDim2.new(1, 0, 0, 20)
-                label.Position = UDim2.new(0, 0, 0, 0)
-                label.BackgroundTransparency = 1
-                label.BorderSizePixel = 0
-                label.ZIndex = 5
-                label.Font = UI.Font
-                label.TextSize = UI.TextSize
-                label.TextColor3 = UI.Theme.Text
-                label.Text = text
-                label.TextXAlignment = Enum.TextXAlignment.Left
-                label.Parent = dropdownContainer
-                
-                -- Dropdown button
-                local dropdownButton = Instance.new("TextButton")
-                dropdownButton.Name = "Button"
-                dropdownButton.Size = UDim2.new(1, 0, 0, UI.ButtonHeight)
-                dropdownButton.Position = UDim2.new(0, 0, 0, 22)
-                dropdownButton.BackgroundColor3 = UI.Theme.Primary
-                dropdownButton.BorderSizePixel = 0
-                dropdownButton.ZIndex = 5
-                dropdownButton.Font = UI.Font
-                dropdownButton.TextSize = UI.TextSize
-                dropdownButton.TextColor3 = UI.Theme.Text
-                dropdownButton.Text = selectedOption
-                dropdownButton.TextXAlignment = Enum.TextXAlignment.Left
-                dropdownButton.AutoButtonColor = false
-                dropdownButton.Parent = dropdownContainer
-                
-                local buttonPadding = Instance.new("UIPadding")
-                buttonPadding.PaddingLeft = UDim.new(0, 8)
-                buttonPadding.Parent = dropdownButton
-                
-                local corner = Instance.new("UICorner")
-                corner.CornerRadius = UDim.new(0, UI.CornerRadius - 2)
-                corner.Parent = dropdownButton
-                
-                -- Arrow indicator
-                local arrow = Instance.new("TextLabel")
-                arrow.Name = "Arrow"
-                arrow.Size = UDim2.new(0, 20, 0, 20)
-                arrow.Position = UDim2.new(1, -25, 0.5, -10)
-                arrow.BackgroundTransparency = 1
-                arrow.BorderSizePixel = 0
-                arrow.ZIndex = 6
-                arrow.Font = Enum.Font.GothamBold
-                arrow.TextSize = 14
-                arrow.TextColor3 = UI.Theme.Text
-                arrow.Text = "▼"
-                arrow.Parent = dropdownButton
-                
-                -- Options container
-                local optionsContainer = Instance.new("Frame")
-                optionsContainer.Name = "Options"
-                optionsContainer.Size = UDim2.new(1, 0, 0, 0)
-                optionsContainer.Position = UDim2.new(0, 0, 1, 0)
-                optionsContainer.BackgroundColor3 = UI.Theme.Primary
-                optionsContainer.BorderSizePixel = 0
-                optionsContainer.ZIndex = 10
-                optionsContainer.Visible = false
-                optionsContainer.AutomaticSize = Enum.AutomaticSize.Y
-                optionsContainer.ClipsDescendants = true
-                optionsContainer.Parent = dropdownButton
-                
-                local optionsCorner = Instance.new("UICorner")
-                optionsCorner.CornerRadius = UDim.new(0, UI.CornerRadius - 2)
-                optionsCorner.Parent = optionsContainer
-                
-                local optionsList = Instance.new("Frame")
-                optionsList.Name = "OptionsList"
-                optionsList.Size = UDim2.new(1, 0, 0, 0)
-                optionsList.BackgroundTransparency = 1
-                optionsList.BorderSizePixel = 0
-                optionsList.ZIndex = 11
-                optionsList.AutomaticSize = Enum.AutomaticSize.Y
-                optionsList.Parent = optionsContainer
-                
-                local optionsLayout = Instance.new("UIListLayout")
-                optionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
-                optionsLayout.Padding = UDim.new(0, 2)
-                optionsLayout.Parent = optionsList
-                
-                -- Create options buttons
-                for i, option in ipairs(options) do
-                    local optionButton = Instance.new("TextButton")
-                    optionButton.Name = "Option_" .. option
-                    optionButton.Size = UDim2.new(1, 0, 0, UI.ButtonHeight)
-                    optionButton.BackgroundColor3 = UI.Theme.Primary
-                    optionButton.BorderSizePixel = 0
-                    optionButton.ZIndex = 12
-                    optionButton.Font = UI.Font
-                    optionButton.TextSize = UI.TextSize
-                    optionButton.TextColor3 = UI.Theme.Text
-                    optionButton.Text = option
-                    optionButton.TextXAlignment = Enum.TextXAlignment.Left
-                    optionButton.AutoButtonColor = false
-                    optionButton.Parent = optionsList
-                    
-                    local optionPadding = Instance.new("UIPadding")
-                    optionPadding.PaddingLeft = UDim.new(0, 8)
-                    optionPadding.Parent = optionButton
-                    
-                    -- Option button hover effect
-                    optionButton.MouseEnter:Connect(function()
-                        TweenService:Create(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = UI.Theme.Accent}):Play()
-                    end)
-                    
-                    optionButton.MouseLeave:Connect(function()
-                        TweenService:Create(optionButton, TweenInfo.new(0.2), {BackgroundColor3 = UI.Theme.Primary}):Play()
-                    end)
-                    
-                    -- Option selection
-                    optionButton.MouseButton1Click:Connect(function()
-                        selectedOption = option
-                        dropdownButton.Text = selectedOption
-                        
-                        -- Close dropdown
-                        optionsContainer.Visible = false
-                        isOpen = false
-                        TweenService:Create(arrow, TweenInfo.new(0.2), {Rotation = 0}):Play()
-                        
-                        callback(selectedOption)
-                    end)
-                end
-                
-                -- Bottom padding
-                local bottomPadding = Instance.new("Frame")
-                bottomPadding.Name = "BottomPadding"
-                bottomPadding.Size = UDim2.new(1, 0, 0, 2)
-                bottomPadding.BackgroundTransparency = 1
-                bottomPadding.BorderSizePixel = 0
-                bottomPadding.ZIndex = 11
-                bottomPadding.LayoutOrder = 999
-                bottomPadding.Parent = optionsList
-                
-                -- Toggle dropdown visibility
-                dropdownButton.MouseButton1Click:Connect(function()
-                    isOpen = not isOpen
-                    optionsContainer.Visible = isOpen
-                    
-                    -- Rotate arrow
-                    TweenService:Create(arrow, TweenInfo.new(0.2), {Rotation = isOpen and 180 or 0}):Play()
-                end)
-                
-                -- Button hover effect
-                dropdownButton.MouseEnter:Connect(function()
-                    TweenService:Create(dropdownButton, TweenInfo.new(0.2), {BackgroundColor3 = UI.Theme.Primary:Lerp(UI.Theme.Text, 0.1)}):Play()
-                end)
-                
-                dropdownButton.MouseLeave:Connect(function()
-                    TweenService:Create(dropdownButton, TweenInfo.new(0.2), {BackgroundColor3 = UI.Theme.Primary}):Play()
-                end)
-                
-                -- Return interface
-                return {
-                    Container = dropdownContainer,
-                    Button = dropdownButton,
-                    Options = optionsContainer,
-                    SetValue = function(option)
-                        if table.find(options, option) then
-                            selectedOption = option
-                            dropdownButton.Text = selectedOption
-                            callback(selectedOption)
-                        end
-                    end,
-                    GetValue = function() return selectedOption end
-                }
-            end,
-            
-            CreateSlider = function(text, min, max, default, increment, suffix, callback)
-                min = min or 0
-                max = max or 100
-                default = default or min
-                increment = increment or 1
-                suffix = suffix or ""
-                
-                local value = default
-                
-                -- Container
-                local sliderContainer = Instance.new("Frame")
-                sliderContainer.Name = "Slider_" .. text:sub(1, 10)
-                sliderContainer.Size = UDim2.new(1, 0, 0, UI.ButtonHeight + 25)
-                sliderContainer.BackgroundTransparency = 1
-                sliderContainer.BorderSizePixel = 0
-                sliderContainer.ZIndex = 4
-                sliderContainer.Parent = content
-                
-                -- Label
-                local label = Instance.new("TextLabel")
-                label.Name = "Label"
-                label.Size = UDim2.new(1, 0, 0, 20)
-                label.Position = UDim2.new(0, 0, 0, 0)
-                label.BackgroundTransparency = 1
-                label.BorderSizePixel = 0
-                label.ZIndex = 5
-                label.Font = UI.Font
-                label.TextSize = UI.TextSize
-                label.TextColor3 = UI.Theme.Text
-                label.Text = text
-                label.TextXAlignment = Enum.TextXAlignment.Left
-                label.Parent = sliderContainer
-                
-                -- Value label
-                local valueLabel = Instance.new("TextLabel")
-                valueLabel.Name = "Value"
-                valueLabel.Size = UDim2.new(0, 50, 0, 20)
-                valueLabel.Position = UDim2.new(1, -50, 0, 0)
-                valueLabel.BackgroundTransparency = 1
-                valueLabel.BorderSizePixel = 0
-                valueLabel.ZIndex = 5
-                valueLabel.Font = UI.Font
-                valueLabel.TextSize = UI.TextSize
-                valueLabel.TextColor3 = UI.Theme.Text
-                valueLabel.Text = tostring(value) .. suffix
-                valueLabel.TextXAlignment = Enum.TextXAlignment.Right
-                valueLabel.Parent = sliderContainer
-                
-                -- Slider background
-                local sliderBg = Instance.new("Frame")
-                sliderBg.Name = "Background"
-                sliderBg.Size = UDim2.new(1, 0, 0, UI.SliderHeight)
-                sliderBg.Position = UDim2.new(0, 0, 0, 25)
-                sliderBg.BackgroundColor3 = UI.Theme.Primary
-                sliderBg.BorderSizePixel = 0
-                sliderBg.ZIndex = 5
-                sliderBg.Parent = sliderContainer
-                
-                local bgCorner = Instance.new("UICorner")
-                bgCorner.CornerRadius = UDim.new(0, UI.SliderHeight/2)
-                bgCorner.Parent = sliderBg
-                
-                -- Slider fill
-                local sliderFill = Instance.new("Frame")
-                sliderFill.Name = "Fill"
-                sliderFill.Size = UDim2.new((value - min) / (max - min), 0, 1, 0)
-                sliderFill.BackgroundColor3 = UI.Theme.Accent
-                sliderFill.BorderSizePixel = 0
-                sliderFill.ZIndex = 6
-                sliderFill.Parent = sliderBg
-                
-                local fillCorner = Instance.new("UICorner")
-                fillCorner.CornerRadius = UDim.new(0, UI.SliderHeight/2)
-                fillCorner.Parent = sliderFill
-                
-                -- Slider knob
-                local sliderKnob = Instance.new("Frame")
-                sliderKnob.Name = "Knob"
-                sliderKnob.Size = UDim2.new(0, UI.SliderHeight+8, 0, UI.SliderHeight+8)
-                sliderKnob.Position = UDim2.new((value - min) / (max - min), -((UI.SliderHeight+8)/2), 0.5, -((UI.SliderHeight+8)/2))
-                sliderKnob.BackgroundColor3 = UI.Theme.Text
-                sliderKnob.BorderSizePixel = 0
-                sliderKnob.ZIndex = 7
-                sliderKnob.Parent = sliderBg
-                
-                local knobCorner = Instance.new("UICorner")
-                knobCorner.CornerRadius = UDim.new(1, 0) -- Make it circular
-                knobCorner.Parent = sliderKnob
-                
-                -- Update slider function
-                local function updateSlider(newValue, fromInput)
-                    -- Clamp and round value
-                    value = math.clamp(newValue, min, max)
-                    if increment then
-                        value = math.floor(value / increment + 0.5) * increment
-                    end
-                    
-                    -- Format display value
-                    if increment == 1 then
-                        valueLabel.Text = tostring(math.floor(value)) .. suffix
-                    else
-                        valueLabel.Text = string.format("%.1f", value) .. suffix
-                    end
-                    
-                    -- Calculate normalized position
-                    local normalizedValue = (value - min) / (max - min)
-                    
-                    -- Update visual elements
-                    sliderFill.Size = UDim2.new(normalizedValue, 0, 1, 0)
-                    sliderKnob.Position = UDim2.new(normalizedValue, -((UI.SliderHeight+8)/2), 0.5, -((UI.SliderHeight+8)/2))
-                    
-                    -- Call callback if from user input
-                    if fromInput then
-                        callback(value)
-                    end
-                end
-                
-                -- Initial update
-                updateSlider(value, false)
-                
-                -- Handle slider interaction
-                local isDragging = false
-                
-                sliderBg.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        isDragging = true
-                        
-                        -- Calculate value from mouse position
-                        local relativeX = input.Position.X - sliderBg.AbsolutePosition.X
-                        local normalizedValue = math.clamp(relativeX / sliderBg.AbsoluteSize.X, 0, 1)
-                        local newValue = min + (max - min) * normalizedValue
-                        
-                        updateSlider(newValue, true)
-                    end
-                end)
-                
-                sliderBg.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        isDragging = false
-                    end
-                end)
-                
-                sliderKnob.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        isDragging = true
-                    end
-                end)
-                
-                sliderKnob.InputEnded:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        isDragging = false
-                    end
-                end)
-                
-                UserInputService.InputChanged:Connect(function(input)
-                    if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-                        -- Calculate value from mouse position
-                        local relativeX = input.Position.X - sliderBg.AbsolutePosition.X
-                        local normalizedValue = math.clamp(relativeX / sliderBg.AbsoluteSize.X, 0, 1)
-                        local newValue = min + (max - min) * normalizedValue
-                        
-                        updateSlider(newValue, true)
-                    end
-                end)
-                
-                -- Return interface
-                return {
-                    Container = sliderContainer,
-                    Background = sliderBg,
-                    Fill = sliderFill,
-                    Knob = sliderKnob,
-                    SetValue = function(newValue) updateSlider(newValue, true) end,
-                    GetValue = function() return value end
-                }
-            end,
-            
-            CreateParagraph = function(title, text)
-                -- Container
-                local paragraphContainer = Instance.new("Frame")
-                paragraphContainer.Name = "Paragraph_" .. title:sub(1, 10)
-                paragraphContainer.Size = UDim2.new(1, 0, 0, 0)
-                paragraphContainer.BackgroundTransparency = 1
-                paragraphContainer.BorderSizePixel = 0
-                paragraphContainer.ZIndex = 4
-                paragraphContainer.AutomaticSize = Enum.AutomaticSize.Y
-                paragraphContainer.Parent = content
-                
-                -- Title
-                local titleLabel = Instance.new("TextLabel")
-                titleLabel.Name = "Title"
-                titleLabel.Size = UDim2.new(1, 0, 0, 24)
-                titleLabel.BackgroundTransparency = 1
-                titleLabel.BorderSizePixel = 0
-                titleLabel.ZIndex = 5
-                titleLabel.Font = UI.Font
-                titleLabel.TextSize = UI.TextSize
-                titleLabel.TextColor3 = UI.Theme.Accent
-                titleLabel.Text = title
-                titleLabel.TextXAlignment = Enum.TextXAlignment.Left
-                titleLabel.TextWrapped = true
-                titleLabel.Parent = paragraphContainer
-                
-                -- Calculate text size
-                local textSize = TextService:GetTextSize(
-                    text,
-                    UI.TextSize - 1,
-                    Enum.Font.Gotham,
-                    Vector2.new(UI.WindowWidth - UI.Padding*4, math.huge)
-                )
-                
-                -- Text
-                local textLabel = Instance.new("TextLabel")
-                textLabel.Name = "Text"
-                textLabel.Size = UDim2.new(1, 0, 0, textSize.Y)
-                textLabel.Position = UDim2.new(0, 0, 0, 24)
-                textLabel.BackgroundTransparency = 1
-                textLabel.BorderSizePixel = 0
-                textLabel.ZIndex = 5
-                textLabel.Font = Enum.Font.Gotham
-                textLabel.TextSize = UI.TextSize - 1
-                textLabel.TextColor3 = UI.Theme.TextDark
-                textLabel.Text = text
-                textLabel.TextXAlignment = Enum.TextXAlignment.Left
-                textLabel.TextYAlignment = Enum.TextYAlignment.Top
-                textLabel.TextWrapped = true
-                textLabel.Parent = paragraphContainer
-                
-                return paragraphContainer
-            end
-        }
-    end
-    
-    -- Initialize with common tabs
-    local infoTab = TabSystem:CreateTab("Info", "ℹ️")
-    local mainTab = TabSystem:CreateTab("Main", "🏠")
-    local teleportTab = TabSystem:CreateTab("Teleport", "🌍")
-    local espTab = TabSystem:CreateTab("ESP", "👁️")
-    local settingsTab = TabSystem:CreateTab("Settings", "⚙️")
-    
-    local analysisTab = TabSystem:CreateTab("Debug", "🛠️")
-    
-    -- Select default tab
-    TabSystem:SelectTab("Info")
-    
-    -- Return the created UI objects
-    return {
-        GUI = gui,
-        MainFrame = mainFrame,
-        TabSystem = TabSystem,
-        Tabs = {
-            Info = infoTab,
-            Main = mainTab,
-            Teleport = teleportTab,
-            ESP = espTab,
-            Settings = settingsTab,
-            Analysis = analysisTab
-        }
-    }
-end
-
--- Initialize the UI
-local UI_Interface = CreateMainUI()
-
--- Set proper parent for the GUI
-pcall(function()
-    UI_Interface.GUI.Parent = game:GetService("CoreGui")
+    Luna:Destroy()
+    Cleanup:Destroy()
 end)
 
--- Fallback if CoreGui access is restricted
-if not UI_Interface.GUI.Parent then
-    UI_Interface.GUI.Parent = Player:WaitForChild("PlayerGui")
-end
+-- Load saved configurations
+Luna:LoadAutoloadConfig()
 
--- Add extra visibility check
-UI_Interface.MainFrame.Visible = true
-UI_Interface.GUI.Enabled = true
-UI_Interface.GUI.DisplayOrder = 999
-
--- Create Information Tab content
-local InfoSection = UI_Interface.Tabs.Info.CreateSection("Welcome")
-InfoSection.CreateParagraph("SkyX Hub - Grow A Garden", "A comprehensive automation script for Grow A Garden with multiple features designed for reliability.")
-
--- If framework analysis was successful, show details
-if success then
-    InfoSection.CreateParagraph("Game Detection", "Successfully analyzed game framework!")
-else
-    InfoSection.CreateParagraph("Game Detection", "Warning: Could not fully analyze game framework. Some features might not work reliably.")
-end
-
--- Create Main Tab content
-local FarmingSection = UI_Interface.Tabs.Main.CreateSection("Farming")
-
--- Seed selection
-local seedsDropdown = {"Default"}
-if #Seeds > 0 then
-    seedsDropdown = Seeds
-end
-
-FarmingSection.CreateDropdown("Select Seed", seedsDropdown, Config.SelectedSeed, function(value)
-    Config.SelectedSeed = value
-end)
-
--- Farming toggles
-FarmingSection.CreateToggle("Auto Plant", Config.AutoPlant, function(value)
-    Config.AutoPlant = value
-end)
-
-FarmingSection.CreateToggle("Auto Harvest", Config.AutoHarvest, function(value)
-    Config.AutoHarvest = value
-end)
-
-FarmingSection.CreateToggle("Auto Water", Config.AutoWater, function(value)
-    Config.AutoWater = value
-end)
-
-FarmingSection.CreateToggle("Auto Collect Items", Config.AutoCollect, function(value)
-    Config.AutoCollect = value
-end)
-
-FarmingSection.CreateToggle("Auto Upgrade Tools", Config.AutoUpgrade, function(value)
-    Config.AutoUpgrade = value
-end)
-
--- Manual action buttons
-local ActionSection = UI_Interface.Tabs.Main.CreateSection("Manual Actions")
-
-ActionSection.CreateButton("Plant Now", function()
-    local success, message = Farming.Plant(Config.SelectedSeed)
-    NotificationSystem:Show("Plant Action", message, 5, success and "success" or "error")
-end)
-
-ActionSection.CreateButton("Harvest Now", function()
-    local success, message = Farming.Harvest()
-    NotificationSystem:Show("Harvest Action", message, 5, success and "success" or "error")
-end)
-
-ActionSection.CreateButton("Water Now", function()
-    local success, message = Farming.Water()
-    NotificationSystem:Show("Water Action", message, 5, success and "success" or "error")
-end)
-
-ActionSection.CreateButton("Collect Items Now", function()
-    local success, message = Collection.CollectNearbyItems()
-    NotificationSystem:Show("Collection Action", message, 5, success and "success" or "error")
-end)
-
-ActionSection.CreateButton("Try Upgrade Tools", function()
-    local success, message = Upgrade.TryUpgradeTool()
-    NotificationSystem:Show("Upgrade Action", message, 5, success and "success" or "error")
-end)
-
--- Create Teleport Tab content
-local TeleportSection = UI_Interface.Tabs.Teleport.CreateSection("Teleportation")
-
-TeleportSection.CreateDropdown("Teleport Method", {"Instant", "Tween"}, Config.TeleportMethod, function(value)
-    Config.TeleportMethod = value
-end)
-
--- Add buttons for each detected zone
-if #Zones > 0 then
-    for i, zone in pairs(Zones) do
-        TeleportSection.CreateButton("Teleport to " .. zone.Name, function()
-            local pos = zone:IsA("Model") and zone:GetModelCFrame().Position or zone.Position
-            TeleportTo(pos + Vector3.new(0, 5, 0))
-            NotificationSystem:Show("Teleport", "Teleported to " .. zone.Name, 3, "info")
-        end)
-    end
-else
-    TeleportSection.CreateParagraph("No Zones Detected", "Couldn't find any teleportable zones in the game.")
-    
-    -- Add fallback teleport to origin
-    TeleportSection.CreateButton("Teleport to Origin", function()
-        TeleportTo(Vector3.new(0, 50, 0))
-        NotificationSystem:Show("Teleport", "Teleported to origin", 3, "info")
-    end)
-end
-
--- Add teleport to closest planting area
-TeleportSection.CreateButton("Teleport to Closest Planting Area", function()
-    local area, distance = GetClosestPlantingArea()
-    if area then
-        TeleportTo(area.Position + Vector3.new(0, 3, 0))
-        NotificationSystem:Show("Teleport", "Teleported to closest planting area", 3, "success")
-    else
-        NotificationSystem:Show("Teleport Failed", "No planting areas found", 3, "error")
-    end
-end)
-
--- Create ESP Tab content
-local ESPSection = UI_Interface.Tabs.ESP.CreateSection("Visual ESP")
-
-ESPSection.CreateToggle("ESP Enabled", Config.ESP.Enabled, function(value)
-    Config.ESP.Enabled = value
-    if value then
-        ESP.SetupESP()
-    else
-        ESP.ClearESP()
-    end
-end)
-
-ESPSection.CreateToggle("Show Rare Plants", Config.ESP.RarePlants, function(value)
-    Config.ESP.RarePlants = value
-    if Config.ESP.Enabled then
-        ESP.SetupESP()
-    end
-end)
-
-ESPSection.CreateToggle("Show Collectible Items", Config.ESP.Items, function(value)
-    Config.ESP.Items = value
-    if Config.ESP.Enabled then
-        ESP.SetupESP()
-    end
-end)
-
-ESPSection.CreateToggle("Show Distance", Config.ESP.Distance, function(value)
-    Config.ESP.Distance = value
-    if Config.ESP.Enabled then
-        ESP.SetupESP()
-    end
-end)
-
-ESPSection.CreateButton("Refresh ESP", function()
-    ESP.SetupESP()
-    NotificationSystem:Show("ESP", "ESP refreshed", 3, "info")
-end)
-
--- Create Settings Tab content
-local SettingsSection = UI_Interface.Tabs.Settings.CreateSection("Player Settings")
-
-SettingsSection.CreateSlider("Walk Speed", 16, 100, Config.WalkSpeed, 1, " studs/s", function(value)
-    Config.WalkSpeed = value
-    if Humanoid then
-        Humanoid.WalkSpeed = value
-    end
-end)
-
-SettingsSection.CreateSlider("Jump Power", 50, 150, Config.JumpPower, 1, "", function(value)
-    Config.JumpPower = value
-    if Humanoid then
-        Humanoid.JumpPower = value
-    end
-end)
-
-SettingsSection.CreateButton("Reset Character", function()
-    if Character and Humanoid then
-        Humanoid.Health = 0
-    end
-end)
-
--- Create Debug Tab content
-local AnalysisSection = UI_Interface.Tabs.Analysis.CreateSection("Game Analysis")
-AnalysisSection.CreateParagraph("Analysis Results", analysis or "No analysis available")
-
-AnalysisSection.CreateButton("Refresh Game Analysis", function()
-    local newSuccess, newAnalysis = AnalyzeGameFramework()
-    AnalysisSection.CreateParagraph("Updated Analysis", newAnalysis or "No analysis available")
-    
-    NotificationSystem:Show(
-        "Game Analysis", 
-        newSuccess and "Successfully analyzed game framework!" or "Warning: Could not fully analyze game framework.",
-        5,
-        newSuccess and "success" or "warning"
-    )
-end)
-
--- Handle Character Changes
-Player.CharacterAdded:Connect(function(newCharacter)
-    Character = newCharacter
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-    Humanoid = Character:WaitForChild("Humanoid")
-    
-    -- Apply settings to new character
-    Humanoid.WalkSpeed = Config.WalkSpeed
-    Humanoid.JumpPower = Config.JumpPower
-end)
-
--- Enhanced Auto-farm System with Task Scheduler
-local TaskScheduler = {
-    Tasks = {},
-    Running = false,
-    DebugMode = false
-}
-
-function TaskScheduler:Init()
-    self.Running = true
-    self.Thread = coroutine.create(function()
-        while self.Running do
-            self:ProcessTasks()
-            wait(0.1) -- Short wait to prevent excessive CPU usage
-        end
-    end)
-    coroutine.resume(self.Thread)
-    return self
-end
-
-function TaskScheduler:AddTask(id, interval, callback, priority)
-    self.Tasks[id] = {
-        Interval = interval,
-        Callback = callback,
-        LastRun = 0,
-        Running = false,
-        Priority = priority or 5,
-        Failures = 0,
-        Status = "Waiting"
-    }
-    if self.DebugMode then
-        print("[TaskScheduler] Added task: " .. id)
-    end
-end
-
-function TaskScheduler:RemoveTask(id)
-    if self.Tasks[id] then
-        self.Tasks[id] = nil
-        if self.DebugMode then
-            print("[TaskScheduler] Removed task: " .. id)
-        end
-    end
-end
-
-function TaskScheduler:EnableTask(id, enabled)
-    if self.Tasks[id] then
-        self.Tasks[id].Enabled = enabled
-        self.Tasks[id].Status = enabled and "Enabled" or "Disabled"
-    end
-end
-
-function TaskScheduler:ProcessTasks()
-    local currentTime = tick()
-    local tasksByPriority = {}
-    
-    -- Organize tasks by priority
-    for id, task in pairs(self.Tasks) do
-        if task.Enabled ~= false then -- Skip disabled tasks
-            local priorityBucket = tasksByPriority[task.Priority] or {}
-            table.insert(priorityBucket, {id = id, task = task})
-            tasksByPriority[task.Priority] = priorityBucket
-        end
-    end
-    
-    -- Process tasks by priority (highest first)
-    for i = 10, 1, -1 do
-        if tasksByPriority[i] then
-            for _, taskData in ipairs(tasksByPriority[i]) do
-                local id, task = taskData.id, taskData.task
-                
-                if not task.Running and (currentTime - task.LastRun >= task.Interval) then
-                    task.Running = true
-                    task.Status = "Running"
-                    
-                    local success, result = pcall(function()
-                        return task.Callback()
-                    end)
-                    
-                    task.LastRun = tick()
-                    task.Running = false
-                    
-                    if success then
-                        task.Status = "Success"
-                        task.Failures = 0
-                    else
-                        task.Status = "Failed: " .. tostring(result)
-                        task.Failures = task.Failures + 1
-                        
-                        if self.DebugMode then
-                            warn("[TaskScheduler] Task '" .. id .. "' failed: " .. tostring(result))
-                        end
-                        
-                        -- If too many failures, disable the task
-                        if task.Failures >= 10 then
-                            task.Enabled = false
-                            task.Status = "Disabled (Too many failures)"
-                            if self.DebugMode then
-                                warn("[TaskScheduler] Task '" .. id .. "' disabled due to too many failures")
-                            end
-                        end
-                    end
-                end
-            end
-        end
-    end
-end
-
-function TaskScheduler:Stop()
-    self.Running = false
-end
-
-function TaskScheduler:Status()
-    local status = {}
-    for id, task in pairs(self.Tasks) do
-        status[id] = {
-            LastRun = task.LastRun,
-            Status = task.Status,
-            Enabled = task.Enabled ~= false,
-            Failures = task.Failures
-        }
-    end
-    return status
-end
-
--- Initialize the task scheduler
-local scheduler = TaskScheduler:Init()
-
--- Add farming tasks
-scheduler:AddTask("Planting", AUTO_PLANT_INTERVAL, function()
-    if Config.AutoPlant then
-        local success, message = Farming.Plant(Config.SelectedSeed)
-        return {success = success, message = message}
-    end
-    return {success = true, message = "Planting disabled"}
-end, 10) -- High priority
-
-scheduler:AddTask("Harvesting", AUTO_HARVEST_INTERVAL, function()
-    if Config.AutoHarvest then
-        local success, message = Farming.Harvest()
-        return {success = success, message = message}
-    end
-    return {success = true, message = "Harvesting disabled"}
-end, 9)
-
-scheduler:AddTask("Watering", AUTO_WATER_INTERVAL, function()
-    if Config.AutoWater then
-        local success, message = Farming.Water()
-        return {success = success, message = message}
-    end
-    return {success = true, message = "Watering disabled"}
-end, 8)
-
-scheduler:AddTask("Collecting", AUTO_COLLECT_INTERVAL, function()
-    if Config.AutoCollect then
-        local success, message = Collection.CollectNearbyItems()
-        return {success = success, message = message}
-    end
-    return {success = true, message = "Collection disabled"}
-end, 7)
-
-scheduler:AddTask("Upgrading", AUTO_UPGRADE_INTERVAL, function()
-    if Config.AutoUpgrade then
-        local success, message = Upgrade.TryUpgradeTool()
-        return {success = success, message = message}
-    end
-    return {success = true, message = "Upgrading disabled"}
-end, 6)
-
--- Task for monitoring and error recovery
-scheduler:AddTask("MonitoringAndRecovery", 30, function()
-    -- Check character and humanoid
-    if not Character or not Character:IsDescendantOf(workspace) or not Humanoid or Humanoid.Health <= 0 then
-        Character = Player.Character or Player.CharacterAdded:Wait()
-        HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-        Humanoid = Character:WaitForChild("Humanoid")
-        
-        -- Apply settings to new character
-        Humanoid.WalkSpeed = Config.WalkSpeed
-        Humanoid.JumpPower = Config.JumpPower
-        
-        return {success = true, message = "Character restored"}
-    end
-    
-    -- Re-analyze game framework if needed
-    if #PlantingAreas == 0 and #Seeds == 0 then
-        local success, analysis = AnalyzeGameFramework()
-        return {success = success, message = "Game framework re-analyzed"}
-    end
-    
-    return {success = true, message = "Monitoring completed"}
-end, 3) -- Lower priority
-
--- Task for updating UI elements based on status
-scheduler:AddTask("UIUpdates", 5, function()
-    -- This could update UI elements with the current status of auto-farming
-    return {success = true, message = "UI Updated"}
-end, 2) -- Lower priority
-
--- Clean up when UI is destroyed
-local originalDestroy = OrionLib.Destroy
-OrionLib.Destroy = function()
-    -- Stop the scheduler
-    scheduler:Stop()
-    
-    -- Unbind any other services
-    for _, name in pairs({"FarmingLoop", "CollectionLoop", "UpgradeLoop"}) do
-        pcall(function()
-            RunService:UnbindFromRenderStep(name)
-        end)
-    end
-    
-    -- Call original destroy
-    originalDestroy()
-end
-
--- Display initial notification
-NotificationSystem:Show("SkyX Hub", "Grow A Garden script loaded successfully!", 5, "success")
+return Cleanup -- Return cleanup bindable event for external script control
