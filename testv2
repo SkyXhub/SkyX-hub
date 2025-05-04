@@ -1,16 +1,25 @@
 --[[
-    SkyX Premium MM2 Script (Advanced Luna Edition)
+    SkyX Premium MM2 Script (Advanced Rayfield Edition)
     20+ Powerful Features with custom engine
 ]]
 
--- Load the Luna Interface Suite
-local Luna = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/main/source.lua", true))()
-
+-- Load Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 -- Game check
 if game.PlaceId ~= 142823291 and game.PlaceId ~= 881738579 then
-    Luna:Notify({
+    Rayfield:Notify({
         Title = "SkyX MM2 Script",
-        Content = "This script is only for Murder Mystery 2!"
+        Content = "This script is only for Murder Mystery 2!",
+        Duration = 5,
+        Image = 4483362458,
+        Actions = {
+            Ignore = {
+                Name = "Okay",
+                Callback = function()
+                    -- Do nothing
+                end
+            },
+        },
     })
     return
 end
@@ -879,125 +888,124 @@ function EnableGodMode()
     end
 end
 
--- Create Luna UI window with simplified parameters
-local Window = Luna:CreateWindow({
-    Name = "SkyX MM2 Hub"
+-- Create Rayfield Window
+local Window = Rayfield:CreateWindow({
+    Name = "SkyX MM2 Hub",
+    LoadingTitle = "SkyX MM2 Hub",
+    LoadingSubtitle = "By SkyX Hub",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "SkyXConfig",
+        FileName = "MM2"
+    },
+    Discord = {
+        Enabled = true,
+        Invite = "skyx", -- No https://discord.gg/ needed
+        RememberJoins = true
+    },
+    KeySystem = false, -- Leave as false for now
+    KeySettings = {
+        Title = "SkyX Key System",
+        Subtitle = "Key Required",
+        Note = "Join the discord (discord.gg/skyx)",
+        FileName = "SkyXKey",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"SkyX"}
+    }
 })
 
--- Create tabs with minimal parameters to prevent issues
-local MainTab = Window:CreateTab({
-    Name = "Main"
-})
+-- Create tabs
+local MainTab = Window:CreateTab("Main", 4483362458)
+local ESPTab = Window:CreateTab("ESP", 4483362458)
+local PlayerTab = Window:CreateTab("Player", 4483362458)
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+local TeleportTab = Window:CreateTab("Teleport", 4483362458)
+local MiscTab = Window:CreateTab("Misc", 4483362458)
 
-local ESPTab = Window:CreateTab({
-    Name = "ESP"
-})
+-- Main Tab
+local RoleSectionMain = MainTab:CreateSection("Role Information")
 
-local PlayerTab = Window:CreateTab({
-    Name = "Player"
-})
-
-local CombatTab = Window:CreateTab({
-    Name = "Combat"
-})
-
-local TeleportTab = Window:CreateTab({
-    Name = "Teleport"
-})
-
-local MiscTab = Window:CreateTab({
-    Name = "Misc"
-})
-
--- Main Tab Sections
-local MainInfo = MainTab:CreateSection("Information")
-
--- Info labels
-MainTab:CreateLabel("Welcome to SkyX MM2 Hub!")
-MainTab:CreateLabel("Join discord.gg/skyx for more scripts")
-
-MainTab:CreateButton({
-    Name = "Copy Discord Invite",
-    Callback = function()
-        setclipboard("discord.gg/skyx")
-        Luna:Notify({
-            Title = "SkyX Hub",
-            Content = "Discord invite copied to clipboard!"
-        })
-    end
-})
-
-local RoleSection = MainTab:CreateSection("Role Information")
-
--- Role tracker/display
+-- Role display labels
 local MurdererLabel = MainTab:CreateLabel("Murderer: Unknown")
 local SheriffLabel = MainTab:CreateLabel("Sheriff: Unknown")
 local MyRoleLabel = MainTab:CreateLabel("Your Role: Unknown")
 
--- Auto-find murderer/sheriff
+-- Auto-track roles
 MainTab:CreateToggle({
     Name = "Auto-Track Roles",
     CurrentValue = true,
+    Flag = "AutoTrackRoles",
     Callback = function(Value)
-        -- This will be handled in the main loop
-    end
-}, "AutoTrackRoles")
+        -- This is handled in the main loop anyway
+    end,
+})
 
--- Coin farming section
-local FarmingSection = MainTab:CreateSection("Coin Farming")
+-- Coin collection section
+local CoinSection = MainTab:CreateSection("Coin Collection")
 
 MainTab:CreateToggle({
     Name = "Auto Collect Coins",
     CurrentValue = false,
+    Flag = "AutoCollectCoins",
     Callback = function(Value)
         CoinSettings.Enabled = Value
-    end
-}, "AutoCollectCoins")
+    end,
+})
 
 MainTab:CreateSlider({
     Name = "Collection Distance",
     Range = {5, 50},
     Increment = 1,
+    Suffix = "studs",
     CurrentValue = 20,
+    Flag = "CoinDistance", 
     Callback = function(Value)
         CoinSettings.CollectDistance = Value
-    end
-}, "CoinCollectDistance")
+    end,
+})
 
 MainTab:CreateSlider({
     Name = "Collection Delay",
     Range = {0.1, 2},
     Increment = 0.1,
+    Suffix = "sec",
     CurrentValue = 0.5,
+    Flag = "CoinDelay", 
     Callback = function(Value)
         CoinSettings.CollectDelay = Value
-    end
-}, "CoinCollectDelay")
+    end,
+})
 
 -- Auto Farm section
+local FarmSection = MainTab:CreateSection("Auto Farm")
+
 MainTab:CreateToggle({
     Name = "Auto Farm",
     CurrentValue = false,
+    Flag = "AutoFarm",
     Callback = function(Value)
         AutoFarmSettings.Enabled = Value
-    end
-}, "AutoFarm")
+    end,
+})
 
 MainTab:CreateToggle({
     Name = "Safe Mode",
     CurrentValue = true,
+    Flag = "SafeMode",
     Callback = function(Value)
         AutoFarmSettings.SafeMode = Value
-    end
-}, "SafeMode")
+    end,
+})
 
 MainTab:CreateToggle({
     Name = "Hide Player Name",
     CurrentValue = true,
+    Flag = "HidePlayerName",
     Callback = function(Value)
         AutoFarmSettings.HidePlayerName = Value
-    end
-}, "HidePlayerName")
+    end,
+})
 
 -- ESP Tab
 local ESPSection = ESPTab:CreateSection("ESP Settings")
@@ -1005,6 +1013,7 @@ local ESPSection = ESPTab:CreateSection("ESP Settings")
 ESPTab:CreateToggle({
     Name = "Enable ESP",
     CurrentValue = false,
+    Flag = "EnableESP",
     Callback = function(Value)
         ESPSettings.Enabled = Value
         
@@ -1019,79 +1028,130 @@ ESPTab:CreateToggle({
             end
             ESPObjects = {}
         end
-    end
-}, "EnableESP")
+    end,
+})
 
 ESPTab:CreateToggle({
     Name = "Show Murderer",
     CurrentValue = true,
+    Flag = "ShowMurderer",
     Callback = function(Value)
         ESPSettings.ShowMurderer = Value
         if ESPSettings.Enabled then CreateESP() end
-    end
-}, "ShowMurderer")
+    end,
+})
 
 ESPTab:CreateToggle({
     Name = "Show Sheriff",
     CurrentValue = true,
+    Flag = "ShowSheriff",
     Callback = function(Value)
         ESPSettings.ShowSheriff = Value
         if ESPSettings.Enabled then CreateESP() end
-    end
-}, "ShowSheriff")
+    end,
+})
 
 ESPTab:CreateToggle({
     Name = "Show Gun",
     CurrentValue = true,
+    Flag = "ShowGun",
     Callback = function(Value)
         ESPSettings.ShowGun = Value
         if ESPSettings.Enabled then CreateESP() end
-    end
-}, "ShowGun")
+    end,
+})
 
 ESPTab:CreateToggle({
     Name = "Show Names",
     CurrentValue = true,
+    Flag = "ShowNames",
     Callback = function(Value)
         ESPSettings.ShowNames = Value
         if ESPSettings.Enabled then CreateESP() end
-    end
-}, "ShowNames")
+    end,
+})
 
 ESPTab:CreateToggle({
     Name = "Show Distance",
     CurrentValue = true,
+    Flag = "ShowDistance",
     Callback = function(Value)
         ESPSettings.ShowDistance = Value
         if ESPSettings.Enabled then CreateESP() end
-    end
-}, "ShowDistance")
+    end,
+})
 
 ESPTab:CreateToggle({
     Name = "Show Boxes",
     CurrentValue = true,
+    Flag = "ShowBoxes",
     Callback = function(Value)
         ESPSettings.ShowBoxes = Value
         if ESPSettings.Enabled then CreateESP() end
-    end
-}, "ShowBoxes")
+    end,
+})
 
 ESPTab:CreateToggle({
     Name = "Box Outlines",
     CurrentValue = true,
+    Flag = "BoxOutline",
     Callback = function(Value)
         ESPSettings.BoxOutline = Value
         if ESPSettings.Enabled then CreateESP() end
-    end
-}, "BoxOutline")
+    end,
+})
 
 ESPTab:CreateToggle({
     Name = "Rainbow ESP",
     CurrentValue = false,
+    Flag = "RainbowESP",
     Callback = function(Value)
         ESPSettings.RainbowESP = Value
+    end,
+})
+
+-- ESP Color pickers
+ESPTab:CreateSection("ESP Colors")
+
+ESPTab:CreateColorPicker({
+    Name = "Murderer Color",
+    Color = ESPSettings.MurdererColor,
+    Flag = "MurdererColor",
+    Callback = function(Value)
+        ESPSettings.MurdererColor = Value
+        if ESPSettings.Enabled then CreateESP() end
     end
-}, "RainbowESP")
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Sheriff Color",
+    Color = ESPSettings.SheriffColor,
+    Flag = "SheriffColor",
+    Callback = function(Value)
+        ESPSettings.SheriffColor = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Innocent Color",
+    Color = ESPSettings.PlayerColor,
+    Flag = "PlayerColor",
+    Callback = function(Value)
+        ESPSettings.PlayerColor = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Gun Color",
+    Color = ESPSettings.GunColor,
+    Flag = "GunColor",
+    Callback = function(Value)
+        ESPSettings.GunColor = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end
+})
 
 -- Player Tab
 local PlayerSection = PlayerTab:CreateSection("Character Modifications")
@@ -1099,113 +1159,127 @@ local PlayerSection = PlayerTab:CreateSection("Character Modifications")
 PlayerTab:CreateToggle({
     Name = "Walk Speed",
     CurrentValue = false,
+    Flag = "WalkSpeed", 
     Callback = function(Value)
         PlayerSettings.SpeedEnabled = Value
         if Value then
             Humanoid.WalkSpeed = PlayerSettings.SpeedValue
         else
-            Humanoid.WalkSpeed = 16 -- Default speed
+            Humanoid.WalkSpeed = 16 -- Default
         end
-    end
-}, "SpeedEnabled")
+    end,
+})
 
 PlayerTab:CreateSlider({
     Name = "Speed Value",
     Range = {16, 150},
     Increment = 1,
+    Suffix = "speed",
     CurrentValue = 50,
+    Flag = "SpeedValue", 
     Callback = function(Value)
         PlayerSettings.SpeedValue = Value
         if PlayerSettings.SpeedEnabled then
             Humanoid.WalkSpeed = Value
         end
-    end
-}, "SpeedValue")
+    end,
+})
 
 PlayerTab:CreateToggle({
     Name = "Jump Power",
     CurrentValue = false,
+    Flag = "JumpPower", 
     Callback = function(Value)
         PlayerSettings.JumpEnabled = Value
         if Value then
             Humanoid.JumpPower = PlayerSettings.JumpPower
         else
-            Humanoid.JumpPower = 50 -- Default jump power
+            Humanoid.JumpPower = 50 -- Default
         end
-    end
-}, "JumpEnabled")
+    end,
+})
 
 PlayerTab:CreateSlider({
     Name = "Jump Power Value",
     Range = {50, 200},
     Increment = 5,
+    Suffix = "power",
     CurrentValue = 100,
+    Flag = "JumpValue", 
     Callback = function(Value)
         PlayerSettings.JumpPower = Value
         if PlayerSettings.JumpEnabled then
             Humanoid.JumpPower = Value
         end
-    end
-}, "JumpPowerValue")
+    end,
+})
 
 PlayerTab:CreateToggle({
     Name = "NoClip",
     CurrentValue = false,
+    Flag = "NoClip", 
     Callback = function(Value)
         PlayerSettings.NoClip = Value
         ToggleNoClip(Value)
-    end
-}, "NoClip")
+    end,
+})
 
 PlayerTab:CreateToggle({
     Name = "Flight",
     CurrentValue = false,
+    Flag = "Flight", 
     Callback = function(Value)
         PlayerSettings.FlightEnabled = Value
         ToggleFlight(Value)
-    end
-}, "Flight")
+    end,
+})
 
 PlayerTab:CreateSlider({
     Name = "Flight Speed",
     Range = {10, 200},
     Increment = 5,
+    Suffix = "speed",
     CurrentValue = 50,
+    Flag = "FlightSpeed", 
     Callback = function(Value)
         PlayerSettings.FlightSpeed = Value
-    end
-}, "FlightSpeed")
+    end,
+})
 
 PlayerTab:CreateToggle({
     Name = "Anti-Ragdoll",
     CurrentValue = false,
+    Flag = "AntiRagdoll", 
     Callback = function(Value)
         PlayerSettings.AntiRagdoll = Value
         if Value then
             EnableAntiRagdoll()
         end
-    end
-}, "AntiRagdoll")
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "Auto Grab Gun",
+    CurrentValue = false,
+    Flag = "AutoGrabGun", 
+    Callback = function(Value)
+        PlayerSettings.AutoGrabGun = Value
+    end,
+})
 
 PlayerTab:CreateButton({
     Name = "God Mode (Risky)",
     Callback = function()
         PlayerSettings.GodMode = true
         EnableGodMode()
-        Luna:Notify({
-            Title = "GodMode",
-            Content = "God Mode enabled! Note: This is risky and may be detected."
+        Rayfield:Notify({
+            Title = "God Mode",
+            Content = "God Mode enabled! Note: This is risky and may be detected.",
+            Duration = 5,
+            Image = 4483362458,
         })
-    end
+    end,
 })
-
-PlayerTab:CreateToggle({
-    Name = "Auto Grab Gun",
-    CurrentValue = false,
-    Callback = function(Value)
-        PlayerSettings.AutoGrabGun = Value
-    end
-}, "AutoGrabGun")
 
 -- Combat Tab
 local CombatSection = CombatTab:CreateSection("Combat Features")
@@ -1213,137 +1287,166 @@ local CombatSection = CombatTab:CreateSection("Combat Features")
 CombatTab:CreateToggle({
     Name = "Kill Aura",
     CurrentValue = false,
+    Flag = "KillAura", 
     Callback = function(Value)
         KillAuraSettings.Enabled = Value
-    end
-}, "KillAura")
+    end,
+})
 
 CombatTab:CreateSlider({
     Name = "Kill Aura Range",
     Range = {5, 30},
     Increment = 1,
+    Suffix = "studs",
     CurrentValue = 10,
+    Flag = "KillRange", 
     Callback = function(Value)
         KillAuraSettings.Range = Value
-    end
-}, "KillAuraRange")
+    end,
+})
 
 CombatTab:CreateToggle({
     Name = "Target Murderer Only",
     CurrentValue = false,
+    Flag = "TargetMurderer", 
     Callback = function(Value)
         KillAuraSettings.TargetMurderer = Value
-    end
-}, "TargetMurderer")
+    end,
+})
 
 CombatTab:CreateSlider({
     Name = "Kill Cooldown",
     Range = {0.1, 2},
     Increment = 0.1,
+    Suffix = "sec",
     CurrentValue = 0.5,
+    Flag = "KillCooldown", 
     Callback = function(Value)
         KillAuraSettings.Cooldown = Value
-    end
-}, "KillCooldown")
+    end,
+})
 
 -- Anti-Sheriff section
-local AntiSheriffSection = CombatTab:CreateSection("Anti-Sheriff")
+local AntiSheriffSect = CombatTab:CreateSection("Anti-Sheriff")
 
 CombatTab:CreateToggle({
     Name = "Anti-Sheriff",
     CurrentValue = false,
+    Flag = "AntiSheriff", 
     Callback = function(Value)
         AntiSheriffSettings.Enabled = Value
-    end
-}, "AntiSheriff")
+    end,
+})
 
 CombatTab:CreateSlider({
     Name = "Detection Range",
     Range = {5, 30},
     Increment = 1,
+    Suffix = "studs",
     CurrentValue = 15,
+    Flag = "SheriffRange", 
     Callback = function(Value)
         AntiSheriffSettings.Range = Value
-    end
-}, "SheriffDetectionRange")
+    end,
+})
 
 CombatTab:CreateSlider({
     Name = "Dodge Distance",
     Range = {5, 30},
     Increment = 1,
+    Suffix = "studs",
     CurrentValue = 15,
+    Flag = "DodgeDistance", 
     Callback = function(Value)
         AntiSheriffSettings.DodgeDistance = Value
-    end
-}, "DodgeDistance")
+    end,
+})
 
 -- Aimbot section
-local AimbotSection = CombatTab:CreateSection("Aimbot")
+local AimbotSect = CombatTab:CreateSection("Aimbot")
 
 CombatTab:CreateToggle({
     Name = "Enable Aimbot",
     CurrentValue = false,
+    Flag = "Aimbot", 
     Callback = function(Value)
         AimbotSettings.Enabled = Value
-    end
-}, "EnableAimbot")
+    end,
+})
 
 CombatTab:CreateToggle({
     Name = "Show FOV Circle",
     CurrentValue = true,
+    Flag = "ShowFOV", 
     Callback = function(Value)
         AimbotSettings.ShowFOV = Value
         FOVCircle.Visible = Value
-    end
-}, "ShowFOV")
+    end,
+})
 
 CombatTab:CreateSlider({
     Name = "FOV Size",
     Range = {30, 500},
     Increment = 10,
+    Suffix = "px",
     CurrentValue = 150,
+    Flag = "FOVSize", 
     Callback = function(Value)
         AimbotSettings.FOV = Value
-    end
-}, "FOVSize")
+    end,
+})
 
 CombatTab:CreateSlider({
     Name = "Aimbot Sensitivity",
     Range = {0.1, 2},
     Increment = 0.1,
     CurrentValue = 0.5,
+    Flag = "AimbotSensitivity", 
     Callback = function(Value)
         AimbotSettings.Sensitivity = Value
-    end
-}, "AimbotSensitivity")
+    end,
+})
 
 CombatTab:CreateToggle({
     Name = "Team Check",
     CurrentValue = true,
+    Flag = "TeamCheck", 
     Callback = function(Value)
         AimbotSettings.TeamCheck = Value
-    end
-}, "TeamCheck")
+    end,
+})
 
 CombatTab:CreateToggle({
     Name = "Aim at Murderer Only",
     CurrentValue = true,
+    Flag = "AimAtMurderer", 
     Callback = function(Value)
         AimbotSettings.AimAtMurderer = Value
-    end
-}, "AimAtMurderer")
+    end,
+})
 
--- Use simplified dropdown without CurrentOption to prevent issues
 CombatTab:CreateDropdown({
     Name = "Target Part",
     Options = {"Head", "HumanoidRootPart", "Torso"},
+    CurrentOption = "Head",
+    Flag = "TargetPart", 
     Callback = function(Value)
         AimbotSettings.TargetPart = Value
+    end,
+})
+
+CombatTab:CreateColorPicker({
+    Name = "FOV Circle Color",
+    Color = AimbotSettings.FOVColor,
+    Flag = "FOVColor",
+    Callback = function(Value)
+        AimbotSettings.FOVColor = Value
+        FOVCircle.Color = Value
     end
 })
 
 -- Teleport Tab
-local TeleportSection = TeleportTab:CreateSection("Quick Teleports")
+local TeleportSect = TeleportTab:CreateSection("Quick Teleports")
 
 -- Common MM2 map locations
 local mapLocations = {
@@ -1362,24 +1465,28 @@ for _, location in pairs(mapLocations) do
             -- Check if teleport is safe
             if IsSafeTeleport(location.Position) or not AutoFarmSettings.SafeMode then
                 HumanoidRootPart.CFrame = CFrame.new(location.Position)
-                Luna:Notify({
+                Rayfield:Notify({
                     Title = "Teleport",
-                    Content = "Teleported to " .. location.Name
+                    Content = "Teleported to " .. location.Name,
+                    Duration = 3,
+                    Image = 4483362458,
                 })
             else
-                Luna:Notify({
+                Rayfield:Notify({
                     Title = "Teleport Failed",
-                    Content = "Cannot teleport - Murderer nearby. Disable Safe Mode to override."
+                    Content = "Cannot teleport - Murderer nearby. Disable Safe Mode to override.",
+                    Duration = 3,
+                    Image = 4483362458,
                 })
             end
-        end
+        end,
     })
 end
 
--- Teleport to player
-TeleportTab:CreateSection("Player Teleports")
+-- Teleport to player section
+local PlayerTPSect = TeleportTab:CreateSection("Player Teleports")
 
--- Create a dropdown of all players
+-- Get all players
 local playerList = {}
 for _, player in pairs(Players:GetPlayers()) do
     if player ~= LocalPlayer then
@@ -1387,16 +1494,18 @@ for _, player in pairs(Players:GetPlayers()) do
     end
 end
 
--- Create simplified player dropdown without CurrentOption
+-- Player dropdown
 local PlayerDropdown = TeleportTab:CreateDropdown({
     Name = "Select Player",
     Options = playerList,
+    CurrentOption = playerList[1] or "",
+    Flag = "PlayerTP", 
     Callback = function(Value)
         TeleportSettings.TPTarget = Value
-    end
+    end,
 })
 
--- Button to teleport to selected player
+-- Teleport button
 TeleportTab:CreateButton({
     Name = "Teleport to Player",
     Callback = function()
@@ -1407,61 +1516,64 @@ TeleportTab:CreateButton({
                 -- Check if teleport is safe
                 if IsSafeTeleport(targetPlayer.Character.HumanoidRootPart.Position) or not AutoFarmSettings.SafeMode then
                     HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
-                    Luna:Notify({
+                    Rayfield:Notify({
                         Title = "Teleport",
-                        Content = "Teleported to " .. targetPlayer.Name
+                        Content = "Teleported to " .. targetPlayer.Name,
+                        Duration = 3,
+                        Image = 4483362458,
                     })
                 else
-                    Luna:Notify({
+                    Rayfield:Notify({
                         Title = "Teleport Failed",
-                        Content = "Cannot teleport - Murderer nearby. Disable Safe Mode to override."
+                        Content = "Cannot teleport - Murderer nearby. Disable Safe Mode to override.",
+                        Duration = 3,
+                        Image = 4483362458,
                     })
                 end
             else
-                Luna:Notify({
+                Rayfield:Notify({
                     Title = "Teleport Failed",
-                    Content = "Player not found or too far away"
+                    Content = "Player not found or too far away",
+                    Duration = 3,
+                    Image = 4483362458,
                 })
             end
         else
-            Luna:Notify({
+            Rayfield:Notify({
                 Title = "Teleport Failed",
-                Content = "No player selected"
+                Content = "No player selected",
+                Duration = 3,
+                Image = 4483362458,
             })
         end
-    end
+    end,
 })
 
--- Toggle for loop teleport (follow player)
+-- Loop teleport toggle
 TeleportTab:CreateToggle({
     Name = "Loop Teleport (Follow)",
     CurrentValue = false,
+    Flag = "LoopTP", 
     Callback = function(Value)
         TeleportSettings.LoopTP = Value
-    end
-}, "LoopTeleport")
+    end,
+})
 
 -- Misc Tab
-local MiscSection = MiscTab:CreateSection("Miscellaneous")
+local EmoteSect = MiscTab:CreateSection("Emotes")
 
--- Create preset emote buttons
-local emotes = {
-    {Name = "Floss", ID = "floss"},
-    {Name = "Zombie", ID = "zombie"},
-    {Name = "Ninja", ID = "ninja"},
-    {Name = "Dab", ID = "dab"},
-    {Name = "Sit", ID = "sit"}
-}
-
--- Simplified emote dropdown
+-- Emote dropdown
 MiscTab:CreateDropdown({
     Name = "Select Emote",
     Options = {"floss", "zombie", "ninja", "dab", "sit"},
+    CurrentOption = "floss",
+    Flag = "EmoteSelect", 
     Callback = function(Value)
         EmoteSettings.CurrentEmote = Value
-    end
+    end,
 })
 
+-- Play emote button
 MiscTab:CreateButton({
     Name = "Play Emote",
     Callback = function()
@@ -1472,37 +1584,45 @@ MiscTab:CreateButton({
                 break
             end
         end
-    end
+    end,
 })
 
+-- Loop emotes toggle
 MiscTab:CreateToggle({
     Name = "Loop Emotes",
     CurrentValue = false,
+    Flag = "LoopEmotes", 
     Callback = function(Value)
         EmoteSettings.LoopEmotes = Value
-    end
-}, "LoopEmotes")
+    end,
+})
 
 -- Server section
-MiscTab:CreateSection("Server")
+local ServerSect = MiscTab:CreateSection("Server")
 
+-- Rejoin button
 MiscTab:CreateButton({
     Name = "Rejoin Server",
     Callback = function()
-        Luna:Notify({
+        Rayfield:Notify({
             Title = "Server",
-            Content = "Rejoining server..."
+            Content = "Rejoining server...",
+            Duration = 3,
+            Image = 4483362458,
         })
         game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-    end
+    end,
 })
 
+-- Server hop button
 MiscTab:CreateButton({
     Name = "Server Hop",
     Callback = function()
-        Luna:Notify({
+        Rayfield:Notify({
             Title = "Server",
-            Content = "Looking for another server..."
+            Content = "Looking for another server...",
+            Duration = 3,
+            Image = 4483362458,
         })
         
         local servers = {}
@@ -1519,13 +1639,15 @@ MiscTab:CreateButton({
             if #servers > 0 then
                 game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)])
             else
-                Luna:Notify({
+                Rayfield:Notify({
                     Title = "Server Hop Failed",
-                    Content = "No available servers found"
+                    Content = "No available servers found",
+                    Duration = 3,
+                    Image = 4483362458,
                 })
             end
         end
-    end
+    end,
 })
 
 -- Update player list when players join/leave
@@ -1538,10 +1660,7 @@ Players.PlayerAdded:Connect(function(player)
         end
     end
     
-    PlayerDropdown:Set({
-        Options = newPlayerList,
-        CurrentOption = newPlayerList[1] or "No Players"
-    })
+    PlayerDropdown:Set(newPlayerList[1] or "", newPlayerList)
     
     -- Update roles
     wait(3) -- Wait for role assignment
@@ -1557,14 +1676,30 @@ Players.PlayerRemoving:Connect(function(player)
         end
     end
     
-    PlayerDropdown:Set({
-        Options = newPlayerList,
-        CurrentOption = newPlayerList[1] or "No Players"
-    })
+    PlayerDropdown:Set(newPlayerList[1] or "", newPlayerList)
     
     -- Update roles
     UpdateRoles()
  end)
+
+-- Credits section
+local CreditSect = MiscTab:CreateSection("Credits")
+
+MiscTab:CreateLabel("Script created by SkyX Hub")
+MiscTab:CreateLabel("discord.gg/skyx")
+
+MiscTab:CreateButton({
+    Name = "Copy Discord Invite",
+    Callback = function()
+        setclipboard("discord.gg/skyx")
+        Rayfield:Notify({
+            Title = "Discord",
+            Content = "Discord invite copied to clipboard!",
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end,
+})
 
 -- Initialize
 UpdateRoles()
@@ -1644,10 +1779,20 @@ spawn(function()
     end
 end)
 
--- Notification on load
-Luna:Notify({
+-- Welcome notification
+Rayfield:Notify({
     Title = "SkyX MM2 Hub",
-    Content = "Script loaded successfully!"
+    Content = "Script loaded successfully!",
+    Duration = 5,
+    Image = 4483362458,
+    Actions = { -- Notification Buttons
+        Ignore = {
+            Name = "Okay!",
+            Callback = function()
+                -- Do nothing
+            end
+        },
+    },
 })
 
 return SkyXFunctions
