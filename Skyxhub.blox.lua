@@ -1,1036 +1,1716 @@
---[[
-    SkyX Hub - Grow A Garden Script (Rayfield UI)
+--[[  
+    SkyX Hybrid UI Library
+    A versatile UI library for Roblox exploits combining the best features from
+    Luna, Rayfield, and Valiant UI libraries.
     
-    Features:
-    - Auto-plant and auto-harvest with reliability improvements
-    - Auto-water plants with timing controls
-    - Auto-collect rewards and seeds
-    - Teleportation to different zones
-    - Auto-upgrading tools
-    - ESP for rare plants and items
-    
-    Using Rayfield UI with modular design for better organization
+    Created by SkyX Hub
+    Version: 1.0.0
 ]]
 
 -- Services
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local VirtualUser = game:GetService("VirtualUser")
-
--- Variables
-local Player = Players.LocalPlayer
-local Character = Player.Character or Player.CharacterAdded:Wait()
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-local Humanoid = Character:WaitForChild("Humanoid")
-local Camera = workspace.CurrentCamera
-
--- Anti-AFK
-Player.Idled:Connect(function()
-    VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
-    wait(1)
-    VirtualUser:Button2Up(Vector2.new(0, 0), Camera.CFrame)
-end)
-
--- Remotes and Game Framework Detection
-local Remotes = {}
-local PlantingAreas = {}
-local Tools = {}
-local Seeds = {}
-local RewardsAndItems = {}
-local Zones = {}
-
--- Rayfield UI Library
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+local CoreGui = game:GetService("CoreGui")
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Mouse = LocalPlayer:GetMouse()
+local HttpService = game:GetService("HttpService")
+local TextService = game:GetService("TextService")
 
 -- Constants
-local RETRY_COUNT = 3
-local RETRY_DELAY = 0.5
-local AUTO_PLANT_INTERVAL = 1.5
-local AUTO_HARVEST_INTERVAL = 2
-local AUTO_WATER_INTERVAL = 5
-local AUTO_COLLECT_INTERVAL = 3
-local AUTO_UPGRADE_INTERVAL = 10
-
--- Script Configuration
-local Config = {
-    AutoPlant = false,
-    AutoHarvest = false,
-    AutoWater = false,
-    AutoCollect = false,
-    SelectedSeed = "Default",
-    WalkSpeed = 16,
-    JumpPower = 50,
-    TeleportMethod = "Instant", -- Instant or Tween
-    AutoUpgrade = false,
-    ESP = {
-        Enabled = false,
-        RarePlants = true,
-        Items = true,
-        Distance = true
+local TWEEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local Library = {
+    Flags = {},
+    Theme = {},
+    Notification = nil,
+    Icons = {
+        Home = "rbxassetid://7733960981",
+        Settings = "rbxassetid://7734053495",
+        Search = "rbxassetid://7734039830",
+        Bolt = "rbxassetid://7734053495",
+        Map = "rbxassetid://7734056658",
+        Eye = "rbxassetid://7734039803",
+        Key = "rbxassetid://7734041341",
+        Person = "rbxassetid://7734042071",
+        Lock = "rbxassetid://7734041951",
+        Crown = "rbxassetid://7734036303",
+        Gear = "rbxassetid://7734038449",
+        Info = "rbxassetid://7734041341",
+        Fire = "rbxassetid://7734025272",
+        Heart = "rbxassetid://7734042560",
+        Plus = "rbxassetid://7734043024",
+        Minus = "rbxassetid://7734043388"
+    },
+    Themes = {
+        Default = {
+            BackgroundColor = Color3.fromRGB(25, 25, 25),
+            SidebarColor = Color3.fromRGB(30, 30, 30),
+            PrimaryTextColor = Color3.fromRGB(255, 255, 255),
+            SecondaryTextColor = Color3.fromRGB(175, 175, 175),
+            UIStrokeColor = Color3.fromRGB(85, 85, 85),
+            AccentColor = Color3.fromRGB(0, 120, 215),
+            DividerColor = Color3.fromRGB(60, 60, 60),
+            InputBackgroundColor = Color3.fromRGB(35, 35, 35),
+            ButtonColor = Color3.fromRGB(35, 35, 35),
+            HoverColor = Color3.fromRGB(40, 40, 40),
+            PressedColor = Color3.fromRGB(45, 45, 45),
+            TabColor = Color3.fromRGB(35, 35, 35)
+        },
+        Ocean = {
+            BackgroundColor = Color3.fromRGB(20, 30, 40),
+            SidebarColor = Color3.fromRGB(25, 35, 45),
+            PrimaryTextColor = Color3.fromRGB(230, 240, 245),
+            SecondaryTextColor = Color3.fromRGB(175, 190, 205),
+            UIStrokeColor = Color3.fromRGB(60, 80, 100),
+            AccentColor = Color3.fromRGB(0, 150, 220),
+            DividerColor = Color3.fromRGB(50, 70, 90),
+            InputBackgroundColor = Color3.fromRGB(30, 40, 50),
+            ButtonColor = Color3.fromRGB(30, 40, 50),
+            HoverColor = Color3.fromRGB(35, 45, 55),
+            PressedColor = Color3.fromRGB(40, 50, 60),
+            TabColor = Color3.fromRGB(30, 40, 50)
+        },
+        Amethyst = {
+            BackgroundColor = Color3.fromRGB(30, 25, 40),
+            SidebarColor = Color3.fromRGB(35, 30, 45),
+            PrimaryTextColor = Color3.fromRGB(240, 235, 245),
+            SecondaryTextColor = Color3.fromRGB(190, 180, 200),
+            UIStrokeColor = Color3.fromRGB(80, 70, 95),
+            AccentColor = Color3.fromRGB(140, 85, 250),
+            DividerColor = Color3.fromRGB(60, 50, 75),
+            InputBackgroundColor = Color3.fromRGB(40, 35, 50),
+            ButtonColor = Color3.fromRGB(40, 35, 50),
+            HoverColor = Color3.fromRGB(45, 40, 55),
+            PressedColor = Color3.fromRGB(50, 45, 60),
+            TabColor = Color3.fromRGB(40, 35, 50)
+        },
+        Emerald = {
+            BackgroundColor = Color3.fromRGB(25, 35, 30),
+            SidebarColor = Color3.fromRGB(30, 40, 35),
+            PrimaryTextColor = Color3.fromRGB(235, 245, 240),
+            SecondaryTextColor = Color3.fromRGB(180, 200, 190),
+            UIStrokeColor = Color3.fromRGB(70, 90, 80),
+            AccentColor = Color3.fromRGB(40, 180, 120),
+            DividerColor = Color3.fromRGB(55, 75, 65),
+            InputBackgroundColor = Color3.fromRGB(35, 45, 40),
+            ButtonColor = Color3.fromRGB(35, 45, 40),
+            HoverColor = Color3.fromRGB(40, 50, 45),
+            PressedColor = Color3.fromRGB(45, 55, 50),
+            TabColor = Color3.fromRGB(35, 45, 40)
+        }
     }
 }
 
--- ESP Objects
-local ESPObjects = {}
-
--- Game Framework Detection
-local function AnalyzeGameFramework()
-    local success = false
-    local analysis = ""
+-- Utility functions
+local function CreateInstance(instanceType, properties)
+    local instance = Instance.new(instanceType)
     
-    -- Check for remotes in ReplicatedStorage
-    for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
-            local name = obj.Name:lower()
-            
-            -- Detect planting related remotes
-            if name:match("plant") or name:match("grow") or name:match("seed") then
-                Remotes.Plant = obj
-                analysis = analysis .. "Found planting remote: " .. obj:GetFullName() .. "\n"
-            end
-            
-            -- Detect harvesting related remotes
-            if name:match("harvest") or name:match("collect") or name:match("gather") then
-                Remotes.Harvest = obj
-                analysis = analysis .. "Found harvesting remote: " .. obj:GetFullName() .. "\n"
-            end
-            
-            -- Detect watering related remotes
-            if name:match("water") or name:match("hydrate") then
-                Remotes.Water = obj
-                analysis = analysis .. "Found watering remote: " .. obj:GetFullName() .. "\n"
-            end
-            
-            -- Detect upgrading related remotes
-            if name:match("upgrade") or name:match("improve") or name:match("enhance") then
-                Remotes.Upgrade = obj
-                analysis = analysis .. "Found upgrading remote: " .. obj:GetFullName() .. "\n"
-            end
-        end
+    for property, value in pairs(properties or {}) do
+        instance[property] = value
     end
     
-    -- Find planting areas in workspace
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if (obj.Name:lower():match("plant") or obj.Name:lower():match("garden") or obj.Name:lower():match("soil") or obj.Name:lower():match("plot")) and 
-            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            table.insert(PlantingAreas, obj)
-            analysis = analysis .. "Found planting area: " .. obj:GetFullName() .. "\n"
-        end
-        
-        -- Find zones
-        if (obj.Name:lower():match("zone") or obj.Name:lower():match("area") or obj.Name:lower():match("region")) and 
-            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            table.insert(Zones, obj)
-            analysis = analysis .. "Found zone: " .. obj:GetFullName() .. "\n"
-        end
-        
-        -- Find rare plants and collectibles for ESP
-        if (obj.Name:lower():match("rare") or obj.Name:lower():match("unique") or obj.Name:lower():match("special")) and
-            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            table.insert(RewardsAndItems, obj)
-            analysis = analysis .. "Found rare item: " .. obj:GetFullName() .. "\n"
-        end
-    end
-    
-    -- Find tools in player inventory
-    for _, item in pairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") then
-            -- Categorize tools
-            if item.Name:lower():match("seed") then
-                table.insert(Seeds, item.Name)
-                analysis = analysis .. "Found seed: " .. item.Name .. "\n"
-            else
-                table.insert(Tools, item.Name)
-                analysis = analysis .. "Found tool: " .. item.Name .. "\n"
-            end
-        end
-    end
-    
-    -- Check if we found enough game elements
-    if #PlantingAreas > 0 or Remotes.Plant then
-        success = true
-    end
-    
-    return success, analysis
+    return instance
 end
 
--- Utility Functions
-local function GetClosestPlantingArea()
-    local closestDist = math.huge
-    local closest = nil
-    
-    for _, area in pairs(PlantingAreas) do
-        local dist = (HumanoidRootPart.Position - area.Position).Magnitude
-        if dist < closestDist then
-            closestDist = dist
-            closest = area
-        end
-    end
-    
-    return closest, closestDist
+local function Tween(instance, properties, duration, style, direction)
+    local tweenInfo = TweenInfo.new(duration or 0.2, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
+    local tween = TweenService:Create(instance, tweenInfo, properties)
+    tween:Play()
+    return tween
 end
 
-local function ActionWithRetry(actionFn, retryCount, retryDelay)
-    local retries = 0
-    local success = false
-    local result = nil
-    
-    repeat
-        success, result = pcall(actionFn)
-        if not success then
-            retries = retries + 1
-            wait(retryDelay)
-        end
-    until success or retries >= retryCount
-    
-    return success, result
-end
-
-local function TeleportTo(position)
-    if Config.TeleportMethod == "Instant" then
-        HumanoidRootPart.CFrame = CFrame.new(position)
-    else
-        local distance = (HumanoidRootPart.Position - position).Magnitude
-        local tweenInfo = TweenInfo.new(
-            math.clamp(distance / 50, 0.5, 3), -- Time based on distance
-            Enum.EasingStyle.Quad,
-            Enum.EasingDirection.Out
-        )
-        
-        local tween = TweenService:Create(
-            HumanoidRootPart, 
-            tweenInfo, 
-            {CFrame = CFrame.new(position)}
-        )
-        tween:Play()
-        tween.Completed:Wait()
-    end
-end
-
--- Farming Module
-local Farming = {}
-
-function Farming.Plant(seedType)
-    local plantingArea, distance = GetClosestPlantingArea()
-    if not plantingArea or distance > 30 then
-        return false, "No planting area nearby"
-    end
-    
-    -- Try to get close to the planting area
-    if distance > 10 then
-        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
-    end
-    
-    -- Try direct remote invocation first
-    if Remotes.Plant then
-        local success, result = ActionWithRetry(function()
-            return Remotes.Plant:FireServer(seedType, plantingArea)
-        end, RETRY_COUNT, RETRY_DELAY)
-        
-        if success then
-            return true, "Successfully planted using remote"
-        end
-    end
-    
-    -- Fallback: Tool-based planting
-    local seedTool = nil
-    for _, item in pairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") and item.Name == seedType then
-            seedTool = item
-            break
-        end
-    end
-    
-    if not seedTool then
-        return false, "Seed not found in inventory"
-    end
-    
-    -- Equip and use the tool
-    local success, result = ActionWithRetry(function()
-        seedTool.Parent = Character
-        wait(0.2)
-        seedTool:Activate()
-        wait(0.5)
-        seedTool.Parent = Player.Backpack
-        return true
-    end, RETRY_COUNT, RETRY_DELAY)
-    
-    return success, success and "Successfully planted using tool" or "Failed to plant"
-end
-
-function Farming.Harvest()
-    local plantingArea, distance = GetClosestPlantingArea()
-    if not plantingArea or distance > 30 then
-        return false, "No planting area nearby"
-    end
-    
-    -- Try to get close to the planting area
-    if distance > 10 then
-        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
-    end
-    
-    -- Try direct remote invocation first
-    if Remotes.Harvest then
-        local success, result = ActionWithRetry(function()
-            return Remotes.Harvest:FireServer(plantingArea)
-        end, RETRY_COUNT, RETRY_DELAY)
-        
-        if success then
-            return true, "Successfully harvested using remote"
-        end
-    end
-    
-    -- Fallback: Tool-based harvesting
-    local harvestTool = nil
-    for _, item in pairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") and (item.Name:lower():match("harvester") or item.Name:lower():match("cutter") or item.Name:lower():match("collect")) then
-            harvestTool = item
-            break
-        end
-    end
-    
-    if not harvestTool then
-        return false, "Harvesting tool not found in inventory"
-    end
-    
-    -- Equip and use the tool
-    local success, result = ActionWithRetry(function()
-        harvestTool.Parent = Character
-        wait(0.2)
-        harvestTool:Activate()
-        wait(0.5)
-        harvestTool.Parent = Player.Backpack
-        return true
-    end, RETRY_COUNT, RETRY_DELAY)
-    
-    return success, success and "Successfully harvested using tool" or "Failed to harvest"
-end
-
-function Farming.Water()
-    local plantingArea, distance = GetClosestPlantingArea()
-    if not plantingArea or distance > 30 then
-        return false, "No planting area nearby"
-    end
-    
-    -- Try to get close to the planting area
-    if distance > 10 then
-        TeleportTo(plantingArea.Position + Vector3.new(0, 3, 0))
-    end
-    
-    -- Try direct remote invocation first
-    if Remotes.Water then
-        local success, result = ActionWithRetry(function()
-            return Remotes.Water:FireServer(plantingArea)
-        end, RETRY_COUNT, RETRY_DELAY)
-        
-        if success then
-            return true, "Successfully watered using remote"
-        end
-    end
-    
-    -- Fallback: Tool-based watering
-    local waterTool = nil
-    for _, item in pairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") and (item.Name:lower():match("water") or item.Name:lower():match("can") or item.Name:lower():match("hydrate")) then
-            waterTool = item
-            break
-        end
-    end
-    
-    if not waterTool then
-        return false, "Watering tool not found in inventory"
-    end
-    
-    -- Equip and use the tool
-    local success, result = ActionWithRetry(function()
-        waterTool.Parent = Character
-        wait(0.2)
-        waterTool:Activate()
-        wait(0.5)
-        waterTool.Parent = Player.Backpack
-        return true
-    end, RETRY_COUNT, RETRY_DELAY)
-    
-    return success, success and "Successfully watered using tool" or "Failed to water"
-end
-
--- Collection Module
-local Collection = {}
-
-function Collection.CollectNearbyItems()
-    local itemsCollected = 0
-    
-    -- Gather all collectible items
-    local collectibles = {}
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if (obj.Name:lower():match("collect") or obj.Name:lower():match("reward") or obj.Name:lower():match("pickup") or obj.Name:lower():match("coin") or obj.Name:lower():match("seed")) and 
-            (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-            table.insert(collectibles, obj)
-        end
-    end
-    
-    -- Try to collect each item
-    for _, item in pairs(collectibles) do
-        local primaryPart = item:IsA("Model") and item.PrimaryPart or item
-        if primaryPart then
-            local distance = (HumanoidRootPart.Position - primaryPart.Position).Magnitude
-            if distance < 50 then
-                -- Try to collect by touching the item
-                TeleportTo(primaryPart.Position)
-                wait(0.2)
-                
-                -- Check if item was collected (might disappear)
-                if not item:IsDescendantOf(workspace) then
-                    itemsCollected = itemsCollected + 1
-                end
-            end
-        end
-    end
-    
-    return itemsCollected > 0, "Collected " .. itemsCollected .. " items"
-end
-
--- Upgrade Module
-local Upgrade = {}
-
-function Upgrade.TryUpgradeTool()
-    -- Try direct remote invocation first
-    if Remotes.Upgrade then
-        local success, result = ActionWithRetry(function()
-            -- Try to upgrade each tool
-            for _, toolName in pairs(Tools) do
-                Remotes.Upgrade:FireServer(toolName)
-                wait(0.2)
-            end
-            return true
-        end, RETRY_COUNT, RETRY_DELAY)
-        
-        if success then
-            return true, "Attempted to upgrade tools using remote"
-        end
-    end
-    
-    -- Fallback: Interface-based upgrading
-    local upgradeGUI = Player.PlayerGui:FindFirstChild("UpgradeGUI") or Player.PlayerGui:FindFirstChild("ShopGUI")
-    if upgradeGUI then
-        local upgradeButtons = {}
-        for _, obj in pairs(upgradeGUI:GetDescendants()) do
-            if (obj:IsA("TextButton") or obj:IsA("ImageButton")) and 
-               (obj.Name:lower():match("upgrade") or obj.Name:lower():match("buy") or obj.Name:lower():match("purchase")) then
-                table.insert(upgradeButtons, obj)
-            end
-        end
-        
-        local clickedAny = false
-        for _, button in pairs(upgradeButtons) do
-            -- Simulate clicking upgrade buttons
-            firesignal(button.MouseButton1Click)
-            wait(0.3)
-            clickedAny = true
-        end
-        
-        if clickedAny then
-            return true, "Attempted to upgrade using GUI buttons"
-        end
-    end
-    
-    return false, "No upgrade method found"
-end
-
--- ESP Module
-local ESP = {}
-
-function ESP.CreateHighlight(obj, color)
-    local highlight = Instance.new("Highlight")
-    highlight.FillColor = color
-    highlight.OutlineColor = color
-    highlight.FillTransparency = 0.5
-    highlight.OutlineTransparency = 0
-    highlight.Adornee = obj
-    highlight.Parent = obj
-    
-    return highlight
-end
-
-function ESP.SetupESP()
-    -- Clear existing ESP
-    ESP.ClearESP()
-    
-    -- If ESP is disabled, stop here
-    if not Config.ESP.Enabled then
-        return
-    end
-    
-    -- Apply ESP to rare plants
-    if Config.ESP.RarePlants then
-        for _, plant in pairs(RewardsAndItems) do
-            if plant:IsA("Model") or plant:IsA("Part") or plant:IsA("MeshPart") then
-                local highlight = ESP.CreateHighlight(plant, Color3.fromRGB(255, 215, 0)) -- Gold color for rare items
-                table.insert(ESPObjects, highlight)
-                
-                -- Add distance label if configured
-                if Config.ESP.Distance then
-                    local billboardGui = Instance.new("BillboardGui")
-                    billboardGui.Adornee = plant:IsA("Model") and plant.PrimaryPart or plant
-                    billboardGui.Size = UDim2.new(0, 200, 0, 50)
-                    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
-                    billboardGui.AlwaysOnTop = true
-                    
-                    local distanceLabel = Instance.new("TextLabel")
-                    distanceLabel.BackgroundTransparency = 1
-                    distanceLabel.Size = UDim2.new(1, 0, 1, 0)
-                    distanceLabel.Font = Enum.Font.GothamBold
-                    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    distanceLabel.TextStrokeTransparency = 0
-                    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                    distanceLabel.TextSize = 14
-                    distanceLabel.Parent = billboardGui
-                    
-                    RunService:BindToRenderStep("UpdateDistance" .. plant:GetFullName(), Enum.RenderPriority.Camera.Value, function()
-                        if plant:IsDescendantOf(workspace) and HumanoidRootPart and plant then
-                            local targetPart = plant:IsA("Model") and (plant.PrimaryPart or plant:FindFirstChildWhichIsA("BasePart")) or plant
-                            if targetPart then
-                                local distance = (HumanoidRootPart.Position - targetPart.Position).Magnitude
-                                distanceLabel.Text = string.format("%.1f studs", distance)
-                            end
-                        else
-                            RunService:UnbindFromRenderStep("UpdateDistance" .. plant:GetFullName())
-                            billboardGui:Destroy()
-                        end
-                    end)
-                    
-                    billboardGui.Parent = game:GetService("CoreGui")
-                    table.insert(ESPObjects, billboardGui)
-                end
-            end
-        end
-    end
-    
-    -- Apply ESP to collectible items
-    if Config.ESP.Items then
-        for _, obj in pairs(workspace:GetDescendants()) do
-            if (obj.Name:lower():match("collect") or obj.Name:lower():match("reward") or obj.Name:lower():match("pickup") or obj.Name:lower():match("coin") or obj.Name:lower():match("seed")) and 
-                (obj:IsA("Part") or obj:IsA("MeshPart") or obj:IsA("Model")) then
-                
-                local highlight = ESP.CreateHighlight(obj, Color3.fromRGB(0, 255, 255)) -- Cyan color for collectibles
-                table.insert(ESPObjects, highlight)
-                
-                -- Add distance label if configured (similar code as above)
-                if Config.ESP.Distance then
-                    local billboardGui = Instance.new("BillboardGui")
-                    billboardGui.Adornee = obj:IsA("Model") and obj.PrimaryPart or obj
-                    billboardGui.Size = UDim2.new(0, 200, 0, 50)
-                    billboardGui.StudsOffset = Vector3.new(0, 2, 0)
-                    billboardGui.AlwaysOnTop = true
-                    
-                    local distanceLabel = Instance.new("TextLabel")
-                    distanceLabel.BackgroundTransparency = 1
-                    distanceLabel.Size = UDim2.new(1, 0, 1, 0)
-                    distanceLabel.Font = Enum.Font.GothamBold
-                    distanceLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                    distanceLabel.TextStrokeTransparency = 0
-                    distanceLabel.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
-                    distanceLabel.TextSize = 14
-                    distanceLabel.Parent = billboardGui
-                    
-                    RunService:BindToRenderStep("UpdateDistance" .. obj:GetFullName(), Enum.RenderPriority.Camera.Value, function()
-                        if obj:IsDescendantOf(workspace) and HumanoidRootPart and obj then
-                            local targetPart = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
-                            if targetPart then
-                                local distance = (HumanoidRootPart.Position - targetPart.Position).Magnitude
-                                distanceLabel.Text = string.format("%.1f studs", distance)
-                            end
-                        else
-                            RunService:UnbindFromRenderStep("UpdateDistance" .. obj:GetFullName())
-                            billboardGui:Destroy()
-                        end
-                    end)
-                    
-                    billboardGui.Parent = game:GetService("CoreGui")
-                    table.insert(ESPObjects, billboardGui)
-                end
-            end
-        end
-    end
-end
-
-function ESP.ClearESP()
-    for _, obj in pairs(ESPObjects) do
-        if obj and obj.Parent then
-            obj:Destroy()
-        end
-    end
-    
-    ESPObjects = {}
-    
-    -- Unbind any render steps
-    for _, name in pairs({"UpdateDistance"}) do
-        pcall(function()
-            RunService:UnbindFromRenderStep(name)
-        end)
-    end
-end
-
--- Initialize the script
-local success, analysis = AnalyzeGameFramework()
-
--- Create the Rayfield Window
-local Window = Rayfield:CreateWindow({
-    Name = "SkyX Hub - Grow A Garden",
-    LoadingTitle = "SkyX Hub",
-    LoadingSubtitle = "by SkyX Team",
-    ConfigurationSaving = {
-        Enabled = true,
-        FolderName = "SkyXConfig",
-        FileName = "GrowAGarden"
-    },
-    KeySystem = false,
-    KeySettings = {
-        Title = "SkyX Hub",
-        Subtitle = "Key System",
-        Note = "Enter your key",
-        FileName = "SkyXKey",
-        SaveKey = true,
-        GrabKeyFromSite = false,
-        Key = {"SKYX"}
-    }
-})
-
--- Information Tab
-local InfoTab = Window:CreateTab("Information", 4483362458)
-
-local InfoSection = InfoTab:CreateSection("Welcome")
-
-InfoTab:CreateParagraph({Title = "SkyX Hub - Grow A Garden", Content = "A comprehensive automation script for Grow A Garden with multiple features designed for reliability."})
-
--- If framework analysis was successful, show details
-if success then
-    InfoTab:CreateParagraph({Title = "Game Detection", Content = "Successfully analyzed game framework!"})
-else
-    InfoTab:CreateParagraph({Title = "Game Detection", Content = "Warning: Could not fully analyze game framework. Some features might not work reliably."})
-end
-
--- Main Tab
-local MainTab = Window:CreateTab("Main", 4483345998)
-
-local FarmingSection = MainTab:CreateSection("Farming")
-
--- Seed selection
-local seedsDropdown = {"Default"}
-if #Seeds > 0 then
-    seedsDropdown = Seeds
-end
-
-MainTab:CreateDropdown({
-    Name = "Select Seed",
-    Options = seedsDropdown,
-    CurrentOption = seedsDropdown[1],
-    Flag = "SelectedSeed",
-    Callback = function(Value)
-        Config.SelectedSeed = Value
-    end
-})
-
--- Farming toggles
-MainTab:CreateToggle({
-    Name = "Auto Plant",
-    CurrentValue = false,
-    Flag = "AutoPlant",
-    Callback = function(Value)
-        Config.AutoPlant = Value
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Auto Harvest",
-    CurrentValue = false,
-    Flag = "AutoHarvest",
-    Callback = function(Value)
-        Config.AutoHarvest = Value
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Auto Water",
-    CurrentValue = false,
-    Flag = "AutoWater",
-    Callback = function(Value)
-        Config.AutoWater = Value
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Auto Collect Items",
-    CurrentValue = false,
-    Flag = "AutoCollect",
-    Callback = function(Value)
-        Config.AutoCollect = Value
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Auto Upgrade Tools",
-    CurrentValue = false,
-    Flag = "AutoUpgrade",
-    Callback = function(Value)
-        Config.AutoUpgrade = Value
-    end
-})
-
--- Manual action buttons
-local ManualSection = MainTab:CreateSection("Manual Actions")
-
-MainTab:CreateButton({
-    Name = "Plant Now",
-    Callback = function()
-        local success, message = Farming.Plant(Config.SelectedSeed)
-        Rayfield:Notify({
-            Title = "Plant Action",
-            Content = message,
-            Duration = 5,
-            Image = 4483362458, -- A cool icon
-            Actions = {},
-        })
-    end
-})
-
-MainTab:CreateButton({
-    Name = "Harvest Now",
-    Callback = function()
-        local success, message = Farming.Harvest()
-        Rayfield:Notify({
-            Title = "Harvest Action",
-            Content = message,
-            Duration = 5,
-            Image = 4483362458,
-            Actions = {},
-        })
-    end
-})
-
-MainTab:CreateButton({
-    Name = "Water Now",
-    Callback = function()
-        local success, message = Farming.Water()
-        Rayfield:Notify({
-            Title = "Water Action",
-            Content = message,
-            Duration = 5,
-            Image = 4483362458,
-            Actions = {},
-        })
-    end
-})
-
-MainTab:CreateButton({
-    Name = "Collect Items Now",
-    Callback = function()
-        local success, message = Collection.CollectNearbyItems()
-        Rayfield:Notify({
-            Title = "Collection Action",
-            Content = message,
-            Duration = 5,
-            Image = 4483362458,
-            Actions = {},
-        })
-    end
-})
-
-MainTab:CreateButton({
-    Name = "Try Upgrade Tools",
-    Callback = function()
-        local success, message = Upgrade.TryUpgradeTool()
-        Rayfield:Notify({
-            Title = "Upgrade Action",
-            Content = message,
-            Duration = 5,
-            Image = 4483362458,
-            Actions = {},
-        })
-    end
-})
-
--- Teleport Tab
-local TeleportTab = Window:CreateTab("Teleport", 4483362458)
-
-local TeleportSection = TeleportTab:CreateSection("Teleportation")
-
-TeleportTab:CreateDropdown({
-    Name = "Teleport Method",
-    Options = {"Instant", "Tween"},
-    CurrentOption = "Instant",
-    Flag = "TeleportMethod", 
-    Callback = function(Value)
-        Config.TeleportMethod = Value
-    end
-})
-
--- Add buttons for each detected zone
-if #Zones > 0 then
-    for i, zone in pairs(Zones) do
-        TeleportTab:CreateButton({
-            Name = "Teleport to " .. zone.Name,
-            Callback = function()
-                local pos = zone:IsA("Model") and zone:GetModelCFrame().Position or zone.Position
-                TeleportTo(pos + Vector3.new(0, 5, 0))
-                Rayfield:Notify({
-                    Title = "Teleport",
-                    Content = "Teleported to " .. zone.Name,
-                    Duration = 3,
-                    Image = 4483362458,
-                    Actions = {},
-                })
-            end
-        })
-    end
-else
-    TeleportTab:CreateParagraph({Title = "No Zones Detected", Content = "Couldn't find any teleportable zones in the game."})
-    
-    -- Add fallback teleport to origin
-    TeleportTab:CreateButton({
-        Name = "Teleport to Origin",
-        Callback = function()
-            TeleportTo(Vector3.new(0, 50, 0))
-            Rayfield:Notify({
-                Title = "Teleport",
-                Content = "Teleported to origin",
-                Duration = 3,
-                Image = 4483362458,
-                Actions = {},
-            })
-        end
+local function RippleEffect(element, x, y)
+    local ripple = CreateInstance("Frame", {
+        Name = "Ripple",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+        BackgroundTransparency = 0.7,
+        BorderSizePixel = 0,
+        Position = UDim2.fromOffset(x, y),
+        Size = UDim2.fromOffset(0, 0),
+        Parent = element
     })
+    
+    CreateInstance("UICorner", {
+        CornerRadius = UDim.new(1, 0),
+        Parent = ripple
+    })
+    
+    local targetSize = math.max(element.AbsoluteSize.X, element.AbsoluteSize.Y) * 2
+    
+    Tween(ripple, {Size = UDim2.fromOffset(targetSize, targetSize)}, 0.5)
+    Tween(ripple, {BackgroundTransparency = 1}, 0.5)
+    
+    task.spawn(function()
+        task.wait(0.5)
+        ripple:Destroy()
+    end)
 end
 
--- Add teleport to closest planting area
-TeleportTab:CreateButton({
-    Name = "Teleport to Closest Planting Area",
-    Callback = function()
-        local area, distance = GetClosestPlantingArea()
-        if area then
-            TeleportTo(area.Position + Vector3.new(0, 3, 0))
-            Rayfield:Notify({
-                Title = "Teleport",
-                Content = "Teleported to closest planting area",
-                Duration = 3,
-                Image = 4483362458,
-                Actions = {},
-            })
-        else
-            Rayfield:Notify({
-                Title = "Teleport Failed",
-                Content = "No planting areas found",
-                Duration = 3,
-                Image = 4483362458,
-                Actions = {},
-            })
+local function AddHoverEffect(button, hoverColor, defaultColor)
+    button.MouseEnter:Connect(function()
+        Tween(button, {BackgroundColor3 = hoverColor})
+    end)
+    
+    button.MouseLeave:Connect(function()
+        Tween(button, {BackgroundColor3 = defaultColor})
+    end)
+end
+
+-- Main library functions
+function Library:Init(title, themeName)
+    -- Set default theme if not specified
+    themeName = themeName or "Default"
+    Library.Theme = Library.Themes[themeName] or Library.Themes.Default
+    
+    -- Create UI
+    if game:GetService("CoreGui"):FindFirstChild("SkyXUI") then
+        game:GetService("CoreGui").SkyXUI:Destroy()
+    end
+    
+    local SkyXUI = CreateInstance("ScreenGui", {
+        Name = "SkyXUI",
+        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+        ResetOnSpawn = false,
+        Parent = game:GetService("CoreGui")
+    })
+    
+    local MainFrame = CreateInstance("Frame", {
+        Name = "MainFrame",
+        AnchorPoint = Vector2.new(0.5, 0.5),
+        BackgroundColor3 = Library.Theme.BackgroundColor,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(600, 350),
+        Parent = SkyXUI
+    })
+    
+    local UICorner = CreateInstance("UICorner", {
+        CornerRadius = UDim.new(0, 8),
+        Parent = MainFrame
+    })
+    
+    local UIStroke = CreateInstance("UIStroke", {
+        Thickness = 1.6,
+        Color = Library.Theme.UIStrokeColor,
+        Parent = MainFrame
+    })
+    
+    local Sidebar = CreateInstance("Frame", {
+        Name = "Sidebar",
+        BackgroundColor3 = Library.Theme.SidebarColor,
+        BorderSizePixel = 0,
+        Size = UDim2.new(0, 150, 1, 0),
+        Parent = MainFrame
+    })
+    
+    local UICorner_2 = CreateInstance("UICorner", {
+        CornerRadius = UDim.new(0, 8),
+        Parent = Sidebar
+    })
+    
+    local UIPadding = CreateInstance("UIPadding", {
+        PaddingBottom = UDim.new(0, 8),
+        PaddingLeft = UDim.new(0, 8),
+        PaddingRight = UDim.new(0, 8),
+        PaddingTop = UDim.new(0, 8),
+        Parent = Sidebar
+    })
+    
+    local TitleLabel = CreateInstance("TextLabel", {
+        Name = "Title",
+        BackgroundTransparency = 1,
+        Size = UDim2.new(1, 0, 0, 30),
+        Font = Enum.Font.GothamBold,
+        Text = title,
+        TextColor3 = Library.Theme.PrimaryTextColor,
+        TextSize = 18,
+        TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
+        Parent = Sidebar
+    })
+    
+    local Divider = CreateInstance("Frame", {
+        Name = "Divider",
+        BackgroundColor3 = Library.Theme.DividerColor,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 0, 38),
+        Size = UDim2.new(1, 0, 0, 1),
+        Parent = Sidebar
+    })
+    
+    local TabsContainer = CreateInstance("ScrollingFrame", {
+        Name = "TabsContainer",
+        Active = true,
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 0, 0, 48),
+        Size = UDim2.new(1, 0, 1, -48),
+        CanvasSize = UDim2.new(0, 0, 0, 0),
+        ScrollBarThickness = 2,
+        ScrollBarImageColor3 = Library.Theme.AccentColor,
+        Parent = Sidebar
+    })
+    
+    local UIListLayout = CreateInstance("UIListLayout", {
+        Padding = UDim.new(0, 5),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        Parent = TabsContainer
+    })
+    
+    -- Content container for tabs
+    local Content = CreateInstance("Frame", {
+        Name = "Content",
+        BackgroundTransparency = 1,
+        BorderSizePixel = 0,
+        Position = UDim2.new(0, 150, 0, 0),
+        Size = UDim2.new(1, -150, 1, 0),
+        ClipsDescendants = true,
+        Parent = MainFrame
+    })
+    
+    -- Update tab list canvas size when tabs are added
+    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        TabsContainer.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 5)
+    end)
+    
+    -- Make UI draggable
+    local dragging = false
+    local dragInput
+    local dragStart
+    local startPos
+
+    local function updateDrag(input)
+        local delta = input.Position - dragStart
+        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+
+    MainFrame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = MainFrame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
         end
-    end
-})
+    end)
 
--- ESP Tab
-local ESPTab = Window:CreateTab("ESP", 4483362458)
-
-local ESPSection = ESPTab:CreateSection("Visual ESP")
-
-ESPTab:CreateToggle({
-    Name = "ESP Enabled",
-    CurrentValue = false,
-    Flag = "ESPEnabled",
-    Callback = function(Value)
-        Config.ESP.Enabled = Value
-        if Value then
-            ESP.SetupESP()
-        else
-            ESP.ClearESP()
+    MainFrame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
         end
-    end
-})
+    end)
 
-ESPTab:CreateToggle({
-    Name = "Show Rare Plants",
-    CurrentValue = true,
-    Flag = "ESPRarePlants",
-    Callback = function(Value)
-        Config.ESP.RarePlants = Value
-        if Config.ESP.Enabled then
-            ESP.SetupESP()
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            updateDrag(input)
         end
-    end
-})
-
-ESPTab:CreateToggle({
-    Name = "Show Collectible Items",
-    CurrentValue = true,
-    Flag = "ESPItems",
-    Callback = function(Value)
-        Config.ESP.Items = Value
-        if Config.ESP.Enabled then
-            ESP.SetupESP()
-        end
-    end
-})
-
-ESPTab:CreateToggle({
-    Name = "Show Distance",
-    CurrentValue = true,
-    Flag = "ESPDistance",
-    Callback = function(Value)
-        Config.ESP.Distance = Value
-        if Config.ESP.Enabled then
-            ESP.SetupESP()
-        end
-    end
-})
-
-ESPTab:CreateButton({
-    Name = "Refresh ESP",
-    Callback = function()
-        ESP.SetupESP()
-        Rayfield:Notify({
-            Title = "ESP",
-            Content = "ESP refreshed",
-            Duration = 3,
-            Image = 4483362458,
-            Actions = {},
-        })
-    end
-})
-
--- Settings Tab
-local SettingsTab = Window:CreateTab("Settings", 4483362458)
-
-local PlayerSection = SettingsTab:CreateSection("Player Settings")
-
-SettingsTab:CreateSlider({
-    Name = "Walk Speed",
-    Range = {16, 100},
-    Increment = 1,
-    Suffix = "studs/s",
-    CurrentValue = 16,
-    Flag = "WalkSpeed",
-    Callback = function(Value)
-        Config.WalkSpeed = Value
-        if Humanoid then
-            Humanoid.WalkSpeed = Value
-        end
-    end
-})
-
-SettingsTab:CreateSlider({
-    Name = "Jump Power",
-    Range = {50, 150},
-    Increment = 1,
-    Suffix = "",
-    CurrentValue = 50,
-    Flag = "JumpPower",
-    Callback = function(Value)
-        Config.JumpPower = Value
-        if Humanoid then
-            Humanoid.JumpPower = Value
-        end
-    end
-})
-
-SettingsTab:CreateButton({
-    Name = "Reset Character",
-    Callback = function()
-        if Character and Humanoid then
-            Humanoid.Health = 0
-        end
-    end
-})
-
--- Debug Tab
-local DebugTab = Window:CreateTab("Debug", 4483362458)
-
-local AnalysisSection = DebugTab:CreateSection("Game Analysis")
-
-DebugTab:CreateParagraph({Title = "Analysis Results", Content = analysis or "No analysis available"})
-
-DebugTab:CreateButton({
-    Name = "Refresh Game Analysis",
-    Callback = function()
-        local newSuccess, newAnalysis = AnalyzeGameFramework()
-        DebugTab:CreateParagraph({Title = "Updated Analysis", Content = newAnalysis or "No analysis available"})
+    end)
+    
+    -- Create notification system
+    local NotificationHolder = CreateInstance("Frame", {
+        Name = "NotificationHolder",
+        BackgroundTransparency = 1,
+        Position = UDim2.new(1, -320, 0, 20),
+        Size = UDim2.new(0, 300, 1, -40),
+        ClipsDescendants = true,
+        Parent = SkyXUI
+    })
+    
+    local NotificationLayout = CreateInstance("UIListLayout", {
+        Padding = UDim.new(0, 10),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+        VerticalAlignment = Enum.VerticalAlignment.Top,
+        Parent = NotificationHolder
+    })
+    
+    -- UI Interface
+    local tabs = {}
+    local currentTab = nil
+    
+    local Interface = {}
+    
+    function Interface:CreateTab(name, icon)
+        local tab = {}
         
-        Rayfield:Notify({
-            Title = "Game Analysis",
-            Content = newSuccess and "Successfully analyzed game framework!" or "Warning: Could not fully analyze game framework.",
-            Duration = 5,
-            Image = 4483362458,
-            Actions = {},
+        local tabSections = {}
+        local sectionCount = 0
+        
+        -- Create tab button
+        local TabButton = CreateInstance("TextButton", {
+            Name = name .. "Tab",
+            BackgroundColor3 = Library.Theme.TabColor,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 0, 32),
+            Font = Enum.Font.GothamSemibold,
+            Text = "",
+            TextColor3 = Library.Theme.PrimaryTextColor,
+            TextSize = 14,
+            AutoButtonColor = false,
+            Parent = TabsContainer
         })
+        
+        local UICorner_3 = CreateInstance("UICorner", {
+            CornerRadius = UDim.new(0, 6),
+            Parent = TabButton
+        })
+        
+        local UIPadding_2 = CreateInstance("UIPadding", {
+            PaddingLeft = UDim.new(0, 8),
+            PaddingRight = UDim.new(0, 8),
+            Parent = TabButton
+        })
+        
+        local IconImage = nil
+        
+        if icon then
+            IconImage = CreateInstance("ImageLabel", {
+                Name = "Icon",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(0, 16, 0, 16),
+                Position = UDim2.new(0, 0, 0.5, 0),
+                AnchorPoint = Vector2.new(0, 0.5),
+                Image = Library.Icons[icon] or icon,
+                ImageColor3 = Library.Theme.SecondaryTextColor,
+                Parent = TabButton
+            })
+        end
+        
+        local TabText = CreateInstance("TextLabel", {
+            Name = "Text",
+            BackgroundTransparency = 1,
+            Size = UDim2.new(1, icon and -24 or 0, 1, 0),
+            Position = UDim2.new(0, icon and 24 or 0, 0, 0),
+            Font = Enum.Font.GothamSemibold,
+            Text = name,
+            TextColor3 = Library.Theme.SecondaryTextColor,
+            TextSize = 14,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = TabButton
+        })
+        
+        -- Create tab content
+        local TabContent = CreateInstance("ScrollingFrame", {
+            Name = name .. "Content",
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Size = UDim2.new(1, 0, 1, 0),
+            CanvasSize = UDim2.new(0, 0, 0, 0),
+            ScrollBarThickness = 3,
+            ScrollBarImageColor3 = Library.Theme.AccentColor,
+            Visible = false,
+            Parent = Content
+        })
+        
+        local UIPadding_3 = CreateInstance("UIPadding", {
+            PaddingBottom = UDim.new(0, 10),
+            PaddingLeft = UDim.new(0, 10),
+            PaddingRight = UDim.new(0, 10),
+            PaddingTop = UDim.new(0, 10),
+            Parent = TabContent
+        })
+        
+        local UIListLayout_2 = CreateInstance("UIListLayout", {
+            Padding = UDim.new(0, 10),
+            SortOrder = Enum.SortOrder.LayoutOrder,
+            Parent = TabContent
+        })
+        
+        -- Update tab content scroll size when sections are added
+        UIListLayout_2:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+            TabContent.CanvasSize = UDim2.new(0, 0, 0, UIListLayout_2.AbsoluteContentSize.Y + 20)
+        end)
+        
+        -- Tab button click event
+        TabButton.MouseButton1Click:Connect(function()
+            -- Ripple effect
+            RippleEffect(TabButton, Mouse.X - TabButton.AbsolutePosition.X, Mouse.Y - TabButton.AbsolutePosition.Y)
+            
+            -- Switch tab
+            if currentTab then
+                -- Update previous tab appearance
+                if tabs[currentTab].button then
+                    Tween(tabs[currentTab].button, {BackgroundColor3 = Library.Theme.TabColor})
+                    Tween(tabs[currentTab].text, {TextColor3 = Library.Theme.SecondaryTextColor})
+                    if tabs[currentTab].icon then
+                        Tween(tabs[currentTab].icon, {ImageColor3 = Library.Theme.SecondaryTextColor})
+                    end
+                end
+                
+                -- Hide previous tab content
+                if tabs[currentTab].content then
+                    tabs[currentTab].content.Visible = false
+                end
+            end
+            
+            -- Update current tab appearance
+            Tween(TabButton, {BackgroundColor3 = Library.Theme.AccentColor})
+            Tween(TabText, {TextColor3 = Color3.fromRGB(255, 255, 255)})
+            if IconImage then
+                Tween(IconImage, {ImageColor3 = Color3.fromRGB(255, 255, 255)})
+            end
+            
+            -- Show current tab content
+            TabContent.Visible = true
+            
+            -- Update current tab reference
+            currentTab = name
+        end)
+        
+        -- Save tab references
+        tabs[name] = {
+            button = TabButton,
+            text = TabText,
+            icon = IconImage,
+            content = TabContent
+        }
+        
+        -- Automatically select first tab
+        if not currentTab then
+            TabButton.BackgroundColor3 = Library.Theme.AccentColor
+            TabText.TextColor3 = Color3.fromRGB(255, 255, 255)
+            if IconImage then
+                IconImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
+            end
+            TabContent.Visible = true
+            currentTab = name
+        end
+        
+        -- Tab methods
+        function tab.CreateSection(sectionName)
+            local section = {}
+            sectionCount = sectionCount + 1
+            
+            -- Create section container
+            local SectionContainer = CreateInstance("Frame", {
+                Name = sectionName .. "Section",
+                BackgroundColor3 = Library.Theme.SidebarColor,
+                BorderSizePixel = 0,
+                Size = UDim2.new(1, 0, 0, 36), -- Initial size, will be updated as elements are added
+                LayoutOrder = sectionCount,
+                Parent = TabContent
+            })
+            
+            local UICorner_4 = CreateInstance("UICorner", {
+                CornerRadius = UDim.new(0, 6),
+                Parent = SectionContainer
+            })
+            
+            local UIPadding_4 = CreateInstance("UIPadding", {
+                PaddingBottom = UDim.new(0, 8),
+                PaddingLeft = UDim.new(0, 8),
+                PaddingRight = UDim.new(0, 8),
+                PaddingTop = UDim.new(0, 8),
+                Parent = SectionContainer
+            })
+            
+            local SectionTitle = CreateInstance("TextLabel", {
+                Name = "Title",
+                BackgroundTransparency = 1,
+                Size = UDim2.new(1, 0, 0, 20),
+                Font = Enum.Font.GothamBold,
+                Text = sectionName,
+                TextColor3 = Library.Theme.PrimaryTextColor,
+                TextSize = 14,
+                TextXAlignment = Enum.TextXAlignment.Left,
+                LayoutOrder = 1,
+                Parent = SectionContainer
+            })
+            
+            local ElementsContainer = CreateInstance("Frame", {
+                Name = "Elements",
+                BackgroundTransparency = 1,
+                BorderSizePixel = 0,
+                Position = UDim2.new(0, 0, 0, 28),
+                Size = UDim2.new(1, 0, 0, 0), -- Will be updated as elements are added
+                Parent = SectionContainer
+            })
+            
+            local UIListLayout_3 = CreateInstance("UIListLayout", {
+                Padding = UDim.new(0, 8),
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Parent = ElementsContainer
+            })
+            
+            -- Track elements for dynamic sizing
+            local elements = {}
+            local elementCount = 0
+            
+            -- Update section size when elements are added
+            UIListLayout_3:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                ElementsContainer.Size = UDim2.new(1, 0, 0, UIListLayout_3.AbsoluteContentSize.Y)
+                SectionContainer.Size = UDim2.new(1, 0, 0, ElementsContainer.Size.Y.Offset + 36)
+            end)
+            
+            -- Section Elements
+            function section.AddButton(text, callback)
+                elementCount = elementCount + 1
+                
+                local Button = CreateInstance("TextButton", {
+                    Name = text .. "Button",
+                    BackgroundColor3 = Library.Theme.ButtonColor,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(1, 0, 0, 32),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = "",
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    ClipsDescendants = true,
+                    AutoButtonColor = false,
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                local UICorner_5 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(0, 6),
+                    Parent = Button
+                })
+                
+                local ButtonText = CreateInstance("TextLabel", {
+                    Name = "Text",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = text,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    Parent = Button
+                })
+                
+                -- Button hover and click effects
+                AddHoverEffect(Button, Library.Theme.HoverColor, Library.Theme.ButtonColor)
+                
+                Button.MouseButton1Down:Connect(function()
+                    Tween(Button, {BackgroundColor3 = Library.Theme.PressedColor})
+                end)
+                
+                Button.MouseButton1Up:Connect(function()
+                    Tween(Button, {BackgroundColor3 = Library.Theme.HoverColor})
+                end)
+                
+                Button.MouseButton1Click:Connect(function()
+                    RippleEffect(Button, Mouse.X - Button.AbsolutePosition.X, Mouse.Y - Button.AbsolutePosition.Y)
+                    pcall(callback)
+                end)
+                
+                -- Button object for updating
+                local buttonObj = {}
+                
+                function buttonObj.SetText(newText)
+                    ButtonText.Text = newText
+                end
+                
+                elements[#elements + 1] = Button
+                return buttonObj
+            end
+            
+            function section.AddToggle(text, default, callback)
+                elementCount = elementCount + 1
+                default = default or false
+                
+                -- Generate unique ID for this toggle
+                local toggleId = HttpService:GenerateGUID(false)
+                Library.Flags[toggleId] = default
+                
+                local Toggle = CreateInstance("Frame", {
+                    Name = text .. "Toggle",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 32),
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                local ToggleButton = CreateInstance("TextButton", {
+                    Name = "Button",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    Text = "",
+                    Parent = Toggle
+                })
+                
+                local ToggleText = CreateInstance("TextLabel", {
+                    Name = "Text",
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 0, 0, 0),
+                    Size = UDim2.new(1, -50, 1, 0),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = text,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = Toggle
+                })
+                
+                local ToggleBackground = CreateInstance("Frame", {
+                    Name = "Background",
+                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(1, -40, 0.5, 0),
+                    Size = UDim2.new(0, 40, 0, 20),
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    Parent = Toggle
+                })
+                
+                local UICorner_6 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = ToggleBackground
+                })
+                
+                local Indicator = CreateInstance("Frame", {
+                    Name = "Indicator",
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 2, 0.5, 0),
+                    Size = UDim2.new(0, 16, 0, 16),
+                    Parent = ToggleBackground
+                })
+                
+                local UICorner_7 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = Indicator
+                })
+                
+                -- Set initial state
+                local toggled = default
+                if toggled then
+                    Indicator.Position = UDim2.new(1, -18, 0.5, 0)
+                    ToggleBackground.BackgroundColor3 = Library.Theme.AccentColor
+                end
+                
+                -- Toggle function
+                local function updateToggle(value)
+                    toggled = value
+                    Library.Flags[toggleId] = toggled
+                    
+                    if toggled then
+                        Tween(Indicator, {Position = UDim2.new(1, -18, 0.5, 0)})
+                        Tween(ToggleBackground, {BackgroundColor3 = Library.Theme.AccentColor})
+                    else
+                        Tween(Indicator, {Position = UDim2.new(0, 2, 0.5, 0)})
+                        Tween(ToggleBackground, {BackgroundColor3 = Library.Theme.InputBackgroundColor})
+                    end
+                    
+                    pcall(callback, toggled)
+                end
+                
+                ToggleButton.MouseButton1Click:Connect(function()
+                    toggled = not toggled
+                    updateToggle(toggled)
+                end)
+                
+                -- Toggle object for interaction
+                local toggleObj = {
+                    ToggleId = toggleId
+                }
+                
+                function toggleObj.SetValue(value)
+                    updateToggle(value)
+                end
+                
+                function toggleObj.GetValue()
+                    return toggled
+                end
+                
+                elements[#elements + 1] = Toggle
+                return toggleObj
+            end
+            
+            function section.AddSlider(text, min, max, default, increment, callback)
+                elementCount = elementCount + 1
+                min = min or 0
+                max = max or 100
+                default = default or min
+                increment = increment or 1
+                
+                -- Clamp default value
+                default = math.clamp(default, min, max)
+                
+                -- Generate unique ID for this slider
+                local sliderId = HttpService:GenerateGUID(false)
+                Library.Flags[sliderId] = default
+                
+                local Slider = CreateInstance("Frame", {
+                    Name = text .. "Slider",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 50),
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                local SliderText = CreateInstance("TextLabel", {
+                    Name = "Text",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 20),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = text,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = Slider
+                })
+                
+                local ValueText = CreateInstance("TextLabel", {
+                    Name = "Value",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 20),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = tostring(default),
+                    TextColor3 = Library.Theme.SecondaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Right,
+                    Parent = Slider
+                })
+                
+                local SliderBackground = CreateInstance("Frame", {
+                    Name = "Background",
+                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 0, 0, 25),
+                    Size = UDim2.new(1, 0, 0, 10),
+                    Parent = Slider
+                })
+                
+                local UICorner_8 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = SliderBackground
+                })
+                
+                local SliderFill = CreateInstance("Frame", {
+                    Name = "Fill",
+                    BackgroundColor3 = Library.Theme.AccentColor,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
+                    Parent = SliderBackground
+                })
+                
+                local UICorner_9 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(1, 0),
+                    Parent = SliderFill
+                })
+                
+                local SliderButton = CreateInstance("TextButton", {
+                    Name = "Button",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 1, 0),
+                    Text = "",
+                    Parent = SliderBackground
+                })
+                
+                -- Slider functionality
+                local function updateSlider(value)
+                    value = math.clamp(value, min, max)
+                    if increment then
+                        value = math.floor(value / increment + 0.5) * increment
+                        value = math.clamp(value, min, max) -- Clamp again after rounding
+                    end
+                    
+                    -- Update visuals
+                    local percent = (value - min) / (max - min)
+                    SliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                    ValueText.Text = tostring(value)
+                    
+                    -- Update flag and call callback
+                    Library.Flags[sliderId] = value
+                    pcall(callback, value)
+                end
+                
+                SliderButton.MouseButton1Down:Connect(function()
+                    local connection
+                    
+                    connection = RunService.RenderStepped:Connect(function()
+                        if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                            connection:Disconnect()
+                            return
+                        end
+                        
+                        local relativePos = math.clamp((Mouse.X - SliderBackground.AbsolutePosition.X) / SliderBackground.AbsoluteSize.X, 0, 1)
+                        local value = min + (max - min) * relativePos
+                        updateSlider(value)
+                    end)
+                end)
+                
+                -- Slider object for interaction
+                local sliderObj = {
+                    SliderId = sliderId
+                }
+                
+                function sliderObj.SetValue(value)
+                    updateSlider(value)
+                end
+                
+                function sliderObj.GetValue()
+                    return Library.Flags[sliderId]
+                end
+                
+                elements[#elements + 1] = Slider
+                return sliderObj
+            end
+            
+            function section.AddDropdown(text, items, default, callback)
+                elementCount = elementCount + 1
+                items = items or {}
+                default = default or (items[1] or "")
+                
+                -- Generate unique ID for this dropdown
+                local dropdownId = HttpService:GenerateGUID(false)
+                Library.Flags[dropdownId] = default
+                
+                local Dropdown = CreateInstance("Frame", {
+                    Name = text .. "Dropdown",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 50),
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                local DropdownText = CreateInstance("TextLabel", {
+                    Name = "Text",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 20),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = text,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = Dropdown
+                })
+                
+                local DropdownButton = CreateInstance("TextButton", {
+                    Name = "Button",
+                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 0, 0, 25),
+                    Size = UDim2.new(1, 0, 0, 30),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = "",
+                    TextSize = 14,
+                    ClipsDescendants = true,
+                    AutoButtonColor = false,
+                    Parent = Dropdown
+                })
+                
+                local UICorner_10 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(0, 6),
+                    Parent = DropdownButton
+                })
+                
+                local SelectedText = CreateInstance("TextLabel", {
+                    Name = "Selected",
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(0, 10, 0, 0),
+                    Size = UDim2.new(1, -50, 1, 0),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = default,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = DropdownButton
+                })
+                
+                local ArrowIcon = CreateInstance("ImageLabel", {
+                    Name = "Arrow",
+                    BackgroundTransparency = 1,
+                    Position = UDim2.new(1, -25, 0.5, 0),
+                    Size = UDim2.new(0, 15, 0, 15),
+                    AnchorPoint = Vector2.new(0, 0.5),
+                    Image = "rbxassetid://6031091004", -- Arrow icon
+                    ImageColor3 = Library.Theme.SecondaryTextColor,
+                    Parent = DropdownButton
+                })
+                
+                local DropdownMenu = CreateInstance("ScrollingFrame", {
+                    Name = "Menu",
+                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 0, 1, 5),
+                    Size = UDim2.new(1, 0, 0, 0), -- Will be updated based on items
+                    ScrollBarThickness = 3,
+                    ScrollBarImageColor3 = Library.Theme.AccentColor,
+                    Visible = false,
+                    ZIndex = 10,
+                    Parent = DropdownButton
+                })
+                
+                local UICorner_11 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(0, 6),
+                    Parent = DropdownMenu
+                })
+                
+                local UIListLayout_4 = CreateInstance("UIListLayout", {
+                    SortOrder = Enum.SortOrder.LayoutOrder,
+                    Parent = DropdownMenu
+                })
+                
+                local UIPadding_5 = CreateInstance("UIPadding", {
+                    PaddingLeft = UDim.new(0, 5),
+                    PaddingRight = UDim.new(0, 5),
+                    PaddingTop = UDim.new(0, 5),
+                    PaddingBottom = UDim.new(0, 5),
+                    Parent = DropdownMenu
+                })
+                
+                -- Populate dropdown items
+                local function populateDropdown(itemsList)
+                    -- Clear existing items
+                    for _, child in pairs(DropdownMenu:GetChildren()) do
+                        if child:IsA("TextButton") then
+                            child:Destroy()
+                        end
+                    end
+                    
+                    -- Add new items
+                    for i, item in pairs(itemsList) do
+                        local ItemButton = CreateInstance("TextButton", {
+                            Name = "Item_" .. i,
+                            BackgroundColor3 = Library.Theme.ButtonColor,
+                            BorderSizePixel = 0,
+                            Size = UDim2.new(1, 0, 0, 25),
+                            Font = Enum.Font.GothamSemibold,
+                            Text = item,
+                            TextColor3 = Library.Theme.PrimaryTextColor,
+                            TextSize = 14,
+                            AutoButtonColor = false,
+                            ZIndex = 11,
+                            Parent = DropdownMenu
+                        })
+                        
+                        local UICorner_12 = CreateInstance("UICorner", {
+                            CornerRadius = UDim.new(0, 4),
+                            Parent = ItemButton
+                        })
+                        
+                        -- Item button effects
+                        AddHoverEffect(ItemButton, Library.Theme.HoverColor, Library.Theme.ButtonColor)
+                        
+                        ItemButton.MouseButton1Click:Connect(function()
+                            SelectedText.Text = item
+                            Library.Flags[dropdownId] = item
+                            DropdownMenu.Visible = false
+                            pcall(callback, item)
+                        end)
+                    end
+                    
+                    -- Update menu size based on items
+                    local itemCount = #itemsList
+                    local menuHeight = math.min(itemCount * 30, 150) -- Max height of 150
+                    DropdownMenu.Size = UDim2.new(1, 0, 0, menuHeight)
+                    DropdownMenu.CanvasSize = UDim2.new(0, 0, 0, itemCount * 30)
+                end
+                
+                populateDropdown(items)
+                
+                -- Toggle menu visibility
+                local menuOpen = false
+                
+                DropdownButton.MouseButton1Click:Connect(function()
+                    menuOpen = not menuOpen
+                    DropdownMenu.Visible = menuOpen
+                    
+                    if menuOpen then
+                        -- Rotate arrow up
+                        Tween(ArrowIcon, {Rotation = 180})
+                    else
+                        -- Rotate arrow down
+                        Tween(ArrowIcon, {Rotation = 0})
+                    end
+                end)
+                
+                -- Close menu when clicking outside
+                UserInputService.InputBegan:Connect(function(input)
+                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                        local mousePos = UserInputService:GetMouseLocation()
+                        if menuOpen and not (mousePos.X >= DropdownMenu.AbsolutePosition.X and mousePos.X <= DropdownMenu.AbsolutePosition.X + DropdownMenu.AbsoluteSize.X and
+                            mousePos.Y >= DropdownMenu.AbsolutePosition.Y and mousePos.Y <= DropdownMenu.AbsolutePosition.Y + DropdownMenu.AbsoluteSize.Y) and
+                            not (mousePos.X >= DropdownButton.AbsolutePosition.X and mousePos.X <= DropdownButton.AbsolutePosition.X + DropdownButton.AbsoluteSize.X and
+                                mousePos.Y >= DropdownButton.AbsolutePosition.Y and mousePos.Y <= DropdownButton.AbsolutePosition.Y + DropdownButton.AbsoluteSize.Y) then
+                            menuOpen = false
+                            DropdownMenu.Visible = false
+                            Tween(ArrowIcon, {Rotation = 0})
+                        end
+                    end
+                end)
+                
+                -- Dropdown object for interaction
+                local dropdownObj = {
+                    DropdownId = dropdownId
+                }
+                
+                function dropdownObj.SetValue(value)
+                    SelectedText.Text = value
+                    Library.Flags[dropdownId] = value
+                    pcall(callback, value)
+                end
+                
+                function dropdownObj.GetValue()
+                    return Library.Flags[dropdownId]
+                end
+                
+                function dropdownObj.SetOptions(newItems)
+                    items = newItems
+                    populateDropdown(newItems)
+                    
+                    -- Reset selection if current selection is no longer valid
+                    local currentValue = Library.Flags[dropdownId]
+                    local valid = false
+                    
+                    for _, item in pairs(newItems) do
+                        if item == currentValue then
+                            valid = true
+                            break
+                        end
+                    end
+                    
+                    if not valid and #newItems > 0 then
+                        dropdownObj.SetValue(newItems[1])
+                    end
+                end
+                
+                -- Update dropdown height to account for menu
+                Dropdown.Size = UDim2.new(1, 0, 0, 60)
+                
+                elements[#elements + 1] = Dropdown
+                return dropdownObj
+            end
+            
+            function section.AddInput(text, placeholder, default, callback)
+                elementCount = elementCount + 1
+                placeholder = placeholder or ""
+                default = default or ""
+                
+                local Input = CreateInstance("Frame", {
+                    Name = text .. "Input",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 50),
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                local InputText = CreateInstance("TextLabel", {
+                    Name = "Text",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 20),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = text,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = Input
+                })
+                
+                local InputBox = CreateInstance("TextBox", {
+                    Name = "Box",
+                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(0, 0, 0, 25),
+                    Size = UDim2.new(1, 0, 0, 30),
+                    Font = Enum.Font.GothamSemibold,
+                    PlaceholderText = placeholder,
+                    PlaceholderColor3 = Library.Theme.SecondaryTextColor,
+                    Text = default,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    ClearTextOnFocus = false,
+                    Parent = Input
+                })
+                
+                local UICorner_13 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(0, 6),
+                    Parent = InputBox
+                })
+                
+                local UIPadding_6 = CreateInstance("UIPadding", {
+                    PaddingLeft = UDim.new(0, 10),
+                    PaddingRight = UDim.new(0, 10),
+                    Parent = InputBox
+                })
+                
+                -- Input functionality
+                InputBox.FocusLost:Connect(function(enterPressed)
+                    pcall(callback, InputBox.Text)
+                end)
+                
+                elements[#elements + 1] = Input
+                return Input
+            end
+            
+            function section.AddLabel(text)
+                elementCount = elementCount + 1
+                
+                local Label = CreateInstance("TextLabel", {
+                    Name = "Label",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 20),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = text,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                local labelObj = {}
+                
+                function labelObj.SetText(newText)
+                    Label.Text = newText
+                end
+                
+                elements[#elements + 1] = Label
+                return labelObj
+            end
+            
+            function section.AddDivider()
+                elementCount = elementCount + 1
+                
+                local Divider = CreateInstance("Frame", {
+                    Name = "Divider",
+                    BackgroundColor3 = Library.Theme.DividerColor,
+                    BorderSizePixel = 0,
+                    Size = UDim2.new(1, 0, 0, 1),
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                elements[#elements + 1] = Divider
+                return Divider
+            end
+            
+            function section.AddColorPicker(text, defaultColor, callback)
+                elementCount = elementCount + 1
+                defaultColor = defaultColor or Color3.fromRGB(255, 255, 255)
+                
+                local ColorPicker = CreateInstance("Frame", {
+                    Name = text .. "ColorPicker",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 50),
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                local ColorText = CreateInstance("TextLabel", {
+                    Name = "Text",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -60, 0, 20),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = text,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = ColorPicker
+                })
+                
+                local ColorButton = CreateInstance("TextButton", {
+                    Name = "Button",
+                    BackgroundColor3 = defaultColor,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(1, -50, 0, 0),
+                    Size = UDim2.new(0, 50, 0, 20),
+                    Text = "",
+                    Parent = ColorPicker
+                })
+                
+                local UICorner_14 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(0, 4),
+                    Parent = ColorButton
+                })
+                
+                local UIStroke_2 = CreateInstance("UIStroke", {
+                    Thickness = 1,
+                    Color = Library.Theme.UIStrokeColor,
+                    Parent = ColorButton
+                })
+                
+                -- Basic color picker implementation
+                local currentColor = defaultColor
+                local colorPickerGui = nil
+                
+                local function createColorPickerGui()
+                    if colorPickerGui then return end
+                    
+                    colorPickerGui = CreateInstance("Frame", {
+                        Name = "ColorPickerGui",
+                        BackgroundColor3 = Library.Theme.BackgroundColor,
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(1, 10, 0, 0),
+                        Size = UDim2.new(0, 180, 0, 200),
+                        Visible = false,
+                        ZIndex = 100,
+                        Parent = ColorButton
+                    })
+                    
+                    local UICorner_15 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(0, 6),
+                        Parent = colorPickerGui
+                    })
+                    
+                    local UIStroke_3 = CreateInstance("UIStroke", {
+                        Thickness = 1,
+                        Color = Library.Theme.UIStrokeColor,
+                        Parent = colorPickerGui
+                    })
+                    
+                    -- Create color components (simplified for this implementation)
+                    local ColorDisplay = CreateInstance("Frame", {
+                        Name = "Display",
+                        BackgroundColor3 = currentColor,
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(0, 10, 0, 10),
+                        Size = UDim2.new(1, -20, 0, 30),
+                        ZIndex = 101,
+                        Parent = colorPickerGui
+                    })
+                    
+                    local UICorner_16 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(0, 4),
+                        Parent = ColorDisplay
+                    })
+                    
+                    -- Red slider
+                    local RedSlider = CreateInstance("Frame", {
+                        Name = "RedSlider",
+                        BackgroundColor3 = Color3.fromRGB(120, 120, 120),
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(0, 10, 0, 50),
+                        Size = UDim2.new(1, -20, 0, 20),
+                        ZIndex = 101,
+                        Parent = colorPickerGui
+                    })
+                    
+                    local UICorner_17 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = RedSlider
+                    })
+                    
+                    local RedFill = CreateInstance("Frame", {
+                        Name = "Fill",
+                        BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+                        BorderSizePixel = 0,
+                        Size = UDim2.new(currentColor.R, 0, 1, 0),
+                        ZIndex = 102,
+                        Parent = RedSlider
+                    })
+                    
+                    local UICorner_18 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = RedFill
+                    })
+                    
+                    local RedButton = CreateInstance("TextButton", {
+                        Name = "Button",
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(1, 0, 1, 0),
+                        Text = "",
+                        ZIndex = 103,
+                        Parent = RedSlider
+                    })
+                    
+                    local RedLabel = CreateInstance("TextLabel", {
+                        Name = "Label",
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0, 0, 0, -20),
+                        Size = UDim2.new(1, 0, 0, 20),
+                        Font = Enum.Font.GothamSemibold,
+                        Text = "R: " .. math.floor(currentColor.R * 255),
+                        TextColor3 = Library.Theme.PrimaryTextColor,
+                        TextSize = 12,
+                        ZIndex = 101,
+                        Parent = RedSlider
+                    })
+                    
+                    -- Green slider
+                    local GreenSlider = CreateInstance("Frame", {
+                        Name = "GreenSlider",
+                        BackgroundColor3 = Color3.fromRGB(120, 120, 120),
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(0, 10, 0, 100),
+                        Size = UDim2.new(1, -20, 0, 20),
+                        ZIndex = 101,
+                        Parent = colorPickerGui
+                    })
+                    
+                    local UICorner_19 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = GreenSlider
+                    })
+                    
+                    local GreenFill = CreateInstance("Frame", {
+                        Name = "Fill",
+                        BackgroundColor3 = Color3.fromRGB(0, 255, 0),
+                        BorderSizePixel = 0,
+                        Size = UDim2.new(currentColor.G, 0, 1, 0),
+                        ZIndex = 102,
+                        Parent = GreenSlider
+                    })
+                    
+                    local UICorner_20 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = GreenFill
+                    })
+                    
+                    local GreenButton = CreateInstance("TextButton", {
+                        Name = "Button",
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(1, 0, 1, 0),
+                        Text = "",
+                        ZIndex = 103,
+                        Parent = GreenSlider
+                    })
+                    
+                    local GreenLabel = CreateInstance("TextLabel", {
+                        Name = "Label",
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0, 0, 0, -20),
+                        Size = UDim2.new(1, 0, 0, 20),
+                        Font = Enum.Font.GothamSemibold,
+                        Text = "G: " .. math.floor(currentColor.G * 255),
+                        TextColor3 = Library.Theme.PrimaryTextColor,
+                        TextSize = 12,
+                        ZIndex = 101,
+                        Parent = GreenSlider
+                    })
+                    
+                    -- Blue slider
+                    local BlueSlider = CreateInstance("Frame", {
+                        Name = "BlueSlider",
+                        BackgroundColor3 = Color3.fromRGB(120, 120, 120),
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(0, 10, 0, 150),
+                        Size = UDim2.new(1, -20, 0, 20),
+                        ZIndex = 101,
+                        Parent = colorPickerGui
+                    })
+                    
+                    local UICorner_21 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = BlueSlider
+                    })
+                    
+                    local BlueFill = CreateInstance("Frame", {
+                        Name = "Fill",
+                        BackgroundColor3 = Color3.fromRGB(0, 0, 255),
+                        BorderSizePixel = 0,
+                        Size = UDim2.new(currentColor.B, 0, 1, 0),
+                        ZIndex = 102,
+                        Parent = BlueSlider
+                    })
+                    
+                    local UICorner_22 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(1, 0),
+                        Parent = BlueFill
+                    })
+                    
+                    local BlueButton = CreateInstance("TextButton", {
+                        Name = "Button",
+                        BackgroundTransparency = 1,
+                        Size = UDim2.new(1, 0, 1, 0),
+                        Text = "",
+                        ZIndex = 103,
+                        Parent = BlueSlider
+                    })
+                    
+                    local BlueLabel = CreateInstance("TextLabel", {
+                        Name = "Label",
+                        BackgroundTransparency = 1,
+                        Position = UDim2.new(0, 0, 0, -20),
+                        Size = UDim2.new(1, 0, 0, 20),
+                        Font = Enum.Font.GothamSemibold,
+                        Text = "B: " .. math.floor(currentColor.B * 255),
+                        TextColor3 = Library.Theme.PrimaryTextColor,
+                        TextSize = 12,
+                        ZIndex = 101,
+                        Parent = BlueSlider
+                    })
+                    
+                    -- Apply button
+                    local ApplyButton = CreateInstance("TextButton", {
+                        Name = "Apply",
+                        BackgroundColor3 = Library.Theme.AccentColor,
+                        BorderSizePixel = 0,
+                        Position = UDim2.new(0, 10, 0, 180),
+                        Size = UDim2.new(1, -20, 0, 25),
+                        Font = Enum.Font.GothamSemibold,
+                        Text = "Apply",
+                        TextColor3 = Color3.fromRGB(255, 255, 255),
+                        TextSize = 14,
+                        ZIndex = 101,
+                        Parent = colorPickerGui
+                    })
+                    
+                    local UICorner_23 = CreateInstance("UICorner", {
+                        CornerRadius = UDim.new(0, 4),
+                        Parent = ApplyButton
+                    })
+                    
+                    -- Color picker functionality
+                    local function updateColor(r, g, b)
+                        currentColor = Color3.fromRGB(r, g, b)
+                        ColorDisplay.BackgroundColor3 = currentColor
+                        RedFill.Size = UDim2.new(r/255, 0, 1, 0)
+                        GreenFill.Size = UDim2.new(g/255, 0, 1, 0)
+                        BlueFill.Size = UDim2.new(b/255, 0, 1, 0)
+                        RedLabel.Text = "R: " .. r
+                        GreenLabel.Text = "G: " .. g
+                        BlueLabel.Text = "B: " .. b
+                    end
+                    
+                    -- Initial color update
+                    updateColor(math.floor(currentColor.R * 255), math.floor(currentColor.G * 255), math.floor(currentColor.B * 255))
+                    
+                    -- Slider handlers
+                    RedButton.MouseButton1Down:Connect(function()
+                        local connection
+                        
+                        connection = RunService.RenderStepped:Connect(function()
+                            if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                                connection:Disconnect()
+                                return
+                            end
+                            
+                            local relativePos = math.clamp((Mouse.X - RedSlider.AbsolutePosition.X) / RedSlider.AbsoluteSize.X, 0, 1)
+                            local r = math.floor(relativePos * 255)
+                            local g = math.floor(currentColor.G * 255)
+                            local b = math.floor(currentColor.B * 255)
+                            updateColor(r, g, b)
+                        end)
+                    end)
+                    
+                    GreenButton.MouseButton1Down:Connect(function()
+                        local connection
+                        
+                        connection = RunService.RenderStepped:Connect(function()
+                            if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                                connection:Disconnect()
+                                return
+                            end
+                            
+                            local relativePos = math.clamp((Mouse.X - GreenSlider.AbsolutePosition.X) / GreenSlider.AbsoluteSize.X, 0, 1)
+                            local r = math.floor(currentColor.R * 255)
+                            local g = math.floor(relativePos * 255)
+                            local b = math.floor(currentColor.B * 255)
+                            updateColor(r, g, b)
+                        end)
+                    end)
+                    
+                    BlueButton.MouseButton1Down:Connect(function()
+                        local connection
+                        
+                        connection = RunService.RenderStepped:Connect(function()
+                            if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
+                                connection:Disconnect()
+                                return
+                            end
+                            
+                            local relativePos = math.clamp((Mouse.X - BlueSlider.AbsolutePosition.X) / BlueSlider.AbsoluteSize.X, 0, 1)
+                            local r = math.floor(currentColor.R * 255)
+                            local g = math.floor(currentColor.G * 255)
+                            local b = math.floor(relativePos * 255)
+                            updateColor(r, g, b)
+                        end)
+                    end)
+                    
+                    -- Apply button
+                    ApplyButton.MouseButton1Click:Connect(function()
+                        ColorButton.BackgroundColor3 = currentColor
+                        colorPickerGui.Visible = false
+                        pcall(callback, currentColor)
+                    end)
+                    
+                    -- Close picker when clicking outside
+                    UserInputService.InputBegan:Connect(function(input)
+                        if input.UserInputType == Enum.UserInputType.MouseButton1 and colorPickerGui.Visible then
+                            local mousePos = UserInputService:GetMouseLocation()
+                            if not (mousePos.X >= colorPickerGui.AbsolutePosition.X and mousePos.X <= colorPickerGui.AbsolutePosition.X + colorPickerGui.AbsoluteSize.X and
+                                mousePos.Y >= colorPickerGui.AbsolutePosition.Y and mousePos.Y <= colorPickerGui.AbsolutePosition.Y + colorPickerGui.AbsoluteSize.Y) and
+                                not (mousePos.X >= ColorButton.AbsolutePosition.X and mousePos.X <= ColorButton.AbsolutePosition.X + ColorButton.AbsoluteSize.X and
+                                    mousePos.Y >= ColorButton.AbsolutePosition.Y and mousePos.Y <= ColorButton.AbsolutePosition.Y + ColorButton.AbsoluteSize.Y) then
+                                colorPickerGui.Visible = false
+                            end
+                        end
+                    end)
+                end
+                
+                ColorButton.MouseButton1Click:Connect(function()
+                    createColorPickerGui()
+                    colorPickerGui.Visible = not colorPickerGui.Visible
+                end)
+                
+                elements[#elements + 1] = ColorPicker
+                return ColorPicker
+            end
+            
+            function section.AddKeyBind(text, defaultKey, callback)
+                elementCount = elementCount + 1
+                defaultKey = defaultKey or Enum.KeyCode.Unknown
+                
+                local KeyBind = CreateInstance("Frame", {
+                    Name = text .. "KeyBind",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, 0, 0, 30),
+                    LayoutOrder = elementCount,
+                    Parent = ElementsContainer
+                })
+                
+                local KeyText = CreateInstance("TextLabel", {
+                    Name = "Text",
+                    BackgroundTransparency = 1,
+                    Size = UDim2.new(1, -80, 1, 0),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = text,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 14,
+                    TextXAlignment = Enum.TextXAlignment.Left,
+                    Parent = KeyBind
+                })
+                
+                local KeyButton = CreateInstance("TextButton", {
+                    Name = "Button",
+                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
+                    BorderSizePixel = 0,
+                    Position = UDim2.new(1, -70, 0, 0),
+                    Size = UDim2.new(0, 70, 1, 0),
+                    Font = Enum.Font.GothamSemibold,
+                    Text = defaultKey.Name,
+                    TextColor3 = Library.Theme.PrimaryTextColor,
+                    TextSize = 12,
+                    AutoButtonColor = false,
+                    Parent = KeyBind
+                })
+                
+                local UICorner_24 = CreateInstance("UICorner", {
+                    CornerRadius = UDim.new(0, 4),
+                    Parent = KeyButton
+                })
+                
+                -- Keybind functionality
+                local listening = false
+                local currentKey = defaultKey
+                
+                KeyButton.MouseButton1Click:Connect(function()
+                    listening = true
+                    KeyButton.Text = "..."
+                end)
+                
+                UserInputService.InputBegan:Connect(function(input, gameProcessed)
+                    if listening and not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
+                        currentKey = input.KeyCode
+                        KeyButton.Text = currentKey.Name
+                        listening = false
+                        pcall(callback, currentKey)
+                    elseif not listening and not gameProcessed and input.KeyCode == currentKey then
+                        pcall(callback, currentKey)
+                    end
+                end)
+                
+                elements[#elements + 1] = KeyBind
+                return KeyBind
+            end
+            
+            tabSections[sectionName] = section
+            return section
+        end
+        
+        return tab
     end
-})
-
--- Handle Character Changes
-Player.CharacterAdded:Connect(function(newCharacter)
-    Character = newCharacter
-    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-    Humanoid = Character:WaitForChild("Humanoid")
     
-    -- Apply settings to new character
-    Humanoid.WalkSpeed = Config.WalkSpeed
-    Humanoid.JumpPower = Config.JumpPower
-end)
-
--- Main Automation Loops
-RunService:BindToRenderStep("FarmingLoop", Enum.RenderPriority.Character.Value, function()
-    -- Auto-plant
-    if Config.AutoPlant then
-        -- Only run on an interval
-        if not Farming.LastPlant or tick() - Farming.LastPlant >= AUTO_PLANT_INTERVAL then
-            local success, message = Farming.Plant(Config.SelectedSeed)
-            Farming.LastPlant = tick()
+    -- Notification system
+    function Interface:Notify(title, message, duration, notificationType)
+        duration = duration or 3
+        notificationType = notificationType or "Information"
+        
+        -- Create notification frame
+        local Notification = CreateInstance("Frame", {
+            Name = "Notification",
+            BackgroundColor3 = Library.Theme.BackgroundColor,
+            BorderSizePixel = 0,
+            Position = UDim2.new(1, 20, 0, 0), -- Start off screen
+            Size = UDim2.new(0, 300, 0, 80),
+            ClipsDescendants = true,
+            Parent = NotificationHolder
+        })
+        
+        local UICorner_25 = CreateInstance("UICorner", {
+            CornerRadius = UDim.new(0, 6),
+            Parent = Notification
+        })
+        
+        local UIStroke_4 = CreateInstance("UIStroke", {
+            Thickness = 1.5,
+            Color = Library.Theme.UIStrokeColor,
+            Parent = Notification
+        })
+        
+        -- Title bar with icon
+        local NotifTitle = CreateInstance("TextLabel", {
+            Name = "Title",
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 8),
+            Size = UDim2.new(1, -20, 0, 20),
+            Font = Enum.Font.GothamBold,
+            Text = title,
+            TextColor3 = Library.Theme.PrimaryTextColor,
+            TextSize = 15,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            Parent = Notification
+        })
+        
+        local TypeColor
+        if notificationType == "Success" then
+            TypeColor = Color3.fromRGB(0, 180, 70)
+        elseif notificationType == "Error" then
+            TypeColor = Color3.fromRGB(220, 30, 30)
+        elseif notificationType == "Warning" then
+            TypeColor = Color3.fromRGB(250, 160, 0)
+        else -- Information
+            TypeColor = Library.Theme.AccentColor
         end
+        
+        local TypeIndicator = CreateInstance("Frame", {
+            Name = "TypeIndicator",
+            BackgroundColor3 = TypeColor,
+            BorderSizePixel = 0,
+            Size = UDim2.new(0, 3, 1, 0),
+            Parent = Notification
+        })
+        
+        local MessageLabel = CreateInstance("TextLabel", {
+            Name = "Message",
+            BackgroundTransparency = 1,
+            Position = UDim2.new(0, 10, 0, 35),
+            Size = UDim2.new(1, -20, 0, 40),
+            Font = Enum.Font.Gotham,
+            Text = message,
+            TextColor3 = Library.Theme.SecondaryTextColor,
+            TextSize = 14,
+            TextWrapped = true,
+            TextXAlignment = Enum.TextXAlignment.Left,
+            TextYAlignment = Enum.TextYAlignment.Top,
+            Parent = Notification
+        })
+        
+        -- Animate notification
+        Tween(Notification, {Position = UDim2.new(0, 0, 0, 0)}, 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+        
+        task.spawn(function()
+            task.wait(duration)
+            
+            -- Animate out
+            local outTween = Tween(Notification, {Position = UDim2.new(1, 20, 0, 0)}, 0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
+            outTween.Completed:Wait()
+            Notification:Destroy()
+        end)
+        
+        return Notification
     end
     
-    -- Auto-harvest
-    if Config.AutoHarvest then
-        if not Farming.LastHarvest or tick() - Farming.LastHarvest >= AUTO_HARVEST_INTERVAL then
-            local success, message = Farming.Harvest()
-            Farming.LastHarvest = tick()
-        end
-    end
-    
-    -- Auto-water
-    if Config.AutoWater then
-        if not Farming.LastWater or tick() - Farming.LastWater >= AUTO_WATER_INTERVAL then
-            local success, message = Farming.Water()
-            Farming.LastWater = tick()
-        end
-    end
-end)
+    return Interface
+end
 
-RunService:BindToRenderStep("CollectionLoop", Enum.RenderPriority.Character.Value + 1, function()
-    -- Auto-collect
-    if Config.AutoCollect then
-        if not Collection.LastCollect or tick() - Collection.LastCollect >= AUTO_COLLECT_INTERVAL then
-            local success, message = Collection.CollectNearbyItems()
-            Collection.LastCollect = tick()
-        end
-    end
-end)
-
-RunService:BindToRenderStep("UpgradeLoop", Enum.RenderPriority.Character.Value + 2, function()
-    -- Auto-upgrade
-    if Config.AutoUpgrade then
-        if not Upgrade.LastUpgrade or tick() - Upgrade.LastUpgrade >= AUTO_UPGRADE_INTERVAL then
-            local success, message = Upgrade.TryUpgradeTool()
-            Upgrade.LastUpgrade = tick()
-        end
-    end
-end)
-
--- Display initial notification
-Rayfield:Notify({
-    Title = "SkyX Hub - Grow A Garden",
-    Content = "Script loaded successfully!",
-    Duration = 5,
-    Image = 4483362458,
-    Actions = {},
-})
+-- Return the library
+return Library
