@@ -1,1716 +1,1799 @@
---[[  
-    SkyX Hybrid UI Library
-    A versatile UI library for Roblox exploits combining the best features from
-    Luna, Rayfield, and Valiant UI libraries.
-    
-    Created by SkyX Hub
-    Version: 1.0.0
+--[[
+    SkyX Premium MM2 Script (Advanced Rayfield Edition)
+    20+ Powerful Features with custom engine
 ]]
 
--- Services
-local TweenService = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local HttpService = game:GetService("HttpService")
-local TextService = game:GetService("TextService")
+-- Load Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/shlexware/Rayfield/main/source'))()
 
--- Constants
-local TWEEN_INFO = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-local Library = {
-    Flags = {},
-    Theme = {},
-    Notification = nil,
-    Icons = {
-        Home = "rbxassetid://7733960981",
-        Settings = "rbxassetid://7734053495",
-        Search = "rbxassetid://7734039830",
-        Bolt = "rbxassetid://7734053495",
-        Map = "rbxassetid://7734056658",
-        Eye = "rbxassetid://7734039803",
-        Key = "rbxassetid://7734041341",
-        Person = "rbxassetid://7734042071",
-        Lock = "rbxassetid://7734041951",
-        Crown = "rbxassetid://7734036303",
-        Gear = "rbxassetid://7734038449",
-        Info = "rbxassetid://7734041341",
-        Fire = "rbxassetid://7734025272",
-        Heart = "rbxassetid://7734042560",
-        Plus = "rbxassetid://7734043024",
-        Minus = "rbxassetid://7734043388"
-    },
-    Themes = {
-        Default = {
-            BackgroundColor = Color3.fromRGB(25, 25, 25),
-            SidebarColor = Color3.fromRGB(30, 30, 30),
-            PrimaryTextColor = Color3.fromRGB(255, 255, 255),
-            SecondaryTextColor = Color3.fromRGB(175, 175, 175),
-            UIStrokeColor = Color3.fromRGB(85, 85, 85),
-            AccentColor = Color3.fromRGB(0, 120, 215),
-            DividerColor = Color3.fromRGB(60, 60, 60),
-            InputBackgroundColor = Color3.fromRGB(35, 35, 35),
-            ButtonColor = Color3.fromRGB(35, 35, 35),
-            HoverColor = Color3.fromRGB(40, 40, 40),
-            PressedColor = Color3.fromRGB(45, 45, 45),
-            TabColor = Color3.fromRGB(35, 35, 35)
+-- Game check
+if game.PlaceId ~= 142823291 and game.PlaceId ~= 881738579 then
+    Rayfield:Notify({
+        Title = "SkyX MM2 Script",
+        Content = "This script is only for Murder Mystery 2!",
+        Duration = 5,
+        Image = 4483362458,
+        Actions = {
+            Ignore = {
+                Name = "Okay",
+                Callback = function()
+                    -- Do nothing
+                end
+            },
         },
-        Ocean = {
-            BackgroundColor = Color3.fromRGB(20, 30, 40),
-            SidebarColor = Color3.fromRGB(25, 35, 45),
-            PrimaryTextColor = Color3.fromRGB(230, 240, 245),
-            SecondaryTextColor = Color3.fromRGB(175, 190, 205),
-            UIStrokeColor = Color3.fromRGB(60, 80, 100),
-            AccentColor = Color3.fromRGB(0, 150, 220),
-            DividerColor = Color3.fromRGB(50, 70, 90),
-            InputBackgroundColor = Color3.fromRGB(30, 40, 50),
-            ButtonColor = Color3.fromRGB(30, 40, 50),
-            HoverColor = Color3.fromRGB(35, 45, 55),
-            PressedColor = Color3.fromRGB(40, 50, 60),
-            TabColor = Color3.fromRGB(30, 40, 50)
-        },
-        Amethyst = {
-            BackgroundColor = Color3.fromRGB(30, 25, 40),
-            SidebarColor = Color3.fromRGB(35, 30, 45),
-            PrimaryTextColor = Color3.fromRGB(240, 235, 245),
-            SecondaryTextColor = Color3.fromRGB(190, 180, 200),
-            UIStrokeColor = Color3.fromRGB(80, 70, 95),
-            AccentColor = Color3.fromRGB(140, 85, 250),
-            DividerColor = Color3.fromRGB(60, 50, 75),
-            InputBackgroundColor = Color3.fromRGB(40, 35, 50),
-            ButtonColor = Color3.fromRGB(40, 35, 50),
-            HoverColor = Color3.fromRGB(45, 40, 55),
-            PressedColor = Color3.fromRGB(50, 45, 60),
-            TabColor = Color3.fromRGB(40, 35, 50)
-        },
-        Emerald = {
-            BackgroundColor = Color3.fromRGB(25, 35, 30),
-            SidebarColor = Color3.fromRGB(30, 40, 35),
-            PrimaryTextColor = Color3.fromRGB(235, 245, 240),
-            SecondaryTextColor = Color3.fromRGB(180, 200, 190),
-            UIStrokeColor = Color3.fromRGB(70, 90, 80),
-            AccentColor = Color3.fromRGB(40, 180, 120),
-            DividerColor = Color3.fromRGB(55, 75, 65),
-            InputBackgroundColor = Color3.fromRGB(35, 45, 40),
-            ButtonColor = Color3.fromRGB(35, 45, 40),
-            HoverColor = Color3.fromRGB(40, 50, 45),
-            PressedColor = Color3.fromRGB(45, 55, 50),
-            TabColor = Color3.fromRGB(35, 45, 40)
-        }
-    }
+    })
+    return
+end
+
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+local CoreGui = game:GetService("CoreGui")
+
+-- Variables
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+local Camera = workspace.CurrentCamera
+local Mouse = LocalPlayer:GetMouse()
+
+-- Cached roles
+local PlayerRoles = {}
+local Murderer = nil
+local Sheriff = nil
+
+-- MM2 Values
+local GunDrop = nil
+local Knife = nil
+
+-- ESP Settings
+local ESPSettings = {
+    Enabled = false,
+    ShowMurderer = true,
+    ShowSheriff = true,
+    ShowGun = true,
+    MurdererColor = Color3.fromRGB(255, 0, 0),
+    SheriffColor = Color3.fromRGB(0, 0, 255),
+    PlayerColor = Color3.fromRGB(0, 255, 0),
+    GunColor = Color3.fromRGB(0, 255, 255),
+    RainbowESP = false,
+    ShowDistance = true,
+    ShowNames = true,
+    ShowBoxes = true,
+    BoxOutline = true,
+    UseTeamColors = false
 }
 
--- Utility functions
-local function CreateInstance(instanceType, properties)
-    local instance = Instance.new(instanceType)
+-- Coin Collection Settings
+local CoinSettings = {
+    Enabled = false,
+    CollectDistance = 20,
+    CollectDelay = 0.1,
+    CollectingCoins = false, -- State tracking
+    LastCoinTime = 0
+}
+
+-- Auto Farm Settings
+local AutoFarmSettings = {
+    Enabled = false,
+    SafeMode = true,
+    HidePlayerName = true
+}
+
+-- Kill Aura Settings
+local KillAuraSettings = {
+    Enabled = false,
+    Range = 10,
+    TargetMurderer = false,
+    Cooldown = 0.5,
+    LastKill = 0
+}
+
+-- Anti-Sheriff Settings
+local AntiSheriffSettings = {
+    Enabled = false,
+    Dodging = false,
+    Range = 15,
+    DodgeDistance = 15
+}
+
+-- Player Settings
+local PlayerSettings = {
+    SpeedEnabled = false,
+    SpeedValue = 16,
+    JumpEnabled = false,
+    JumpPower = 50,
+    NoClip = false,
+    Invisible = false,
+    AntiRagdoll = false,
+    AutoGrabGun = false,
+    GodMode = false,
+    FlightEnabled = false,
+    FlightSpeed = 50
+}
+
+-- Aimbot Settings
+local AimbotSettings = {
+    Enabled = false,
+    TargetPart = "Head",
+    TeamCheck = true,
+    AimAtMurderer = true,
+    Sensitivity = 0.5,
+    FOV = 150,
+    ShowFOV = true,
+    FOVColor = Color3.fromRGB(255, 255, 255),
+    Locked = false,
+    CurrentTarget = nil
+}
+
+-- Teleport Settings
+local TeleportSettings = {
+    LoopTP = false,
+    TPTarget = nil
+}
+
+-- Emote Settings
+local EmoteSettings = {
+    Enabled = false,
+    CurrentEmote = "floss",
+    LoopEmotes = false
+}
+
+-- Character respawn handling
+LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
+    Character = NewCharacter
+    Humanoid = Character:WaitForChild("Humanoid")
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
     
-    for property, value in pairs(properties or {}) do
-        instance[property] = value
+    -- Reapply player settings
+    if PlayerSettings.SpeedEnabled then
+        Humanoid.WalkSpeed = PlayerSettings.SpeedValue
     end
     
-    return instance
-end
-
-local function Tween(instance, properties, duration, style, direction)
-    local tweenInfo = TweenInfo.new(duration or 0.2, style or Enum.EasingStyle.Quad, direction or Enum.EasingDirection.Out)
-    local tween = TweenService:Create(instance, tweenInfo, properties)
-    tween:Play()
-    return tween
-end
-
-local function RippleEffect(element, x, y)
-    local ripple = CreateInstance("Frame", {
-        Name = "Ripple",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-        BackgroundTransparency = 0.7,
-        BorderSizePixel = 0,
-        Position = UDim2.fromOffset(x, y),
-        Size = UDim2.fromOffset(0, 0),
-        Parent = element
-    })
-    
-    CreateInstance("UICorner", {
-        CornerRadius = UDim.new(1, 0),
-        Parent = ripple
-    })
-    
-    local targetSize = math.max(element.AbsoluteSize.X, element.AbsoluteSize.Y) * 2
-    
-    Tween(ripple, {Size = UDim2.fromOffset(targetSize, targetSize)}, 0.5)
-    Tween(ripple, {BackgroundTransparency = 1}, 0.5)
-    
-    task.spawn(function()
-        task.wait(0.5)
-        ripple:Destroy()
-    end)
-end
-
-local function AddHoverEffect(button, hoverColor, defaultColor)
-    button.MouseEnter:Connect(function()
-        Tween(button, {BackgroundColor3 = hoverColor})
-    end)
-    
-    button.MouseLeave:Connect(function()
-        Tween(button, {BackgroundColor3 = defaultColor})
-    end)
-end
-
--- Main library functions
-function Library:Init(title, themeName)
-    -- Set default theme if not specified
-    themeName = themeName or "Default"
-    Library.Theme = Library.Themes[themeName] or Library.Themes.Default
-    
-    -- Create UI
-    if game:GetService("CoreGui"):FindFirstChild("SkyXUI") then
-        game:GetService("CoreGui").SkyXUI:Destroy()
+    if PlayerSettings.JumpEnabled then
+        Humanoid.JumpPower = PlayerSettings.JumpPower
     end
     
-    local SkyXUI = CreateInstance("ScreenGui", {
-        Name = "SkyXUI",
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        ResetOnSpawn = false,
-        Parent = game:GetService("CoreGui")
-    })
-    
-    local MainFrame = CreateInstance("Frame", {
-        Name = "MainFrame",
-        AnchorPoint = Vector2.new(0.5, 0.5),
-        BackgroundColor3 = Library.Theme.BackgroundColor,
-        BorderSizePixel = 0,
-        ClipsDescendants = true,
-        Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(600, 350),
-        Parent = SkyXUI
-    })
-    
-    local UICorner = CreateInstance("UICorner", {
-        CornerRadius = UDim.new(0, 8),
-        Parent = MainFrame
-    })
-    
-    local UIStroke = CreateInstance("UIStroke", {
-        Thickness = 1.6,
-        Color = Library.Theme.UIStrokeColor,
-        Parent = MainFrame
-    })
-    
-    local Sidebar = CreateInstance("Frame", {
-        Name = "Sidebar",
-        BackgroundColor3 = Library.Theme.SidebarColor,
-        BorderSizePixel = 0,
-        Size = UDim2.new(0, 150, 1, 0),
-        Parent = MainFrame
-    })
-    
-    local UICorner_2 = CreateInstance("UICorner", {
-        CornerRadius = UDim.new(0, 8),
-        Parent = Sidebar
-    })
-    
-    local UIPadding = CreateInstance("UIPadding", {
-        PaddingBottom = UDim.new(0, 8),
-        PaddingLeft = UDim.new(0, 8),
-        PaddingRight = UDim.new(0, 8),
-        PaddingTop = UDim.new(0, 8),
-        Parent = Sidebar
-    })
-    
-    local TitleLabel = CreateInstance("TextLabel", {
-        Name = "Title",
-        BackgroundTransparency = 1,
-        Size = UDim2.new(1, 0, 0, 30),
-        Font = Enum.Font.GothamBold,
-        Text = title,
-        TextColor3 = Library.Theme.PrimaryTextColor,
-        TextSize = 18,
-        TextWrapped = true,
-        TextXAlignment = Enum.TextXAlignment.Left,
-        Parent = Sidebar
-    })
-    
-    local Divider = CreateInstance("Frame", {
-        Name = "Divider",
-        BackgroundColor3 = Library.Theme.DividerColor,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 0, 0, 38),
-        Size = UDim2.new(1, 0, 0, 1),
-        Parent = Sidebar
-    })
-    
-    local TabsContainer = CreateInstance("ScrollingFrame", {
-        Name = "TabsContainer",
-        Active = true,
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 0, 0, 48),
-        Size = UDim2.new(1, 0, 1, -48),
-        CanvasSize = UDim2.new(0, 0, 0, 0),
-        ScrollBarThickness = 2,
-        ScrollBarImageColor3 = Library.Theme.AccentColor,
-        Parent = Sidebar
-    })
-    
-    local UIListLayout = CreateInstance("UIListLayout", {
-        Padding = UDim.new(0, 5),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        Parent = TabsContainer
-    })
-    
-    -- Content container for tabs
-    local Content = CreateInstance("Frame", {
-        Name = "Content",
-        BackgroundTransparency = 1,
-        BorderSizePixel = 0,
-        Position = UDim2.new(0, 150, 0, 0),
-        Size = UDim2.new(1, -150, 1, 0),
-        ClipsDescendants = true,
-        Parent = MainFrame
-    })
-    
-    -- Update tab list canvas size when tabs are added
-    UIListLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        TabsContainer.CanvasSize = UDim2.new(0, 0, 0, UIListLayout.AbsoluteContentSize.Y + 5)
-    end)
-    
-    -- Make UI draggable
-    local dragging = false
-    local dragInput
-    local dragStart
-    local startPos
-
-    local function updateDrag(input)
-        local delta = input.Position - dragStart
-        MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    if PlayerSettings.AntiRagdoll then
+        EnableAntiRagdoll()
     end
+    
+    wait(1) -- Wait for character to load fully
+    UpdateRoles() -- Refresh roles cache
+ end)
 
-    MainFrame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = MainFrame.Position
+-- Functions
+local SkyXFunctions = {}
 
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
+-- Get player role
+function SkyXFunctions:GetPlayerRole(player)
+    if player and player.Character then
+        local Backpack = player:FindFirstChild("Backpack")
+        
+        if Backpack then
+            if Backpack:FindFirstChild("Knife") or player.Character:FindFirstChild("Knife") then
+                return "Murderer"
+            elseif Backpack:FindFirstChild("Gun") or player.Character:FindFirstChild("Gun") then
+                return "Sheriff"
+            end
         end
-    end)
+    end
+    return "Innocent"
+end
 
-    MainFrame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            updateDrag(input)
-        end
-    end)
+-- Update all player roles
+function UpdateRoles()
+    PlayerRoles = {}
+    Murderer = nil
+    Sheriff = nil
     
-    -- Create notification system
-    local NotificationHolder = CreateInstance("Frame", {
-        Name = "NotificationHolder",
-        BackgroundTransparency = 1,
-        Position = UDim2.new(1, -320, 0, 20),
-        Size = UDim2.new(0, 300, 1, -40),
-        ClipsDescendants = true,
-        Parent = SkyXUI
-    })
-    
-    local NotificationLayout = CreateInstance("UIListLayout", {
-        Padding = UDim.new(0, 10),
-        SortOrder = Enum.SortOrder.LayoutOrder,
-        VerticalAlignment = Enum.VerticalAlignment.Top,
-        Parent = NotificationHolder
-    })
-    
-    -- UI Interface
-    local tabs = {}
-    local currentTab = nil
-    
-    local Interface = {}
-    
-    function Interface:CreateTab(name, icon)
-        local tab = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        local role = SkyXFunctions:GetPlayerRole(player)
+        PlayerRoles[player.Name] = role
         
-        local tabSections = {}
-        local sectionCount = 0
-        
-        -- Create tab button
-        local TabButton = CreateInstance("TextButton", {
-            Name = name .. "Tab",
-            BackgroundColor3 = Library.Theme.TabColor,
-            BorderSizePixel = 0,
-            Size = UDim2.new(1, 0, 0, 32),
-            Font = Enum.Font.GothamSemibold,
-            Text = "",
-            TextColor3 = Library.Theme.PrimaryTextColor,
-            TextSize = 14,
-            AutoButtonColor = false,
-            Parent = TabsContainer
-        })
-        
-        local UICorner_3 = CreateInstance("UICorner", {
-            CornerRadius = UDim.new(0, 6),
-            Parent = TabButton
-        })
-        
-        local UIPadding_2 = CreateInstance("UIPadding", {
-            PaddingLeft = UDim.new(0, 8),
-            PaddingRight = UDim.new(0, 8),
-            Parent = TabButton
-        })
-        
-        local IconImage = nil
-        
-        if icon then
-            IconImage = CreateInstance("ImageLabel", {
-                Name = "Icon",
-                BackgroundTransparency = 1,
-                Size = UDim2.new(0, 16, 0, 16),
-                Position = UDim2.new(0, 0, 0.5, 0),
-                AnchorPoint = Vector2.new(0, 0.5),
-                Image = Library.Icons[icon] or icon,
-                ImageColor3 = Library.Theme.SecondaryTextColor,
-                Parent = TabButton
-            })
+        if role == "Murderer" then
+            Murderer = player
+        elseif role == "Sheriff" then
+            Sheriff = player
         end
         
-        local TabText = CreateInstance("TextLabel", {
-            Name = "Text",
-            BackgroundTransparency = 1,
-            Size = UDim2.new(1, icon and -24 or 0, 1, 0),
-            Position = UDim2.new(0, icon and 24 or 0, 0, 0),
-            Font = Enum.Font.GothamSemibold,
-            Text = name,
-            TextColor3 = Library.Theme.SecondaryTextColor,
-            TextSize = 14,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = TabButton
-        })
-        
-        -- Create tab content
-        local TabContent = CreateInstance("ScrollingFrame", {
-            Name = name .. "Content",
-            BackgroundTransparency = 1,
-            BorderSizePixel = 0,
-            Size = UDim2.new(1, 0, 1, 0),
-            CanvasSize = UDim2.new(0, 0, 0, 0),
-            ScrollBarThickness = 3,
-            ScrollBarImageColor3 = Library.Theme.AccentColor,
-            Visible = false,
-            Parent = Content
-        })
-        
-        local UIPadding_3 = CreateInstance("UIPadding", {
-            PaddingBottom = UDim.new(0, 10),
-            PaddingLeft = UDim.new(0, 10),
-            PaddingRight = UDim.new(0, 10),
-            PaddingTop = UDim.new(0, 10),
-            Parent = TabContent
-        })
-        
-        local UIListLayout_2 = CreateInstance("UIListLayout", {
-            Padding = UDim.new(0, 10),
-            SortOrder = Enum.SortOrder.LayoutOrder,
-            Parent = TabContent
-        })
-        
-        -- Update tab content scroll size when sections are added
-        UIListLayout_2:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-            TabContent.CanvasSize = UDim2.new(0, 0, 0, UIListLayout_2.AbsoluteContentSize.Y + 20)
-        end)
-        
-        -- Tab button click event
-        TabButton.MouseButton1Click:Connect(function()
-            -- Ripple effect
-            RippleEffect(TabButton, Mouse.X - TabButton.AbsolutePosition.X, Mouse.Y - TabButton.AbsolutePosition.Y)
+        -- Find knife
+        if role == "Murderer" and player.Character then
+            local knife = player.Character:FindFirstChild("Knife") or 
+                        (player.Backpack and player.Backpack:FindFirstChild("Knife"))
+            if knife then
+                Knife = knife
+            end
+        end
+    end
+    
+    -- Look for dropped gun
+    for _, item in pairs(Workspace:GetChildren()) do
+        if item.Name == "GunDrop" then
+            GunDrop = item
+            break
+        end
+    end
+end
+
+-- Create ESP
+local ESPObjects = {}
+
+function CreateESP()
+    -- Remove old ESP
+    for obj, _ in pairs(ESPObjects) do
+        if obj and obj:IsA("Folder") then
+            obj:Destroy()
+        end
+    end
+    ESPObjects = {}
+    
+    -- Create new ESP
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local role = PlayerRoles[player.Name] or SkyXFunctions:GetPlayerRole(player)
             
-            -- Switch tab
-            if currentTab then
-                -- Update previous tab appearance
-                if tabs[currentTab].button then
-                    Tween(tabs[currentTab].button, {BackgroundColor3 = Library.Theme.TabColor})
-                    Tween(tabs[currentTab].text, {TextColor3 = Library.Theme.SecondaryTextColor})
-                    if tabs[currentTab].icon then
-                        Tween(tabs[currentTab].icon, {ImageColor3 = Library.Theme.SecondaryTextColor})
+            -- Only show if enabled
+            if (role == "Murderer" and ESPSettings.ShowMurderer) or 
+               (role == "Sheriff" and ESPSettings.ShowSheriff) or 
+               (role == "Innocent") then
+                
+                local espFolder = Instance.new("Folder")
+                espFolder.Name = player.Name .. "_ESP"
+                espFolder.Parent = CoreGui
+                
+                local boxOutline = nil
+                local box = nil
+                
+                if ESPSettings.ShowBoxes then
+                    if ESPSettings.BoxOutline then
+                        boxOutline = Instance.new("BoxHandleAdornment")
+                        boxOutline.Name = "BoxOutline"
+                        boxOutline.Size = Vector3.new(4, 6, 4)
+                        boxOutline.Color3 = Color3.new(0, 0, 0)
+                        boxOutline.Transparency = 0.5
+                        boxOutline.ZIndex = 0
+                        boxOutline.AlwaysOnTop = true
+                        boxOutline.Visible = true
+                        boxOutline.Adornee = player.Character
+                        boxOutline.Parent = espFolder
+                    end
+                    
+                    box = Instance.new("BoxHandleAdornment")
+                    box.Name = "Box"
+                    box.Size = Vector3.new(3.5, 5.5, 3.5)
+                    box.Transparency = 0.5
+                    box.ZIndex = 1
+                    box.AlwaysOnTop = true
+                    box.Visible = true
+                    box.Adornee = player.Character
+                    box.Parent = espFolder
+                end
+                
+                local nameLabel = nil
+                if ESPSettings.ShowNames then
+                    nameLabel = Instance.new("BillboardGui")
+                    nameLabel.Name = "NameLabel"
+                    nameLabel.Size = UDim2.new(0, 200, 0, 50)
+                    nameLabel.Adornee = player.Character:FindFirstChild("Head")
+                    nameLabel.StudsOffset = Vector3.new(0, 2, 0)
+                    nameLabel.AlwaysOnTop = true
+                    nameLabel.Parent = espFolder
+                    
+                    local nameText = Instance.new("TextLabel")
+                    nameText.Name = "NameText"
+                    nameText.Size = UDim2.new(0, 200, 0, 50)
+                    nameText.BackgroundTransparency = 1
+                    nameText.TextSize = 16
+                    nameText.Font = Enum.Font.GothamBold
+                    nameText.TextStrokeTransparency = 0.5
+                    nameText.TextStrokeColor3 = Color3.new(0, 0, 0)
+                    nameText.Parent = nameLabel
+                    
+                    -- Set text based on ESP settings
+                    if ESPSettings.ShowDistance then
+                        local distance = math.floor((player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude)
+                        nameText.Text = player.Name .. " [" .. role .. "] [" .. distance .. "m]"
+                    else
+                        nameText.Text = player.Name .. " [" .. role .. "]"
                     end
                 end
                 
-                -- Hide previous tab content
-                if tabs[currentTab].content then
-                    tabs[currentTab].content.Visible = false
+                -- Determine color
+                local color = ESPSettings.PlayerColor
+                if role == "Murderer" then
+                    color = ESPSettings.MurdererColor
+                elseif role == "Sheriff" then
+                    color = ESPSettings.SheriffColor
                 end
+                
+                -- Apply colors
+                if box then box.Color3 = color end
+                if nameLabel and nameLabel:FindFirstChild("NameText") then
+                    nameLabel.NameText.TextColor3 = color
+                end
+                
+                -- Add to ESP objects
+                ESPObjects[espFolder] = {
+                    Player = player,
+                    Box = box,
+                    BoxOutline = boxOutline,
+                    NameLabel = nameLabel,
+                    Role = role
+                }
             end
-            
-            -- Update current tab appearance
-            Tween(TabButton, {BackgroundColor3 = Library.Theme.AccentColor})
-            Tween(TabText, {TextColor3 = Color3.fromRGB(255, 255, 255)})
-            if IconImage then
-                Tween(IconImage, {ImageColor3 = Color3.fromRGB(255, 255, 255)})
-            end
-            
-            -- Show current tab content
-            TabContent.Visible = true
-            
-            -- Update current tab reference
-            currentTab = name
-        end)
+        end
+    end
+    
+    -- Create ESP for dropped gun if enabled
+    if ESPSettings.ShowGun and GunDrop then
+        local gunEspFolder = Instance.new("Folder")
+        gunEspFolder.Name = "GunDrop_ESP"
+        gunEspFolder.Parent = CoreGui
         
-        -- Save tab references
-        tabs[name] = {
-            button = TabButton,
-            text = TabText,
-            icon = IconImage,
-            content = TabContent
+        local gunBox = Instance.new("BoxHandleAdornment")
+        gunBox.Name = "Box"
+        gunBox.Size = Vector3.new(2, 2, 2)
+        gunBox.Color3 = ESPSettings.GunColor
+        gunBox.Transparency = 0.5
+        gunBox.ZIndex = 1
+        gunBox.AlwaysOnTop = true
+        gunBox.Visible = true
+        gunBox.Adornee = GunDrop
+        gunBox.Parent = gunEspFolder
+        
+        local gunLabel = Instance.new("BillboardGui")
+        gunLabel.Name = "GunLabel"
+        gunLabel.Size = UDim2.new(0, 200, 0, 50)
+        gunLabel.Adornee = GunDrop
+        gunLabel.StudsOffset = Vector3.new(0, 1, 0)
+        gunLabel.AlwaysOnTop = true
+        gunLabel.Parent = gunEspFolder
+        
+        local gunText = Instance.new("TextLabel")
+        gunText.Name = "GunText"
+        gunText.Size = UDim2.new(0, 200, 0, 50)
+        gunText.BackgroundTransparency = 1
+        gunText.Text = "Gun"
+        gunText.TextColor3 = ESPSettings.GunColor
+        gunText.TextSize = 16
+        gunText.Font = Enum.Font.GothamBold
+        gunText.TextStrokeTransparency = 0.5
+        gunText.TextStrokeColor3 = Color3.new(0, 0, 0)
+        gunText.Parent = gunLabel
+        
+        -- Add distance if enabled
+        if ESPSettings.ShowDistance then
+            local distance = math.floor((GunDrop.Position - HumanoidRootPart.Position).Magnitude)
+            gunText.Text = "Gun [" .. distance .. "m]"
+        end
+        
+        -- Add to ESP objects
+        ESPObjects[gunEspFolder] = {
+            Gun = GunDrop,
+            Box = gunBox,
+            Label = gunLabel
         }
-        
-        -- Automatically select first tab
-        if not currentTab then
-            TabButton.BackgroundColor3 = Library.Theme.AccentColor
-            TabText.TextColor3 = Color3.fromRGB(255, 255, 255)
-            if IconImage then
-                IconImage.ImageColor3 = Color3.fromRGB(255, 255, 255)
-            end
-            TabContent.Visible = true
-            currentTab = name
-        end
-        
-        -- Tab methods
-        function tab.CreateSection(sectionName)
-            local section = {}
-            sectionCount = sectionCount + 1
-            
-            -- Create section container
-            local SectionContainer = CreateInstance("Frame", {
-                Name = sectionName .. "Section",
-                BackgroundColor3 = Library.Theme.SidebarColor,
-                BorderSizePixel = 0,
-                Size = UDim2.new(1, 0, 0, 36), -- Initial size, will be updated as elements are added
-                LayoutOrder = sectionCount,
-                Parent = TabContent
-            })
-            
-            local UICorner_4 = CreateInstance("UICorner", {
-                CornerRadius = UDim.new(0, 6),
-                Parent = SectionContainer
-            })
-            
-            local UIPadding_4 = CreateInstance("UIPadding", {
-                PaddingBottom = UDim.new(0, 8),
-                PaddingLeft = UDim.new(0, 8),
-                PaddingRight = UDim.new(0, 8),
-                PaddingTop = UDim.new(0, 8),
-                Parent = SectionContainer
-            })
-            
-            local SectionTitle = CreateInstance("TextLabel", {
-                Name = "Title",
-                BackgroundTransparency = 1,
-                Size = UDim2.new(1, 0, 0, 20),
-                Font = Enum.Font.GothamBold,
-                Text = sectionName,
-                TextColor3 = Library.Theme.PrimaryTextColor,
-                TextSize = 14,
-                TextXAlignment = Enum.TextXAlignment.Left,
-                LayoutOrder = 1,
-                Parent = SectionContainer
-            })
-            
-            local ElementsContainer = CreateInstance("Frame", {
-                Name = "Elements",
-                BackgroundTransparency = 1,
-                BorderSizePixel = 0,
-                Position = UDim2.new(0, 0, 0, 28),
-                Size = UDim2.new(1, 0, 0, 0), -- Will be updated as elements are added
-                Parent = SectionContainer
-            })
-            
-            local UIListLayout_3 = CreateInstance("UIListLayout", {
-                Padding = UDim.new(0, 8),
-                SortOrder = Enum.SortOrder.LayoutOrder,
-                Parent = ElementsContainer
-            })
-            
-            -- Track elements for dynamic sizing
-            local elements = {}
-            local elementCount = 0
-            
-            -- Update section size when elements are added
-            UIListLayout_3:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                ElementsContainer.Size = UDim2.new(1, 0, 0, UIListLayout_3.AbsoluteContentSize.Y)
-                SectionContainer.Size = UDim2.new(1, 0, 0, ElementsContainer.Size.Y.Offset + 36)
-            end)
-            
-            -- Section Elements
-            function section.AddButton(text, callback)
-                elementCount = elementCount + 1
-                
-                local Button = CreateInstance("TextButton", {
-                    Name = text .. "Button",
-                    BackgroundColor3 = Library.Theme.ButtonColor,
-                    BorderSizePixel = 0,
-                    Size = UDim2.new(1, 0, 0, 32),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = "",
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    ClipsDescendants = true,
-                    AutoButtonColor = false,
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                local UICorner_5 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(0, 6),
-                    Parent = Button
-                })
-                
-                local ButtonText = CreateInstance("TextLabel", {
-                    Name = "Text",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 1, 0),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = text,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    Parent = Button
-                })
-                
-                -- Button hover and click effects
-                AddHoverEffect(Button, Library.Theme.HoverColor, Library.Theme.ButtonColor)
-                
-                Button.MouseButton1Down:Connect(function()
-                    Tween(Button, {BackgroundColor3 = Library.Theme.PressedColor})
-                end)
-                
-                Button.MouseButton1Up:Connect(function()
-                    Tween(Button, {BackgroundColor3 = Library.Theme.HoverColor})
-                end)
-                
-                Button.MouseButton1Click:Connect(function()
-                    RippleEffect(Button, Mouse.X - Button.AbsolutePosition.X, Mouse.Y - Button.AbsolutePosition.Y)
-                    pcall(callback)
-                end)
-                
-                -- Button object for updating
-                local buttonObj = {}
-                
-                function buttonObj.SetText(newText)
-                    ButtonText.Text = newText
-                end
-                
-                elements[#elements + 1] = Button
-                return buttonObj
-            end
-            
-            function section.AddToggle(text, default, callback)
-                elementCount = elementCount + 1
-                default = default or false
-                
-                -- Generate unique ID for this toggle
-                local toggleId = HttpService:GenerateGUID(false)
-                Library.Flags[toggleId] = default
-                
-                local Toggle = CreateInstance("Frame", {
-                    Name = text .. "Toggle",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 32),
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                local ToggleButton = CreateInstance("TextButton", {
-                    Name = "Button",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 1, 0),
-                    Text = "",
-                    Parent = Toggle
-                })
-                
-                local ToggleText = CreateInstance("TextLabel", {
-                    Name = "Text",
-                    BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 0, 0, 0),
-                    Size = UDim2.new(1, -50, 1, 0),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = text,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = Toggle
-                })
-                
-                local ToggleBackground = CreateInstance("Frame", {
-                    Name = "Background",
-                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(1, -40, 0.5, 0),
-                    Size = UDim2.new(0, 40, 0, 20),
-                    AnchorPoint = Vector2.new(0, 0.5),
-                    Parent = Toggle
-                })
-                
-                local UICorner_6 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(1, 0),
-                    Parent = ToggleBackground
-                })
-                
-                local Indicator = CreateInstance("Frame", {
-                    Name = "Indicator",
-                    AnchorPoint = Vector2.new(0, 0.5),
-                    BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 2, 0.5, 0),
-                    Size = UDim2.new(0, 16, 0, 16),
-                    Parent = ToggleBackground
-                })
-                
-                local UICorner_7 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(1, 0),
-                    Parent = Indicator
-                })
-                
-                -- Set initial state
-                local toggled = default
-                if toggled then
-                    Indicator.Position = UDim2.new(1, -18, 0.5, 0)
-                    ToggleBackground.BackgroundColor3 = Library.Theme.AccentColor
-                end
-                
-                -- Toggle function
-                local function updateToggle(value)
-                    toggled = value
-                    Library.Flags[toggleId] = toggled
-                    
-                    if toggled then
-                        Tween(Indicator, {Position = UDim2.new(1, -18, 0.5, 0)})
-                        Tween(ToggleBackground, {BackgroundColor3 = Library.Theme.AccentColor})
-                    else
-                        Tween(Indicator, {Position = UDim2.new(0, 2, 0.5, 0)})
-                        Tween(ToggleBackground, {BackgroundColor3 = Library.Theme.InputBackgroundColor})
-                    end
-                    
-                    pcall(callback, toggled)
-                end
-                
-                ToggleButton.MouseButton1Click:Connect(function()
-                    toggled = not toggled
-                    updateToggle(toggled)
-                end)
-                
-                -- Toggle object for interaction
-                local toggleObj = {
-                    ToggleId = toggleId
-                }
-                
-                function toggleObj.SetValue(value)
-                    updateToggle(value)
-                end
-                
-                function toggleObj.GetValue()
-                    return toggled
-                end
-                
-                elements[#elements + 1] = Toggle
-                return toggleObj
-            end
-            
-            function section.AddSlider(text, min, max, default, increment, callback)
-                elementCount = elementCount + 1
-                min = min or 0
-                max = max or 100
-                default = default or min
-                increment = increment or 1
-                
-                -- Clamp default value
-                default = math.clamp(default, min, max)
-                
-                -- Generate unique ID for this slider
-                local sliderId = HttpService:GenerateGUID(false)
-                Library.Flags[sliderId] = default
-                
-                local Slider = CreateInstance("Frame", {
-                    Name = text .. "Slider",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 50),
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                local SliderText = CreateInstance("TextLabel", {
-                    Name = "Text",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 20),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = text,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = Slider
-                })
-                
-                local ValueText = CreateInstance("TextLabel", {
-                    Name = "Value",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 20),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = tostring(default),
-                    TextColor3 = Library.Theme.SecondaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Right,
-                    Parent = Slider
-                })
-                
-                local SliderBackground = CreateInstance("Frame", {
-                    Name = "Background",
-                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 0, 0, 25),
-                    Size = UDim2.new(1, 0, 0, 10),
-                    Parent = Slider
-                })
-                
-                local UICorner_8 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(1, 0),
-                    Parent = SliderBackground
-                })
-                
-                local SliderFill = CreateInstance("Frame", {
-                    Name = "Fill",
-                    BackgroundColor3 = Library.Theme.AccentColor,
-                    BorderSizePixel = 0,
-                    Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
-                    Parent = SliderBackground
-                })
-                
-                local UICorner_9 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(1, 0),
-                    Parent = SliderFill
-                })
-                
-                local SliderButton = CreateInstance("TextButton", {
-                    Name = "Button",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 1, 0),
-                    Text = "",
-                    Parent = SliderBackground
-                })
-                
-                -- Slider functionality
-                local function updateSlider(value)
-                    value = math.clamp(value, min, max)
-                    if increment then
-                        value = math.floor(value / increment + 0.5) * increment
-                        value = math.clamp(value, min, max) -- Clamp again after rounding
-                    end
-                    
-                    -- Update visuals
-                    local percent = (value - min) / (max - min)
-                    SliderFill.Size = UDim2.new(percent, 0, 1, 0)
-                    ValueText.Text = tostring(value)
-                    
-                    -- Update flag and call callback
-                    Library.Flags[sliderId] = value
-                    pcall(callback, value)
-                end
-                
-                SliderButton.MouseButton1Down:Connect(function()
-                    local connection
-                    
-                    connection = RunService.RenderStepped:Connect(function()
-                        if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                            connection:Disconnect()
-                            return
-                        end
-                        
-                        local relativePos = math.clamp((Mouse.X - SliderBackground.AbsolutePosition.X) / SliderBackground.AbsoluteSize.X, 0, 1)
-                        local value = min + (max - min) * relativePos
-                        updateSlider(value)
-                    end)
-                end)
-                
-                -- Slider object for interaction
-                local sliderObj = {
-                    SliderId = sliderId
-                }
-                
-                function sliderObj.SetValue(value)
-                    updateSlider(value)
-                end
-                
-                function sliderObj.GetValue()
-                    return Library.Flags[sliderId]
-                end
-                
-                elements[#elements + 1] = Slider
-                return sliderObj
-            end
-            
-            function section.AddDropdown(text, items, default, callback)
-                elementCount = elementCount + 1
-                items = items or {}
-                default = default or (items[1] or "")
-                
-                -- Generate unique ID for this dropdown
-                local dropdownId = HttpService:GenerateGUID(false)
-                Library.Flags[dropdownId] = default
-                
-                local Dropdown = CreateInstance("Frame", {
-                    Name = text .. "Dropdown",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 50),
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                local DropdownText = CreateInstance("TextLabel", {
-                    Name = "Text",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 20),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = text,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = Dropdown
-                })
-                
-                local DropdownButton = CreateInstance("TextButton", {
-                    Name = "Button",
-                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 0, 0, 25),
-                    Size = UDim2.new(1, 0, 0, 30),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = "",
-                    TextSize = 14,
-                    ClipsDescendants = true,
-                    AutoButtonColor = false,
-                    Parent = Dropdown
-                })
-                
-                local UICorner_10 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(0, 6),
-                    Parent = DropdownButton
-                })
-                
-                local SelectedText = CreateInstance("TextLabel", {
-                    Name = "Selected",
-                    BackgroundTransparency = 1,
-                    Position = UDim2.new(0, 10, 0, 0),
-                    Size = UDim2.new(1, -50, 1, 0),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = default,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = DropdownButton
-                })
-                
-                local ArrowIcon = CreateInstance("ImageLabel", {
-                    Name = "Arrow",
-                    BackgroundTransparency = 1,
-                    Position = UDim2.new(1, -25, 0.5, 0),
-                    Size = UDim2.new(0, 15, 0, 15),
-                    AnchorPoint = Vector2.new(0, 0.5),
-                    Image = "rbxassetid://6031091004", -- Arrow icon
-                    ImageColor3 = Library.Theme.SecondaryTextColor,
-                    Parent = DropdownButton
-                })
-                
-                local DropdownMenu = CreateInstance("ScrollingFrame", {
-                    Name = "Menu",
-                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 0, 1, 5),
-                    Size = UDim2.new(1, 0, 0, 0), -- Will be updated based on items
-                    ScrollBarThickness = 3,
-                    ScrollBarImageColor3 = Library.Theme.AccentColor,
-                    Visible = false,
-                    ZIndex = 10,
-                    Parent = DropdownButton
-                })
-                
-                local UICorner_11 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(0, 6),
-                    Parent = DropdownMenu
-                })
-                
-                local UIListLayout_4 = CreateInstance("UIListLayout", {
-                    SortOrder = Enum.SortOrder.LayoutOrder,
-                    Parent = DropdownMenu
-                })
-                
-                local UIPadding_5 = CreateInstance("UIPadding", {
-                    PaddingLeft = UDim.new(0, 5),
-                    PaddingRight = UDim.new(0, 5),
-                    PaddingTop = UDim.new(0, 5),
-                    PaddingBottom = UDim.new(0, 5),
-                    Parent = DropdownMenu
-                })
-                
-                -- Populate dropdown items
-                local function populateDropdown(itemsList)
-                    -- Clear existing items
-                    for _, child in pairs(DropdownMenu:GetChildren()) do
-                        if child:IsA("TextButton") then
-                            child:Destroy()
-                        end
-                    end
-                    
-                    -- Add new items
-                    for i, item in pairs(itemsList) do
-                        local ItemButton = CreateInstance("TextButton", {
-                            Name = "Item_" .. i,
-                            BackgroundColor3 = Library.Theme.ButtonColor,
-                            BorderSizePixel = 0,
-                            Size = UDim2.new(1, 0, 0, 25),
-                            Font = Enum.Font.GothamSemibold,
-                            Text = item,
-                            TextColor3 = Library.Theme.PrimaryTextColor,
-                            TextSize = 14,
-                            AutoButtonColor = false,
-                            ZIndex = 11,
-                            Parent = DropdownMenu
-                        })
-                        
-                        local UICorner_12 = CreateInstance("UICorner", {
-                            CornerRadius = UDim.new(0, 4),
-                            Parent = ItemButton
-                        })
-                        
-                        -- Item button effects
-                        AddHoverEffect(ItemButton, Library.Theme.HoverColor, Library.Theme.ButtonColor)
-                        
-                        ItemButton.MouseButton1Click:Connect(function()
-                            SelectedText.Text = item
-                            Library.Flags[dropdownId] = item
-                            DropdownMenu.Visible = false
-                            pcall(callback, item)
-                        end)
-                    end
-                    
-                    -- Update menu size based on items
-                    local itemCount = #itemsList
-                    local menuHeight = math.min(itemCount * 30, 150) -- Max height of 150
-                    DropdownMenu.Size = UDim2.new(1, 0, 0, menuHeight)
-                    DropdownMenu.CanvasSize = UDim2.new(0, 0, 0, itemCount * 30)
-                end
-                
-                populateDropdown(items)
-                
-                -- Toggle menu visibility
-                local menuOpen = false
-                
-                DropdownButton.MouseButton1Click:Connect(function()
-                    menuOpen = not menuOpen
-                    DropdownMenu.Visible = menuOpen
-                    
-                    if menuOpen then
-                        -- Rotate arrow up
-                        Tween(ArrowIcon, {Rotation = 180})
-                    else
-                        -- Rotate arrow down
-                        Tween(ArrowIcon, {Rotation = 0})
-                    end
-                end)
-                
-                -- Close menu when clicking outside
-                UserInputService.InputBegan:Connect(function(input)
-                    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                        local mousePos = UserInputService:GetMouseLocation()
-                        if menuOpen and not (mousePos.X >= DropdownMenu.AbsolutePosition.X and mousePos.X <= DropdownMenu.AbsolutePosition.X + DropdownMenu.AbsoluteSize.X and
-                            mousePos.Y >= DropdownMenu.AbsolutePosition.Y and mousePos.Y <= DropdownMenu.AbsolutePosition.Y + DropdownMenu.AbsoluteSize.Y) and
-                            not (mousePos.X >= DropdownButton.AbsolutePosition.X and mousePos.X <= DropdownButton.AbsolutePosition.X + DropdownButton.AbsoluteSize.X and
-                                mousePos.Y >= DropdownButton.AbsolutePosition.Y and mousePos.Y <= DropdownButton.AbsolutePosition.Y + DropdownButton.AbsoluteSize.Y) then
-                            menuOpen = false
-                            DropdownMenu.Visible = false
-                            Tween(ArrowIcon, {Rotation = 0})
-                        end
-                    end
-                end)
-                
-                -- Dropdown object for interaction
-                local dropdownObj = {
-                    DropdownId = dropdownId
-                }
-                
-                function dropdownObj.SetValue(value)
-                    SelectedText.Text = value
-                    Library.Flags[dropdownId] = value
-                    pcall(callback, value)
-                end
-                
-                function dropdownObj.GetValue()
-                    return Library.Flags[dropdownId]
-                end
-                
-                function dropdownObj.SetOptions(newItems)
-                    items = newItems
-                    populateDropdown(newItems)
-                    
-                    -- Reset selection if current selection is no longer valid
-                    local currentValue = Library.Flags[dropdownId]
-                    local valid = false
-                    
-                    for _, item in pairs(newItems) do
-                        if item == currentValue then
-                            valid = true
-                            break
-                        end
-                    end
-                    
-                    if not valid and #newItems > 0 then
-                        dropdownObj.SetValue(newItems[1])
-                    end
-                end
-                
-                -- Update dropdown height to account for menu
-                Dropdown.Size = UDim2.new(1, 0, 0, 60)
-                
-                elements[#elements + 1] = Dropdown
-                return dropdownObj
-            end
-            
-            function section.AddInput(text, placeholder, default, callback)
-                elementCount = elementCount + 1
-                placeholder = placeholder or ""
-                default = default or ""
-                
-                local Input = CreateInstance("Frame", {
-                    Name = text .. "Input",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 50),
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                local InputText = CreateInstance("TextLabel", {
-                    Name = "Text",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 20),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = text,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = Input
-                })
-                
-                local InputBox = CreateInstance("TextBox", {
-                    Name = "Box",
-                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(0, 0, 0, 25),
-                    Size = UDim2.new(1, 0, 0, 30),
-                    Font = Enum.Font.GothamSemibold,
-                    PlaceholderText = placeholder,
-                    PlaceholderColor3 = Library.Theme.SecondaryTextColor,
-                    Text = default,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    ClearTextOnFocus = false,
-                    Parent = Input
-                })
-                
-                local UICorner_13 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(0, 6),
-                    Parent = InputBox
-                })
-                
-                local UIPadding_6 = CreateInstance("UIPadding", {
-                    PaddingLeft = UDim.new(0, 10),
-                    PaddingRight = UDim.new(0, 10),
-                    Parent = InputBox
-                })
-                
-                -- Input functionality
-                InputBox.FocusLost:Connect(function(enterPressed)
-                    pcall(callback, InputBox.Text)
-                end)
-                
-                elements[#elements + 1] = Input
-                return Input
-            end
-            
-            function section.AddLabel(text)
-                elementCount = elementCount + 1
-                
-                local Label = CreateInstance("TextLabel", {
-                    Name = "Label",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 20),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = text,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                local labelObj = {}
-                
-                function labelObj.SetText(newText)
-                    Label.Text = newText
-                end
-                
-                elements[#elements + 1] = Label
-                return labelObj
-            end
-            
-            function section.AddDivider()
-                elementCount = elementCount + 1
-                
-                local Divider = CreateInstance("Frame", {
-                    Name = "Divider",
-                    BackgroundColor3 = Library.Theme.DividerColor,
-                    BorderSizePixel = 0,
-                    Size = UDim2.new(1, 0, 0, 1),
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                elements[#elements + 1] = Divider
-                return Divider
-            end
-            
-            function section.AddColorPicker(text, defaultColor, callback)
-                elementCount = elementCount + 1
-                defaultColor = defaultColor or Color3.fromRGB(255, 255, 255)
-                
-                local ColorPicker = CreateInstance("Frame", {
-                    Name = text .. "ColorPicker",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 50),
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                local ColorText = CreateInstance("TextLabel", {
-                    Name = "Text",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, -60, 0, 20),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = text,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = ColorPicker
-                })
-                
-                local ColorButton = CreateInstance("TextButton", {
-                    Name = "Button",
-                    BackgroundColor3 = defaultColor,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(1, -50, 0, 0),
-                    Size = UDim2.new(0, 50, 0, 20),
-                    Text = "",
-                    Parent = ColorPicker
-                })
-                
-                local UICorner_14 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(0, 4),
-                    Parent = ColorButton
-                })
-                
-                local UIStroke_2 = CreateInstance("UIStroke", {
-                    Thickness = 1,
-                    Color = Library.Theme.UIStrokeColor,
-                    Parent = ColorButton
-                })
-                
-                -- Basic color picker implementation
-                local currentColor = defaultColor
-                local colorPickerGui = nil
-                
-                local function createColorPickerGui()
-                    if colorPickerGui then return end
-                    
-                    colorPickerGui = CreateInstance("Frame", {
-                        Name = "ColorPickerGui",
-                        BackgroundColor3 = Library.Theme.BackgroundColor,
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(1, 10, 0, 0),
-                        Size = UDim2.new(0, 180, 0, 200),
-                        Visible = false,
-                        ZIndex = 100,
-                        Parent = ColorButton
-                    })
-                    
-                    local UICorner_15 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(0, 6),
-                        Parent = colorPickerGui
-                    })
-                    
-                    local UIStroke_3 = CreateInstance("UIStroke", {
-                        Thickness = 1,
-                        Color = Library.Theme.UIStrokeColor,
-                        Parent = colorPickerGui
-                    })
-                    
-                    -- Create color components (simplified for this implementation)
-                    local ColorDisplay = CreateInstance("Frame", {
-                        Name = "Display",
-                        BackgroundColor3 = currentColor,
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(0, 10, 0, 10),
-                        Size = UDim2.new(1, -20, 0, 30),
-                        ZIndex = 101,
-                        Parent = colorPickerGui
-                    })
-                    
-                    local UICorner_16 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(0, 4),
-                        Parent = ColorDisplay
-                    })
-                    
-                    -- Red slider
-                    local RedSlider = CreateInstance("Frame", {
-                        Name = "RedSlider",
-                        BackgroundColor3 = Color3.fromRGB(120, 120, 120),
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(0, 10, 0, 50),
-                        Size = UDim2.new(1, -20, 0, 20),
-                        ZIndex = 101,
-                        Parent = colorPickerGui
-                    })
-                    
-                    local UICorner_17 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(1, 0),
-                        Parent = RedSlider
-                    })
-                    
-                    local RedFill = CreateInstance("Frame", {
-                        Name = "Fill",
-                        BackgroundColor3 = Color3.fromRGB(255, 0, 0),
-                        BorderSizePixel = 0,
-                        Size = UDim2.new(currentColor.R, 0, 1, 0),
-                        ZIndex = 102,
-                        Parent = RedSlider
-                    })
-                    
-                    local UICorner_18 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(1, 0),
-                        Parent = RedFill
-                    })
-                    
-                    local RedButton = CreateInstance("TextButton", {
-                        Name = "Button",
-                        BackgroundTransparency = 1,
-                        Size = UDim2.new(1, 0, 1, 0),
-                        Text = "",
-                        ZIndex = 103,
-                        Parent = RedSlider
-                    })
-                    
-                    local RedLabel = CreateInstance("TextLabel", {
-                        Name = "Label",
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0, -20),
-                        Size = UDim2.new(1, 0, 0, 20),
-                        Font = Enum.Font.GothamSemibold,
-                        Text = "R: " .. math.floor(currentColor.R * 255),
-                        TextColor3 = Library.Theme.PrimaryTextColor,
-                        TextSize = 12,
-                        ZIndex = 101,
-                        Parent = RedSlider
-                    })
-                    
-                    -- Green slider
-                    local GreenSlider = CreateInstance("Frame", {
-                        Name = "GreenSlider",
-                        BackgroundColor3 = Color3.fromRGB(120, 120, 120),
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(0, 10, 0, 100),
-                        Size = UDim2.new(1, -20, 0, 20),
-                        ZIndex = 101,
-                        Parent = colorPickerGui
-                    })
-                    
-                    local UICorner_19 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(1, 0),
-                        Parent = GreenSlider
-                    })
-                    
-                    local GreenFill = CreateInstance("Frame", {
-                        Name = "Fill",
-                        BackgroundColor3 = Color3.fromRGB(0, 255, 0),
-                        BorderSizePixel = 0,
-                        Size = UDim2.new(currentColor.G, 0, 1, 0),
-                        ZIndex = 102,
-                        Parent = GreenSlider
-                    })
-                    
-                    local UICorner_20 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(1, 0),
-                        Parent = GreenFill
-                    })
-                    
-                    local GreenButton = CreateInstance("TextButton", {
-                        Name = "Button",
-                        BackgroundTransparency = 1,
-                        Size = UDim2.new(1, 0, 1, 0),
-                        Text = "",
-                        ZIndex = 103,
-                        Parent = GreenSlider
-                    })
-                    
-                    local GreenLabel = CreateInstance("TextLabel", {
-                        Name = "Label",
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0, -20),
-                        Size = UDim2.new(1, 0, 0, 20),
-                        Font = Enum.Font.GothamSemibold,
-                        Text = "G: " .. math.floor(currentColor.G * 255),
-                        TextColor3 = Library.Theme.PrimaryTextColor,
-                        TextSize = 12,
-                        ZIndex = 101,
-                        Parent = GreenSlider
-                    })
-                    
-                    -- Blue slider
-                    local BlueSlider = CreateInstance("Frame", {
-                        Name = "BlueSlider",
-                        BackgroundColor3 = Color3.fromRGB(120, 120, 120),
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(0, 10, 0, 150),
-                        Size = UDim2.new(1, -20, 0, 20),
-                        ZIndex = 101,
-                        Parent = colorPickerGui
-                    })
-                    
-                    local UICorner_21 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(1, 0),
-                        Parent = BlueSlider
-                    })
-                    
-                    local BlueFill = CreateInstance("Frame", {
-                        Name = "Fill",
-                        BackgroundColor3 = Color3.fromRGB(0, 0, 255),
-                        BorderSizePixel = 0,
-                        Size = UDim2.new(currentColor.B, 0, 1, 0),
-                        ZIndex = 102,
-                        Parent = BlueSlider
-                    })
-                    
-                    local UICorner_22 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(1, 0),
-                        Parent = BlueFill
-                    })
-                    
-                    local BlueButton = CreateInstance("TextButton", {
-                        Name = "Button",
-                        BackgroundTransparency = 1,
-                        Size = UDim2.new(1, 0, 1, 0),
-                        Text = "",
-                        ZIndex = 103,
-                        Parent = BlueSlider
-                    })
-                    
-                    local BlueLabel = CreateInstance("TextLabel", {
-                        Name = "Label",
-                        BackgroundTransparency = 1,
-                        Position = UDim2.new(0, 0, 0, -20),
-                        Size = UDim2.new(1, 0, 0, 20),
-                        Font = Enum.Font.GothamSemibold,
-                        Text = "B: " .. math.floor(currentColor.B * 255),
-                        TextColor3 = Library.Theme.PrimaryTextColor,
-                        TextSize = 12,
-                        ZIndex = 101,
-                        Parent = BlueSlider
-                    })
-                    
-                    -- Apply button
-                    local ApplyButton = CreateInstance("TextButton", {
-                        Name = "Apply",
-                        BackgroundColor3 = Library.Theme.AccentColor,
-                        BorderSizePixel = 0,
-                        Position = UDim2.new(0, 10, 0, 180),
-                        Size = UDim2.new(1, -20, 0, 25),
-                        Font = Enum.Font.GothamSemibold,
-                        Text = "Apply",
-                        TextColor3 = Color3.fromRGB(255, 255, 255),
-                        TextSize = 14,
-                        ZIndex = 101,
-                        Parent = colorPickerGui
-                    })
-                    
-                    local UICorner_23 = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(0, 4),
-                        Parent = ApplyButton
-                    })
-                    
-                    -- Color picker functionality
-                    local function updateColor(r, g, b)
-                        currentColor = Color3.fromRGB(r, g, b)
-                        ColorDisplay.BackgroundColor3 = currentColor
-                        RedFill.Size = UDim2.new(r/255, 0, 1, 0)
-                        GreenFill.Size = UDim2.new(g/255, 0, 1, 0)
-                        BlueFill.Size = UDim2.new(b/255, 0, 1, 0)
-                        RedLabel.Text = "R: " .. r
-                        GreenLabel.Text = "G: " .. g
-                        BlueLabel.Text = "B: " .. b
-                    end
-                    
-                    -- Initial color update
-                    updateColor(math.floor(currentColor.R * 255), math.floor(currentColor.G * 255), math.floor(currentColor.B * 255))
-                    
-                    -- Slider handlers
-                    RedButton.MouseButton1Down:Connect(function()
-                        local connection
-                        
-                        connection = RunService.RenderStepped:Connect(function()
-                            if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                                connection:Disconnect()
-                                return
-                            end
-                            
-                            local relativePos = math.clamp((Mouse.X - RedSlider.AbsolutePosition.X) / RedSlider.AbsoluteSize.X, 0, 1)
-                            local r = math.floor(relativePos * 255)
-                            local g = math.floor(currentColor.G * 255)
-                            local b = math.floor(currentColor.B * 255)
-                            updateColor(r, g, b)
-                        end)
-                    end)
-                    
-                    GreenButton.MouseButton1Down:Connect(function()
-                        local connection
-                        
-                        connection = RunService.RenderStepped:Connect(function()
-                            if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                                connection:Disconnect()
-                                return
-                            end
-                            
-                            local relativePos = math.clamp((Mouse.X - GreenSlider.AbsolutePosition.X) / GreenSlider.AbsoluteSize.X, 0, 1)
-                            local r = math.floor(currentColor.R * 255)
-                            local g = math.floor(relativePos * 255)
-                            local b = math.floor(currentColor.B * 255)
-                            updateColor(r, g, b)
-                        end)
-                    end)
-                    
-                    BlueButton.MouseButton1Down:Connect(function()
-                        local connection
-                        
-                        connection = RunService.RenderStepped:Connect(function()
-                            if not UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1) then
-                                connection:Disconnect()
-                                return
-                            end
-                            
-                            local relativePos = math.clamp((Mouse.X - BlueSlider.AbsolutePosition.X) / BlueSlider.AbsoluteSize.X, 0, 1)
-                            local r = math.floor(currentColor.R * 255)
-                            local g = math.floor(currentColor.G * 255)
-                            local b = math.floor(relativePos * 255)
-                            updateColor(r, g, b)
-                        end)
-                    end)
-                    
-                    -- Apply button
-                    ApplyButton.MouseButton1Click:Connect(function()
-                        ColorButton.BackgroundColor3 = currentColor
-                        colorPickerGui.Visible = false
-                        pcall(callback, currentColor)
-                    end)
-                    
-                    -- Close picker when clicking outside
-                    UserInputService.InputBegan:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.MouseButton1 and colorPickerGui.Visible then
-                            local mousePos = UserInputService:GetMouseLocation()
-                            if not (mousePos.X >= colorPickerGui.AbsolutePosition.X and mousePos.X <= colorPickerGui.AbsolutePosition.X + colorPickerGui.AbsoluteSize.X and
-                                mousePos.Y >= colorPickerGui.AbsolutePosition.Y and mousePos.Y <= colorPickerGui.AbsolutePosition.Y + colorPickerGui.AbsoluteSize.Y) and
-                                not (mousePos.X >= ColorButton.AbsolutePosition.X and mousePos.X <= ColorButton.AbsolutePosition.X + ColorButton.AbsoluteSize.X and
-                                    mousePos.Y >= ColorButton.AbsolutePosition.Y and mousePos.Y <= ColorButton.AbsolutePosition.Y + ColorButton.AbsoluteSize.Y) then
-                                colorPickerGui.Visible = false
-                            end
-                        end
-                    end)
-                end
-                
-                ColorButton.MouseButton1Click:Connect(function()
-                    createColorPickerGui()
-                    colorPickerGui.Visible = not colorPickerGui.Visible
-                end)
-                
-                elements[#elements + 1] = ColorPicker
-                return ColorPicker
-            end
-            
-            function section.AddKeyBind(text, defaultKey, callback)
-                elementCount = elementCount + 1
-                defaultKey = defaultKey or Enum.KeyCode.Unknown
-                
-                local KeyBind = CreateInstance("Frame", {
-                    Name = text .. "KeyBind",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, 0, 0, 30),
-                    LayoutOrder = elementCount,
-                    Parent = ElementsContainer
-                })
-                
-                local KeyText = CreateInstance("TextLabel", {
-                    Name = "Text",
-                    BackgroundTransparency = 1,
-                    Size = UDim2.new(1, -80, 1, 0),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = text,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 14,
-                    TextXAlignment = Enum.TextXAlignment.Left,
-                    Parent = KeyBind
-                })
-                
-                local KeyButton = CreateInstance("TextButton", {
-                    Name = "Button",
-                    BackgroundColor3 = Library.Theme.InputBackgroundColor,
-                    BorderSizePixel = 0,
-                    Position = UDim2.new(1, -70, 0, 0),
-                    Size = UDim2.new(0, 70, 1, 0),
-                    Font = Enum.Font.GothamSemibold,
-                    Text = defaultKey.Name,
-                    TextColor3 = Library.Theme.PrimaryTextColor,
-                    TextSize = 12,
-                    AutoButtonColor = false,
-                    Parent = KeyBind
-                })
-                
-                local UICorner_24 = CreateInstance("UICorner", {
-                    CornerRadius = UDim.new(0, 4),
-                    Parent = KeyButton
-                })
-                
-                -- Keybind functionality
-                local listening = false
-                local currentKey = defaultKey
-                
-                KeyButton.MouseButton1Click:Connect(function()
-                    listening = true
-                    KeyButton.Text = "..."
-                end)
-                
-                UserInputService.InputBegan:Connect(function(input, gameProcessed)
-                    if listening and not gameProcessed and input.UserInputType == Enum.UserInputType.Keyboard then
-                        currentKey = input.KeyCode
-                        KeyButton.Text = currentKey.Name
-                        listening = false
-                        pcall(callback, currentKey)
-                    elseif not listening and not gameProcessed and input.KeyCode == currentKey then
-                        pcall(callback, currentKey)
-                    end
-                end)
-                
-                elements[#elements + 1] = KeyBind
-                return KeyBind
-            end
-            
-            tabSections[sectionName] = section
-            return section
-        end
-        
-        return tab
     end
-    
-    -- Notification system
-    function Interface:Notify(title, message, duration, notificationType)
-        duration = duration or 3
-        notificationType = notificationType or "Information"
-        
-        -- Create notification frame
-        local Notification = CreateInstance("Frame", {
-            Name = "Notification",
-            BackgroundColor3 = Library.Theme.BackgroundColor,
-            BorderSizePixel = 0,
-            Position = UDim2.new(1, 20, 0, 0), -- Start off screen
-            Size = UDim2.new(0, 300, 0, 80),
-            ClipsDescendants = true,
-            Parent = NotificationHolder
-        })
-        
-        local UICorner_25 = CreateInstance("UICorner", {
-            CornerRadius = UDim.new(0, 6),
-            Parent = Notification
-        })
-        
-        local UIStroke_4 = CreateInstance("UIStroke", {
-            Thickness = 1.5,
-            Color = Library.Theme.UIStrokeColor,
-            Parent = Notification
-        })
-        
-        -- Title bar with icon
-        local NotifTitle = CreateInstance("TextLabel", {
-            Name = "Title",
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 8),
-            Size = UDim2.new(1, -20, 0, 20),
-            Font = Enum.Font.GothamBold,
-            Text = title,
-            TextColor3 = Library.Theme.PrimaryTextColor,
-            TextSize = 15,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Parent = Notification
-        })
-        
-        local TypeColor
-        if notificationType == "Success" then
-            TypeColor = Color3.fromRGB(0, 180, 70)
-        elseif notificationType == "Error" then
-            TypeColor = Color3.fromRGB(220, 30, 30)
-        elseif notificationType == "Warning" then
-            TypeColor = Color3.fromRGB(250, 160, 0)
-        else -- Information
-            TypeColor = Library.Theme.AccentColor
-        end
-        
-        local TypeIndicator = CreateInstance("Frame", {
-            Name = "TypeIndicator",
-            BackgroundColor3 = TypeColor,
-            BorderSizePixel = 0,
-            Size = UDim2.new(0, 3, 1, 0),
-            Parent = Notification
-        })
-        
-        local MessageLabel = CreateInstance("TextLabel", {
-            Name = "Message",
-            BackgroundTransparency = 1,
-            Position = UDim2.new(0, 10, 0, 35),
-            Size = UDim2.new(1, -20, 0, 40),
-            Font = Enum.Font.Gotham,
-            Text = message,
-            TextColor3 = Library.Theme.SecondaryTextColor,
-            TextSize = 14,
-            TextWrapped = true,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            TextYAlignment = Enum.TextYAlignment.Top,
-            Parent = Notification
-        })
-        
-        -- Animate notification
-        Tween(Notification, {Position = UDim2.new(0, 0, 0, 0)}, 0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-        
-        task.spawn(function()
-            task.wait(duration)
-            
-            -- Animate out
-            local outTween = Tween(Notification, {Position = UDim2.new(1, 20, 0, 0)}, 0.4, Enum.EasingStyle.Quart, Enum.EasingDirection.In)
-            outTween.Completed:Wait()
-            Notification:Destroy()
-        end)
-        
-        return Notification
-    end
-    
-    return Interface
 end
 
--- Return the library
-return Library
+-- Update ESP
+function UpdateESP()
+    if not ESPSettings.Enabled then return end
+    
+    for folder, data in pairs(ESPObjects) do
+        if folder and folder:IsA("Folder") then
+            -- For player ESP
+            if data.Player and data.Player.Character and data.Player.Character:FindFirstChild("HumanoidRootPart") then
+                -- Update distance
+                if ESPSettings.ShowDistance and data.NameLabel and data.NameLabel:FindFirstChild("NameText") then
+                    local distance = math.floor((data.Player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude)
+                    data.NameLabel.NameText.Text = data.Player.Name .. " [" .. data.Role .. "] [" .. distance .. "m]"
+                end
+                
+                -- Rainbow color
+                if ESPSettings.RainbowESP then
+                    local hue = tick() % 10 / 10
+                    local color = Color3.fromHSV(hue, 1, 1)
+                    
+                    if data.Box then data.Box.Color3 = color end
+                    if data.NameLabel and data.NameLabel:FindFirstChild("NameText") then
+                        data.NameLabel.NameText.TextColor3 = color
+                    end
+                end
+            end
+            
+            -- For gun ESP
+            if data.Gun then
+                if ESPSettings.ShowDistance and data.Label and data.Label:FindFirstChild("GunText") then
+                    local distance = math.floor((data.Gun.Position - HumanoidRootPart.Position).Magnitude)
+                    data.Label.GunText.Text = "Gun [" .. distance .. "m]"
+                end
+                
+                if ESPSettings.RainbowESP then
+                    local hue = tick() % 10 / 10
+                    local color = Color3.fromHSV(hue, 1, 1)
+                    
+                    if data.Box then data.Box.Color3 = color end
+                    if data.Label and data.Label:FindFirstChild("GunText") then
+                        data.Label.GunText.TextColor3 = color
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Auto collect coins
+function CollectCoins()
+    if not CoinSettings.Enabled then return end
+    if CoinSettings.CollectingCoins then return end
+    if os.time() - CoinSettings.LastCoinTime < CoinSettings.CollectDelay then return end
+    
+    CoinSettings.CollectingCoins = true
+    CoinSettings.LastCoinTime = os.time()
+    
+    -- Find coins
+    local coins = {}
+    for _, obj in pairs(Workspace:GetDescendants()) do
+        if obj.Name == "Coin" and obj:IsA("Part") then
+            local distance = (obj.Position - HumanoidRootPart.Position).Magnitude
+            if distance <= CoinSettings.CollectDistance then
+                table.insert(coins, obj)
+            end
+        end
+    end
+    
+    -- Collect nearest coin
+    if #coins > 0 then
+        table.sort(coins, function(a, b)
+            return (a.Position - HumanoidRootPart.Position).Magnitude < 
+                   (b.Position - HumanoidRootPart.Position).Magnitude
+        end)
+        
+        local coin = coins[1]
+        local oldPosition = HumanoidRootPart.CFrame
+        HumanoidRootPart.CFrame = CFrame.new(coin.Position)
+        wait(0.1) -- Wait for collection
+        HumanoidRootPart.CFrame = oldPosition
+    end
+    
+    CoinSettings.CollectingCoins = false
+end
+
+-- Check if safe to teleport
+function IsSafeTeleport(position)
+    if not AutoFarmSettings.SafeMode then return true end
+    if not Murderer then UpdateRoles() end
+    
+    if Murderer and Murderer.Character and Murderer.Character:FindFirstChild("HumanoidRootPart") then
+        local distance = (position - Murderer.Character.HumanoidRootPart.Position).Magnitude
+        if distance < 10 then -- Don't teleport near murderer
+            return false
+        end
+    end
+    
+    return true
+end
+
+-- Auto farm
+function AutoFarm()
+    if not AutoFarmSettings.Enabled then return end
+    
+    -- Hide name if enabled
+    if AutoFarmSettings.HidePlayerName then
+        local playerHead = Character:FindFirstChild("Head")
+        if playerHead then
+            local nameTag = playerHead:FindFirstChild("Overhead")
+            if nameTag then
+                nameTag.Enabled = false
+            end
+        end
+    end
+    
+    -- Auto collect coins with safety check
+    if CoinSettings.Enabled then
+        local coins = {}
+        for _, obj in pairs(Workspace:GetDescendants()) do
+            if obj.Name == "Coin" and obj:IsA("Part") then
+                local distance = (obj.Position - HumanoidRootPart.Position).Magnitude
+                if distance <= 100 then -- Search in wider range
+                    table.insert(coins, obj)
+                end
+            end
+        end
+        
+        if #coins > 0 then
+            table.sort(coins, function(a, b)
+                return (a.Position - HumanoidRootPart.Position).Magnitude < 
+                       (b.Position - HumanoidRootPart.Position).Magnitude
+            end)
+            
+            -- Check if coin is safe to collect
+            for _, coin in ipairs(coins) do
+                if IsSafeTeleport(coin.Position) then
+                    local oldPosition = HumanoidRootPart.CFrame
+                    HumanoidRootPart.CFrame = CFrame.new(coin.Position)
+                    wait(0.1) -- Wait for collection
+                    HumanoidRootPart.CFrame = oldPosition
+                    break
+                end
+            end
+        end
+    end
+    
+    -- Auto grab gun if sheriff drops it
+    if PlayerSettings.AutoGrabGun and GunDrop then
+        if IsSafeTeleport(GunDrop.Position) then
+            local oldPosition = HumanoidRootPart.CFrame
+            HumanoidRootPart.CFrame = CFrame.new(GunDrop.Position)
+            wait(0.2) -- Wait to grab gun
+            HumanoidRootPart.CFrame = oldPosition
+        end
+    end
+end
+
+-- Kill Aura
+function KillAura()
+    if not KillAuraSettings.Enabled then return end
+    if os.time() - KillAuraSettings.LastKill < KillAuraSettings.Cooldown then return end
+    
+    local role = SkyXFunctions:GetPlayerRole(LocalPlayer)
+    if role ~= "Murderer" then return end
+    
+    local knife = Character:FindFirstChild("Knife") or
+                 (LocalPlayer.Backpack and LocalPlayer.Backpack:FindFirstChild("Knife"))
+    if not knife then return end
+    
+    -- Equip the knife if not already equipped
+    if knife.Parent ~= Character then
+        knife.Parent = Character
+    end
+    
+    -- Find closest target
+    local closestPlayer = nil
+    local closestDistance = KillAuraSettings.Range
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and 
+           player.Character:FindFirstChild("HumanoidRootPart") and
+           player.Character:FindFirstChild("Humanoid") and 
+           player.Character.Humanoid.Health > 0 then
+            
+            -- Skip murderer if targeting murderer is disabled
+            if KillAuraSettings.TargetMurderer == false and PlayerRoles[player.Name] == "Murderer" then
+                continue
+            end
+            
+            local distance = (player.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+            if distance < closestDistance then
+                closestPlayer = player
+                closestDistance = distance
+            end
+        end
+    end
+    
+    -- Attempt to kill the target
+    if closestPlayer then
+        KillAuraSettings.LastKill = os.time()
+        
+        -- Teleport to the player briefly
+        local oldPosition = HumanoidRootPart.CFrame
+        HumanoidRootPart.CFrame = closestPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0, 0, 2)
+        wait(0.1)
+        
+        -- Use knife/stab
+        local knifeEvent = knife:FindFirstChild("StabEvent") or knife:FindFirstChild("Use")
+        if knifeEvent and knifeEvent:IsA("RemoteEvent") then
+            knifeEvent:FireServer()
+        end
+        
+        wait(0.1)
+        HumanoidRootPart.CFrame = oldPosition
+    end
+end
+
+-- Anti-Sheriff
+function AntiSheriff()
+    if not AntiSheriffSettings.Enabled then return end
+    if AntiSheriffSettings.Dodging then return end
+    
+    local role = SkyXFunctions:GetPlayerRole(LocalPlayer)
+    if role ~= "Murderer" then return end
+    
+    if Sheriff and Sheriff.Character and Sheriff.Character:FindFirstChild("HumanoidRootPart") then
+        local sheriffDistance = (Sheriff.Character.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+        
+        -- Check if sheriff is aiming at us (has equipped gun)
+        local sheriffHasGunEquipped = Sheriff.Character:FindFirstChild("Gun") ~= nil
+        
+        if sheriffHasGunEquipped and sheriffDistance <= AntiSheriffSettings.Range then
+            AntiSheriffSettings.Dodging = true
+            
+            -- Quick teleport away in a random direction
+            local direction = Vector3.new(math.random(-10, 10), 0, math.random(-10, 10)).Unit
+            local targetPosition = HumanoidRootPart.Position + direction * AntiSheriffSettings.DodgeDistance
+            
+            -- Make sure we don't teleport into walls
+            local ray = Ray.new(HumanoidRootPart.Position, direction * AntiSheriffSettings.DodgeDistance)
+            local hit, hitPos = workspace:FindPartOnRayWithIgnoreList(ray, {Character})
+            
+            if hit then
+                targetPosition = hitPos - direction * 2 -- Stay 2 studs away from the wall
+            end
+            
+            HumanoidRootPart.CFrame = CFrame.new(targetPosition)
+            
+            wait(1) -- Cooldown
+            AntiSheriffSettings.Dodging = false
+        end
+    end
+end
+
+-- Aimbot functions
+local FOVCircle = Drawing.new("Circle")
+FOVCircle.Thickness = 2
+FOVCircle.NumSides = 120
+FOVCircle.Radius = AimbotSettings.FOV
+FOVCircle.Filled = false
+FOVCircle.Visible = AimbotSettings.ShowFOV
+FOVCircle.ZIndex = 1
+FOVCircle.Transparency = 1
+FOVCircle.Color = AimbotSettings.FOVColor
+
+function UpdateFOVCircle()
+    if not AimbotSettings.ShowFOV then
+        FOVCircle.Visible = false
+        return
+    end
+    
+    FOVCircle.Visible = true
+    FOVCircle.Radius = AimbotSettings.FOV
+    FOVCircle.Color = AimbotSettings.FOVColor
+    FOVCircle.Position = Vector2.new(Mouse.X, Mouse.Y + 36)
+end
+
+function GetClosestPlayerToCursor()
+    if not AimbotSettings.Enabled then
+        AimbotSettings.CurrentTarget = nil
+        return nil
+    end
+    
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and 
+           player.Character:FindFirstChild("HumanoidRootPart") and
+           player.Character:FindFirstChild("Humanoid") and 
+           player.Character.Humanoid.Health > 0 then
+            
+            -- Team check
+            if AimbotSettings.TeamCheck then
+                local role = PlayerRoles[player.Name] or SkyXFunctions:GetPlayerRole(player)
+                
+                -- Skip sheriff if we're the murderer
+                if role == "Sheriff" and SkyXFunctions:GetPlayerRole(LocalPlayer) == "Murderer" then
+                    continue
+                end
+                
+                -- Only target murderer if that option is enabled
+                if AimbotSettings.AimAtMurderer and role ~= "Murderer" then
+                    continue
+                end
+            end
+            
+            local targetPart = player.Character:FindFirstChild(AimbotSettings.TargetPart) or 
+                              player.Character:FindFirstChild("HumanoidRootPart")
+            
+            if targetPart then
+                local screenPos, onScreen = Camera:WorldToScreenPoint(targetPart.Position)
+                
+                if onScreen then
+                    local distFromMouse = (Vector2.new(Mouse.X, Mouse.Y) - Vector2.new(screenPos.X, screenPos.Y)).Magnitude
+                    
+                    if distFromMouse < AimbotSettings.FOV then
+                        if distFromMouse < shortestDistance then
+                            closestPlayer = player
+                            shortestDistance = distFromMouse
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    AimbotSettings.CurrentTarget = closestPlayer
+    return closestPlayer
+end
+
+function EnableAimbot()
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.UserInputType == Enum.UserInputType.MouseButton2 then
+            AimbotSettings.Locked = true
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then
+            AimbotSettings.Locked = false
+        end
+    end)
+    
+    RunService.RenderStepped:Connect(function()
+        UpdateFOVCircle()
+        
+        if AimbotSettings.Enabled and AimbotSettings.Locked then
+            local target = GetClosestPlayerToCursor()
+            
+            if target and target.Character then
+                local targetPart = target.Character:FindFirstChild(AimbotSettings.TargetPart) or 
+                                  target.Character:FindFirstChild("HumanoidRootPart")
+                if targetPart then
+                    local screenPos, onScreen = Camera:WorldToScreenPoint(targetPart.Position)
+                    
+                    if onScreen then
+                        local moveX = (screenPos.X - Mouse.X) * AimbotSettings.Sensitivity
+                        local moveY = (screenPos.Y - Mouse.Y) * AimbotSettings.Sensitivity
+                        
+                        mousemoverel(moveX, moveY)
+                    end
+                end
+            end
+        end
+    end)
+end
+
+-- Anti-Ragdoll function
+function EnableAntiRagdoll()
+    if not Character then return end
+    
+    local function disableRagdoll()
+        for _, limb in pairs(Character:GetChildren()) do
+            if limb:IsA("BasePart") and limb.Name ~= "HumanoidRootPart" then
+                if limb:FindFirstChild("RagdollBallSocket") then
+                    limb.RagdollBallSocket.Enabled = false
+                end
+                
+                if limb:FindFirstChild("RagdollHingeConstraint") then
+                    limb.RagdollHingeConstraint.Enabled = false
+                end
+            end
+        end
+    end
+    
+    disableRagdoll() -- Initial call
+    
+    -- Watch for new constraints
+    Character.ChildAdded:Connect(function(child)
+        if child:IsA("BasePart") then
+            child.ChildAdded:Connect(function(constraint)
+                if constraint.Name:match("Ragdoll") and PlayerSettings.AntiRagdoll then
+                    constraint.Enabled = false
+                end
+            end)
+        end
+    end)
+ end
+
+-- Flight function
+local Flying = false
+local FlyConnection = nil
+
+function ToggleFlight(enabled)
+    if enabled and not Flying then
+        Flying = true
+        
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Parent = HumanoidRootPart
+        
+        FlyConnection = RunService.RenderStepped:Connect(function()
+            if Flying then
+                local flyDirection = Vector3.new(0, 0, 0)
+                
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                    flyDirection = flyDirection + Camera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                    flyDirection = flyDirection - Camera.CFrame.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                    flyDirection = flyDirection - Camera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                    flyDirection = flyDirection + Camera.CFrame.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    flyDirection = flyDirection + Vector3.new(0, 1, 0)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                    flyDirection = flyDirection - Vector3.new(0, 1, 0)
+                end
+                
+                -- Normalize the direction if it's not zero
+                if flyDirection.Magnitude > 0 then
+                    flyDirection = flyDirection.Unit
+                end
+                
+                -- Apply the flight speed
+                bodyVelocity.Velocity = flyDirection * PlayerSettings.FlightSpeed
+            end
+        end)
+    elseif not enabled and Flying then
+        Flying = false
+        
+        if FlyConnection then
+            FlyConnection:Disconnect()
+            FlyConnection = nil
+        end
+        
+        for _, child in pairs(HumanoidRootPart:GetChildren()) do
+            if child:IsA("BodyVelocity") then
+                child:Destroy()
+            end
+        end
+    end
+end
+
+-- NoClip function
+local NoClipConnection = nil
+
+function ToggleNoClip(enabled)
+    if enabled and not NoClipConnection then
+        NoClipConnection = RunService.Stepped:Connect(function()
+            if not Character then return end
+            
+            for _, part in pairs(Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end)
+    elseif not enabled and NoClipConnection then
+        NoClipConnection:Disconnect()
+        NoClipConnection = nil
+        
+        -- Re-enable collisions
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
+-- GodMode function
+function EnableGodMode()
+    if not Character then return end
+    
+    -- Basic god mode method for MM2
+    local clone = Character.Head:Clone()
+    Character.Head:Destroy()
+    clone.Parent = Character
+    Humanoid.BreakJointsOnDeath = false
+    
+    -- Backup method
+    for _, obj in pairs(Character:GetDescendants()) do
+        if obj:IsA("Humanoid") then
+            -- Set health properties
+            obj.MaxHealth = math.huge
+            obj.Health = math.huge
+        end
+    end
+end
+
+-- Create Rayfield Window
+local Window = Rayfield:CreateWindow({
+    Name = "SkyX MM2 Hub",
+    LoadingTitle = "SkyX MM2 Hub",
+    LoadingSubtitle = "By SkyX Hub",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = "SkyXConfig",
+        FileName = "MM2"
+    },
+    Discord = {
+        Enabled = true,
+        Invite = "skyx", -- No https://discord.gg/ needed
+        RememberJoins = true
+    },
+    KeySystem = false, -- Leave as false for now
+    KeySettings = {
+        Title = "SkyX Key System",
+        Subtitle = "Key Required",
+        Note = "Join the discord (discord.gg/skyx)",
+        FileName = "SkyXKey",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"SkyX"}
+    }
+})
+
+-- Create tabs
+local MainTab = Window:CreateTab("Main", 4483362458)
+local ESPTab = Window:CreateTab("ESP", 4483362458)
+local PlayerTab = Window:CreateTab("Player", 4483362458)
+local CombatTab = Window:CreateTab("Combat", 4483362458)
+local TeleportTab = Window:CreateTab("Teleport", 4483362458)
+local MiscTab = Window:CreateTab("Misc", 4483362458)
+
+-- Main Tab
+local RoleSectionMain = MainTab:CreateSection("Role Information")
+
+-- Role display labels
+local MurdererLabel = MainTab:CreateLabel("Murderer: Unknown")
+local SheriffLabel = MainTab:CreateLabel("Sheriff: Unknown")
+local MyRoleLabel = MainTab:CreateLabel("Your Role: Unknown")
+
+-- Auto-track roles
+MainTab:CreateToggle({
+    Name = "Auto-Track Roles",
+    CurrentValue = true,
+    Flag = "AutoTrackRoles",
+    Callback = function(Value)
+        -- This is handled in the main loop anyway
+    end,
+})
+
+-- Coin collection section
+local CoinSection = MainTab:CreateSection("Coin Collection")
+
+MainTab:CreateToggle({
+    Name = "Auto Collect Coins",
+    CurrentValue = false,
+    Flag = "AutoCollectCoins",
+    Callback = function(Value)
+        CoinSettings.Enabled = Value
+    end,
+})
+
+MainTab:CreateSlider({
+    Name = "Collection Distance",
+    Range = {5, 50},
+    Increment = 1,
+    Suffix = "studs",
+    CurrentValue = 20,
+    Flag = "CoinDistance", 
+    Callback = function(Value)
+        CoinSettings.CollectDistance = Value
+    end,
+})
+
+MainTab:CreateSlider({
+    Name = "Collection Delay",
+    Range = {0.1, 2},
+    Increment = 0.1,
+    Suffix = "sec",
+    CurrentValue = 0.5,
+    Flag = "CoinDelay", 
+    Callback = function(Value)
+        CoinSettings.CollectDelay = Value
+    end,
+})
+
+-- Auto Farm section
+local FarmSection = MainTab:CreateSection("Auto Farm")
+
+MainTab:CreateToggle({
+    Name = "Auto Farm",
+    CurrentValue = false,
+    Flag = "AutoFarm",
+    Callback = function(Value)
+        AutoFarmSettings.Enabled = Value
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "Safe Mode",
+    CurrentValue = true,
+    Flag = "SafeMode",
+    Callback = function(Value)
+        AutoFarmSettings.SafeMode = Value
+    end,
+})
+
+MainTab:CreateToggle({
+    Name = "Hide Player Name",
+    CurrentValue = true,
+    Flag = "HidePlayerName",
+    Callback = function(Value)
+        AutoFarmSettings.HidePlayerName = Value
+    end,
+})
+
+-- ESP Tab
+local ESPSection = ESPTab:CreateSection("ESP Settings")
+
+ESPTab:CreateToggle({
+    Name = "Enable ESP",
+    CurrentValue = false,
+    Flag = "EnableESP",
+    Callback = function(Value)
+        ESPSettings.Enabled = Value
+        
+        if Value then
+            CreateESP()
+        else
+            -- Remove ESP objects
+            for obj, _ in pairs(ESPObjects) do
+                if obj and obj:IsA("Folder") then
+                    obj:Destroy()
+                end
+            end
+            ESPObjects = {}
+        end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Murderer",
+    CurrentValue = true,
+    Flag = "ShowMurderer",
+    Callback = function(Value)
+        ESPSettings.ShowMurderer = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Sheriff",
+    CurrentValue = true,
+    Flag = "ShowSheriff",
+    Callback = function(Value)
+        ESPSettings.ShowSheriff = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Gun",
+    CurrentValue = true,
+    Flag = "ShowGun",
+    Callback = function(Value)
+        ESPSettings.ShowGun = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Names",
+    CurrentValue = true,
+    Flag = "ShowNames",
+    Callback = function(Value)
+        ESPSettings.ShowNames = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Distance",
+    CurrentValue = true,
+    Flag = "ShowDistance",
+    Callback = function(Value)
+        ESPSettings.ShowDistance = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Show Boxes",
+    CurrentValue = true,
+    Flag = "ShowBoxes",
+    Callback = function(Value)
+        ESPSettings.ShowBoxes = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Box Outlines",
+    CurrentValue = true,
+    Flag = "BoxOutline",
+    Callback = function(Value)
+        ESPSettings.BoxOutline = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Rainbow ESP",
+    CurrentValue = false,
+    Flag = "RainbowESP",
+    Callback = function(Value)
+        ESPSettings.RainbowESP = Value
+    end,
+})
+
+-- ESP Color pickers
+ESPTab:CreateSection("ESP Colors")
+
+ESPTab:CreateColorPicker({
+    Name = "Murderer Color",
+    Color = ESPSettings.MurdererColor,
+    Flag = "MurdererColor",
+    Callback = function(Value)
+        ESPSettings.MurdererColor = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Sheriff Color",
+    Color = ESPSettings.SheriffColor,
+    Flag = "SheriffColor",
+    Callback = function(Value)
+        ESPSettings.SheriffColor = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Innocent Color",
+    Color = ESPSettings.PlayerColor,
+    Flag = "PlayerColor",
+    Callback = function(Value)
+        ESPSettings.PlayerColor = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Gun Color",
+    Color = ESPSettings.GunColor,
+    Flag = "GunColor",
+    Callback = function(Value)
+        ESPSettings.GunColor = Value
+        if ESPSettings.Enabled then CreateESP() end
+    end
+})
+
+-- Player Tab
+local PlayerSection = PlayerTab:CreateSection("Character Modifications")
+
+PlayerTab:CreateToggle({
+    Name = "Walk Speed",
+    CurrentValue = false,
+    Flag = "WalkSpeed", 
+    Callback = function(Value)
+        PlayerSettings.SpeedEnabled = Value
+        if Value then
+            Humanoid.WalkSpeed = PlayerSettings.SpeedValue
+        else
+            Humanoid.WalkSpeed = 16 -- Default
+        end
+    end,
+})
+
+PlayerTab:CreateSlider({
+    Name = "Speed Value",
+    Range = {16, 150},
+    Increment = 1,
+    Suffix = "speed",
+    CurrentValue = 50,
+    Flag = "SpeedValue", 
+    Callback = function(Value)
+        PlayerSettings.SpeedValue = Value
+        if PlayerSettings.SpeedEnabled then
+            Humanoid.WalkSpeed = Value
+        end
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "Jump Power",
+    CurrentValue = false,
+    Flag = "JumpPower", 
+    Callback = function(Value)
+        PlayerSettings.JumpEnabled = Value
+        if Value then
+            Humanoid.JumpPower = PlayerSettings.JumpPower
+        else
+            Humanoid.JumpPower = 50 -- Default
+        end
+    end,
+})
+
+PlayerTab:CreateSlider({
+    Name = "Jump Power Value",
+    Range = {50, 200},
+    Increment = 5,
+    Suffix = "power",
+    CurrentValue = 100,
+    Flag = "JumpValue", 
+    Callback = function(Value)
+        PlayerSettings.JumpPower = Value
+        if PlayerSettings.JumpEnabled then
+            Humanoid.JumpPower = Value
+        end
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "NoClip",
+    CurrentValue = false,
+    Flag = "NoClip", 
+    Callback = function(Value)
+        PlayerSettings.NoClip = Value
+        ToggleNoClip(Value)
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "Flight",
+    CurrentValue = false,
+    Flag = "Flight", 
+    Callback = function(Value)
+        PlayerSettings.FlightEnabled = Value
+        ToggleFlight(Value)
+    end,
+})
+
+PlayerTab:CreateSlider({
+    Name = "Flight Speed",
+    Range = {10, 200},
+    Increment = 5,
+    Suffix = "speed",
+    CurrentValue = 50,
+    Flag = "FlightSpeed", 
+    Callback = function(Value)
+        PlayerSettings.FlightSpeed = Value
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "Anti-Ragdoll",
+    CurrentValue = false,
+    Flag = "AntiRagdoll", 
+    Callback = function(Value)
+        PlayerSettings.AntiRagdoll = Value
+        if Value then
+            EnableAntiRagdoll()
+        end
+    end,
+})
+
+PlayerTab:CreateToggle({
+    Name = "Auto Grab Gun",
+    CurrentValue = false,
+    Flag = "AutoGrabGun", 
+    Callback = function(Value)
+        PlayerSettings.AutoGrabGun = Value
+    end,
+})
+
+PlayerTab:CreateButton({
+    Name = "God Mode (Risky)",
+    Callback = function()
+        PlayerSettings.GodMode = true
+        EnableGodMode()
+        Rayfield:Notify({
+            Title = "God Mode",
+            Content = "God Mode enabled! Note: This is risky and may be detected.",
+            Duration = 5,
+            Image = 4483362458,
+        })
+    end,
+})
+
+-- Combat Tab
+local CombatSection = CombatTab:CreateSection("Combat Features")
+
+CombatTab:CreateToggle({
+    Name = "Kill Aura",
+    CurrentValue = false,
+    Flag = "KillAura", 
+    Callback = function(Value)
+        KillAuraSettings.Enabled = Value
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "Kill Aura Range",
+    Range = {5, 30},
+    Increment = 1,
+    Suffix = "studs",
+    CurrentValue = 10,
+    Flag = "KillRange", 
+    Callback = function(Value)
+        KillAuraSettings.Range = Value
+    end,
+})
+
+CombatTab:CreateToggle({
+    Name = "Target Murderer Only",
+    CurrentValue = false,
+    Flag = "TargetMurderer", 
+    Callback = function(Value)
+        KillAuraSettings.TargetMurderer = Value
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "Kill Cooldown",
+    Range = {0.1, 2},
+    Increment = 0.1,
+    Suffix = "sec",
+    CurrentValue = 0.5,
+    Flag = "KillCooldown", 
+    Callback = function(Value)
+        KillAuraSettings.Cooldown = Value
+    end,
+})
+
+-- Anti-Sheriff section
+local AntiSheriffSect = CombatTab:CreateSection("Anti-Sheriff")
+
+CombatTab:CreateToggle({
+    Name = "Anti-Sheriff",
+    CurrentValue = false,
+    Flag = "AntiSheriff", 
+    Callback = function(Value)
+        AntiSheriffSettings.Enabled = Value
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "Detection Range",
+    Range = {5, 30},
+    Increment = 1,
+    Suffix = "studs",
+    CurrentValue = 15,
+    Flag = "SheriffRange", 
+    Callback = function(Value)
+        AntiSheriffSettings.Range = Value
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "Dodge Distance",
+    Range = {5, 30},
+    Increment = 1,
+    Suffix = "studs",
+    CurrentValue = 15,
+    Flag = "DodgeDistance", 
+    Callback = function(Value)
+        AntiSheriffSettings.DodgeDistance = Value
+    end,
+})
+
+-- Aimbot section
+local AimbotSect = CombatTab:CreateSection("Aimbot")
+
+CombatTab:CreateToggle({
+    Name = "Enable Aimbot",
+    CurrentValue = false,
+    Flag = "Aimbot", 
+    Callback = function(Value)
+        AimbotSettings.Enabled = Value
+    end,
+})
+
+CombatTab:CreateToggle({
+    Name = "Show FOV Circle",
+    CurrentValue = true,
+    Flag = "ShowFOV", 
+    Callback = function(Value)
+        AimbotSettings.ShowFOV = Value
+        FOVCircle.Visible = Value
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "FOV Size",
+    Range = {30, 500},
+    Increment = 10,
+    Suffix = "px",
+    CurrentValue = 150,
+    Flag = "FOVSize", 
+    Callback = function(Value)
+        AimbotSettings.FOV = Value
+    end,
+})
+
+CombatTab:CreateSlider({
+    Name = "Aimbot Sensitivity",
+    Range = {0.1, 2},
+    Increment = 0.1,
+    CurrentValue = 0.5,
+    Flag = "AimbotSensitivity", 
+    Callback = function(Value)
+        AimbotSettings.Sensitivity = Value
+    end,
+})
+
+CombatTab:CreateToggle({
+    Name = "Team Check",
+    CurrentValue = true,
+    Flag = "TeamCheck", 
+    Callback = function(Value)
+        AimbotSettings.TeamCheck = Value
+    end,
+})
+
+CombatTab:CreateToggle({
+    Name = "Aim at Murderer Only",
+    CurrentValue = true,
+    Flag = "AimAtMurderer", 
+    Callback = function(Value)
+        AimbotSettings.AimAtMurderer = Value
+    end,
+})
+
+CombatTab:CreateDropdown({
+    Name = "Target Part",
+    Options = {"Head", "HumanoidRootPart", "Torso"},
+    CurrentOption = "Head",
+    Flag = "TargetPart", 
+    Callback = function(Value)
+        AimbotSettings.TargetPart = Value
+    end,
+})
+
+CombatTab:CreateColorPicker({
+    Name = "FOV Circle Color",
+    Color = AimbotSettings.FOVColor,
+    Flag = "FOVColor",
+    Callback = function(Value)
+        AimbotSettings.FOVColor = Value
+        FOVCircle.Color = Value
+    end
+})
+
+-- Teleport Tab
+local TeleportSect = TeleportTab:CreateSection("Quick Teleports")
+
+-- Common MM2 map locations
+local mapLocations = {
+    {Name = "Lobby", Position = Vector3.new(-108, 138, 77)},
+    {Name = "Map Voting", Position = Vector3.new(-108, 141, 85)},
+    {Name = "Sheriff Spawn", Position = Vector3.new(0, 0, 0)}, -- Placeholder
+    {Name = "Murderer Spawn", Position = Vector3.new(0, 0, 0)}, -- Placeholder
+    {Name = "Safe Room", Position = Vector3.new(0, 0, 0)} -- Placeholder
+}
+
+-- Create teleport buttons
+for _, location in pairs(mapLocations) do
+    TeleportTab:CreateButton({
+        Name = "Teleport to " .. location.Name,
+        Callback = function()
+            -- Check if teleport is safe
+            if IsSafeTeleport(location.Position) or not AutoFarmSettings.SafeMode then
+                HumanoidRootPart.CFrame = CFrame.new(location.Position)
+                Rayfield:Notify({
+                    Title = "Teleport",
+                    Content = "Teleported to " .. location.Name,
+                    Duration = 3,
+                    Image = 4483362458,
+                })
+            else
+                Rayfield:Notify({
+                    Title = "Teleport Failed",
+                    Content = "Cannot teleport - Murderer nearby. Disable Safe Mode to override.",
+                    Duration = 3,
+                    Image = 4483362458,
+                })
+            end
+        end,
+    })
+end
+
+-- Teleport to player section
+local PlayerTPSect = TeleportTab:CreateSection("Player Teleports")
+
+-- Get all players
+local playerList = {}
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        table.insert(playerList, player.Name)
+    end
+end
+
+-- Player dropdown
+local PlayerDropdown = TeleportTab:CreateDropdown({
+    Name = "Select Player",
+    Options = playerList,
+    CurrentOption = playerList[1] or "",
+    Flag = "PlayerTP", 
+    Callback = function(Value)
+        TeleportSettings.TPTarget = Value
+    end,
+})
+
+-- Teleport button
+TeleportTab:CreateButton({
+    Name = "Teleport to Player",
+    Callback = function()
+        if TeleportSettings.TPTarget then
+            local targetPlayer = Players:FindFirstChild(TeleportSettings.TPTarget)
+            if targetPlayer and targetPlayer.Character and 
+               targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                -- Check if teleport is safe
+                if IsSafeTeleport(targetPlayer.Character.HumanoidRootPart.Position) or not AutoFarmSettings.SafeMode then
+                    HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+                    Rayfield:Notify({
+                        Title = "Teleport",
+                        Content = "Teleported to " .. targetPlayer.Name,
+                        Duration = 3,
+                        Image = 4483362458,
+                    })
+                else
+                    Rayfield:Notify({
+                        Title = "Teleport Failed",
+                        Content = "Cannot teleport - Murderer nearby. Disable Safe Mode to override.",
+                        Duration = 3,
+                        Image = 4483362458,
+                    })
+                end
+            else
+                Rayfield:Notify({
+                    Title = "Teleport Failed",
+                    Content = "Player not found or too far away",
+                    Duration = 3,
+                    Image = 4483362458,
+                })
+            end
+        else
+            Rayfield:Notify({
+                Title = "Teleport Failed",
+                Content = "No player selected",
+                Duration = 3,
+                Image = 4483362458,
+            })
+        end
+    end,
+})
+
+-- Loop teleport toggle
+TeleportTab:CreateToggle({
+    Name = "Loop Teleport (Follow)",
+    CurrentValue = false,
+    Flag = "LoopTP", 
+    Callback = function(Value)
+        TeleportSettings.LoopTP = Value
+    end,
+})
+
+-- Misc Tab
+local EmoteSect = MiscTab:CreateSection("Emotes")
+
+-- Emote dropdown
+MiscTab:CreateDropdown({
+    Name = "Select Emote",
+    Options = {"floss", "zombie", "ninja", "dab", "sit"},
+    CurrentOption = "floss",
+    Flag = "EmoteSelect", 
+    Callback = function(Value)
+        EmoteSettings.CurrentEmote = Value
+    end,
+})
+
+-- Play emote button
+MiscTab:CreateButton({
+    Name = "Play Emote",
+    Callback = function()
+        -- Look for emote remote event
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            if (obj.Name:match("Emote") or obj.Name:match("Dance")) and obj:IsA("RemoteEvent") then
+                obj:FireServer(EmoteSettings.CurrentEmote)
+                break
+            end
+        end
+    end,
+})
+
+-- Loop emotes toggle
+MiscTab:CreateToggle({
+    Name = "Loop Emotes",
+    CurrentValue = false,
+    Flag = "LoopEmotes", 
+    Callback = function(Value)
+        EmoteSettings.LoopEmotes = Value
+    end,
+})
+
+-- Server section
+local ServerSect = MiscTab:CreateSection("Server")
+
+-- Rejoin button
+MiscTab:CreateButton({
+    Name = "Rejoin Server",
+    Callback = function()
+        Rayfield:Notify({
+            Title = "Server",
+            Content = "Rejoining server...",
+            Duration = 3,
+            Image = 4483362458,
+        })
+        game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
+    end,
+})
+
+-- Server hop button
+MiscTab:CreateButton({
+    Name = "Server Hop",
+    Callback = function()
+        Rayfield:Notify({
+            Title = "Server",
+            Content = "Looking for another server...",
+            Duration = 3,
+            Image = 4483362458,
+        })
+        
+        local servers = {}
+        local req = game:HttpGet("https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?sortOrder=Asc&limit=100")
+        local data = game:GetService("HttpService"):JSONDecode(req)
+        
+        if data and data.data then
+            for _, server in pairs(data.data) do
+                if server.playing < server.maxPlayers and server.id ~= game.JobId then
+                    table.insert(servers, server.id)
+                end
+            end
+            
+            if #servers > 0 then
+                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)])
+            else
+                Rayfield:Notify({
+                    Title = "Server Hop Failed",
+                    Content = "No available servers found",
+                    Duration = 3,
+                    Image = 4483362458,
+                })
+            end
+        end
+    end,
+})
+
+-- Update player list when players join/leave
+Players.PlayerAdded:Connect(function(player)
+    -- Update the player dropdown
+    local newPlayerList = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            table.insert(newPlayerList, p.Name)
+        end
+    end
+    
+    PlayerDropdown:Set(newPlayerList[1] or "", newPlayerList)
+    
+    -- Update roles
+    wait(3) -- Wait for role assignment
+    UpdateRoles()
+ end)
+
+Players.PlayerRemoving:Connect(function(player)
+    -- Update the player dropdown
+    local newPlayerList = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p ~= player then
+            table.insert(newPlayerList, p.Name)
+        end
+    end
+    
+    PlayerDropdown:Set(newPlayerList[1] or "", newPlayerList)
+    
+    -- Update roles
+    UpdateRoles()
+ end)
+
+-- Credits section
+local CreditSect = MiscTab:CreateSection("Credits")
+
+MiscTab:CreateLabel("Script created by SkyX Hub")
+MiscTab:CreateLabel("discord.gg/skyx")
+
+MiscTab:CreateButton({
+    Name = "Copy Discord Invite",
+    Callback = function()
+        setclipboard("discord.gg/skyx")
+        Rayfield:Notify({
+            Title = "Discord",
+            Content = "Discord invite copied to clipboard!",
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end,
+})
+
+-- Initialize
+UpdateRoles()
+EnableAimbot()
+
+-- Main loop
+spawn(function()
+    while true do
+        wait(0.1)
+        
+        -- Update roles periodically
+        if tick() % 3 < 0.1 then -- Every ~3 seconds
+            UpdateRoles()
+            
+            -- Update role labels
+            if Murderer then
+                MurdererLabel:Set("Murderer: " .. Murderer.Name)
+            else
+                MurdererLabel:Set("Murderer: Unknown")
+            end
+            
+            if Sheriff then
+                SheriffLabel:Set("Sheriff: " .. Sheriff.Name)
+            else
+                SheriffLabel:Set("Sheriff: Unknown")
+            end
+            
+            local myRole = SkyXFunctions:GetPlayerRole(LocalPlayer)
+            MyRoleLabel:Set("Your Role: " .. myRole)
+        end
+        
+        -- Update ESP
+        if ESPSettings.Enabled then
+            UpdateESP()
+        end
+        
+        -- Auto collect coins
+        if CoinSettings.Enabled then
+            CollectCoins()
+        end
+        
+        -- Auto farm
+        if AutoFarmSettings.Enabled then
+            AutoFarm()
+        end
+        
+        -- Kill aura
+        if KillAuraSettings.Enabled then
+            KillAura()
+        end
+        
+        -- Anti-Sheriff
+        if AntiSheriffSettings.Enabled then
+            AntiSheriff()
+        end
+        
+        -- Loop teleport to target player
+        if TeleportSettings.LoopTP and TeleportSettings.TPTarget then
+            local targetPlayer = Players:FindFirstChild(TeleportSettings.TPTarget)
+            if targetPlayer and targetPlayer.Character and 
+               targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                if IsSafeTeleport(targetPlayer.Character.HumanoidRootPart.Position) or not AutoFarmSettings.SafeMode then
+                    HumanoidRootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame
+                end
+            end
+        end
+        
+        -- Loop emotes
+        if EmoteSettings.LoopEmotes then
+            for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+                if (obj.Name:match("Emote") or obj.Name:match("Dance")) and obj:IsA("RemoteEvent") then
+                    obj:FireServer(EmoteSettings.CurrentEmote)
+                    break
+                end
+            end
+        end
+    end
+end)
+
+-- Welcome notification
+Rayfield:Notify({
+    Title = "SkyX MM2 Hub",
+    Content = "Script loaded successfully!",
+    Duration = 5,
+    Image = 4483362458,
+    Actions = { -- Notification Buttons
+        Ignore = {
+            Name = "Okay!",
+            Callback = function()
+                -- Do nothing
+            end
+        },
+    },
+})
+
+return SkyXFunctions
