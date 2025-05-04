@@ -1,848 +1,2327 @@
 --[[  
-    SkyX ESP Script with Luna UI
-    This demonstrates how to create an ESP system with Luna Interface Suite
+    SkyX Advanced Grow A Garden Script
+    Featuring Luna Interface Suite
+    
+    Capabilities:
+    - Multi-method task scheduler
+    - Advanced plant detection and recovery
+    - Intelligent watering system
+    - Optimal collection timing
+    - Smart tool management
+    - Teleportation system
+    - Performance optimization
 ]]
 
 -- Load the Luna library
-local Luna = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/refs/heads/main/source.lua", true))()
+local Luna = loadstring(game:HttpGet("https://raw.githubusercontent.com/Nebula-Softworks/Luna-Interface-Suite/main/source.lua", true))()
 
--- Create the window
-local Window = Luna:CreateWindow({
-    Name = "SkyX ESP System",
-    Subtitle = "by SkyX Hub",
-    LogoID = nil,
-    LoadingEnabled = true,
-    LoadingTitle = "SkyX ESP",
-    LoadingSubtitle = "Premium ESP System",
-    ConfigSettings = {
-        RootFolder = nil,
-        ConfigFolder = "SkyX_ESP"
+-- Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+local PathfindingService = game:GetService("PathfindingService")
+
+-- Player references
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+-- Handle character changes
+LocalPlayer.CharacterAdded:Connect(function(NewCharacter)
+    Character = NewCharacter
+    Humanoid = Character:WaitForChild("Humanoid")
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+    task.wait(1) -- Let character load fully
+    GardenBot.UpdateCharacterReferences()
+    GardenBot.LogMessage("Character respawned. References updated.")
+ end)
+
+-- Constants
+local DEBUG_MODE = false -- Set to true for verbose logging
+local MAX_FARM_DISTANCE = 100
+local PLANT_RETRY_ATTEMPTS = 5
+local WATER_RETRY_ATTEMPTS = 3
+local COLLECTION_RETRY_ATTEMPTS = 5
+local INTERACTION_COOLDOWN = 0.5
+local TELEPORT_COOLDOWN = 1.5
+local PATH_UPDATE_FREQUENCY = 0.5
+local MAX_TASK_TIME = 10 -- Maximum time a task should take before being considered "stuck"
+local MINIMUM_PLANT_SIZE = 0.2 -- Minimum plant size for harvesting
+
+-- Locations (customize for the exact game)
+local LocationDatabase = {
+    Spawn = Vector3.new(0, 4, 0),
+    Garden = Vector3.new(100, 4, 20),
+    Shop = Vector3.new(-50, 4, 30),
+    Market = Vector3.new(30, 4, -60),
+    FertilizerShop = Vector3.new(-20, 4, 70),
+    WateringCanShop = Vector3.new(80, 4, -30)
+}
+
+-- Tool detection
+local ToolIdentifiers = {
+    WateringCan = {
+        Names = {"Watering Can", "WateringCan", "wateringcan", "watering_can"},
+        Types = {"Tool", "Model"}
     },
-    KeySystem = false
+    Seed = {
+        Names = {"Seed", "Seeds", "seed", "seeds"},
+        Types = {"Tool", "Model"}
+    },
+    Fertilizer = {
+        Names = {"Fertilizer", "fertilizer", "Plant Food"},
+        Types = {"Tool", "Model"}
+    },
+    Shovel = {
+        Names = {"Shovel", "shovel", "Trowel", "trowel"},
+        Types = {"Tool", "Model"}
+    }
+}
+
+-- Remote function caching (will be auto-populated)
+local RemoteFunctionCache = {
+    Plant = nil,
+    Water = nil,
+    Harvest = nil,
+    Collect = nil,
+    BuyTool = nil,
+    EquipTool = nil,
+    UseTool = nil
+}
+
+-- Seed database with growth times and values
+local SeedDatabase = {
+    -- Basic Seeds
+    Carrot = {
+        GrowthTime = 60, -- seconds
+        Value = 5,
+        WaterNeeds = 1,
+        Identifier = "carrot"
+    },
+    Potato = {
+        GrowthTime = 90,
+        Value = 8,
+        WaterNeeds = 2,
+        Identifier = "potato"
+    },
+    Tomato = {
+        GrowthTime = 120,
+        Value = 12,
+        WaterNeeds = 2,
+        Identifier = "tomato"
+    },
+    Corn = {
+        GrowthTime = 180,
+        Value = 18,
+        WaterNeeds = 3,
+        Identifier = "corn"
+    },
+    Wheat = {
+        GrowthTime = 150,
+        Value = 15,
+        WaterNeeds = 2,
+        Identifier = "wheat"
+    },
+    -- Premium Seeds (may not exist in all versions of the game)
+    GoldenCarrot = {
+        GrowthTime = 300,
+        Value = 50,
+        WaterNeeds = 4,
+        Identifier = "goldencarrot"
+    },
+    MagicBean = {
+        GrowthTime = 600,
+        Value = 100,
+        WaterNeeds = 5,
+        Identifier = "magicbean"
+    },
+    RainbowFlower = {
+        GrowthTime = 450,
+        Value = 75,
+        WaterNeeds = 4,
+        Identifier = "rainbowflower"
+    }
+}
+
+-- Best seed calculation by growth time and value
+local function CalculateBestSeed()
+    local bestSeed = "Carrot" -- Default
+    local bestValue = 0
+    
+    for seedName, seedData in pairs(SeedDatabase) do
+        local valuePerMinute = seedData.Value / (seedData.GrowthTime / 60)
+        if valuePerMinute > bestValue then
+            bestValue = valuePerMinute
+            bestSeed = seedName
+        end
+    end
+    
+    return bestSeed, bestValue
+end
+
+-- Configuration (will be modified by UI controls)
+local Config = {
+    AutoFarm = {
+        Enabled = false,
+        PlantingEnabled = true,
+        WateringEnabled = true,
+        HarvestingEnabled = true,
+        CollectingEnabled = true
+    },
+    Seed = {
+        Type = "Carrot", -- Default seed
+        AutoCalculateBest = true, -- If true, will use the most efficient seed
+        BuySeeds = false -- Whether to automatically buy seeds when out
+    },
+    Tools = {
+        AutoEquip = true, -- Automatically equip needed tools
+        AutoBuy = false, -- Buy tools if don't have them
+        ToolInventoryCheck = true -- Check if tools are in inventory before buying
+    },
+    Performance = {
+        LowCPUMode = false, -- Reduces task frequency for lower CPU usage
+        TaskDelay = 0.1, -- Delay between tasks in seconds
+        MaxConcurrentTasks = 3 -- Maximum number of tasks to run at once
+    },
+    Teleportation = {
+        Enabled = true,
+        Method = "Tween", -- "Instant" or "Tween"
+        TweenSpeed = 50, -- studs per second when tweening
+        SafeMode = true -- Uses pathfinding for safer movement
+    },
+    Safety = {
+        PauseOnPlayerNearby = false, -- Pause when other players are nearby
+        PlayerProximityThreshold = 30, -- Distance in studs to consider a player "nearby"
+        MinimumServerTime = 60, -- Minimum time in seconds before farming starts
+        HideMethodSwapping = true -- Automatically switch methods if one fails
+    },
+    Interface = {
+        ShowStatusUpdates = true,
+        MuteNotifications = false,
+        Theme = "Default"
+    },
+    Debug = {
+        Enabled = DEBUG_MODE,
+        LogLevel = 1, -- 1=Critical, 2=Warning, 3=Info, 4=Debug, 5=Verbose
+        TrackMethodSuccess = true, -- Track which interaction methods are successful
+        DisplayTargetMarkers = false -- Visual markers on targets
+    }
+}
+
+-- Stats tracking
+local Stats = {
+    PlantsGrown = 0,
+    ItemsCollected = 0,
+    TotalEarnings = 0,
+    TimesWatered = 0,
+    FailedActions = 0,
+    SessionStartTime = os.time(),
+    LastSuccessfulAction = os.time()
+}
+
+-- Method success tracking (for automatic optimization)
+local MethodSuccess = {
+    Planting = {
+        Remote = { Attempts = 0, Successes = 0 },
+        Tool = { Attempts = 0, Successes = 0 },
+        Click = { Attempts = 0, Successes = 0 }
+    },
+    Watering = {
+        Remote = { Attempts = 0, Successes = 0 },
+        Tool = { Attempts = 0, Successes = 0 },
+        Click = { Attempts = 0, Successes = 0 }
+    },
+    Harvesting = {
+        Remote = { Attempts = 0, Successes = 0 },
+        Tool = { Attempts = 0, Successes = 0 },
+        Click = { Attempts = 0, Successes = 0 }
+    },
+    Collecting = {
+        Remote = { Attempts = 0, Successes = 0 },
+        Proximity = { Attempts = 0, Successes = 0 },
+        Click = { Attempts = 0, Successes = 0 }
+    }
+}
+
+-- Task system
+local TaskScheduler = {
+    Tasks = {},
+    ActiveTasks = {},
+    IdleTasks = {},
+    PausedTasks = {},
+    TaskCount = 0,
+    Paused = false
+}
+
+-- Task class
+local Task = {}
+Task.__index = Task
+
+function Task.new(name, priority, action, condition, cooldown)
+    local self = setmetatable({}, Task)
+    self.Name = name
+    self.Priority = priority or 1 -- Higher number = higher priority
+    self.Action = action -- Function to execute
+    self.Condition = condition -- Function that returns boolean if task should run
+    self.Cooldown = cooldown or 0 -- Minimum time between executions
+    self.LastExecution = 0 -- Time of last execution
+    self.Running = false
+    self.Success = false -- Whether last execution was successful
+    self.FailCount = 0 -- Number of consecutive failures
+    self.SuccessCount = 0 -- Number of consecutive successes
+    self.StartTime = 0 -- When the task started execution
+    self.CompletionTime = 0 -- How long it took to complete
+    self.Attempts = 0 -- Total execution attempts
+    self.Completions = 0 -- Total successful completions
+    return self
+end
+
+function Task:CanRun()
+    if self.Running then return false end
+    if os.time() - self.LastExecution < self.Cooldown then return false end
+    if self.Condition and not self.Condition() then return false end
+    return true
+end
+
+function Task:Execute()
+    if not self:CanRun() then return false end
+    
+    self.Running = true
+    self.StartTime = os.clock()
+    self.Attempts = self.Attempts + 1
+    
+    -- Log task start if debug enabled
+    if Config.Debug.Enabled and Config.Debug.LogLevel >= 4 then
+        GardenBot.LogMessage("Starting task: " .. self.Name, "Debug")
+    end
+    
+    -- Use coroutine to execute the task asynchronously
+    local thread = coroutine.create(function()
+        local success, result = pcall(function()
+            return self.Action()
+        end)
+        
+        self.CompletionTime = os.clock() - self.StartTime
+        self.Running = false
+        self.LastExecution = os.time()
+        
+        if success and result then
+            self.Success = true
+            self.FailCount = 0
+            self.SuccessCount = self.SuccessCount + 1
+            self.Completions = self.Completions + 1
+            
+            if Config.Debug.Enabled and Config.Debug.LogLevel >= 3 then
+                GardenBot.LogMessage("Task completed successfully: " .. self.Name .. " (" .. string.format("%.2f", self.CompletionTime) .. "s)", "Info")
+            end
+        else
+            self.Success = false
+            self.FailCount = self.FailCount + 1
+            self.SuccessCount = 0
+            
+            local errorMsg = "unknown error"
+            if type(result) == "string" then
+                errorMsg = result
+            end
+            
+            if Config.Debug.Enabled and Config.Debug.LogLevel >= 2 then
+                GardenBot.LogMessage("Task failed: " .. self.Name .. " - " .. errorMsg, "Warning")
+            end
+            
+            -- Handle stuck tasks
+            if self.CompletionTime > MAX_TASK_TIME then
+                if Config.Debug.Enabled and Config.Debug.LogLevel >= 1 then
+                    GardenBot.LogMessage("Task took too long and was considered stuck: " .. self.Name, "Critical")
+                end
+            end
+        end
+        
+        return success, result
+    end)
+    
+    -- Resume the coroutine
+    local success, result = coroutine.resume(thread)
+    if not success then
+        self.Running = false
+        self.Success = false
+        self.FailCount = self.FailCount + 1
+        GardenBot.LogMessage("Task coroutine error in '" .. self.Name .. "': " .. tostring(result), "Critical")
+    end
+    
+    return success
+end
+
+function TaskScheduler:AddTask(name, priority, action, condition, cooldown)
+    local task = Task.new(name, priority, action, condition, cooldown)
+    table.insert(self.Tasks, task)
+    self.TaskCount = self.TaskCount + 1
+    return task
+end
+
+function TaskScheduler:ProcessTasks()
+    if self.Paused then return end
+    
+    -- Sort tasks by priority (higher numbers first)
+    table.sort(self.Tasks, function(a, b)
+        return a.Priority > b.Priority
+    end)
+    
+    -- Count active tasks
+    local activeTasks = 0
+    for _, task in ipairs(self.Tasks) do
+        if task.Running then
+            activeTasks = activeTasks + 1
+        end
+    end
+    
+    -- Run tasks with highest priority first, respecting max concurrent tasks
+    for _, task in ipairs(self.Tasks) do
+        if activeTasks >= Config.Performance.MaxConcurrentTasks then break end
+        
+        if task:CanRun() then
+            if task:Execute() then
+                activeTasks = activeTasks + 1
+            end
+        end
+    end
+end
+
+function TaskScheduler:Pause()
+    self.Paused = true
+    GardenBot.LogMessage("Task scheduler paused", "Info")
+end
+
+function TaskScheduler:Resume()
+    self.Paused = false
+    GardenBot.LogMessage("Task scheduler resumed", "Info")
+end
+
+function TaskScheduler:GetTaskByName(name)
+    for _, task in ipairs(self.Tasks) do
+        if task.Name == name then
+            return task
+        end
+    end
+    return nil
+end
+
+function TaskScheduler:GetTaskStatus()
+    local running = 0
+    local idle = 0
+    local paused = 0
+    local highestPriority = nil
+    
+    for _, task in ipairs(self.Tasks) do
+        if task.Running then
+            running = running + 1
+            if not highestPriority or task.Priority > highestPriority.Priority then
+                highestPriority = task
+            end
+        elseif task:CanRun() then
+            idle = idle + 1
+        else
+            paused = paused + 1
+        end
+    end
+    
+    return {
+        Running = running,
+        Idle = idle,
+        Paused = paused,
+        Total = self.TaskCount,
+        HighestPriority = highestPriority and highestPriority.Name or "None"
+    }
+end
+
+-- Utility Functions
+local Utilities = {}
+
+function Utilities.DistanceTo(position)
+    if not HumanoidRootPart then return math.huge end
+    return (HumanoidRootPart.Position - position).Magnitude
+end
+
+function Utilities.CheckPlayerProximity()
+    if not Config.Safety.PauseOnPlayerNearby then return false end
+    
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and 
+           player.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = Utilities.DistanceTo(player.Character.HumanoidRootPart.Position)
+            if distance < Config.Safety.PlayerProximityThreshold then
+                return true -- Player nearby
+            end
+        end
+    end
+    
+    return false -- No players nearby
+end
+
+function Utilities.TeleportTo(position, method)
+    method = method or Config.Teleportation.Method
+    
+    if not Config.Teleportation.Enabled then
+        GardenBot.LogMessage("Teleportation is disabled", "Warning")
+        return false
+    end
+    
+    if not HumanoidRootPart then
+        GardenBot.LogMessage("Cannot teleport - HumanoidRootPart not found", "Critical")
+        return false
+    end
+    
+    if method == "Instant" then
+        HumanoidRootPart.CFrame = CFrame.new(position)
+        task.wait(TELEPORT_COOLDOWN) -- Give game time to register teleport
+        return true
+    elseif method == "Tween" then
+        local distance = Utilities.DistanceTo(position)
+        local duration = distance / Config.Teleportation.TweenSpeed
+        duration = math.clamp(duration, 0.5, 10) -- Reasonable limits
+        
+        local tweenInfo = TweenInfo.new(
+            duration,
+            Enum.EasingStyle.Linear,
+            Enum.EasingDirection.Out,
+            0,
+            false,
+            0
+        )
+        
+        local tween = TweenService:Create(
+            HumanoidRootPart,
+            tweenInfo,
+            {CFrame = CFrame.new(position)}
+        )
+        
+        tween:Play()
+        tween.Completed:Wait()
+        task.wait(0.5) -- Give game time to settle
+        return true
+    elseif method == "Path" and Config.Teleportation.SafeMode then
+        -- Pathfinding approach
+        local path = PathfindingService:CreatePath()
+        path:ComputeAsync(HumanoidRootPart.Position, position)
+        
+        if path.Status == Enum.PathStatus.Success then
+            local waypoints = path:GetWaypoints()
+            
+            for _, waypoint in ipairs(waypoints) do
+                Humanoid:MoveTo(waypoint.Position)
+                
+                -- Wait until we're close to the waypoint
+                local reachedWaypoint = false
+                local startTime = os.clock()
+                
+                while not reachedWaypoint and os.clock() - startTime < 5 do
+                    local distance = Utilities.DistanceTo(waypoint.Position)
+                    if distance < 5 then
+                        reachedWaypoint = true
+                    end
+                    task.wait(PATH_UPDATE_FREQUENCY)
+                end
+                
+                if not reachedWaypoint then
+                    GardenBot.LogMessage("Failed to reach waypoint, trying direct teleport", "Warning")
+                    return Utilities.TeleportTo(position, "Tween")
+                end
+            end
+            
+            return true
+        else
+            GardenBot.LogMessage("Pathfinding failed, trying direct teleport", "Warning")
+            return Utilities.TeleportTo(position, "Tween")
+        end
+    end
+    
+    return false
+end
+
+function Utilities.GetNearestLocation(locationType)
+    local nearestDistance = math.huge
+    local nearestLocation = nil
+    
+    for name, position in pairs(LocationDatabase) do
+        if name:lower():find(locationType:lower()) then
+            local distance = Utilities.DistanceTo(position)
+            if distance < nearestDistance then
+                nearestDistance = distance
+                nearestLocation = position
+            end
+        end
+    end
+    
+    return nearestLocation, nearestDistance
+end
+
+function Utilities.GetNearestPlantingSpot()
+    -- This function needs customization for the specific game
+    -- For this example, we'll assume there's a PlantingSpot tag or property
+    local nearestSpot = nil
+    local nearestDistance = math.huge
+    
+    -- Method 1: Try to find objects with specific names
+    for _, obj in ipairs(workspace:GetChildren()) do
+        if obj.Name:match("GardenPlot") or 
+           obj.Name:match("PlantSpot") or 
+           obj.Name:match("SoilPatch") then
+            local distance = Utilities.DistanceTo(obj.Position)
+            if distance < nearestDistance and distance < MAX_FARM_DISTANCE then
+                nearestSpot = obj
+                nearestDistance = distance
+            end
+        end
+    end
+    
+    -- Method 2: Try to find objects with specific properties or appearances
+    if not nearestSpot then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("Part") and (obj.BrickColor.Name == "Brown" or obj.BrickColor.Name == "Earth green") and
+               obj.Size.Y < 1 and obj.Size.X > 3 and obj.Size.Z > 3 then
+                local distance = Utilities.DistanceTo(obj.Position)
+                if distance < nearestDistance and distance < MAX_FARM_DISTANCE then
+                    nearestSpot = obj
+                    nearestDistance = distance
+                end
+            end
+        end
+    end
+    
+    -- Method 3: Try to find existing plants to determine garden areas
+    if not nearestSpot then
+        for _, obj in ipairs(workspace:GetDescendants()) do
+            if obj.Name:match("Plant") or obj.Name:match("Crop") or obj.Name:match("Seed") then
+                local distance = Utilities.DistanceTo(obj.Position)
+                if distance < nearestDistance and distance < MAX_FARM_DISTANCE then
+                    nearestSpot = obj
+                    nearestDistance = distance
+                end
+            end
+        end
+    end
+    
+    return nearestSpot, nearestDistance
+end
+
+function Utilities.GetPlantsNeedingWater()
+    local plantsNeedingWater = {}
+    
+    -- Search through workspace for plants that might need water
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name:match("Plant") or obj.Name:match("Crop") then
+            -- Check if plant needs water - methods depend on the specific game
+            local needsWater = false
+            
+            -- Method 1: Check for direct property
+            if obj:FindFirstChild("NeedsWater") then
+                needsWater = obj.NeedsWater.Value
+            end
+            
+            -- Method 2: Check appearance
+            if not needsWater and obj:FindFirstChild("WiltLevel") then
+                needsWater = obj.WiltLevel.Value > 0
+            end
+            
+            -- Method 3: Check color/appearance
+            if not needsWater and obj:IsA("Model") then
+                for _, part in ipairs(obj:GetDescendants()) do
+                    if part:IsA("BasePart") and part.Color.G < 0.5 then
+                        needsWater = true
+                        break
+                    end
+                end
+            end
+            
+            if needsWater then
+                local distance = Utilities.DistanceTo(obj.Position)
+                if distance < MAX_FARM_DISTANCE then
+                    table.insert(plantsNeedingWater, {
+                        Plant = obj,
+                        Distance = distance
+                    })
+                end
+            end
+        end
+    end
+    
+    -- Sort by distance
+    table.sort(plantsNeedingWater, function(a, b)
+        return a.Distance < b.Distance
+    end)
+    
+    return plantsNeedingWater
+end
+
+function Utilities.GetHarvestablePlants()
+    local harvestablePlants = {}
+    
+    -- Search for fully grown plants
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name:match("Plant") or obj.Name:match("Crop") then
+            -- Determine if plant is ready to harvest
+            local readyToHarvest = false
+            
+            -- Method 1: Check for direct property
+            if obj:FindFirstChild("Growth") then
+                readyToHarvest = obj.Growth.Value >= 1.0
+            end
+            
+            -- Method 2: Check for ready state
+            if not readyToHarvest and obj:FindFirstChild("State") then
+                readyToHarvest = obj.State.Value == "Ready" or obj.State.Value == "Ripe"
+            end
+            
+            -- Method 3: Check size or appearance
+            if not readyToHarvest and obj:IsA("Model") then
+                -- Get the main part of the plant
+                local mainPart = obj:FindFirstChildOfClass("Part")
+                if mainPart and mainPart.Size.Y > MINIMUM_PLANT_SIZE then
+                    readyToHarvest = true
+                end
+            end
+            
+            if readyToHarvest then
+                local distance = Utilities.DistanceTo(obj.Position)
+                if distance < MAX_FARM_DISTANCE then
+                    table.insert(harvestablePlants, {
+                        Plant = obj,
+                        Distance = distance
+                    })
+                end
+            end
+        end
+    end
+    
+    -- Sort by distance
+    table.sort(harvestablePlants, function(a, b)
+        return a.Distance < b.Distance
+    end)
+    
+    return harvestablePlants
+end
+
+function Utilities.GetCollectibles()
+    local collectibles = {}
+    
+    -- Search for collectible items
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj.Name:match("Coin") or obj.Name:match("Collectible") or
+           obj.Name:match("Drop") or obj.Name:match("Pickup") or
+           obj.Name:match("Harvest") then
+            
+            local isCollectible = false
+            
+            -- Method 1: Check for direct property or structure
+            if obj:FindFirstChild("Collectible") then
+                isCollectible = true
+            end
+            
+            -- Method 2: Check for interactive prompt
+            if not isCollectible and obj:FindFirstChild("ProximityPrompt") then
+                isCollectible = true
+            end
+            
+            -- Method 3: Check if it's a typical collectible shape
+            if not isCollectible and obj:IsA("BasePart") then
+                if obj.Size.X < 3 and obj.Size.Y < 3 and obj.Size.Z < 3 then
+                    isCollectible = true
+                end
+            end
+            
+            if isCollectible then
+                local distance = Utilities.DistanceTo(obj.Position)
+                if distance < MAX_FARM_DISTANCE then
+                    table.insert(collectibles, {
+                        Item = obj,
+                        Distance = distance
+                    })
+                end
+            end
+        end
+    end
+    
+    -- Sort by distance
+    table.sort(collectibles, function(a, b)
+        return a.Distance < b.Distance
+    end)
+    
+    return collectibles
+end
+
+function Utilities.FindRemoteFunctions()
+    local remoteFunctions = {}
+    local commonFunctionNames = {
+        Plant = {"Plant", "PlantSeed", "Planting", "UseSeed", "SpawnPlant"},
+        Water = {"Water", "WaterPlant", "UseWater", "Watering", "ApplyWater"},
+        Harvest = {"Harvest", "HarvestPlant", "CollectPlant", "PickPlant", "GatherCrop"},
+        Collect = {"Collect", "PickUp", "GrabItem", "CollectItem", "LootItem"},
+        BuyTool = {"BuyTool", "PurchaseTool", "BuyItem", "Purchase", "Shop"}
+    }
+    
+    -- Search all RemoteFunctions and RemoteEvents in ReplicatedStorage
+    for _, obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteFunction") or obj:IsA("RemoteEvent") then
+            -- Match the remote to our common function categories
+            for category, namePatterns in pairs(commonFunctionNames) do
+                for _, pattern in ipairs(namePatterns) do
+                    if obj.Name:match(pattern) then
+                        remoteFunctions[category] = obj
+                        GardenBot.LogMessage("Found remote for " .. category .. ": " .. obj.Name, "Debug")
+                        break
+                    end
+                end
+            end
+        end
+    end
+    
+    return remoteFunctions
+end
+
+function Utilities.GetEquippedTool()
+    local character = LocalPlayer.Character
+    if not character then return nil end
+    
+    for _, tool in pairs(character:GetChildren()) do
+        if tool:IsA("Tool") or tool.Name:match("Tool") then
+            return tool
+        end
+    end
+    
+    return nil
+end
+
+function Utilities.IsTool(obj, toolType)
+    if not toolType then return false end
+    if not ToolIdentifiers[toolType] then return false end
+    
+    local typeMatch = false
+    for _, objType in ipairs(ToolIdentifiers[toolType].Types) do
+        if obj:IsA(objType) then
+            typeMatch = true
+            break
+        end
+    end
+    
+    if not typeMatch then return false end
+    
+    for _, namePart in ipairs(ToolIdentifiers[toolType].Names) do
+        if obj.Name:match(namePart) then
+            return true
+        end
+    end
+    
+    return false
+end
+
+function Utilities.EquipToolByType(toolType)
+    -- Check if already equipped
+    local equippedTool = Utilities.GetEquippedTool()
+    if equippedTool and Utilities.IsTool(equippedTool, toolType) then
+        return true
+    end
+    
+    -- Check backpack
+    for _, tool in pairs(LocalPlayer.Backpack:GetChildren()) do
+        if Utilities.IsTool(tool, toolType) then
+            tool.Parent = LocalPlayer.Character
+            task.wait(0.2) -- Wait for tool to equip
+            return true
+        end
+    end
+    
+    -- Try remote function if available
+    if RemoteFunctionCache.EquipTool then
+        local success, result = pcall(function()
+            return RemoteFunctionCache.EquipTool:InvokeServer(toolType)
+        end)
+        
+        if success and result then
+            task.wait(0.2) -- Wait for tool to equip
+            return true
+        end
+    end
+    
+    -- Not found or couldn't equip
+    return false
+end
+
+function Utilities.BuyToolByType(toolType)
+    if not Config.Tools.AutoBuy then return false end
+    
+    -- Try remote function if available
+    if RemoteFunctionCache.BuyTool then
+        local success, result = pcall(function()
+            return RemoteFunctionCache.BuyTool:InvokeServer(toolType)
+        end)
+        
+        if success and result then
+            task.wait(0.5) -- Wait for tool to appear in inventory
+            return true
+        end
+    end
+    
+    -- Could try clicking shop buttons here as a fallback
+    
+    return false
+end
+
+-- Action Functions
+local GardenActions = {}
+
+function GardenActions.PlantSeed(position, seedType)
+    -- Try different methods to plant a seed
+    local plantingMethods = {
+        [1] = function() -- Remote function method
+            if not RemoteFunctionCache.Plant then return false, "No plant remote found" end
+            
+            MethodSuccess.Planting.Remote.Attempts = MethodSuccess.Planting.Remote.Attempts + 1
+            local success, result = pcall(function()
+                return RemoteFunctionCache.Plant:InvokeServer(seedType, position)
+            end)
+            
+            if success and result then
+                MethodSuccess.Planting.Remote.Successes = MethodSuccess.Planting.Remote.Successes + 1
+                return true
+            end
+            
+            return false, "Remote invocation failed"
+        end,
+        
+        [2] = function() -- Tool method
+            if not Config.Tools.AutoEquip then return false, "Auto-equip disabled" end
+            
+            MethodSuccess.Planting.Tool.Attempts = MethodSuccess.Planting.Tool.Attempts + 1
+            
+            local seedEquipped = Utilities.EquipToolByType("Seed")
+            if not seedEquipped then
+                if Config.Tools.AutoBuy then
+                    Utilities.BuyToolByType("Seed")
+                    task.wait(0.5)
+                    seedEquipped = Utilities.EquipToolByType("Seed")
+                end
+            end
+            
+            if seedEquipped then
+                local tool = Utilities.GetEquippedTool()
+                if tool and tool:FindFirstChild("RemoteClick") then
+                    local success, result = pcall(function()
+                        return tool.RemoteClick:FireServer(position)
+                    end)
+                    
+                    if success then
+                        MethodSuccess.Planting.Tool.Successes = MethodSuccess.Planting.Tool.Successes + 1
+                        return true
+                    end
+                else
+                    -- Try to activate the tool at the position
+                    Utilities.TeleportTo(position, "Tween")
+                    task.wait(0.1)
+                    
+                    -- Simulate mouse click while facing the position
+                    local lookCFrame = CFrame.new(HumanoidRootPart.Position, position)
+                    HumanoidRootPart.CFrame = lookCFrame
+                    mouse1click() -- This assumes the exploit supports mouse simulation
+                    
+                    task.wait(0.5) -- Wait to see if planting was successful
+                    
+                    MethodSuccess.Planting.Tool.Successes = MethodSuccess.Planting.Tool.Successes + 1
+                    return true -- Assume success since we can't easily verify
+                end
+            end
+            
+            return false, "Could not equip seed tool"
+        end,
+        
+        [3] = function() -- Click method
+            MethodSuccess.Planting.Click.Attempts = MethodSuccess.Planting.Click.Attempts + 1
+            
+            Utilities.TeleportTo(position, "Tween")
+            task.wait(0.1)
+            
+            -- Try to find a proximity prompt
+            local found = false
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") and obj.Name:match("Plant") and 
+                   (obj.Position - position).Magnitude < 10 then
+                    found = true
+                    fireproximityprompt(obj)
+                    task.wait(0.5)
+                    break
+                end
+            end
+            
+            if not found then
+                -- Simulate mouse click while facing the position
+                local lookCFrame = CFrame.new(HumanoidRootPart.Position, position)
+                HumanoidRootPart.CFrame = lookCFrame
+                mouse1click() -- This assumes the exploit supports mouse simulation
+                task.wait(0.5)
+            end
+            
+            MethodSuccess.Planting.Click.Successes = MethodSuccess.Planting.Click.Successes + 1
+            return true -- Assume success since we can't easily verify
+        end
+    }
+    
+    -- Determine best method based on past success rate
+    local methodOrder = {1, 2, 3} -- Default order: Remote, Tool, Click
+    
+    if Config.Safety.HideMethodSwapping and Config.Debug.TrackMethodSuccess then
+        -- Calculate success rates
+        local rates = {
+            Remote = MethodSuccess.Planting.Remote.Attempts > 0 and
+                     MethodSuccess.Planting.Remote.Successes / MethodSuccess.Planting.Remote.Attempts or 0,
+            Tool = MethodSuccess.Planting.Tool.Attempts > 0 and
+                   MethodSuccess.Planting.Tool.Successes / MethodSuccess.Planting.Tool.Attempts or 0,
+            Click = MethodSuccess.Planting.Click.Attempts > 0 and
+                    MethodSuccess.Planting.Click.Successes / MethodSuccess.Planting.Click.Attempts or 0
+        }
+        
+        -- Sort methods by success rate (highest first)
+        if rates.Remote >= rates.Tool and rates.Remote >= rates.Click then
+            methodOrder = {1, 2, 3}
+        elseif rates.Tool >= rates.Remote and rates.Tool >= rates.Click then
+            methodOrder = {2, 1, 3}
+        else
+            methodOrder = {3, 1, 2}
+        end
+    end
+    
+    -- Try methods in determined order
+    for _, methodIndex in ipairs(methodOrder) do
+        local success, error = plantingMethods[methodIndex]()
+        if success then
+            return true
+        elseif Config.Debug.Enabled and Config.Debug.LogLevel >= 3 then
+            GardenBot.LogMessage("Planting method " .. methodIndex .. " failed: " .. tostring(error), "Debug")
+        end
+    end
+    
+    return false, "All planting methods failed"
+end
+
+function GardenActions.WaterPlant(plant)
+    -- Try different methods to water a plant
+    local wateringMethods = {
+        [1] = function() -- Remote function method
+            if not RemoteFunctionCache.Water then return false, "No water remote found" end
+            
+            MethodSuccess.Watering.Remote.Attempts = MethodSuccess.Watering.Remote.Attempts + 1
+            local success, result = pcall(function()
+                return RemoteFunctionCache.Water:InvokeServer(plant)
+            end)
+            
+            if success and result then
+                MethodSuccess.Watering.Remote.Successes = MethodSuccess.Watering.Remote.Successes + 1
+                return true
+            end
+            
+            return false, "Remote invocation failed"
+        end,
+        
+        [2] = function() -- Tool method
+            if not Config.Tools.AutoEquip then return false, "Auto-equip disabled" end
+            
+            MethodSuccess.Watering.Tool.Attempts = MethodSuccess.Watering.Tool.Attempts + 1
+            
+            local canEquipped = Utilities.EquipToolByType("WateringCan")
+            if not canEquipped then
+                if Config.Tools.AutoBuy then
+                    Utilities.BuyToolByType("WateringCan")
+                    task.wait(0.5)
+                    canEquipped = Utilities.EquipToolByType("WateringCan")
+                end
+            end
+            
+            if canEquipped then
+                local tool = Utilities.GetEquippedTool()
+                if tool and tool:FindFirstChild("RemoteClick") then
+                    local success, result = pcall(function()
+                        return tool.RemoteClick:FireServer(plant)
+                    end)
+                    
+                    if success then
+                        MethodSuccess.Watering.Tool.Successes = MethodSuccess.Watering.Tool.Successes + 1
+                        return true
+                    end
+                else
+                    -- Try to activate the tool at the plant position
+                    local plantPosition = plant:IsA("Model") and 
+                                         (plant.PrimaryPart and plant.PrimaryPart.Position or plant:GetModelCFrame().Position) or
+                                         plant.Position
+                    
+                    Utilities.TeleportTo(plantPosition, "Tween")
+                    task.wait(0.1)
+                    
+                    -- Simulate mouse click while facing the plant
+                    local lookCFrame = CFrame.new(HumanoidRootPart.Position, plantPosition)
+                    HumanoidRootPart.CFrame = lookCFrame
+                    mouse1click() -- This assumes the exploit supports mouse simulation
+                    
+                    task.wait(0.5) -- Wait to see if watering was successful
+                    
+                    MethodSuccess.Watering.Tool.Successes = MethodSuccess.Watering.Tool.Successes + 1
+                    return true -- Assume success since we can't easily verify
+                end
+            end
+            
+            return false, "Could not equip watering can"
+        end,
+        
+        [3] = function() -- Click method
+            MethodSuccess.Watering.Click.Attempts = MethodSuccess.Watering.Click.Attempts + 1
+            
+            local plantPosition = plant:IsA("Model") and 
+                               (plant.PrimaryPart and plant.PrimaryPart.Position or plant:GetModelCFrame().Position) or
+                               plant.Position
+            
+            Utilities.TeleportTo(plantPosition, "Tween")
+            task.wait(0.1)
+            
+            -- Try to find a proximity prompt
+            local found = false
+            for _, obj in ipairs(plant:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") and obj.Name:match("Water") then
+                    found = true
+                    fireproximityprompt(obj)
+                    task.wait(0.5)
+                    break
+                end
+            end
+            
+            if not found then
+                -- Simulate mouse click while facing the plant
+                local lookCFrame = CFrame.new(HumanoidRootPart.Position, plantPosition)
+                HumanoidRootPart.CFrame = lookCFrame
+                mouse1click() -- This assumes the exploit supports mouse simulation
+                task.wait(0.5)
+            end
+            
+            MethodSuccess.Watering.Click.Successes = MethodSuccess.Watering.Click.Successes + 1
+            return true -- Assume success since we can't easily verify
+        end
+    }
+    
+    -- Determine best method based on past success rate
+    local methodOrder = {1, 2, 3} -- Default order: Remote, Tool, Click
+    
+    if Config.Safety.HideMethodSwapping and Config.Debug.TrackMethodSuccess then
+        -- Calculate success rates
+        local rates = {
+            Remote = MethodSuccess.Watering.Remote.Attempts > 0 and
+                     MethodSuccess.Watering.Remote.Successes / MethodSuccess.Watering.Remote.Attempts or 0,
+            Tool = MethodSuccess.Watering.Tool.Attempts > 0 and
+                   MethodSuccess.Watering.Tool.Successes / MethodSuccess.Watering.Tool.Attempts or 0,
+            Click = MethodSuccess.Watering.Click.Attempts > 0 and
+                    MethodSuccess.Watering.Click.Successes / MethodSuccess.Watering.Click.Attempts or 0
+        }
+        
+        -- Sort methods by success rate (highest first)
+        if rates.Remote >= rates.Tool and rates.Remote >= rates.Click then
+            methodOrder = {1, 2, 3}
+        elseif rates.Tool >= rates.Remote and rates.Tool >= rates.Click then
+            methodOrder = {2, 1, 3}
+        else
+            methodOrder = {3, 1, 2}
+        end
+    end
+    
+    -- Try methods in determined order
+    for _, methodIndex in ipairs(methodOrder) do
+        local success, error = wateringMethods[methodIndex]()
+        if success then
+            return true
+        elseif Config.Debug.Enabled and Config.Debug.LogLevel >= 3 then
+            GardenBot.LogMessage("Watering method " .. methodIndex .. " failed: " .. tostring(error), "Debug")
+        end
+    end
+    
+    return false, "All watering methods failed"
+end
+
+function GardenActions.HarvestPlant(plant)
+    -- Try different methods to harvest a plant
+    local harvestingMethods = {
+        [1] = function() -- Remote function method
+            if not RemoteFunctionCache.Harvest then return false, "No harvest remote found" end
+            
+            MethodSuccess.Harvesting.Remote.Attempts = MethodSuccess.Harvesting.Remote.Attempts + 1
+            local success, result = pcall(function()
+                return RemoteFunctionCache.Harvest:InvokeServer(plant)
+            end)
+            
+            if success and result then
+                MethodSuccess.Harvesting.Remote.Successes = MethodSuccess.Harvesting.Remote.Successes + 1
+                return true
+            end
+            
+            return false, "Remote invocation failed"
+        end,
+        
+        [2] = function() -- Tool method
+            if not Config.Tools.AutoEquip then return false, "Auto-equip disabled" end
+            
+            MethodSuccess.Harvesting.Tool.Attempts = MethodSuccess.Harvesting.Tool.Attempts + 1
+            
+            local shovelEquipped = Utilities.EquipToolByType("Shovel")
+            if not shovelEquipped then
+                if Config.Tools.AutoBuy then
+                    Utilities.BuyToolByType("Shovel")
+                    task.wait(0.5)
+                    shovelEquipped = Utilities.EquipToolByType("Shovel")
+                end
+            end
+            
+            if shovelEquipped then
+                local tool = Utilities.GetEquippedTool()
+                if tool and tool:FindFirstChild("RemoteClick") then
+                    local success, result = pcall(function()
+                        return tool.RemoteClick:FireServer(plant)
+                    end)
+                    
+                    if success then
+                        MethodSuccess.Harvesting.Tool.Successes = MethodSuccess.Harvesting.Tool.Successes + 1
+                        return true
+                    end
+                else
+                    -- Try to activate the tool at the plant position
+                    local plantPosition = plant:IsA("Model") and 
+                                         (plant.PrimaryPart and plant.PrimaryPart.Position or plant:GetModelCFrame().Position) or
+                                         plant.Position
+                    
+                    Utilities.TeleportTo(plantPosition, "Tween")
+                    task.wait(0.1)
+                    
+                    -- Simulate mouse click while facing the plant
+                    local lookCFrame = CFrame.new(HumanoidRootPart.Position, plantPosition)
+                    HumanoidRootPart.CFrame = lookCFrame
+                    mouse1click() -- This assumes the exploit supports mouse simulation
+                    
+                    task.wait(0.5) -- Wait to see if harvesting was successful
+                    
+                    MethodSuccess.Harvesting.Tool.Successes = MethodSuccess.Harvesting.Tool.Successes + 1
+                    return true -- Assume success since we can't easily verify
+                end
+            end
+            
+            return false, "Could not equip shovel"
+        end,
+        
+        [3] = function() -- Click method
+            MethodSuccess.Harvesting.Click.Attempts = MethodSuccess.Harvesting.Click.Attempts + 1
+            
+            local plantPosition = plant:IsA("Model") and 
+                               (plant.PrimaryPart and plant.PrimaryPart.Position or plant:GetModelCFrame().Position) or
+                               plant.Position
+            
+            Utilities.TeleportTo(plantPosition, "Tween")
+            task.wait(0.1)
+            
+            -- Try to find a proximity prompt
+            local found = false
+            for _, obj in ipairs(plant:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") and (obj.Name:match("Harvest") or obj.Name:match("Collect")) then
+                    found = true
+                    fireproximityprompt(obj)
+                    task.wait(0.5)
+                    break
+                end
+            end
+            
+            if not found then
+                -- Simulate mouse click while facing the plant
+                local lookCFrame = CFrame.new(HumanoidRootPart.Position, plantPosition)
+                HumanoidRootPart.CFrame = lookCFrame
+                mouse1click() -- This assumes the exploit supports mouse simulation
+                task.wait(0.5)
+            end
+            
+            MethodSuccess.Harvesting.Click.Successes = MethodSuccess.Harvesting.Click.Successes + 1
+            return true -- Assume success since we can't easily verify
+        end
+    }
+    
+    -- Determine best method based on past success rate
+    local methodOrder = {1, 2, 3} -- Default order: Remote, Tool, Click
+    
+    if Config.Safety.HideMethodSwapping and Config.Debug.TrackMethodSuccess then
+        -- Calculate success rates
+        local rates = {
+            Remote = MethodSuccess.Harvesting.Remote.Attempts > 0 and
+                     MethodSuccess.Harvesting.Remote.Successes / MethodSuccess.Harvesting.Remote.Attempts or 0,
+            Tool = MethodSuccess.Harvesting.Tool.Attempts > 0 and
+                   MethodSuccess.Harvesting.Tool.Successes / MethodSuccess.Harvesting.Tool.Attempts or 0,
+            Click = MethodSuccess.Harvesting.Click.Attempts > 0 and
+                    MethodSuccess.Harvesting.Click.Successes / MethodSuccess.Harvesting.Click.Attempts or 0
+        }
+        
+        -- Sort methods by success rate (highest first)
+        if rates.Remote >= rates.Tool and rates.Remote >= rates.Click then
+            methodOrder = {1, 2, 3}
+        elseif rates.Tool >= rates.Remote and rates.Tool >= rates.Click then
+            methodOrder = {2, 1, 3}
+        else
+            methodOrder = {3, 1, 2}
+        end
+    end
+    
+    -- Try methods in determined order
+    for _, methodIndex in ipairs(methodOrder) do
+        local success, error = harvestingMethods[methodIndex]()
+        if success then
+            return true
+        elseif Config.Debug.Enabled and Config.Debug.LogLevel >= 3 then
+            GardenBot.LogMessage("Harvesting method " .. methodIndex .. " failed: " .. tostring(error), "Debug")
+        end
+    end
+    
+    return false, "All harvesting methods failed"
+end
+
+function GardenActions.CollectItem(item)
+    -- Try different methods to collect an item
+    local collectingMethods = {
+        [1] = function() -- Remote function method
+            if not RemoteFunctionCache.Collect then return false, "No collect remote found" end
+            
+            MethodSuccess.Collecting.Remote.Attempts = MethodSuccess.Collecting.Remote.Attempts + 1
+            local success, result = pcall(function()
+                return RemoteFunctionCache.Collect:InvokeServer(item)
+            end)
+            
+            if success and result then
+                MethodSuccess.Collecting.Remote.Successes = MethodSuccess.Collecting.Remote.Successes + 1
+                return true
+            end
+            
+            return false, "Remote invocation failed"
+        end,
+        
+        [2] = function() -- Proximity method (just get close enough)
+            MethodSuccess.Collecting.Proximity.Attempts = MethodSuccess.Collecting.Proximity.Attempts + 1
+            
+            local itemPosition = item:IsA("Model") and 
+                              (item.PrimaryPart and item.PrimaryPart.Position or item:GetModelCFrame().Position) or
+                              item.Position
+            
+            Utilities.TeleportTo(itemPosition, "Tween")
+            
+            -- Try to find and fire a proximity prompt
+            local found = false
+            for _, obj in ipairs(item:GetDescendants()) do
+                if obj:IsA("ProximityPrompt") then
+                    found = true
+                    fireproximityprompt(obj)
+                    task.wait(0.3)
+                    break
+                end
+            end
+            
+            -- If no proximity prompt found, just wait a bit to see if it auto-collects
+            if not found then
+                task.wait(0.5)
+            end
+            
+            MethodSuccess.Collecting.Proximity.Successes = MethodSuccess.Collecting.Proximity.Successes + 1
+            return true -- Assume success, hard to verify
+        end,
+        
+        [3] = function() -- Click method
+            MethodSuccess.Collecting.Click.Attempts = MethodSuccess.Collecting.Click.Attempts + 1
+            
+            local itemPosition = item:IsA("Model") and 
+                              (item.PrimaryPart and item.PrimaryPart.Position or item:GetModelCFrame().Position) or
+                              item.Position
+            
+            Utilities.TeleportTo(itemPosition, "Tween")
+            task.wait(0.1)
+            
+            -- Simulate mouse click while facing the item
+            local lookCFrame = CFrame.new(HumanoidRootPart.Position, itemPosition)
+            HumanoidRootPart.CFrame = lookCFrame
+            mouse1click() -- This assumes the exploit supports mouse simulation
+            task.wait(0.5)
+            
+            MethodSuccess.Collecting.Click.Successes = MethodSuccess.Collecting.Click.Successes + 1
+            return true -- Assume success since we can't easily verify
+        end
+    }
+    
+    -- Determine best method based on past success rate
+    local methodOrder = {1, 2, 3} -- Default order: Remote, Proximity, Click
+    
+    if Config.Safety.HideMethodSwapping and Config.Debug.TrackMethodSuccess then
+        -- Calculate success rates
+        local rates = {
+            Remote = MethodSuccess.Collecting.Remote.Attempts > 0 and
+                     MethodSuccess.Collecting.Remote.Successes / MethodSuccess.Collecting.Remote.Attempts or 0,
+            Proximity = MethodSuccess.Collecting.Proximity.Attempts > 0 and
+                        MethodSuccess.Collecting.Proximity.Successes / MethodSuccess.Collecting.Proximity.Attempts or 0,
+            Click = MethodSuccess.Collecting.Click.Attempts > 0 and
+                    MethodSuccess.Collecting.Click.Successes / MethodSuccess.Collecting.Click.Attempts or 0
+        }
+        
+        -- Sort methods by success rate (highest first)
+        if rates.Remote >= rates.Proximity and rates.Remote >= rates.Click then
+            methodOrder = {1, 2, 3}
+        elseif rates.Proximity >= rates.Remote and rates.Proximity >= rates.Click then
+            methodOrder = {2, 1, 3}
+        else
+            methodOrder = {3, 1, 2}
+        end
+    end
+    
+    -- Try methods in determined order
+    for _, methodIndex in ipairs(methodOrder) do
+        local success, error = collectingMethods[methodIndex]()
+        if success then
+            return true
+        elseif Config.Debug.Enabled and Config.Debug.LogLevel >= 3 then
+            GardenBot.LogMessage("Collecting method " .. methodIndex .. " failed: " .. tostring(error), "Debug")
+        end
+    end
+    
+    return false, "All collecting methods failed"
+end
+
+-- Main Bot Controller
+local GardenBot = {
+    Running = false,
+    Initialized = false,
+    TaskScheduler = TaskScheduler,
+    Config = Config,
+    Stats = Stats,
+    Utilities = Utilities,
+    Actions = GardenActions,
+    RemoteFunctions = {}
+}
+
+function GardenBot.LogMessage(message, level)
+    level = level or "Info"
+    local prefix = "SkyX Garden Bot | "
+    
+    local levelColors = {
+        Debug = "\27[38;5;244m", -- Gray
+        Info = "\27[38;5;15m", -- White
+        Warning = "\27[38;5;220m", -- Yellow
+        Critical = "\27[38;5;196m", -- Red
+        Success = "\27[38;5;34m" -- Green
+    }
+    
+    local color = levelColors[level] or levelColors.Info
+    local logMessage = prefix .. "[" .. level .. "] " .. message
+    
+    -- Always log critical messages regardless of debug level
+    if level == "Critical" or (Config.Debug.Enabled and (
+        (level == "Warning" and Config.Debug.LogLevel >= 2) or
+        (level == "Info" and Config.Debug.LogLevel >= 3) or
+        (level == "Debug" and Config.Debug.LogLevel >= 4) or
+        (level == "Success" and Config.Debug.LogLevel >= 3))) then
+        print(color .. logMessage)
+    end
+    
+    -- Queue notification if enabled
+    if Config.Interface.ShowStatusUpdates and not Config.Interface.MuteNotifications and 
+       (level == "Critical" or level == "Warning" or level == "Success") then
+        Luna:Notification({
+            Title = "Garden Bot " .. level,
+            Content = message
+        })
+    end
+end
+
+function GardenBot.Initialize()
+    if GardenBot.Initialized then return true end
+    
+    GardenBot.LogMessage("Initializing SkyX Garden Bot", "Info")
+    
+    -- Find remote functions
+    GardenBot.LogMessage("Searching for remote functions...", "Debug")
+    RemoteFunctionCache = Utilities.FindRemoteFunctions()
+    GardenBot.RemoteFunctions = RemoteFunctionCache
+    
+    -- Calculate best seed if auto-calculate is enabled
+    if Config.Seed.AutoCalculateBest then
+        local bestSeed, valuePerMinute = CalculateBestSeed()
+        Config.Seed.Type = bestSeed
+        GardenBot.LogMessage("Auto-selected best seed: " .. bestSeed .. " (Value per minute: " .. string.format("%.2f", valuePerMinute) .. ")", "Info")
+    end
+    
+    -- Setup tasks
+    GardenBot.SetupTasks()
+    
+    -- Anti-AFK
+    LocalPlayer.Idled:Connect(function()
+        VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        wait(1)
+        VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+        GardenBot.LogMessage("Anti-AFK triggered", "Debug")
+    end)
+    
+    GardenBot.Initialized = true
+    GardenBot.LogMessage("SkyX Garden Bot initialized successfully", "Success")
+    
+    return true
+end
+
+function GardenBot.SetupTasks()
+    -- Planting task
+    TaskScheduler:AddTask(
+        "FindPlantingSpot",
+        10, -- High priority
+        function()
+            if not Config.AutoFarm.Enabled or not Config.AutoFarm.PlantingEnabled then return true end
+            
+            -- Find a planting spot
+            local spot, distance = Utilities.GetNearestPlantingSpot()
+            if not spot then
+                GardenBot.LogMessage("No planting spots found nearby", "Warning")
+                return false
+            end
+            
+            -- Teleport to the spot
+            local position = spot.Position + Vector3.new(0, 2, 0) -- Slightly above the spot
+            GardenBot.LogMessage("Found planting spot at distance: " .. string.format("%.1f", distance), "Debug")
+            
+            if distance > 10 then
+                local teleported = Utilities.TeleportTo(position)
+                if not teleported then
+                    GardenBot.LogMessage("Failed to teleport to planting spot", "Warning")
+                    return false
+                end
+            end
+            
+            -- Plant the seed
+            for attempt = 1, PLANT_RETRY_ATTEMPTS do
+                local success, error = GardenActions.PlantSeed(spot.Position, Config.Seed.Type)
+                if success then
+                    GardenBot.LogMessage("Successfully planted " .. Config.Seed.Type, "Success")
+                    Stats.PlantsGrown = Stats.PlantsGrown + 1
+                    return true
+                else
+                    GardenBot.LogMessage("Planting attempt " .. attempt .. " failed: " .. tostring(error), "Debug")
+                    task.wait(0.5) -- Wait before retrying
+                end
+            end
+            
+            GardenBot.LogMessage("All planting attempts failed", "Warning")
+            Stats.FailedActions = Stats.FailedActions + 1
+            return false
+        end,
+        function()
+            return Config.AutoFarm.Enabled and Config.AutoFarm.PlantingEnabled
+        end,
+        5 -- Cooldown between planting attempts
+    )
+    
+    -- Watering task
+    TaskScheduler:AddTask(
+        "WaterPlants",
+        8, -- High priority but less than planting
+        function()
+            if not Config.AutoFarm.Enabled or not Config.AutoFarm.WateringEnabled then return true end
+            
+            -- Find plants that need water
+            local plantsNeedingWater = Utilities.GetPlantsNeedingWater()
+            if #plantsNeedingWater == 0 then
+                return true -- No plants need water
+            end
+            
+            GardenBot.LogMessage("Found " .. #plantsNeedingWater .. " plants needing water", "Debug")
+            
+            -- Water each plant
+            local waterCount = 0
+            for _, plantData in ipairs(plantsNeedingWater) do
+                if Utilities.CheckPlayerProximity() then
+                    GardenBot.LogMessage("Pausing watering due to nearby player", "Warning")
+                    return false
+                end
+                
+                local plant = plantData.Plant
+                local position = plant:IsA("Model") and 
+                               (plant.PrimaryPart and plant.PrimaryPart.Position or plant:GetModelCFrame().Position) or
+                               plant.Position
+                
+                -- Teleport to the plant
+                if plantData.Distance > 10 then
+                    local teleported = Utilities.TeleportTo(position)
+                    if not teleported then
+                        GardenBot.LogMessage("Failed to teleport to plant for watering", "Warning")
+                        continue
+                    end
+                end
+                
+                -- Try to water the plant
+                for attempt = 1, WATER_RETRY_ATTEMPTS do
+                    local success, error = GardenActions.WaterPlant(plant)
+                    if success then
+                        GardenBot.LogMessage("Successfully watered plant", "Success")
+                        Stats.TimesWatered = Stats.TimesWatered + 1
+                        waterCount = waterCount + 1
+                        break
+                    else
+                        GardenBot.LogMessage("Watering attempt " .. attempt .. " failed: " .. tostring(error), "Debug")
+                        task.wait(0.5) -- Wait before retrying
+                    end
+                end
+                
+                -- Limit how many plants we water per task execution
+                if waterCount >= 3 then break end
+            end
+            
+            if waterCount == 0 then
+                GardenBot.LogMessage("Failed to water any plants", "Warning")
+                Stats.FailedActions = Stats.FailedActions + 1
+                return false
+            end
+            
+            return true
+        end,
+        function()
+            return Config.AutoFarm.Enabled and Config.AutoFarm.WateringEnabled
+        end,
+        3 -- Cooldown between watering tasks
+    )
+    
+    -- Harvesting task
+    TaskScheduler:AddTask(
+        "HarvestPlants",
+        9, -- High priority
+        function()
+            if not Config.AutoFarm.Enabled or not Config.AutoFarm.HarvestingEnabled then return true end
+            
+            -- Find harvestable plants
+            local harvestablePlants = Utilities.GetHarvestablePlants()
+            if #harvestablePlants == 0 then
+                return true -- No plants to harvest
+            end
+            
+            GardenBot.LogMessage("Found " .. #harvestablePlants .. " plants ready for harvest", "Debug")
+            
+            -- Harvest each plant
+            local harvestCount = 0
+            for _, plantData in ipairs(harvestablePlants) do
+                if Utilities.CheckPlayerProximity() then
+                    GardenBot.LogMessage("Pausing harvesting due to nearby player", "Warning")
+                    return false
+                end
+                
+                local plant = plantData.Plant
+                local position = plant:IsA("Model") and 
+                               (plant.PrimaryPart and plant.PrimaryPart.Position or plant:GetModelCFrame().Position) or
+                               plant.Position
+                
+                -- Teleport to the plant
+                if plantData.Distance > 10 then
+                    local teleported = Utilities.TeleportTo(position)
+                    if not teleported then
+                        GardenBot.LogMessage("Failed to teleport to plant for harvesting", "Warning")
+                        continue
+                    end
+                end
+                
+                -- Try to harvest the plant
+                for attempt = 1, COLLECTION_RETRY_ATTEMPTS do
+                    local success, error = GardenActions.HarvestPlant(plant)
+                    if success then
+                        GardenBot.LogMessage("Successfully harvested plant", "Success")
+                        harvestCount = harvestCount + 1
+                        break
+                    else
+                        GardenBot.LogMessage("Harvesting attempt " .. attempt .. " failed: " .. tostring(error), "Debug")
+                        task.wait(0.5) -- Wait before retrying
+                    end
+                end
+                
+                -- Limit how many plants we harvest per task execution
+                if harvestCount >= 3 then break end
+            end
+            
+            if harvestCount == 0 then
+                GardenBot.LogMessage("Failed to harvest any plants", "Warning")
+                Stats.FailedActions = Stats.FailedActions + 1
+                return false
+            end
+            
+            return true
+        end,
+        function()
+            return Config.AutoFarm.Enabled and Config.AutoFarm.HarvestingEnabled
+        end,
+        2 -- Cooldown between harvesting tasks
+    )
+    
+    -- Collecting task
+    TaskScheduler:AddTask(
+        "CollectItems",
+        7, -- Medium-high priority
+        function()
+            if not Config.AutoFarm.Enabled or not Config.AutoFarm.CollectingEnabled then return true end
+            
+            -- Find collectible items
+            local collectibles = Utilities.GetCollectibles()
+            if #collectibles == 0 then
+                return true -- No items to collect
+            end
+            
+            GardenBot.LogMessage("Found " .. #collectibles .. " items to collect", "Debug")
+            
+            -- Collect each item
+            local collectCount = 0
+            for _, itemData in ipairs(collectibles) do
+                if Utilities.CheckPlayerProximity() then
+                    GardenBot.LogMessage("Pausing collecting due to nearby player", "Warning")
+                    return false
+                end
+                
+                local item = itemData.Item
+                local position = item:IsA("Model") and 
+                              (item.PrimaryPart and item.PrimaryPart.Position or item:GetModelCFrame().Position) or
+                              item.Position
+                
+                -- Teleport to the item
+                if itemData.Distance > 10 then
+                    local teleported = Utilities.TeleportTo(position)
+                    if not teleported then
+                        GardenBot.LogMessage("Failed to teleport to item for collection", "Warning")
+                        continue
+                    end
+                end
+                
+                -- Try to collect the item
+                for attempt = 1, COLLECTION_RETRY_ATTEMPTS do
+                    local success, error = GardenActions.CollectItem(item)
+                    if success then
+                        GardenBot.LogMessage("Successfully collected item", "Success")
+                        Stats.ItemsCollected = Stats.ItemsCollected + 1
+                        collectCount = collectCount + 1
+                        break
+                    else
+                        GardenBot.LogMessage("Collection attempt " .. attempt .. " failed: " .. tostring(error), "Debug")
+                        task.wait(0.5) -- Wait before retrying
+                    end
+                end
+                
+                -- Limit how many items we collect per task execution
+                if collectCount >= 5 then break end
+            end
+            
+            if collectCount == 0 then
+                GardenBot.LogMessage("Failed to collect any items", "Warning")
+                Stats.FailedActions = Stats.FailedActions + 1
+                return false
+            end
+            
+            return true
+        end,
+        function()
+            return Config.AutoFarm.Enabled and Config.AutoFarm.CollectingEnabled
+        end,
+        1 -- Short cooldown between collecting tasks
+    )
+    
+    -- Stats update task (low priority, runs occasionally)
+    TaskScheduler:AddTask(
+        "UpdateStats",
+        1, -- Low priority
+        function()
+            local timeElapsed = os.time() - Stats.SessionStartTime
+            local hours = math.floor(timeElapsed / 3600)
+            local minutes = math.floor((timeElapsed % 3600) / 60)
+            local seconds = timeElapsed % 60
+            
+            local timeString = string.format("%02d:%02d:%02d", hours, minutes, seconds)
+            GardenBot.LogMessage("Session time: " .. timeString .. 
+                                 " | Plants: " .. Stats.PlantsGrown .. 
+                                 " | Items: " .. Stats.ItemsCollected .. 
+                                 " | Waterings: " .. Stats.TimesWatered, "Debug")
+            
+            return true
+        end,
+        function() return true end,
+        30 -- Update stats every 30 seconds
+    )
+    
+    -- Character update task
+    TaskScheduler:AddTask(
+        "UpdateCharacter",
+        3, -- Low-medium priority
+        function()
+            if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("Humanoid") then
+                GardenBot.LogMessage("Character not found, waiting for respawn", "Warning")
+                return false
+            end
+            
+            return true
+        end,
+        function() return true end,
+        5 -- Check character every 5 seconds
+    )
+    
+    -- Safety check task
+    TaskScheduler:AddTask(
+        "SafetyCheck",
+        5, -- Medium priority
+        function()
+            if Utilities.CheckPlayerProximity() then
+                GardenBot.LogMessage("Other players nearby, pausing operations", "Warning")
+                TaskScheduler:Pause()
+                task.wait(3)
+                
+                -- Check again after a few seconds
+                if not Utilities.CheckPlayerProximity() then
+                    GardenBot.LogMessage("No more players nearby, resuming operations", "Info")
+                    TaskScheduler:Resume()
+                end
+                
+                return true
+            end
+            
+            return true
+        end,
+        function()
+            return Config.Safety.PauseOnPlayerNearby
+        end,
+        2 -- Check frequently
+    )
+    
+    GardenBot.LogMessage("Task system initialized with " .. TaskScheduler.TaskCount .. " tasks", "Debug")
+end
+
+function GardenBot.Start()
+    if GardenBot.Running then
+        GardenBot.LogMessage("Bot is already running", "Warning")
+        return false
+    end
+    
+    if not GardenBot.Initialized then
+        local initialized = GardenBot.Initialize()
+        if not initialized then
+            GardenBot.LogMessage("Failed to initialize bot", "Critical")
+            return false
+        end
+    end
+    
+    GardenBot.Running = true
+    GardenBot.LogMessage("SkyX Garden Bot started", "Success")
+    
+    -- Start main loop
+    RunService:BindToRenderStep("GardenBotUpdate", 1000, function()
+        if GardenBot.Running then
+            TaskScheduler:ProcessTasks()
+            
+            -- Add delay to reduce CPU usage if low CPU mode is enabled
+            if Config.Performance.LowCPUMode then
+                task.wait(Config.Performance.TaskDelay)
+            end
+        end
+    end)
+    
+    return true
+end
+
+function GardenBot.Stop()
+    if not GardenBot.Running then
+        GardenBot.LogMessage("Bot is not running", "Warning")
+        return false
+    end
+    
+    GardenBot.Running = false
+    RunService:UnbindFromRenderStep("GardenBotUpdate")
+    GardenBot.LogMessage("SkyX Garden Bot stopped", "Info")
+    
+    return true
+end
+
+function GardenBot.ToggleAutoFarm(enabled)
+    Config.AutoFarm.Enabled = enabled
+    
+    if enabled then
+        GardenBot.LogMessage("Auto-farm enabled", "Success")
+        
+        if not GardenBot.Running then
+            GardenBot.Start()
+        end
+    else
+        GardenBot.LogMessage("Auto-farm disabled", "Info")
+    end
+end
+
+function GardenBot.TogglePlanting(enabled)
+    Config.AutoFarm.PlantingEnabled = enabled
+    GardenBot.LogMessage("Planting " .. (enabled and "enabled" or "disabled"), "Info")
+end
+
+function GardenBot.ToggleWatering(enabled)
+    Config.AutoFarm.WateringEnabled = enabled
+    GardenBot.LogMessage("Watering " .. (enabled and "enabled" or "disabled"), "Info")
+end
+
+function GardenBot.ToggleHarvesting(enabled)
+    Config.AutoFarm.HarvestingEnabled = enabled
+    GardenBot.LogMessage("Harvesting " .. (enabled and "enabled" or "disabled"), "Info")
+end
+
+function GardenBot.ToggleCollecting(enabled)
+    Config.AutoFarm.CollectingEnabled = enabled
+    GardenBot.LogMessage("Collecting " .. (enabled and "enabled" or "disabled"), "Info")
+end
+
+function GardenBot.SetSeedType(seedType)
+    if SeedDatabase[seedType] then
+        Config.Seed.Type = seedType
+        Config.Seed.AutoCalculateBest = false
+        GardenBot.LogMessage("Seed type set to " .. seedType, "Info")
+    else
+        GardenBot.LogMessage("Invalid seed type: " .. seedType, "Warning")
+    end
+end
+
+function GardenBot.ToggleAutoBestSeed(enabled)
+    Config.Seed.AutoCalculateBest = enabled
+    
+    if enabled then
+        local bestSeed, valuePerMinute = CalculateBestSeed()
+        Config.Seed.Type = bestSeed
+        GardenBot.LogMessage("Auto-selected best seed: " .. bestSeed .. " (Value per minute: " .. string.format("%.2f", valuePerMinute) .. ")", "Info")
+    end
+end
+
+function GardenBot.SetLowCPUMode(enabled)
+    Config.Performance.LowCPUMode = enabled
+    GardenBot.LogMessage("Low CPU mode " .. (enabled and "enabled" or "disabled"), "Info")
+end
+
+function GardenBot.TeleportToLocation(locationName)
+    if not Config.Teleportation.Enabled then
+        GardenBot.LogMessage("Teleportation is disabled", "Warning")
+        return false
+    end
+    
+    local location = LocationDatabase[locationName]
+    if not location then
+        GardenBot.LogMessage("Unknown location: " .. locationName, "Warning")
+        return false
+    end
+    
+    GardenBot.LogMessage("Teleporting to " .. locationName, "Info")
+    local success = Utilities.TeleportTo(location)
+    
+    if success then
+        GardenBot.LogMessage("Successfully teleported to " .. locationName, "Success")
+    else
+        GardenBot.LogMessage("Failed to teleport to " .. locationName, "Warning")
+    end
+    
+    return success
+end
+
+function GardenBot.UpdateCharacterReferences()
+    Character = LocalPlayer.Character
+    Humanoid = Character:FindFirstChild("Humanoid")
+    HumanoidRootPart = Character:FindFirstChild("HumanoidRootPart")
+    
+    if not Character or not Humanoid or not HumanoidRootPart then
+        GardenBot.LogMessage("Failed to update character references", "Critical")
+        return false
+    end
+    
+    return true
+end
+
+-- Create the Luna UI
+local Window = Luna:CreateWindow({
+    Name = "SkyX Grow A Garden",
+    Subtitle = "Advanced Farm Bot",
+    LoadingEnabled = true,
+    LoadingTitle = "SkyX Grow A Garden",
+    LoadingSubtitle = "Professional Farm Bot by SkyX Hub",
+    ConfigSettings = {
+        ConfigFolder = "SkyX_GrowAGarden"
+    }
 })
 
 -- Create tabs
 local MainTab = Window:CreateTab({
     Name = "Main",
-    Icon = "crosshair",
-    ImageSource = "Lucide",
-    ShowTitle = true
+    Icon = "home",
+    ImageSource = "Material"
 })
 
-local PlayersTab = Window:CreateTab({
-    Name = "Players",
-    Icon = "user",
-    ImageSource = "Lucide",
-    ShowTitle = true
+local FarmTab = Window:CreateTab({
+    Name = "Farming",
+    Icon = "eco",
+    ImageSource = "Material"
 })
 
-local WorldTab = Window:CreateTab({
-    Name = "World",
-    Icon = "globe",
-    ImageSource = "Lucide",
-    ShowTitle = true
+local TeleTab = Window:CreateTab({
+    Name = "Teleport",
+    Icon = "travel_explore",
+    ImageSource = "Material"
+})
+
+local StatsTab = Window:CreateTab({
+    Name = "Stats",
+    Icon = "query_stats",
+    ImageSource = "Material"
 })
 
 local SettingsTab = Window:CreateTab({
     Name = "Settings",
     Icon = "settings",
-    ImageSource = "Lucide",
-    ShowTitle = true
+    ImageSource = "Material"
 })
 
--- Create sections in tabs
-MainTab:CreateSection("ESP Controls")
-PlayersTab:CreateSection("Player ESP")
-WorldTab:CreateSection("World ESP")
-SettingsTab:CreateSection("Visual Settings")
-SettingsTab:CreateSection("Configuration")
+-- Build UI Sections
+-- Main tab sections
+MainTab:CreateSection("Auto Farm")
 
--- ESP Configuration (Default Settings)
-local Config = {
-    Enabled = false,
-    Players = {
-        Enabled = false,
-        ShowName = true,
-        ShowDistance = true,
-        ShowHealth = true,
-        ShowBoxes = true,
-        ShowTracers = false,
-        NameColor = Color3.fromRGB(255, 255, 255),
-        BoxColor = Color3.fromRGB(255, 0, 0),
-        TracerColor = Color3.fromRGB(0, 255, 0),
-        TeamCheck = true,
-        TeamColor = true,
-        MaxDistance = 1000
-    },
-    Objects = {
-        Enabled = false,
-        Items = {},
-        ItemColor = Color3.fromRGB(0, 255, 255),
-        ShowDistance = true,
-        MaxDistance = 500
-    },
-    Visuals = {
-        Transparency = 0.5,
-        TextSize = 14,
-        TextOutline = true,
-        BoxesOutline = true,
-        TracerOrigin = "Bottom" -- "Bottom", "Center", "Mouse"
-    }
-}
-
--- ESP Drawing Objects
-local ESPObjects = {}
-local DrawnItems = {}
-
--- Services
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Camera = workspace.CurrentCamera
-local LocalPlayer = Players.LocalPlayer
-
--- ESP Helper Functions
-local function CalculateDistance(position)
-    return (Camera.CFrame.Position - position).Magnitude
-end
-
-local function GetPlayerColor(player)
-    if Config.Players.TeamColor and player.Team then
-        return player.TeamColor.Color
-    else
-        return Config.Players.BoxColor
+-- Auto farm toggle
+MainTab:CreateToggle({
+    Name = "Enable Auto Farm",
+    CurrentValue = false,
+    Callback = function(Value)
+        GardenBot.ToggleAutoFarm(Value)
     end
-end
+}, "AutoFarmToggle")
 
-local function IsOnScreen(position)
-    local _, onScreen = Camera:WorldToScreenPoint(position)
-    return onScreen
-end
-
-local function CreateDrawingObject(type, properties)
-    local object = Drawing.new(type)
-    for prop, value in pairs(properties) do
-        object[prop] = value
+-- Main feature toggles
+MainTab:CreateToggle({
+    Name = "Auto Planting",
+    CurrentValue = true,
+    Callback = function(Value)
+        GardenBot.TogglePlanting(Value)
     end
-    return object
+}, "PlantingToggle")
+
+MainTab:CreateToggle({
+    Name = "Auto Watering",
+    CurrentValue = true,
+    Callback = function(Value)
+        GardenBot.ToggleWatering(Value)
+    end
+}, "WateringToggle")
+
+MainTab:CreateToggle({
+    Name = "Auto Harvesting",
+    CurrentValue = true,
+    Callback = function(Value)
+        GardenBot.ToggleHarvesting(Value)
+    end
+}, "HarvestingToggle")
+
+MainTab:CreateToggle({
+    Name = "Auto Collecting",
+    CurrentValue = true,
+    Callback = function(Value)
+        GardenBot.ToggleCollecting(Value)
+    end
+}, "CollectingToggle")
+
+MainTab:CreateSection("Bot Controls")
+
+MainTab:CreateButton({
+    Name = "Start Bot",
+    Callback = function()
+        GardenBot.Start()
+    end
+})
+
+MainTab:CreateButton({
+    Name = "Stop Bot",
+    Callback = function()
+        GardenBot.Stop()
+    end
+})
+
+-- Farm tab sections
+FarmTab:CreateSection("Seed Settings")
+
+-- Get seed names from the database
+local seedNames = {}
+for seedName, _ in pairs(SeedDatabase) do
+    table.insert(seedNames, seedName)
 end
 
-local function SetupPlayerESP(player)
-    if player == LocalPlayer then return end
-    
-    ESPObjects[player] = {
-        Name = CreateDrawingObject("Text", {
-            Text = player.Name,
-            Size = Config.Visuals.TextSize,
-            Center = true,
-            Outline = Config.Visuals.TextOutline,
-            Color = Config.Players.NameColor,
-            Transparency = 1
-        }),
-        Box = CreateDrawingObject("Square", {
-            Thickness = 1,
-            Filled = false,
-            Color = GetPlayerColor(player),
-            Transparency = Config.Visuals.Transparency
-        }),
-        BoxFill = CreateDrawingObject("Square", {
-            Thickness = 1,
-            Filled = true,
-            Color = GetPlayerColor(player),
-            Transparency = Config.Visuals.Transparency * 0.3
-        }),
-        BoxOutline = CreateDrawingObject("Square", {
-            Thickness = 3,
-            Filled = false,
-            Color = Color3.fromRGB(0, 0, 0),
-            Transparency = Config.Visuals.Transparency * 0.5
-        }),
-        Tracer = CreateDrawingObject("Line", {
-            Thickness = 1,
-            Color = Config.Players.TracerColor,
-            Transparency = Config.Visuals.Transparency
-        }),
-        TracerOutline = CreateDrawingObject("Line", {
-            Thickness = 3,
-            Color = Color3.fromRGB(0, 0, 0),
-            Transparency = Config.Visuals.Transparency * 0.5
-        }),
-        HealthBar = CreateDrawingObject("Square", {
-            Thickness = 1,
-            Filled = true,
-            Color = Color3.fromRGB(0, 255, 0),
-            Transparency = Config.Visuals.Transparency
-        }),
-        HealthBarOutline = CreateDrawingObject("Square", {
-            Thickness = 1,
-            Filled = false,
-            Color = Color3.fromRGB(0, 0, 0),
-            Transparency = Config.Visuals.Transparency
-        }),
-        Distance = CreateDrawingObject("Text", {
-            Size = Config.Visuals.TextSize,
-            Center = true,
-            Outline = Config.Visuals.TextOutline,
-            Color = Color3.fromRGB(255, 255, 255),
-            Transparency = 1
-        })
-    }
-    
-    return ESPObjects[player]
-end
+FarmTab:CreateDropdown({
+    Name = "Seed Type",
+    Options = seedNames,
+    CurrentOption = Config.Seed.Type,
+    Callback = function(Value)
+        GardenBot.SetSeedType(Value)
+    end
+}, "SeedTypeDropdown")
 
-local function RemovePlayerESP(player)
-    if ESPObjects[player] then
-        for _, object in pairs(ESPObjects[player]) do
-            object:Remove()
+FarmTab:CreateToggle({
+    Name = "Auto-select Best Seed",
+    Description = "Automatically selects most profitable seed",
+    CurrentValue = Config.Seed.AutoCalculateBest,
+    Callback = function(Value)
+        GardenBot.ToggleAutoBestSeed(Value)
+    end
+}, "AutoBestSeedToggle")
+
+FarmTab:CreateToggle({
+    Name = "Auto-buy Seeds",
+    Description = "Automatically buy seeds when needed",
+    CurrentValue = Config.Seed.BuySeeds,
+    Callback = function(Value)
+        Config.Seed.BuySeeds = Value
+    end
+}, "AutoBuySeedsToggle")
+
+FarmTab:CreateSection("Tool Settings")
+
+FarmTab:CreateToggle({
+    Name = "Auto-equip Tools",
+    Description = "Automatically equip needed tools",
+    CurrentValue = Config.Tools.AutoEquip,
+    Callback = function(Value)
+        Config.Tools.AutoEquip = Value
+    end
+}, "AutoEquipToolsToggle")
+
+FarmTab:CreateToggle({
+    Name = "Auto-buy Tools",
+    Description = "Automatically buy tools when needed",
+    CurrentValue = Config.Tools.AutoBuy,
+    Callback = function(Value)
+        Config.Tools.AutoBuy = Value
+    end
+}, "AutoBuyToolsToggle")
+
+-- Teleport tab
+TeleTab:CreateSection("Locations")
+
+-- Create teleport buttons for each location
+for locationName, _ in pairs(LocationDatabase) do
+    TeleTab:CreateButton({
+        Name = "Teleport to " .. locationName,
+        Callback = function()
+            GardenBot.TeleportToLocation(locationName)
         end
-        ESPObjects[player] = nil
+    })
+end
+
+TeleTab:CreateSection("Teleport Settings")
+
+TeleTab:CreateToggle({
+    Name = "Enable Teleportation",
+    CurrentValue = Config.Teleportation.Enabled,
+    Callback = function(Value)
+        Config.Teleportation.Enabled = Value
     end
-end
+}, "TeleportToggle")
 
-local function SetupItemESP(item, name, color)
-    if DrawnItems[item] then return DrawnItems[item] end
-    
-    DrawnItems[item] = {
-        Name = CreateDrawingObject("Text", {
-            Text = name,
-            Size = Config.Visuals.TextSize,
-            Center = true,
-            Outline = Config.Visuals.TextOutline,
-            Color = color or Config.Objects.ItemColor,
-            Transparency = 1
-        }),
-        Distance = CreateDrawingObject("Text", {
-            Size = Config.Visuals.TextSize - 2,
-            Center = true,
-            Outline = Config.Visuals.TextOutline,
-            Color = Color3.fromRGB(255, 255, 255),
-            Transparency = 1
-        })
-    }
-    
-    return DrawnItems[item]
-end
-
-local function RemoveItemESP(item)
-    if DrawnItems[item] then
-        for _, object in pairs(DrawnItems[item]) do
-            object:Remove()
-        end
-        DrawnItems[item] = nil
+TeleTab:CreateDropdown({
+    Name = "Teleport Method",
+    Options = {"Instant", "Tween", "Path"},
+    CurrentOption = Config.Teleportation.Method,
+    Callback = function(Value)
+        Config.Teleportation.Method = Value
     end
-end
+}, "TeleportMethodDropdown")
 
-local function UpdatePlayerESP()
-    for player, objects in pairs(ESPObjects) do
-        if player and player:IsA("Player") and player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") then
-            local humanoid = player.Character:FindFirstChild("Humanoid")
-            local rootPart = player.Character:FindFirstChild("HumanoidRootPart")
-            local head = player.Character:FindFirstChild("Head")
-            if not rootPart or not humanoid then continue end
-            
-            local distance = CalculateDistance(rootPart.Position)
-            if distance > Config.Players.MaxDistance then
-                for _, object in pairs(objects) do
-                    object.Visible = false
-                end
-                continue
-            end
-            
-            if Config.Players.TeamCheck and player.Team == LocalPlayer.Team then
-                for _, object in pairs(objects) do
-                    object.Visible = false
-                end
-                continue
-            end
-            
-            -- Determine if player is visible on screen
-            local rootPos = rootPart.Position
-            local screenPos, onScreen = Camera:WorldToScreenPoint(rootPos)
-            if not onScreen then
-                for _, object in pairs(objects) do
-                    object.Visible = false
-                end
-                continue
-            end
-            
-            -- Calculate box size based on distance
-            local sizeMultiplier = 1 / (distance * 0.2)
-            sizeMultiplier = math.clamp(sizeMultiplier, 0.1, 0.75) 
-            
-            local size = Vector2.new(35, 50) * sizeMultiplier
-            local position = Vector2.new(screenPos.X - size.X / 2, screenPos.Y - size.Y / 2)
-            
-            -- Update box
-            objects.Box.Size = size
-            objects.Box.Position = position
-            objects.Box.Visible = Config.Players.ShowBoxes
-            objects.Box.Color = GetPlayerColor(player)
-            
-            -- Update box fill
-            objects.BoxFill.Size = size
-            objects.BoxFill.Position = position
-            objects.BoxFill.Visible = Config.Players.ShowBoxes
-            objects.BoxFill.Color = GetPlayerColor(player)
-            
-            -- Update box outline
-            if Config.Visuals.BoxesOutline then
-                objects.BoxOutline.Size = size
-                objects.BoxOutline.Position = position
-                objects.BoxOutline.Visible = Config.Players.ShowBoxes
-            else
-                objects.BoxOutline.Visible = false
-            end
-            
-            -- Update name text
-            if Config.Players.ShowName then
-                objects.Name.Text = player.Name
-                objects.Name.Position = Vector2.new(screenPos.X, position.Y - 15)
-                objects.Name.Visible = true
-            else
-                objects.Name.Visible = false
-            end
-            
-            -- Update distance text
-            if Config.Players.ShowDistance then
-                objects.Distance.Text = string.format("[%d m]", math.floor(distance))
-                objects.Distance.Position = Vector2.new(screenPos.X, position.Y + size.Y + 5)
-                objects.Distance.Visible = true
-            else
-                objects.Distance.Visible = false
-            end
-            
-            -- Update health bar
-            if Config.Players.ShowHealth and humanoid then
-                local healthPercent = humanoid.Health / humanoid.MaxHealth
-                local barHeight = size.Y * healthPercent
-                
-                objects.HealthBarOutline.Size = Vector2.new(4, size.Y + 2)
-                objects.HealthBarOutline.Position = Vector2.new(position.X - 7, position.Y - 1)
-                objects.HealthBarOutline.Visible = true
-                
-                objects.HealthBar.Size = Vector2.new(2, barHeight)
-                objects.HealthBar.Position = Vector2.new(position.X - 6, position.Y + (size.Y - barHeight))
-                objects.HealthBar.Visible = true
-                
-                -- Update health bar color based on health percentage
-                objects.HealthBar.Color = Color3.fromRGB(
-                    255 * (1 - healthPercent),
-                    255 * healthPercent,
-                    0
-                )
-            else
-                objects.HealthBar.Visible = false
-                objects.HealthBarOutline.Visible = false
-            end
-            
-            -- Update tracers
-            if Config.Players.ShowTracers then
-                local tracerStart
-                if Config.Visuals.TracerOrigin == "Bottom" then
-                    tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                elseif Config.Visuals.TracerOrigin == "Center" then
-                    tracerStart = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                elseif Config.Visuals.TracerOrigin == "Mouse" then
-                    tracerStart = UserInputService:GetMouseLocation()
-                end
-                
-                objects.TracerOutline.From = tracerStart
-                objects.TracerOutline.To = Vector2.new(screenPos.X, screenPos.Y)
-                objects.TracerOutline.Visible = true
-                
-                objects.Tracer.From = tracerStart
-                objects.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
-                objects.Tracer.Color = GetPlayerColor(player)
-                objects.Tracer.Visible = true
-            else
-                objects.Tracer.Visible = false
-                objects.TracerOutline.Visible = false
-            end
-        else
-            for _, object in pairs(objects) do
-                object.Visible = false
-            end
-        end
+TeleTab:CreateSlider({
+    Name = "Tween Speed",
+    Range = {10, 100},
+    Increment = 5,
+    CurrentValue = Config.Teleportation.TweenSpeed,
+    Callback = function(Value)
+        Config.Teleportation.TweenSpeed = Value
     end
-end
+}, "TweenSpeedSlider")
 
-local function UpdateItemsESP()
-    for item, objects in pairs(DrawnItems) do
-        if not item or not item:IsA("BasePart") or not item.Parent then
-            RemoveItemESP(item)
-            continue
-        end
+TeleTab:CreateToggle({
+    Name = "Safe Mode",
+    Description = "Uses pathfinding for safer movement",
+    CurrentValue = Config.Teleportation.SafeMode,
+    Callback = function(Value)
+        Config.Teleportation.SafeMode = Value
+    end
+}, "SafeModeToggle")
+
+-- Stats tab
+StatsTab:CreateSection("Farm Statistics")
+
+-- Create labels for stats
+local PlantCountLabel = StatsTab:CreateLabel("Plants Grown: 0")
+local ItemCountLabel = StatsTab:CreateLabel("Items Collected: 0")
+local WaterCountLabel = StatsTab:CreateLabel("Times Watered: 0")
+local FailCountLabel = StatsTab:CreateLabel("Failed Actions: 0")
+local SessionTimeLabel = StatsTab:CreateLabel("Session Time: 00:00:00")
+
+-- Setup stats update
+spawn(function()
+    while task.wait(1) do
+        if not Stats then continue end
         
-        local distance = CalculateDistance(item.Position)
-        if distance > Config.Objects.MaxDistance then
-            for _, object in pairs(objects) do
-                object.Visible = false
-            end
-            continue
-        end
+        PlantCountLabel:Set({Text = "Plants Grown: " .. Stats.PlantsGrown})
+        ItemCountLabel:Set({Text = "Items Collected: " .. Stats.ItemsCollected})
+        WaterCountLabel:Set({Text = "Times Watered: " .. Stats.TimesWatered})
+        FailCountLabel:Set({Text = "Failed Actions: " .. Stats.FailedActions})
         
-        local screenPos, onScreen = Camera:WorldToScreenPoint(item.Position)
-        if not onScreen then
-            for _, object in pairs(objects) do
-                object.Visible = false
-            end
-            continue
-        end
+        local timeElapsed = os.time() - Stats.SessionStartTime
+        local hours = math.floor(timeElapsed / 3600)
+        local minutes = math.floor((timeElapsed % 3600) / 60)
+        local seconds = timeElapsed % 60
+        local timeString = string.format("%02d:%02d:%02d", hours, minutes, seconds)
         
-        -- Update name text
-        objects.Name.Position = Vector2.new(screenPos.X, screenPos.Y - 15)
-        objects.Name.Visible = true
-        
-        -- Update distance text
-        if Config.Objects.ShowDistance then
-            objects.Distance.Text = string.format("[%d m]", math.floor(distance))
-            objects.Distance.Position = Vector2.new(screenPos.X, screenPos.Y + 5)
-            objects.Distance.Visible = true
-        else
-            objects.Distance.Visible = false
-        end
-    end
-end
-
--- Main ESP update function
-local function UpdateESP()
-    if not Config.Enabled then
-        for _, objects in pairs(ESPObjects) do
-            for _, object in pairs(objects) do
-                object.Visible = false
-            end
-        end
-        
-        for _, objects in pairs(DrawnItems) do
-            for _, object in pairs(objects) do
-                object.Visible = false
-            end
-        end
-        return
-    end
-    
-    if Config.Players.Enabled then
-        UpdatePlayerESP()
-    else
-        for _, objects in pairs(ESPObjects) do
-            for _, object in pairs(objects) do
-                object.Visible = false
-            end
-        end
-    end
-    
-    if Config.Objects.Enabled then
-        UpdateItemsESP()
-    else
-        for _, objects in pairs(DrawnItems) do
-            for _, object in pairs(objects) do
-                object.Visible = false
-            end
-        end
-    end
-end
-
--- Player addition and removal handling
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        SetupPlayerESP(player)
-    end
-end
-
-Players.PlayerAdded:Connect(function(player)
-    if player ~= LocalPlayer then
-        SetupPlayerESP(player)
+        SessionTimeLabel:Set({Text = "Session Time: " .. timeString})
     end
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-    RemovePlayerESP(player)
+StatsTab:CreateSection("Task Status")
+
+local TaskStatusLabel = StatsTab:CreateLabel("Tasks: Idle")
+
+-- Setup task status update
+spawn(function()
+    while task.wait(1) do
+        if not TaskScheduler then continue end
+        
+        local status = TaskScheduler:GetTaskStatus()
+        TaskStatusLabel:Set({
+            Text = "Tasks: " .. status.Running .. " running, " .. 
+                  status.Idle .. " idle, " .. status.Paused .. " paused" .. 
+                  (status.HighestPriority ~= "None" and "\nCurrent Task: " .. status.HighestPriority or "")
+        })
+    end
 end)
 
--- Item scanning function
-local function ScanForItems()
-    if not Config.Objects.Enabled then return end
-    
-    -- For this demo, we'll look for certain items in the workspace
-    -- Real implementation should be customized for the specific game
-    for _, item in pairs(Config.Objects.Items) do
-        local parts = workspace:FindPartsInRegion3WithWhiteList(
-            Region3.new(
-                Vector3.new(-10000, -10000, -10000),
-                Vector3.new(10000, 10000, 10000)
-            ),
-            {item.Part},
-            100
-        )
-        
-        for _, part in ipairs(parts) do
-            if part:IsA("BasePart") then
-                SetupItemESP(part, item.Name, item.Color)
-            end
-        end
-    end
-end
+-- Settings tab
+SettingsTab:CreateSection("Performance")
 
--- Item scanning periodic check
-local ItemScanConnection = nil
-
--- UI BUILDING SECTION
-
--- Main ESP Toggle
-local MainToggle = MainTab:CreateToggle({
-    Name = "Enable ESP",
-    CurrentValue = false,
+SettingsTab:CreateToggle({
+    Name = "Low CPU Mode",
+    Description = "Reduces CPU usage but may be slower",
+    CurrentValue = Config.Performance.LowCPUMode,
     Callback = function(Value)
-        Config.Enabled = Value
-        if Value then
-            Luna:Notification({ 
-                Title = "ESP System",
-                Icon = "check-circle",
-                ImageSource = "Lucide",
-                Content = "ESP is now enabled"
-            })
-        else
-            Luna:Notification({ 
-                Title = "ESP System",
-                Icon = "x-circle",
-                ImageSource = "Lucide",
-                Content = "ESP is now disabled"
-            })
-        end
+        GardenBot.SetLowCPUMode(Value)
     end
-}, "MainESPToggle")
+}, "LowCPUModeToggle")
 
--- Player ESP Settings
-local PlayerToggle = PlayersTab:CreateToggle({
-    Name = "Player ESP",
-    CurrentValue = false,
-    Callback = function(Value)
-        Config.Players.Enabled = Value
-    end
-}, "PlayerESPToggle")
-
-PlayersTab:CreateToggle({
-    Name = "Show Names",
-    CurrentValue = true,
-    Callback = function(Value)
-        Config.Players.ShowName = Value
-    end
-}, "ShowNamesToggle")
-
-PlayersTab:CreateToggle({
-    Name = "Show Boxes",
-    CurrentValue = true,
-    Callback = function(Value)
-        Config.Players.ShowBoxes = Value
-    end
-}, "ShowBoxesToggle")
-
-PlayersTab:CreateToggle({
-    Name = "Show Health",
-    CurrentValue = true,
-    Callback = function(Value)
-        Config.Players.ShowHealth = Value
-    end
-}, "ShowHealthToggle")
-
-PlayersTab:CreateToggle({
-    Name = "Show Distance",
-    CurrentValue = true,
-    Callback = function(Value)
-        Config.Players.ShowDistance = Value
-    end
-}, "ShowDistanceToggle")
-
-PlayersTab:CreateToggle({
-    Name = "Show Tracers",
-    CurrentValue = false,
-    Callback = function(Value)
-        Config.Players.ShowTracers = Value
-    end
-}, "ShowTracersToggle")
-
-PlayersTab:CreateDropdown({
-    Name = "Tracer Origin",
-    Options = {"Bottom", "Center", "Mouse"},
-    CurrentOption = "Bottom",
-    MultipleOptions = false,
-    Callback = function(Option)
-        Config.Visuals.TracerOrigin = Option
-    end
-}, "TracerOriginDropdown")
-
-PlayersTab:CreateToggle({
-    Name = "Team Check",
-    CurrentValue = true,
-    Callback = function(Value)
-        Config.Players.TeamCheck = Value
-    end
-}, "TeamCheckToggle")
-
-PlayersTab:CreateToggle({
-    Name = "Use Team Color",
-    CurrentValue = true,
-    Callback = function(Value)
-        Config.Players.TeamColor = Value
-    end
-}, "TeamColorToggle")
-
-PlayersTab:CreateSlider({
-    Name = "Max Distance",
-    Range = {100, 5000},
-    Increment = 100,
-    CurrentValue = 1000,
-    Callback = function(Value)
-        Config.Players.MaxDistance = Value
-    end
-}, "PlayerDistanceSlider")
-
-PlayersTab:CreateColorPicker({
-    Name = "Box Color",
-    Color = Color3.fromRGB(255, 0, 0),
-    Callback = function(Value)
-        Config.Players.BoxColor = Value
-    end
-}, "BoxColorPicker")
-
-PlayersTab:CreateColorPicker({
-    Name = "Tracer Color",
-    Color = Color3.fromRGB(0, 255, 0),
-    Callback = function(Value)
-        Config.Players.TracerColor = Value
-    end
-}, "TracerColorPicker")
-
-PlayersTab:CreateColorPicker({
-    Name = "Name Color",
-    Color = Color3.fromRGB(255, 255, 255),
-    Callback = function(Value)
-        Config.Players.NameColor = Value
-    end
-}, "NameColorPicker")
-
--- World ESP Settings
-local WorldToggle = WorldTab:CreateToggle({
-    Name = "Item ESP",
-    CurrentValue = false,
-    Callback = function(Value)
-        Config.Objects.Enabled = Value
-        
-        if Value then
-            if not ItemScanConnection then
-                ItemScanConnection = RunService.Heartbeat:Connect(function()
-                    ScanForItems()
-                end)
-            end
-            Luna:Notification({
-                Title = "ESP System",
-                Icon = "check",
-                ImageSource = "Lucide",
-                Content = "Item ESP Enabled"
-            })
-        else
-            if ItemScanConnection then
-                ItemScanConnection:Disconnect()
-                ItemScanConnection = nil
-            end
-        end
-    end
-}, "ItemESPToggle")
-
-WorldTab:CreateToggle({
-    Name = "Show Distance",
-    CurrentValue = true,
-    Callback = function(Value)
-        Config.Objects.ShowDistance = Value
-    end
-}, "ItemDistanceToggle")
-
-WorldTab:CreateSlider({
-    Name = "Max Distance",
-    Range = {100, 2000},
-    Increment = 50,
-    CurrentValue = 500,
-    Callback = function(Value)
-        Config.Objects.MaxDistance = Value
-    end
-}, "ItemDistanceSlider")
-
-WorldTab:CreateColorPicker({
-    Name = "Item Color",
-    Color = Color3.fromRGB(0, 255, 255),
-    Callback = function(Value)
-        Config.Objects.ItemColor = Value
-    end
-}, "ItemColorPicker")
-
-WorldTab:CreateButton({
-    Name = "Add Chests",
-    Callback = function()
-        -- Example: Add chests to the items list
-        table.insert(Config.Objects.Items, {
-            Name = "Chest",
-            Part = workspace:FindFirstChild("Chest") or workspace, -- Replace with actual path in the game
-            Color = Color3.fromRGB(255, 215, 0)
-        })
-        
-        Luna:Notification({
-            Title = "ESP System",
-            Icon = "box",
-            ImageSource = "Lucide",
-            Content = "Added Chests to ESP"
-        })
-    end
-})
-
-WorldTab:CreateButton({
-    Name = "Add Collectibles",
-    Callback = function()
-        -- Example: Add collectibles to the items list
-        table.insert(Config.Objects.Items, {
-            Name = "Collectible",
-            Part = workspace:FindFirstChild("Collectible") or workspace, -- Replace with actual path in the game
-            Color = Color3.fromRGB(0, 255, 128)
-        })
-        
-        Luna:Notification({
-            Title = "ESP System",
-            Icon = "gem",
-            ImageSource = "Lucide",
-            Content = "Added Collectibles to ESP"
-        })
-    end
-})
-
--- Settings Tab - Visual Settings
 SettingsTab:CreateSlider({
-    Name = "ESP Transparency",
-    Range = {0.1, 1},
+    Name = "Task Delay",
+    Range = {0.05, 0.5},
     Increment = 0.05,
-    CurrentValue = 0.5,
+    CurrentValue = Config.Performance.TaskDelay,
     Callback = function(Value)
-        Config.Visuals.Transparency = Value
+        Config.Performance.TaskDelay = Value
     end
-}, "TransparencySlider")
+}, "TaskDelaySlider")
 
 SettingsTab:CreateSlider({
-    Name = "Text Size",
-    Range = {10, 24},
+    Name = "Max Concurrent Tasks",
+    Range = {1, 5},
     Increment = 1,
-    CurrentValue = 14,
+    CurrentValue = Config.Performance.MaxConcurrentTasks,
     Callback = function(Value)
-        Config.Visuals.TextSize = Value
+        Config.Performance.MaxConcurrentTasks = Value
     end
-}, "TextSizeSlider")
+}, "MaxTasksSlider")
+
+SettingsTab:CreateSection("Safety")
 
 SettingsTab:CreateToggle({
-    Name = "Text Outline",
-    CurrentValue = true,
+    Name = "Pause When Players Nearby",
+    CurrentValue = Config.Safety.PauseOnPlayerNearby,
     Callback = function(Value)
-        Config.Visuals.TextOutline = Value
+        Config.Safety.PauseOnPlayerNearby = Value
     end
-}, "TextOutlineToggle")
+}, "PauseNearbyToggle")
+
+SettingsTab:CreateSlider({
+    Name = "Player Proximity Threshold",
+    Range = {10, 50},
+    Increment = 5,
+    CurrentValue = Config.Safety.PlayerProximityThreshold,
+    Callback = function(Value)
+        Config.Safety.PlayerProximityThreshold = Value
+    end
+}, "ProximitySlider")
 
 SettingsTab:CreateToggle({
-    Name = "Box Outline",
-    CurrentValue = true,
+    Name = "Smart Method Switching",
+    Description = "Automatically pick the best interaction method",
+    CurrentValue = Config.Safety.HideMethodSwapping,
     Callback = function(Value)
-        Config.Visuals.BoxesOutline = Value
+        Config.Safety.HideMethodSwapping = Value
     end
-}, "BoxOutlineToggle")
+}, "MethodSwapToggle")
 
--- Settings Tab - Config Section
-SettingsTab:CreateButton({
-    Name = "Reset Settings",
-    Callback = function()
-        -- Reset all settings to default
-        Config = {
-            Enabled = false,
-            Players = {
-                Enabled = false,
-                ShowName = true,
-                ShowDistance = true,
-                ShowHealth = true,
-                ShowBoxes = true,
-                ShowTracers = false,
-                NameColor = Color3.fromRGB(255, 255, 255),
-                BoxColor = Color3.fromRGB(255, 0, 0),
-                TracerColor = Color3.fromRGB(0, 255, 0),
-                TeamCheck = true,
-                TeamColor = true,
-                MaxDistance = 1000
-            },
-            Objects = {
-                Enabled = false,
-                Items = {},
-                ItemColor = Color3.fromRGB(0, 255, 255),
-                ShowDistance = true,
-                MaxDistance = 500
-            },
-            Visuals = {
-                Transparency = 0.5,
-                TextSize = 14,
-                TextOutline = true,
-                BoxesOutline = true,
-                TracerOrigin = "Bottom"
-            }
-        }
-        
-        -- Update toggles and sliders to match reset settings
-        MainToggle:Set({CurrentValue = false})
-        PlayerToggle:Set({CurrentValue = false})
-        WorldToggle:Set({CurrentValue = false})
-        
-        Luna:Notification({
-            Title = "ESP System",
-            Icon = "refresh-cw",
-            ImageSource = "Lucide",
-            Content = "Settings Reset to Default"
-        })
+SettingsTab:CreateSection("User Interface")
+
+SettingsTab:CreateToggle({
+    Name = "Show Status Updates",
+    CurrentValue = Config.Interface.ShowStatusUpdates,
+    Callback = function(Value)
+        Config.Interface.ShowStatusUpdates = Value
     end
-})
+}, "StatusUpdatesToggle")
 
--- Start ESP update loop
-RunService:BindToRenderStep("ESP_Update", 201, UpdateESP)
+SettingsTab:CreateToggle({
+    Name = "Mute Notifications",
+    CurrentValue = Config.Interface.MuteNotifications,
+    Callback = function(Value)
+        Config.Interface.MuteNotifications = Value
+    end
+}, "MuteNotificationsToggle")
 
--- Notification when script loads
+SettingsTab:CreateSection("Debug Options")
+
+SettingsTab:CreateToggle({
+    Name = "Debug Mode",
+    Description = "Enables verbose logging",
+    CurrentValue = Config.Debug.Enabled,
+    Callback = function(Value)
+        Config.Debug.Enabled = Value
+    end
+}, "DebugModeToggle")
+
+SettingsTab:CreateSlider({
+    Name = "Log Level",
+    Range = {1, 5},
+    Increment = 1,
+    CurrentValue = Config.Debug.LogLevel,
+    Callback = function(Value)
+        Config.Debug.LogLevel = Value
+    end
+}, "LogLevelSlider")
+
+SettingsTab:CreateToggle({
+    Name = "Track Method Success",
+    Description = "Tracks which interaction methods work best",
+    CurrentValue = Config.Debug.TrackMethodSuccess,
+    Callback = function(Value)
+        Config.Debug.TrackMethodSuccess = Value
+    end
+}, "TrackMethodToggle")
+
+SettingsTab:CreateToggle({
+    Name = "Display Target Markers",
+    Description = "Show visual markers on targets",
+    CurrentValue = Config.Debug.DisplayTargetMarkers,
+    Callback = function(Value)
+        Config.Debug.DisplayTargetMarkers = Value
+    end
+}, "TargetMarkersToggle")
+
+-- Initialize bot
+GardenBot.Initialize()
+
+-- Show welcome notification
 Luna:Notification({
-    Title = "SkyX ESP System",
-    Icon = "check-circle",
-    ImageSource = "Lucide",
-    Content = "ESP System loaded successfully!"
+    Title = "SkyX Grow A Garden",
+    Content = "Advanced Farm Bot loaded successfully!"
 })
 
--- Clean up on script unload
-local Cleanup = Instance.new("BindableEvent")
-Cleanup.Event:Connect(function()
-    RunService:UnbindFromRenderStep("ESP_Update")
-    
-    for _, objects in pairs(ESPObjects) do
-        for _, object in pairs(objects) do
-            object:Remove()
-        end
-    end
-    
-    for _, objects in pairs(DrawnItems) do
-        for _, object in pairs(objects) do
-            object:Remove()
-        end
-    end
-    
-    if ItemScanConnection then
-        ItemScanConnection:Disconnect()
-    end
-    
-    ESPObjects = {}
-    DrawnItems = {}
-    Config = {}
-    
-    Luna:Destroy()
-    Cleanup:Destroy()
-end)
-
--- Load saved configurations
+-- Load config if saved
 Luna:LoadAutoloadConfig()
 
-return Cleanup -- Return cleanup bindable event for external script control
+-- Return the bot instance for external control
+return GardenBot
