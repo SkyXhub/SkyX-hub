@@ -1,264 +1,304 @@
 --[[    
-    OrionX Comprehensive Example Script
-    A full demonstration of OrionX UI features
-    
-    This script will work on any game and shows all the UI elements
-    with proper error handling and organization.
+    OrionX GitHub Example
+    This script demonstrates how to use OrionX UI according to the official GitHub documentation
 ]]
 
--- Load the OrionX UI Library
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI.lua')))() -- Use your actual URL here
+-- Load the OrionX UI Library from GitHub
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/TEst%20dontdon't%20work'))() 
 
--- Create the main window with all options
+
+-- Create a window with all options
 local Window = OrionLib:MakeWindow({
-    Name = "OrionX Complete Demo",
+    Name = "OrionX GitHub Example",
     HidePremium = false,
     SaveConfig = true,
-    ConfigFolder = "OrionXDemo",
+    ConfigFolder = "OrionXGitHub",
     IntroEnabled = true,
-    IntroText = "OrionX Demo",
-    IntroIcon = "home", -- Using built-in named icon
-    Icon = "home", -- Using built-in named icon
+    IntroText = "OrionX UI",
+    IntroIcon = "home", -- Using named icon
+    Icon = "home", -- Using named icon
     CloseCallback = function()
-        print("UI closed - performing cleanup")
+        print("Window closed")
     end
 })
-
--- Function to create a notification with error handling
-local function createNotification(title, content, image, time)
-    pcall(function()
-        OrionLib:MakeNotification({
-            Name = title or "Notification",
-            Content = content or "This is a notification",
-            Image = image or "info", -- Using built-in named icon as default
-            Time = time or 5
-        })
-    end)
-end
-
--- Welcome notification
-createNotification(
-    "OrionX Demo Loaded",
-    "Welcome to the complete OrionX UI example!",
-    "check",
-    7
-)
 
 -- Create Main Tab
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "home",
+    Icon = "home", -- Using named icon
     PremiumOnly = false
 })
 
--- Add Sections
+-- Add a section
 local InfoSection = MainTab:AddSection({
     Name = "Information"
 })
 
--- Add a label with error handling
-InfoSection:AddLabel("Welcome to OrionX UI Library Demo")
+-- Add a label
+InfoSection:AddLabel("Welcome to OrionX UI")
 
--- Add a paragraph with error handling
-InfoSection:AddParagraph("About This Demo", "This script demonstrates all UI elements and features of the OrionX UI Library. Explore the different tabs to see all available components.")
-
--- Add a button with error handling
-InfoSection:AddButton({
-    Name = "Show Notification",
-    Callback = function()
-        createNotification("Button Pressed", "You clicked the button!", "check", 3)
-    end    
-})
+-- Add a paragraph
+InfoSection:AddParagraph("GitHub Example", "This example demonstrates OrionX UI features based on GitHub documentation")
 
 -- Create Controls Tab
 local ControlsTab = Window:MakeTab({
     Name = "Controls",
-    Icon = "settings",
+    Icon = "settings", -- Using named icon
     PremiumOnly = false
 })
 
--- Add Basic Controls Section
-local BasicControlsSection = ControlsTab:AddSection({
+-- Add a basic section
+local BasicSection = ControlsTab:AddSection({
     Name = "Basic Controls"
 })
 
--- Add a toggle with error handling
-local toggleEnabled = false
-BasicControlsSection:AddToggle({
-    Name = "Toggle Example",
-    Default = false,
-    Save = true,
-    Flag = "toggleExample",
-    Callback = function(Value)
-        toggleEnabled = Value
-        print("Toggle set to: ", Value)
+-- Add a button
+BasicSection:AddButton({
+    Name = "Click Me",
+    Callback = function()
+        OrionLib:MakeNotification({
+            Name = "Button Pressed",
+            Content = "You clicked the button!",
+            Image = "check", -- Using named icon
+            Time = 5
+        })
     end    
 })
 
--- Add a slider with error handling
-BasicControlsSection:AddSlider({
-    Name = "Slider Example",
+-- Add a toggle with flag for config saving
+local toggle = BasicSection:AddToggle({
+    Name = "Toggle Feature",
+    Default = false,
+    Save = true,
+    Flag = "featureToggle",
+    Callback = function(Value)
+        print("Toggle value:", Value)
+    end    
+})
+
+-- Add a slider with config saving
+local slider = BasicSection:AddSlider({
+    Name = "Speed Adjustment",
     Min = 0,
     Max = 100,
     Default = 50,
     Color = Color3.fromRGB(255, 100, 100),
     Increment = 1,
-    ValueName = "value",
+    ValueName = "speed",
     Save = true,
-    Flag = "sliderExample",
+    Flag = "speedSlider",
     Callback = function(Value)
-        print("Slider value: ", Value)
+        print("Speed value:", Value)
     end    
 })
 
--- Add a dropdown with error handling
-BasicControlsSection:AddDropdown({
-    Name = "Dropdown Example",
+-- Add a dropdown with config saving
+local dropdown = BasicSection:AddDropdown({
+    Name = "Select Option",
     Default = "Option 1",
-    Options = {"Option 1", "Option 2", "Option 3", "Option 4", "Option 5"},
+    Options = {"Option 1", "Option 2", "Option 3", "Option 4"},
     Save = true,
-    Flag = "dropdownExample",
+    Flag = "optionDropdown",
     Callback = function(Option)
-        print("Selected option: ", Option)
+        print("Selected option:", Option)
     end    
 })
 
--- Advanced Controls Section
-local AdvancedControlsSection = ControlsTab:AddSection({
-    Name = "Advanced Controls"
-})
-
--- Add a keybind with error handling
-AdvancedControlsSection:AddBind({
-    Name = "Keybind Example",
-    Default = Enum.KeyCode.F,
-    Hold = false,
+-- Add a color picker with config saving
+local colorpicker = BasicSection:AddColorpicker({
+    Name = "UI Color",
+    Default = Color3.fromRGB(0, 120, 255),
     Save = true,
-    Flag = "keybindExample",
-    Callback = function()
-        createNotification("Keybind Pressed", "You pressed the keybind!", "key", 3)
-    end    
-})
-
--- Add a color picker with error handling
-AdvancedControlsSection:AddColorpicker({
-    Name = "Color Picker",
-    Default = Color3.fromRGB(255, 0, 0),
-    Save = true,
-    Flag = "colorpickerExample",
+    Flag = "uiColor",
     Callback = function(Value)
-        print("Selected color: ", Value)
+        print("Selected color:", Value)
     end    
 })
 
--- Add a textbox with error handling
-AdvancedControlsSection:AddTextbox({
-    Name = "Textbox Example",
-    Default = "Default text",
-    TextDisappear = false,
-    Callback = function(Text)
-        print("Entered text: ", Text)
-    end    
-})
-
--- Create Theme Tab
-local ThemeTab = Window:MakeTab({
-    Name = "Appearance",
-    Icon = "brush",
+-- Create Themes Tab
+local ThemesTab = Window:MakeTab({
+    Name = "Themes",
+    Icon = "brush", -- Using named icon
     PremiumOnly = false
 })
 
--- Create Events Tab
-local EventsTab = Window:MakeTab({
-    Name = "Events",
-    Icon = "bolt",
-    PremiumOnly = false
+-- Add themes section
+local ThemesSection = ThemesTab:AddSection({
+    Name = "Theme Selection"
 })
 
--- Add Events Section
-local EventsSection = EventsTab:AddSection({
-    Name = "Event Testing"
-})
-
--- Add a button to trigger multiple events
-EventsSection:AddButton({
-    Name = "Trigger Multiple Events",
+-- Add buttons for different built-in themes
+ThemesSection:AddButton({
+    Name = "Default Theme",
     Callback = function()
-        -- Update UI elements
-        pcall(function()
-            createNotification("Events Triggered", "Updating multiple UI elements", "check", 3)
-            
-            -- Change toggle state
-            toggleEnabled = not toggleEnabled
-            OrionLib.Flags["toggleExample"]:Set(toggleEnabled)
-            
-            -- Change slider value
-            local randomValue = math.random(0, 100)
-            OrionLib.Flags["sliderExample"]:Set(randomValue)
-            
-            -- Change dropdown value
-            local options = {"Option 1", "Option 2", "Option 3", "Option 4", "Option 5"}
-            local randomOption = options[math.random(1, #options)]
-            OrionLib.Flags["dropdownExample"]:Refresh(options, true)
-            OrionLib.Flags["dropdownExample"]:Set(randomOption)
-        end)
+        OrionLib.Themes:SetTheme("Default")
+        OrionLib:MakeNotification({
+            Name = "Theme Changed",
+            Content = "Applied Default theme",
+            Image = "check",
+            Time = 3
+        })
     end    
 })
 
--- Create utility functions section
-local UtilitySection = EventsTab:AddSection({
-    Name = "Utility Functions"
+ThemesSection:AddButton({
+    Name = "Dark Theme",
+    Callback = function()
+        OrionLib.Themes:SetTheme("Dark")
+        OrionLib:MakeNotification({
+            Name = "Theme Changed",
+            Content = "Applied Dark theme",
+            Image = "check",
+            Time = 3
+        })
+    end    
 })
 
--- Add a button to check game information
-UtilitySection:AddButton({
-    Name = "Get Game Info",
+ThemesSection:AddButton({
+    Name = "Ocean Theme",
     Callback = function()
-        local success, result = pcall(function()
-            local gameId = game.GameId
-            local placeId = game.PlaceId
-            local placeName = game:GetService("MarketplaceService"):GetProductInfo(placeId).Name
-            local playerCount = #game:GetService("Players"):GetPlayers()
-            
-            createNotification(
-                "Game Information",
-                "Game: " .. placeName .. " (" .. placeId .. ")\nPlayers: " .. playerCount,
-                "info",
-                5
-            )
-        end)
+        OrionLib.Themes:SetTheme("Ocean")
+        OrionLib:MakeNotification({
+            Name = "Theme Changed",
+            Content = "Applied Ocean theme",
+            Image = "check",
+            Time = 3
+        })
+    end    
+})
+
+-- Create a custom theme
+ThemesSection:AddButton({
+    Name = "Custom Purple Theme",
+    Callback = function()
+        -- Create a custom theme if it doesn't exist
+        OrionLib.Themes:AddTheme("Purple", {
+            Main = Color3.fromRGB(40, 25, 70),
+            Second = Color3.fromRGB(50, 35, 90),
+            Stroke = Color3.fromRGB(80, 60, 120),
+            Divider = Color3.fromRGB(80, 60, 120),
+            Text = Color3.fromRGB(240, 230, 255),
+            TextDark = Color3.fromRGB(170, 160, 190)
+        })
         
-        if not success then
-            createNotification("Error", "Failed to get game info: " .. tostring(result), "warning", 5)
-        end
-    end
+        -- Apply the custom theme
+        OrionLib.Themes:SetTheme("Purple")
+        OrionLib:MakeNotification({
+            Name = "Theme Changed",
+            Content = "Applied custom Purple theme",
+            Image = "check",
+            Time = 3
+        })
+    end    
 })
 
--- Create a Premium tab that's only visible to premium users
-local PremiumTab = Window:MakeTab({
-    Name = "Premium",
-    Icon = "crown",
-    PremiumOnly = true
+-- Create Mobile Tab
+local MobileTab = Window:MakeTab({
+    Name = "Mobile",
+    Icon = "phone", -- Using named icon
+    PremiumOnly = false
 })
 
--- If the user has access to premium tab, add content
-if PremiumTab then
-    local PremiumSection = PremiumTab:AddSection({
-        Name = "Premium Features"
-    })
-    
-    PremiumSection:AddParagraph("Premium Access", "You have access to premium features!")
-    
-    PremiumSection:AddButton({
-        Name = "Premium Feature",
-        Callback = function()
-            createNotification("Premium", "This is a premium feature!", "star", 3)
-        end
-    })
-end
+-- Add mobile settings section
+local MobileSection = MobileTab:AddSection({
+    Name = "Mobile Settings"
+})
 
--- Initialize the UI
+-- Add toggle button for mobile toggle visibility
+MobileSection:AddToggle({
+    Name = "Show Mobile Toggle",
+    Default = true,
+    Callback = function(Value)
+        OrionLib.Mobile:SetToggleVisibility(Value)
+        OrionLib:MakeNotification({
+            Name = "Mobile Setting Changed",
+            Content = "Mobile toggle is now " .. (Value and "visible" or "hidden"),
+            Image = "info",
+            Time = 3
+        })
+    end    
+})
+
+-- Add a dropdown for mobile toggle position
+MobileSection:AddDropdown({
+    Name = "Toggle Position",
+    Default = "TopRight",
+    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
+    Callback = function(Position)
+        OrionLib.Mobile:SetTogglePosition(Position)
+        OrionLib:MakeNotification({
+            Name = "Mobile Setting Changed",
+            Content = "Mobile toggle position set to " .. Position,
+            Image = "info",
+            Time = 3
+        })
+    end    
+})
+
+-- Using flags to access values
+local FlagsTab = Window:MakeTab({
+    Name = "Flags",
+    Icon = "flag", -- Using named icon
+    PremiumOnly = false
+})
+
+-- Add flags demo section
+local FlagsSection = FlagsTab:AddSection({
+    Name = "Flags Demonstration"
+})
+
+-- Add button to show how to access flag values
+FlagsSection:AddButton({
+    Name = "Show All Values",
+    Callback = function()
+        -- Access and print all flag values
+        local toggleValue = OrionLib.Flags["featureToggle"].Value
+        local sliderValue = OrionLib.Flags["speedSlider"].Value
+        local dropdownValue = OrionLib.Flags["optionDropdown"].Value
+        
+        -- Create a notification showing the values
+        OrionLib:MakeNotification({
+            Name = "Current Values",
+            Content = "Toggle: " .. tostring(toggleValue) .. 
+                     "\nSlider: " .. tostring(sliderValue) .. 
+                     "\nDropdown: " .. tostring(dropdownValue),
+            Image = "info",
+            Time = 5
+        })
+    end    
+})
+
+-- Add buttons to manipulate UI elements using flags
+FlagsSection:AddButton({
+    Name = "Toggle Feature On",
+    Callback = function()
+        toggle:Set(true) -- Using the toggle variable
+    end    
+})
+
+FlagsSection:AddButton({
+    Name = "Set Speed to 75",
+    Callback = function()
+        slider:Set(75) -- Using the slider variable
+    end    
+})
+
+FlagsSection:AddButton({
+    Name = "Change Dropdown to Option 3",
+    Callback = function()
+        dropdown:Set("Option 3") -- Using the dropdown variable
+    end    
+})
+
+FlagsSection:AddButton({
+    Name = "Change Color to Green",
+    Callback = function()
+        colorpicker:Set(Color3.fromRGB(0, 255, 0)) -- Using the colorpicker variable
+    end    
+})
+
+-- Initialize the UI (REQUIRED)
 OrionLib:Init()
 
--- Add a friendly message at the end
-print("OrionX UI Demo initialized successfully!")
+-- Add a friendly completion message
+print("OrionX GitHub example initialized!")
