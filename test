@@ -1,329 +1,264 @@
---[[  xx
-    SkyX Complete OrionX UI - Executor Example
-    This script demonstrates the correct OrionX-UI syntax based on the documentation
-]]--
+--[[    
+    OrionX Comprehensive Example Script
+    A full demonstration of OrionX UI features
+    
+    This script will work on any game and shows all the UI elements
+    with proper error handling and organization.
+]]
 
--- Load the SkyX modded OrionX UI Library from GitHub
-local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI')))()
+-- Load the OrionX UI Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI.lua')))() -- Use your actual URL here
 
--- Create main window
+-- Create the main window with all options
 local Window = OrionLib:MakeWindow({
-    Name = "SkyX Executor Example", 
+    Name = "OrionX Complete Demo",
     HidePremium = false,
-    SaveConfig = true, 
-    ConfigFolder = "SkyXConfig",
+    SaveConfig = true,
+    ConfigFolder = "OrionXDemo",
     IntroEnabled = true,
-    IntroText = "SkyX Enhanced",
-    IntroIcon = "home" -- Using icon name from the official list
+    IntroText = "OrionX Demo",
+    IntroIcon = "home", -- Using built-in named icon
+    Icon = "home", -- Using built-in named icon
+    CloseCallback = function()
+        print("UI closed - performing cleanup")
+    end
 })
 
--- No custom configuration required, the default settings will be used
+-- Function to create a notification with error handling
+local function createNotification(title, content, image, time)
+    pcall(function()
+        OrionLib:MakeNotification({
+            Name = title or "Notification",
+            Content = content or "This is a notification",
+            Image = image or "info", -- Using built-in named icon as default
+            Time = time or 5
+        })
+    end)
+end
 
--- Create main tab
+-- Welcome notification
+createNotification(
+    "OrionX Demo Loaded",
+    "Welcome to the complete OrionX UI example!",
+    "check",
+    7
+)
+
+-- Create Main Tab
 local MainTab = Window:MakeTab({
-    Name = "Main Functions",
-    Icon = "home", -- Using icon name from the official list
+    Name = "Main",
+    Icon = "home",
     PremiumOnly = false
 })
 
--- Create ESP section
-local ESPSection = MainTab:AddSection({
-    Name = "ESP Options"
+-- Add Sections
+local InfoSection = MainTab:AddSection({
+    Name = "Information"
 })
 
--- ESP Toggle with Save flag
-local ESPToggle = ESPSection:AddToggle({
-    Name = "Enable ESP",
+-- Add a label with error handling
+InfoSection:AddLabel("Welcome to OrionX UI Library Demo")
+
+-- Add a paragraph with error handling
+InfoSection:AddParagraph("About This Demo", "This script demonstrates all UI elements and features of the OrionX UI Library. Explore the different tabs to see all available components.")
+
+-- Add a button with error handling
+InfoSection:AddButton({
+    Name = "Show Notification",
+    Callback = function()
+        createNotification("Button Pressed", "You clicked the button!", "check", 3)
+    end    
+})
+
+-- Create Controls Tab
+local ControlsTab = Window:MakeTab({
+    Name = "Controls",
+    Icon = "settings",
+    PremiumOnly = false
+})
+
+-- Add Basic Controls Section
+local BasicControlsSection = ControlsTab:AddSection({
+    Name = "Basic Controls"
+})
+
+-- Add a toggle with error handling
+local toggleEnabled = false
+BasicControlsSection:AddToggle({
+    Name = "Toggle Example",
     Default = false,
     Save = true,
-    Flag = "espEnabled",
+    Flag = "toggleExample",
     Callback = function(Value)
-        -- ESP Logic would go here
-        if Value then
-            OrionLib:MakeNotification({
-                Name = "ESP Enabled",
-                Content = "ESP has been activated",
-                Image = "check",
-                Time = 5
-            })
-        else
-            OrionLib:MakeNotification({
-                Name = "ESP Disabled",
-                Content = "ESP has been deactivated",
-                Image = "error",
-                Time = 5
-            })
-        end
+        toggleEnabled = Value
+        print("Toggle set to: ", Value)
     end    
 })
 
--- ESP Color Picker with Save flag
-local ESPColorPicker = ESPSection:AddColorpicker({
-    Name = "ESP Color",
+-- Add a slider with error handling
+BasicControlsSection:AddSlider({
+    Name = "Slider Example",
+    Min = 0,
+    Max = 100,
+    Default = 50,
+    Color = Color3.fromRGB(255, 100, 100),
+    Increment = 1,
+    ValueName = "value",
+    Save = true,
+    Flag = "sliderExample",
+    Callback = function(Value)
+        print("Slider value: ", Value)
+    end    
+})
+
+-- Add a dropdown with error handling
+BasicControlsSection:AddDropdown({
+    Name = "Dropdown Example",
+    Default = "Option 1",
+    Options = {"Option 1", "Option 2", "Option 3", "Option 4", "Option 5"},
+    Save = true,
+    Flag = "dropdownExample",
+    Callback = function(Option)
+        print("Selected option: ", Option)
+    end    
+})
+
+-- Advanced Controls Section
+local AdvancedControlsSection = ControlsTab:AddSection({
+    Name = "Advanced Controls"
+})
+
+-- Add a keybind with error handling
+AdvancedControlsSection:AddBind({
+    Name = "Keybind Example",
+    Default = Enum.KeyCode.F,
+    Hold = false,
+    Save = true,
+    Flag = "keybindExample",
+    Callback = function()
+        createNotification("Keybind Pressed", "You pressed the keybind!", "key", 3)
+    end    
+})
+
+-- Add a color picker with error handling
+AdvancedControlsSection:AddColorpicker({
+    Name = "Color Picker",
     Default = Color3.fromRGB(255, 0, 0),
     Save = true,
-    Flag = "espColor",
+    Flag = "colorpickerExample",
     Callback = function(Value)
-        -- Color update logic would go here
-        OrionLib:MakeNotification({
-            Name = "ESP Color Updated",
-            Content = "ESP color has been changed",
-            Image = "info",
-            Time = 3
-        })
-    end  
-})
-
--- ESP Distance Slider with Save flag
-local ESPDistanceSlider = ESPSection:AddSlider({
-    Name = "ESP Distance",
-    Min = 10,
-    Max = 1000,
-    Default = 500,
-    Color = Color3.fromRGB(0, 120, 215),
-    Increment = 10,
-    Save = true,
-    Flag = "espDistance",
-    ValueName = "studs",
-    Callback = function(Value)
-        -- Distance update logic would go here
-        print("ESP Distance set to: " .. Value)
+        print("Selected color: ", Value)
     end    
 })
 
--- Create Movement section
-local MovementSection = MainTab:AddSection({
-    Name = "Movement Options"
+-- Add a textbox with error handling
+AdvancedControlsSection:AddTextbox({
+    Name = "Textbox Example",
+    Default = "Default text",
+    TextDisappear = false,
+    Callback = function(Text)
+        print("Entered text: ", Text)
+    end    
 })
 
--- Speed Slider with Save flag
-local SpeedSlider = MovementSection:AddSlider({
-    Name = "Walk Speed",
-    Min = 16,
-    Max = 500,
-    Default = 16,
-    Color = Color3.fromRGB(0, 120, 215),
-    Increment = 1,
-    Save = true,
-    Flag = "walkSpeed",
-    ValueName = "speed",
-    Callback = function(Value)
-        -- This is where the actual speed change would happen
+-- Create Theme Tab
+local ThemeTab = Window:MakeTab({
+    Name = "Appearance",
+    Icon = "brush",
+    PremiumOnly = false
+})
+
+-- Create Events Tab
+local EventsTab = Window:MakeTab({
+    Name = "Events",
+    Icon = "bolt",
+    PremiumOnly = false
+})
+
+-- Add Events Section
+local EventsSection = EventsTab:AddSection({
+    Name = "Event Testing"
+})
+
+-- Add a button to trigger multiple events
+EventsSection:AddButton({
+    Name = "Trigger Multiple Events",
+    Callback = function()
+        -- Update UI elements
         pcall(function()
-            game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = Value
+            createNotification("Events Triggered", "Updating multiple UI elements", "check", 3)
+            
+            -- Change toggle state
+            toggleEnabled = not toggleEnabled
+            OrionLib.Flags["toggleExample"]:Set(toggleEnabled)
+            
+            -- Change slider value
+            local randomValue = math.random(0, 100)
+            OrionLib.Flags["sliderExample"]:Set(randomValue)
+            
+            -- Change dropdown value
+            local options = {"Option 1", "Option 2", "Option 3", "Option 4", "Option 5"}
+            local randomOption = options[math.random(1, #options)]
+            OrionLib.Flags["dropdownExample"]:Refresh(options, true)
+            OrionLib.Flags["dropdownExample"]:Set(randomOption)
         end)
     end    
 })
 
--- Flight Toggle with Save flag
-local FlightToggle = MovementSection:AddToggle({
-    Name = "Enable Flight",
-    Default = false,
-    Save = true,
-    Flag = "flightEnabled",
-    Callback = function(Value)
-        -- Flight logic would go here
-        OrionLib:MakeNotification({
-            Name = Value and "Flight Enabled" or "Flight Disabled",
-            Content = Value and "You can now fly around the map" or "Flight has been deactivated",
-            Image = "document",
-            Time = 5
-        })
-    end    
+-- Create utility functions section
+local UtilitySection = EventsTab:AddSection({
+    Name = "Utility Functions"
 })
 
--- Create Teleport section
-local TeleportSection = MainTab:AddSection({
-    Name = "Teleport Options"
-})
-
--- Teleport to Player Dropdown
-local PlayerDropdown = TeleportSection:AddDropdown({
-    Name = "Select Player",
-    Default = "",
-    Options = {"Loading players..."},
-    Save = false,
-    Flag = "selectedPlayer",
-    Callback = function(Value)
-        -- Logic for saving selected player
-        print("Selected player: " .. Value)
-    end    
-})
-
--- Function to refresh player list
-local function RefreshPlayerList()
-    local Players = game:GetService("Players")
-    local playerNames = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= Players.LocalPlayer then
-            table.insert(playerNames, player.Name)
+-- Add a button to check game information
+UtilitySection:AddButton({
+    Name = "Get Game Info",
+    Callback = function()
+        local success, result = pcall(function()
+            local gameId = game.GameId
+            local placeId = game.PlaceId
+            local placeName = game:GetService("MarketplaceService"):GetProductInfo(placeId).Name
+            local playerCount = #game:GetService("Players"):GetPlayers()
+            
+            createNotification(
+                "Game Information",
+                "Game: " .. placeName .. " (" .. placeId .. ")\nPlayers: " .. playerCount,
+                "info",
+                5
+            )
+        end)
+        
+        if not success then
+            createNotification("Error", "Failed to get game info: " .. tostring(result), "warning", 5)
         end
     end
+})
+
+-- Create a Premium tab that's only visible to premium users
+local PremiumTab = Window:MakeTab({
+    Name = "Premium",
+    Icon = "crown",
+    PremiumOnly = true
+})
+
+-- If the user has access to premium tab, add content
+if PremiumTab then
+    local PremiumSection = PremiumTab:AddSection({
+        Name = "Premium Features"
+    })
     
-    if #playerNames == 0 then
-        table.insert(playerNames, "No other players")
-    end
+    PremiumSection:AddParagraph("Premium Access", "You have access to premium features!")
     
-    -- Use the Refresh method as shown in documentation
-    PlayerDropdown:Refresh(playerNames, true)
+    PremiumSection:AddButton({
+        Name = "Premium Feature",
+        Callback = function()
+            createNotification("Premium", "This is a premium feature!", "star", 3)
+        end
+    })
 end
 
--- Refresh the player list
-RefreshPlayerList()
-
--- Refresh Button
-TeleportSection:AddButton({
-    Name = "Refresh Player List",
-    Callback = function()
-        RefreshPlayerList()
-        OrionLib:MakeNotification({
-            Name = "Player List Updated",
-            Content = "The player list has been refreshed",
-            Image = "refresh",
-            Time = 3
-        })
-    end    
-})
-
--- Teleport Button
-TeleportSection:AddButton({
-    Name = "Teleport to Player",
-    Callback = function()
-        -- Access the flag value as shown in documentation
-        local selectedPlayer = OrionLib.Flags["selectedPlayer"].Value
-        
-        if selectedPlayer and selectedPlayer ~= "No other players" then
-            -- This is where the actual teleport would happen
-            local Players = game:GetService("Players")
-            local targetPlayer = Players:FindFirstChild(selectedPlayer)
-            
-            if targetPlayer and targetPlayer.Character then
-                OrionLib:MakeNotification({
-                    Name = "Teleporting",
-                    Content = "Teleporting to " .. selectedPlayer,
-                    Image = "info",
-                    Time = 5
-                })
-                
-                -- Teleport logic would go here
-                game.Players.LocalPlayer.Character:SetPrimaryPartCFrame(targetPlayer.Character.HumanoidRootPart.CFrame)
-            end
-        else
-            OrionLib:MakeNotification({
-                Name = "Error",
-                Content = "Please select a valid player first",
-                Image = "error",
-                Time = 5
-            })
-        end
-    end    
-})
-
--- Create Game tab
-local GameTab = Window:MakeTab({
-    Name = "Game Options",
-    Icon = "gamepad", -- Using icon name from the official list
-    PremiumOnly = false
-})
-
--- Add a paragraph to the game tab
-GameTab:AddParagraph("Game Info", "This tab would contain game-specific options.")
-
--- Create Keybind example
-GameTab:AddBind({
-    Name = "Toggle UI",
-    Default = Enum.KeyCode.RightControl,
-    Hold = false,
-    Save = true,
-    Flag = "toggleUIBind",
-    Callback = function()
-        print("UI Toggle Hotkey Pressed")
-    end    
-})
-
--- Create Settings tab
-local SettingsTab = Window:MakeTab({
-    Name = "Settings",
-    Icon = "settings", -- Using icon name from the official list
-    PremiumOnly = false
-})
-
--- Add textbox for configuration
-SettingsTab:AddTextbox({
-    Name = "Custom Name",
-    Default = "SkyX User",
-    TextDisappear = false,
-    Callback = function(Value)
-        OrionLib:MakeNotification({
-            Name = "Name Updated",
-            Content = "Your custom name is now: " .. Value,
-            Image = "check",
-            Time = 3
-        })
-    end
-})
-
--- Create About Tab
-local AboutTab = Window:MakeTab({
-    Name = "About",
-    Icon = "info", -- Using icon name from the official list
-    PremiumOnly = false
-})
-
-AboutTab:AddParagraph("SkyX Enhanced OrionX UI", "This script demonstrates the proper usage of the OrionX UI Library by SkyX.")
-
-AboutTab:AddParagraph("Features", [[• Modern interface using Orion UI
-• Auto-save system for all settings
-• Enhanced animations for UI elements
-• Better notification system
-• SkyX branding integration
-• Icon system integration
-• Touch input support for mobile users]])
-
-AboutTab:AddLabel("Version: 1.0.0")
-
--- Add a label that we'll update later
-local StatusLabel = AboutTab:AddLabel("Status: Loading...")
-
--- Update label example
-wait(2) -- Wait for intro to finish
-StatusLabel:Set("Status: Ready!")
-
--- Credits Button
-AboutTab:AddButton({
-    Name = "Copy Discord Link",
-    Callback = function()
-        -- This would copy a Discord link to clipboard in a real executor
-        setclipboard("https://discord.gg/skyx")
-        OrionLib:MakeNotification({
-            Name = "Discord Link",
-            Content = "Discord invite link copied to clipboard!",
-            Image = "info",
-            Time = 5
-        })
-    end    
-})
-
--- Initialize library to trigger intro sequence and auto-save system
+-- Initialize the UI
 OrionLib:Init()
 
--- Welcome notification after a delay
-wait(2) -- Wait for intro to finish
-OrionLib:MakeNotification({
-    Name = "Welcome",
-    Content = "Welcome to the SkyX Enhanced Executor! Explore the tabs to discover all features.",
-    Image = "home",
-    Time = 7
-})
-
--- Demonstrate setting toggle value programmatically
-wait(5)
-ESPToggle:Set(true) -- This will call the callback and show a notification
-
--- Demonstrate setting color programmatically
-wait(2)
-ESPColorPicker:Set(Color3.fromRGB(0, 255, 0)) -- Changes the color to green
-
--- Demonstrate setting slider value programmatically
-wait(2)
-ESPDistanceSlider:Set(750) -- This will update the slider to 750
+-- Add a friendly message at the end
+print("OrionX UI Demo initialized successfully!")
