@@ -1,4 +1,4 @@
---[[
+--[[aaaaaaaaaaaaaaa
     SkyX MM2 Advanced Script with OrionX UI
     
     A comprehensive script with 50 powerful features for Murder Mystery 2
@@ -337,7 +337,7 @@ local function UpdateESP()
             for _, drawing in pairs(ESP) do
                 drawing.Visible = false
             end
-            goto continue
+            goto continue_esp
         end
         
         local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
@@ -348,7 +348,7 @@ local function UpdateESP()
             for _, drawing in pairs(ESP) do
                 drawing.Visible = false
             end
-            goto continue
+            goto continue_esp
         end
         
         local rootPosition = humanoidRootPart.Position
@@ -358,7 +358,7 @@ local function UpdateESP()
             for _, drawing in pairs(ESP) do
                 drawing.Visible = false
             end
-            goto continue
+            goto continue_esp
         end
         
         local role = GetPlayerRole(player)
@@ -549,6 +549,8 @@ local function UpdateItemESP()
         ESP.Distance.Text = "["..math.floor(distance).."m]"
         ESP.Distance.Position = Vector2.new(screenPosition.X, screenPosition.Y - 10)
         ESP.Distance.Visible = true
+        
+        ::continue_item_esp::
     end
 end
 
@@ -592,6 +594,8 @@ local function GetClosestPlayerToCursor(FOV)
             closestPlayer = player
             shortestDistance = cursorDistance
         end
+        
+        ::continue_player::
     end
     
     return closestPlayer
@@ -629,6 +633,8 @@ local function UpdateRoles()
         else
             table.insert(MM2.Players.Innocents, player)
         end
+        
+        ::continue_roles_player::
     end
     
     -- If player is the murderer or sheriff
@@ -763,8 +769,8 @@ local function KillAura()
     if not MM2.Players.Murderer == LocalPlayer then return end
     
     for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        if not IsAlive(player) then continue end
+        if player == LocalPlayer then goto continue_aura end
+        if not IsAlive(player) then goto continue_aura end
         
         local distance = GetDistanceFromPlayer(player.Character.HumanoidRootPart.Position)
         if distance <= Config.Knife.KnifeRange then
@@ -779,6 +785,7 @@ local function KillAura()
                 break -- Only kill one player at a time
             end
         end
+        ::continue_aura::
     end
 end
 
@@ -916,8 +923,8 @@ local function ApplyChams(enabled)
     if not enabled then
         -- Remove chams
         for _, player in pairs(Players:GetPlayers()) do
-            if player == LocalPlayer then continue end
-            if not player.Character then continue end
+            if player == LocalPlayer then goto continue_chams_remove end
+            if not player.Character then goto continue_chams_remove end
             
             for _, part in pairs(player.Character:GetDescendants()) do
                 if part:IsA("BasePart") and part.Transparency < 1 then
@@ -927,14 +934,15 @@ local function ApplyChams(enabled)
                     end
                 end
             end
+            ::continue_chams_remove::
         end
         return
     end
     
     -- Apply chams
     for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then continue end
-        if not player.Character then continue end
+        if player == LocalPlayer then goto continue_chams_apply end
+        if not player.Character then goto continue_chams_apply end
         
         local role = GetPlayerRole(player)
         local color
@@ -965,6 +973,8 @@ local function ApplyChams(enabled)
                 frame.Parent = highlight
             end
         end
+        
+        ::continue_chams_apply::
     end
 end
 
