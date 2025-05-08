@@ -1,2253 +1,867 @@
---[[aaaaaaaaaaaaaaa
-    SkyX MM2 Advanced Script with OrionX UI
-    
-    A comprehensive script with 50 powerful features for Murder Mystery 2
-    Integrated with the enhanced OrionX UI and Anti-Ban system
-]]
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- Load the OrionX UI library with Anti-Ban functionality
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))()
+-- Test
 
--- Services
+
+
+-- Set theme:
+--WindUI:SetTheme("Light")
+
+--- EXAMPLE !!!
+
+function gradient(text, startColor, endColor)
+    local result = ""
+    local length = #text
+
+    for i = 1, length do
+        local t = (i - 1) / math.max(length - 1, 1)
+        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
+        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
+        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
+
+        local char = text:sub(i, i)
+        result = result .. "<font color=\"rgb(" .. r ..", " .. g .. ", " .. b .. ")\">" .. char .. "</font>"
+    end
+
+    return result
+end
+
+local Confirmed = false
+
+WindUI:Popup({
+    Title = "Welcome! Popup Example",
+    Icon = "info",
+    Content = "This is an Example UI for the " .. gradient("WindUI", Color3.fromHex("#00FF87"), Color3.fromHex("#60EFFF")) .. " Lib",
+    Buttons = {
+        {
+            Title = "Cancel",
+            --Icon = "",
+            Callback = function() end,
+            Variant = "Secondary", -- Primary, Secondary, Tertiary
+        },
+        {
+            Title = "Continue",
+            Icon = "arrow-right",
+            Callback = function() Confirmed = true end,
+            Variant = "Primary", -- Primary, Secondary, Tertiary
+        }
+    }
+})
+
+
+repeat wait() until Confirmed
+
+--
+
+local Window = WindUI:CreateWindow({
+    Title = "WindUI Library",
+    Icon = "door-open",
+    Author = "Example UI",
+    Folder = "CloudHub",
+    Size = UDim2.fromOffset(580, 460),
+    Transparent = true,
+    Theme = "Dark",
+    User = {
+        Enabled = true, -- <- or false
+        Callback = function() print("clicked") end, -- <- optional
+        Anonymous = true -- <- or true
+    },
+    SideBarWidth = 200,
+    --Background = "rbxassetid://13511292247", -- rbxassetid only
+    HasOutline = true,
+    -- remove it below if you don't want to use the key system in your script.
+    KeySystem = { -- <- keysystem enabled
+        Key = { "1234", "5678" },
+        Note = "Example Key System. \n\nThe Key is '1234' or '5678",
+        -- Thumbnail = {
+        --     Image = "rbxassetid://18220445082", -- rbxassetid only
+        --     Title = "Thumbnail"
+        -- },
+        URL = "https://github.com/Footagesus/WindUI", -- remove this if the key is not obtained from the link.
+        SaveKey = true, -- optional
+    },
+})
+
+
+--Window:SetBackgroundImage("rbxassetid://13511292247")
+
+
+Window:EditOpenButton({
+    Title = "Open Example UI",
+    Icon = "monitor",
+    CornerRadius = UDim.new(0,16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new( -- gradient
+        Color3.fromHex("FF0F7B"), 
+        Color3.fromHex("F89B29")
+    ),
+    --Enabled = false,
+    Draggable = true,
+})
+
+
+local Tabs = {
+    ParagraphTab = Window:Tab({ Title = "Paragraph", Icon = "type" }),
+    ButtonTab = Window:Tab({ Title = "Button", Icon = "mouse-pointer-2", Desc = "Contains interactive buttons for various actions." }),
+    CodeTab = Window:Tab({ Title = "Code", Icon = "code", Desc = "Displays and manages code snippets." }),
+    ColorPickerTab = Window:Tab({ Title = "ColorPicker", Icon = "paintbrush", Desc = "Choose and customize colors easily." }),
+    DialogTab = Window:Tab({ Title = "Dialog", Icon = "message-square", Desc = "Dialog lol" }),
+    NotificationTab = Window:Tab({ Title = "Notification", Icon = "bell", Desc = "Configure and view notifications." }),
+    ToggleTab = Window:Tab({ Title = "Toggle", Icon = "toggle-left", Desc = "Switch settings on and off." }),
+    SliderTab = Window:Tab({ Title = "Slider", Icon = "sliders-horizontal", Desc = "Adjust values smoothly with sliders." }),
+    InputTab = Window:Tab({ Title = "Input", Icon = "keyboard", Desc = "Accept text and numerical input." }),
+    KeybindTab = Window:Tab({ Title = "Keybind", Icon = "keyboard-off" }),
+    DropdownTab = Window:Tab({ Title = "Dropdown", Icon = "chevrons-up-down", Desc = "Select from multiple options." }),
+    divider1 = Window:Divider(),
+    --
+    WindowTab = Window:Tab({ 
+        Title = "Window and File Configuration", 
+        Icon = "settings", 
+        Desc = "Manage window settings and file configurations.", 
+        ShowTabTitle = true
+    }),
+
+    CreateThemeTab = Window:Tab({ Title = "Create Theme", Icon = "palette", Desc = "Design and apply custom themes." }),
+    be = Window:Divider(),
+    LongTab = Window:Tab({ Title = "Long and empty tab. Looong and empty.. tab.", Icon = "frown", Desc = "Long Description" }),
+    LockedTab = Window:Tab({ Title = "Locked Tab", Icon = "lock", Desc = "This tab is locked", Locked = true }),
+    TabWithoutIcon = Window:Tab({ Title = "Tab Without icon", ShowTabTitle = true }),
+    Tests = Window:Tab({ Title = "Tests", Icon = "settings", ShowTabTitle = true }),
+}
+
+Window:SelectTab(1)
+
+Tabs.ParagraphTab:Paragraph({
+    Title = "Paragraph with Image & Thumbnail",
+    Desc = "Test Paragraph",
+    Image = "https://play-lh.googleusercontent.com/7cIIPlWm4m7AGqVpEsIfyL-HW4cQla4ucXnfalMft1TMIYQIlf2vqgmthlZgbNAQoaQ",
+    ImageSize = 34, -- default 30
+    Thumbnail = "https://tr.rbxcdn.com/180DAY-59af3523ad8898216dbe1043788837bf/768/432/Image/Webp/noFilter",
+    ThumbnailSize = 120 -- Thumbnail height
+})
+Tabs.ParagraphTab:Paragraph({
+    Title = "Paragraph with Image & Thumbnail & Buttons",
+    Desc = "Test Paragraph",
+    Image = "https://play-lh.googleusercontent.com/7cIIPlWm4m7AGqVpEsIfyL-HW4cQla4ucXnfalMft1TMIYQIlf2vqgmthlZgbNAQoaQ",
+    ImageSize = 34, -- default 30
+    Thumbnail = "https://tr.rbxcdn.com/180DAY-59af3523ad8898216dbe1043788837bf/768/432/Image/Webp/noFilter",
+    ThumbnailSize = 120, -- Thumbnail height
+    Buttons = {
+        {
+            Title = "Button 1",
+            Variant = "Primary",
+            Callback = function() print("1 Button") end,
+            Icon = "bird",
+        },
+        {
+            Title = "Button 2",
+            Variant = "Primary",
+            Callback = function() print("2 Button") end,
+            Icon = "bird",
+        },
+        {
+            Title = "Button 3",
+            Variant = "Primary",
+            Callback = function() print("3 Button") end,
+            Icon = "bird",
+        },
+    }
+})
+
+for _,i in next, { "Default", "Red", "Orange", "Green", "Blue", "Grey", "White" } do
+    Tabs.ParagraphTab:Paragraph({
+        Title = i,
+        Desc = "Paragraph with color",
+        Image = "bird",
+        Color = i ~= "Default" and i or nil,
+        Buttons = {
+            {
+                Title = "Button 1",
+                Variant = "Primary",
+                Callback = function() print("1 Button") end,
+                Icon = "bird",
+            },
+            {
+                Title = "Button 2",
+                Variant = "Primary",
+                Callback = function() print("2 Button") end,
+                Icon = "bird",
+            },
+            {
+                Title = "Button 3",
+                Variant = "Primary",
+                Callback = function() print("3 Button") end,
+                Icon = "bird",
+            },
+        }
+    })
+end
+
+
+
+Tabs.ButtonTab:Button({
+    Title = "Click Me",
+    Desc = "This is a simple button",
+    Callback = function() print("Button Clicked!") end
+})
+
+Tabs.ButtonTab:Button({
+    Title = "Locked Button",
+    Desc = "This button is locked",
+    Locked = true,
+})
+
+local destroybtn
+destroybtn = Tabs.ButtonTab:Button({
+    Title = "Click to destroy me!",
+    Callback = function() destroybtn:Destroy() end,
+})
+
+Tabs.ButtonTab:Button({
+    Title = "Submit",
+    Desc = "Click to submit",
+    Callback = function() print("Submitted!") end,
+})
+
+Tabs.ButtonTab:Button({
+    Title = "Set ToggleKey to 'F'",
+    Callback = function() Window:SetToggleKey(Enum.KeyCode.F) end,
+})
+
+
+Tabs.CodeTab:Code({
+    Title = "example-code.luau",
+    Code = [[-- Example Luau code to test syntax highlighting
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Workspace = game:GetService("Workspace")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
-local Lighting = game:GetService("Lighting")
-local VirtualUser = game:GetService("VirtualUser")
 
--- Player references
-local LocalPlayer = Players.LocalPlayer
-local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local Humanoid = Character:WaitForChild("Humanoid")
-local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
-local Camera = workspace.CurrentCamera
+local function factorial(n)
+    if n <= 1 then
+        return 1
+    else
+        return n * factorial(n - 1)
+    end
+end
 
--- Game References
-local MM2 = {}
-MM2.Players = {}
-MM2.Map = workspace:FindFirstChild("Map")
-MM2.GameData = ReplicatedStorage:WaitForChild("GameData", 10)
-MM2.Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
-MM2.Players.Murderer = nil
-MM2.Players.Sheriff = nil
-MM2.Players.Innocents = {}
-MM2.Pickups = {}
-MM2.Coins = {}
-MM2.KnifeInMap = nil
-MM2.GunInMap = nil
+local result = factorial(5)
+print("Factorial of 5 is:", result)
 
--- Script Configuration
-local Config = {
-    ESP = {
-        Enabled = false,
-        ShowRole = true,
-        ShowDistance = true,
-        ShowHealth = true,
-        PlayerBoxes = true,
-        CoinESP = false,
-        GunESP = true,
-        MurdererColor = Color3.fromRGB(255, 0, 0),
-        SheriffColor = Color3.fromRGB(0, 0, 255),
-        InnocentColor = Color3.fromRGB(0, 255, 0),
-        CoinColor = Color3.fromRGB(255, 255, 0),
-        GunColor = Color3.fromRGB(0, 255, 255)
-    },
-    Aimbot = {
-        Enabled = false,
-        TargetPart = "Head",
-        TeamCheck = true,
-        VisibilityCheck = true,
-        TargetMurderer = true,
-        AimKey = Enum.KeyCode.Q,
-        FOV = 200,
-        Smoothness = 0.5,
-        Sensitivity = 0.5,
-        ShowFOV = true,
-        FOVColor = Color3.fromRGB(255, 255, 255)
-    },
-    Gun = {
-        AutoPickup = false,
-        SilentAim = false,
-        WallBang = false,
-        InstantKill = false,
-        AutoShoot = false
-    },
-    Knife = {
-        SilentAim = false,
-        KnifeRange = 50,
-        KnifeAura = false,
-        KillAll = false,
-        KillAura = false,
-        ThrowAccuracy = false
-    },
-    Character = {
-        WalkSpeed = 16,
-        JumpPower = 50,
-        InfiniteJump = false,
-        NoClip = false,
-        GodMode = false,
-        FlyEnabled = false,
-        FlySpeed = 50,
-        FakeEmotes = false,
-        Invisible = false,
-        AntiRagdoll = false
-    },
-    Teleports = {
-        AutoCoin = false,
-        CoinMagnet = false,
-        AutoFarm = false,
-        FarmSpeed = 1
-    },
-    Visuals = {
-        FullBright = false,
-        NoFog = false,
-        Chams = false,
-        RainbowTheme = false,
-        CustomTime = false,
-        TimeValue = 14,
-        XRay = false,
-        ThirdPerson = false,
-        FOVChanger = false,
-        FOVValue = 70
-    },
-    Misc = {
-        ChatSpam = false,
-        ChatSpamText = "SkyX MM2 Script is the best!",
-        AutoRejoin = true,
-        SpeedBoost = false,
-        UnlockEmotes = false,
-        FastDrop = false
-    },
-    AntiCheat = {
-        Enabled = true,
-        AntiKick = true,
-        AntiAFK = true,
-        AntiReport = true,
-        AntiSpectate = true,
-        HideFrom = true
-    }
+local playerName = "Player"
+local score = 100
+
+if score >= 100 then
+    print(playerName .. " earned an achievement!")
+else
+    warn("Need more points.")
+end
+
+-- Table with nested values
+local playerStats = {
+    name = "Player",
+    health = 100,
+    inventory = {"sword", "shield", "potion"}
 }
 
--- ESP Drawing Objects
-local ESPObjects = {}
-local AimbotFOVCircle = Drawing.new("Circle")
-AimbotFOVCircle.Visible = false
-AimbotFOVCircle.Radius = Config.Aimbot.FOV
-AimbotFOVCircle.Color = Config.Aimbot.FOVColor
-AimbotFOVCircle.Thickness = 1
-AimbotFOVCircle.Transparency = 1
-AimbotFOVCircle.NumSides = 36
-AimbotFOVCircle.Filled = false
-
--- Initialize local variables
-local FlyPart = nil
-local NoClipConnection = nil
-local AimbotActive = false
-local AimbotTarget = nil
-local ESPConnection = nil
-local CoinsConnection = nil
-local RoleConnection = nil
-local AutoFarmConnection = nil
-
--- Helper Functions
-local function IsAlive(player)
-    if not player or not player.Character then return false end
-    local humanoid = player.Character:FindFirstChild("Humanoid")
-    return humanoid and humanoid.Health > 0
-end
-
-local function GetPlayerRole(player)
-    if not player then return "Unknown" end
-    
-    if MM2.Players.Murderer == player then
-        return "Murderer"
-    elseif MM2.Players.Sheriff == player then
-        return "Sheriff"
-    else
-        return "Innocent"
-    end
-end
-
-local function GetDistanceFromPlayer(position)
-    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then return 0 end
-    return (LocalPlayer.Character.HumanoidRootPart.Position - position).Magnitude
-end
-
-local function CreateESP(player)
-    if player == LocalPlayer then return end
-    
-    -- Enhanced ESP with more visual elements for better visuals
-    local ESP = {
-        Name = Drawing.new("Text"),
-        Box = Drawing.new("Square"),
-        BoxOutline = Drawing.new("Square"),
-        BoxFill = Drawing.new("Square"),  -- Add box fill with transparency
-        Tracer = Drawing.new("Line"),
-        Distance = Drawing.new("Text"),
-        Role = Drawing.new("Text"),
-        Health = Drawing.new("Text"),
-        HealthBar = Drawing.new("Square"), -- Health bar visual indicator
-        HealthBarOutline = Drawing.new("Square"), -- Health bar outline
-        HeadDot = Drawing.new("Circle"), -- Head indicator dot
-        Snapline = Drawing.new("Line") -- Line from screen center to player head
-    }
-    
-    -- Player name with shadow effect and larger text for better visibility
-    ESP.Name.Text = player.Name
-    ESP.Name.Size = 16
-    ESP.Name.Color = Color3.fromRGB(255, 255, 255)
-    ESP.Name.Outline = true
-    ESP.Name.OutlineColor = Color3.fromRGB(0, 0, 0)
-    ESP.Name.Font = 3 -- Bold font
-    ESP.Name.Position = Vector2.new(0, 0)
-    ESP.Name.Center = true
-    ESP.Name.Visible = false
-    
-    -- Improved box with thinner lines for cleaner look
-    ESP.Box.Thickness = 1
-    ESP.Box.Color = Color3.fromRGB(255, 255, 255)
-    ESP.Box.Filled = false
-    ESP.Box.Transparency = 1
-    ESP.Box.Visible = false
-    
-    -- Box outline with improved thickness
-    ESP.BoxOutline.Thickness = 2
-    ESP.BoxOutline.Color = Color3.fromRGB(0, 0, 0)
-    ESP.BoxOutline.Filled = false
-    ESP.BoxOutline.Transparency = 0.8
-    ESP.BoxOutline.Visible = false
-    
-    -- Box fill with low transparency for subtle highlighting
-    ESP.BoxFill.Color = Color3.fromRGB(255, 255, 255)
-    ESP.BoxFill.Filled = true
-    ESP.BoxFill.Transparency = 0.1
-    ESP.BoxFill.Visible = false
-    
-    -- Tracer line from bottom of screen
-    ESP.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-    ESP.Tracer.To = Vector2.new(0, 0)
-    ESP.Tracer.Color = Color3.fromRGB(255, 255, 255)
-    ESP.Tracer.Thickness = 1
-    ESP.Tracer.Transparency = 0.6
-    ESP.Tracer.Visible = false
-    
-    -- Distance indicator with modern font
-    ESP.Distance.Text = ""
-    ESP.Distance.Size = 14
-    ESP.Distance.Color = Color3.fromRGB(220, 220, 220)
-    ESP.Distance.Outline = true
-    ESP.Distance.OutlineColor = Color3.fromRGB(0, 0, 0)
-    ESP.Distance.Font = 2
-    ESP.Distance.Center = true
-    ESP.Distance.Position = Vector2.new(0, 0)
-    ESP.Distance.Visible = false
-    
-    -- Role indicator with larger text
-    ESP.Role.Text = ""
-    ESP.Role.Size = 14
-    ESP.Role.Color = Color3.fromRGB(255, 255, 255)
-    ESP.Role.Outline = true
-    ESP.Role.OutlineColor = Color3.fromRGB(0, 0, 0)
-    ESP.Role.Font = 3 -- Bold font
-    ESP.Role.Center = true
-    ESP.Role.Position = Vector2.new(0, 0)
-    ESP.Role.Visible = false
-    
-    -- Health text with improved visualization
-    ESP.Health.Text = ""
-    ESP.Health.Size = 14
-    ESP.Health.Color = Color3.fromRGB(0, 255, 0)
-    ESP.Health.Outline = true
-    ESP.Health.OutlineColor = Color3.fromRGB(0, 0, 0)
-    ESP.Health.Font = 2
-    ESP.Health.Center = true
-    ESP.Health.Position = Vector2.new(0, 0)
-    ESP.Health.Visible = false
-    
-    -- Health bar background
-    ESP.HealthBarOutline.Thickness = 1
-    ESP.HealthBarOutline.Color = Color3.fromRGB(0, 0, 0)
-    ESP.HealthBarOutline.Filled = true
-    ESP.HealthBarOutline.Transparency = 0.8
-    ESP.HealthBarOutline.Visible = false
-    
-    -- Health bar indicator
-    ESP.HealthBar.Thickness = 1
-    ESP.HealthBar.Color = Color3.fromRGB(0, 255, 0)
-    ESP.HealthBar.Filled = true
-    ESP.HealthBar.Transparency = 1
-    ESP.HealthBar.Visible = false
-    
-    -- Head dot for precise aiming
-    ESP.HeadDot.Thickness = 1
-    ESP.HeadDot.Color = Color3.fromRGB(255, 0, 0)
-    ESP.HeadDot.Filled = true
-    ESP.HeadDot.Transparency = 1
-    ESP.HeadDot.NumSides = 30
-    ESP.HeadDot.Radius = 3
-    ESP.HeadDot.Visible = false
-    
-    -- Snapline from screen center to player for aimbot visualization
-    ESP.Snapline.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    ESP.Snapline.To = Vector2.new(0, 0)
-    ESP.Snapline.Color = Color3.fromRGB(255, 0, 0)
-    ESP.Snapline.Thickness = 1
-    ESP.Snapline.Transparency = 0.5
-    ESP.Snapline.Visible = false
-    
-    ESPObjects[player] = ESP
-end
-
-local function RemoveESP(player)
-    local ESP = ESPObjects[player]
-    if not ESP then return end
-    
-    for _, drawing in pairs(ESP) do
-        pcall(function() drawing:Remove() end)
-    end
-    
-    ESPObjects[player] = nil
-end
-
-local function UpdateESP()
-    if not Config.ESP.Enabled then
-        -- Hide all ESP elements
-        for player, ESP in pairs(ESPObjects) do
-            for _, drawing in pairs(ESP) do
-                drawing.Visible = false
-            end
-        end
-        return
-    end
-    
-    for player, ESP in pairs(ESPObjects) do
-        if not IsAlive(player) then
-            for _, drawing in pairs(ESP) do
-                drawing.Visible = false
-            end
-            goto continue_esp
-        end
-        
-        local character = player.Character
-        if not character then 
-            for _, drawing in pairs(ESP) do
-                drawing.Visible = false
-            end
-            goto continue_esp
-        end
-        
-        local humanoidRootPart = character:FindFirstChild("HumanoidRootPart")
-        local humanoid = character:FindFirstChild("Humanoid")
-        local head = character:FindFirstChild("Head")
-        
-        if not humanoidRootPart or not humanoid then 
-            for _, drawing in pairs(ESP) do
-                drawing.Visible = false
-            end
-            goto continue_esp
-        end
-        
-        local rootPosition = humanoidRootPart.Position
-        local screenPosition, onScreen = Camera:WorldToScreenPoint(rootPosition)
-        
-        if not onScreen then
-            for _, drawing in pairs(ESP) do
-                drawing.Visible = false
-            end
-            goto continue_esp
-        end
-        
-        local role = GetPlayerRole(player)
-        local distance = GetDistanceFromPlayer(rootPosition)
-        
-        -- Get color based on player role
-        local color
-        if role == "Murderer" then
-            color = Config.ESP.MurdererColor
-        elseif role == "Sheriff" then
-            color = Config.ESP.SheriffColor
-        else
-            color = Config.ESP.InnocentColor
-        end
-        
-        -- Calculate character size for proper scaling
-        local topPoint = Camera:WorldToScreenPoint((rootPosition + Vector3.new(0, 3, 0)))
-        local bottomPoint = Camera:WorldToScreenPoint((rootPosition - Vector3.new(0, 3, 0)))
-        local size = (topPoint - bottomPoint).Y
-        
-        -- Calculate health percentage for health bar
-        local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
-        local healthColor = Color3.fromRGB(
-            255 * (1 - healthPercent),
-            255 * healthPercent,
-            0
-        )
-        
-        -- Update Name with colored text based on role
-        ESP.Name.Position = Vector2.new(screenPosition.X, screenPosition.Y - size / 2 - 16)
-        ESP.Name.Color = color
-        ESP.Name.Visible = true
-        
-        -- Update Box and make it dynamically sized
-        ESP.Box.Size = Vector2.new(size * 0.6, size)
-        ESP.Box.Position = Vector2.new(screenPosition.X - size * 0.3, screenPosition.Y - size / 2)
-        ESP.Box.Color = color
-        ESP.Box.Visible = Config.ESP.PlayerBoxes
-        
-        -- Update Box Outline
-        ESP.BoxOutline.Size = Vector2.new(size * 0.6, size)
-        ESP.BoxOutline.Position = Vector2.new(screenPosition.X - size * 0.3, screenPosition.Y - size / 2)
-        ESP.BoxOutline.Visible = Config.ESP.PlayerBoxes
-        
-        -- Update Box Fill with low transparency
-        ESP.BoxFill.Size = Vector2.new(size * 0.6, size)
-        ESP.BoxFill.Position = Vector2.new(screenPosition.X - size * 0.3, screenPosition.Y - size / 2)
-        ESP.BoxFill.Color = color
-        ESP.BoxFill.Transparency = 0.1
-        ESP.BoxFill.Visible = Config.ESP.PlayerBoxes
-        
-        -- Update Distance indicator
-        ESP.Distance.Text = "["..math.floor(distance).."m]"
-        ESP.Distance.Position = Vector2.new(screenPosition.X, screenPosition.Y + size / 2 + 2)
-        ESP.Distance.Color = color
-        ESP.Distance.Visible = Config.ESP.ShowDistance
-        
-        -- Update Role indicator with proper styling
-        ESP.Role.Text = role
-        ESP.Role.Position = Vector2.new(screenPosition.X, screenPosition.Y + size / 2 + 16)
-        ESP.Role.Color = color
-        ESP.Role.Visible = Config.ESP.ShowRole
-        
-        -- Update Health text
-        ESP.Health.Text = "HP: "..math.floor(humanoid.Health)
-        ESP.Health.Position = Vector2.new(screenPosition.X, screenPosition.Y + size / 2 + 30)
-        ESP.Health.Color = healthColor
-        ESP.Health.Visible = Config.ESP.ShowHealth
-        
-        -- Update Health Bar Background
-        ESP.HealthBarOutline.Size = Vector2.new(size * 0.6, 6)
-        ESP.HealthBarOutline.Position = Vector2.new(screenPosition.X - size * 0.3, screenPosition.Y + size / 2 + 40)
-        ESP.HealthBarOutline.Visible = Config.ESP.ShowHealth
-        
-        -- Update Health Bar
-        ESP.HealthBar.Size = Vector2.new((size * 0.6) * healthPercent, 6)
-        ESP.HealthBar.Position = Vector2.new(screenPosition.X - size * 0.3, screenPosition.Y + size / 2 + 40)
-        ESP.HealthBar.Color = healthColor
-        ESP.HealthBar.Visible = Config.ESP.ShowHealth
-        
-        -- Update Tracer line from bottom of screen
-        ESP.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-        ESP.Tracer.To = Vector2.new(screenPosition.X, screenPosition.Y)
-        ESP.Tracer.Color = color
-        ESP.Tracer.Visible = Config.ESP.ShowTracers or false
-        
-        -- Update Head Dot if head exists
-        if head then
-            local headPosition = Camera:WorldToScreenPoint(head.Position)
-            if headPosition.Z > 0 then
-                ESP.HeadDot.Position = Vector2.new(headPosition.X, headPosition.Y)
-                ESP.HeadDot.Color = color
-                ESP.HeadDot.Radius = math.max(3, 10 / (distance * 0.2))  -- Dynamically scale based on distance
-                ESP.HeadDot.Visible = Config.ESP.ShowHeadDots or false
-            else
-                ESP.HeadDot.Visible = false
-            end
-        else
-            ESP.HeadDot.Visible = false
-        end
-        
-        -- Update Snapline (only visible during aimbot targeting)
-        ESP.Snapline.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-        ESP.Snapline.To = Vector2.new(screenPosition.X, screenPosition.Y)
-        ESP.Snapline.Visible = AimbotTarget == player and Config.Aimbot.Enabled
-        
-        ::continue_esp::
-    end
-end
-
--- Item ESP
-local ItemESPObjects = {}
-
-local function CreateItemESP(item, itemType)
-    local ESP = {
-        Label = Drawing.new("Text"),
-        Distance = Drawing.new("Text")
-    }
-    
-    ESP.Label.Text = itemType
-    ESP.Label.Size = 16
-    ESP.Label.Outline = true
-    ESP.Label.OutlineColor = Color3.fromRGB(0, 0, 0)
-    ESP.Label.Position = Vector2.new(0, 0)
-    ESP.Label.Visible = false
-    
-    ESP.Distance.Text = ""
-    ESP.Distance.Size = 14
-    ESP.Distance.Outline = true
-    ESP.Distance.OutlineColor = Color3.fromRGB(0, 0, 0)
-    ESP.Distance.Position = Vector2.new(0, 0)
-    ESP.Distance.Visible = false
-    
-    if itemType == "Coin" then
-        ESP.Label.Color = Config.ESP.CoinColor
-        ESP.Distance.Color = Config.ESP.CoinColor
-    elseif itemType == "Gun" then
-        ESP.Label.Color = Config.ESP.GunColor
-        ESP.Distance.Color = Config.ESP.GunColor
-    end
-    
-    ItemESPObjects[item] = {ESP = ESP, Type = itemType}
-    return ESP
-end
-
-local function RemoveItemESP(item)
-    local itemESP = ItemESPObjects[item]
-    if not itemESP then return end
-    
-    pcall(function() itemESP.ESP.Label:Remove() end)
-    pcall(function() itemESP.ESP.Distance:Remove() end)
-    
-    ItemESPObjects[item] = nil
-end
-
-local function UpdateItemESP()
-    -- Update coin ESP
-    for item, itemData in pairs(ItemESPObjects) do
-        if not item or not item.Parent then
-            RemoveItemESP(item)
-            goto continue_item_esp
-        end
-        
-        local ESP = itemData.ESP
-        local itemType = itemData.Type
-        
-        if (itemType == "Coin" and not Config.ESP.CoinESP) or 
-           (itemType == "Gun" and not Config.ESP.GunESP) then
-            ESP.Label.Visible = false
-            ESP.Distance.Visible = false
-            goto continue_item_esp
-        end
-        
-        local position = item.Position
-        local screenPosition, onScreen = Camera:WorldToScreenPoint(position)
-        
-        if not onScreen then
-            ESP.Label.Visible = false
-            ESP.Distance.Visible = false
-            goto continue_item_esp
-        end
-        
-        local distance = GetDistanceFromPlayer(position)
-        
-        ESP.Label.Position = Vector2.new(screenPosition.X, screenPosition.Y - 24)
-        ESP.Label.Visible = true
-        
-        ESP.Distance.Text = "["..math.floor(distance).."m]"
-        ESP.Distance.Position = Vector2.new(screenPosition.X, screenPosition.Y - 10)
-        ESP.Distance.Visible = true
-        
-        ::continue_item_esp::
-    end
-end
-
--- Aimbot Functions
-local function GetClosestPlayerToCursor(FOV)
-    local closestPlayer = nil
-    local shortestDistance = FOV or math.huge
-    
-    local mousePosition = Vector2.new(UserInputService:GetMouseLocation().X, UserInputService:GetMouseLocation().Y)
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then goto continue_player end
-        if not IsAlive(player) then goto continue_player end
-        
-        -- Team check
-        if Config.Aimbot.TeamCheck then
-            if Config.Aimbot.TargetMurderer and GetPlayerRole(player) ~= "Murderer" then
-                goto continue_player
-            end
-        end
-        
-        local character = player.Character
-        if not character then goto continue_player end
-        
-        local targetPart = character:FindFirstChild(Config.Aimbot.TargetPart) or character:FindFirstChild("HumanoidRootPart")
-        if not targetPart then goto continue_player end
-        
-        local screenPoint, onScreen = Camera:WorldToScreenPoint(targetPart.Position)
-        if not onScreen then goto continue_player end
-        
-        -- Visibility check
-        if Config.Aimbot.VisibilityCheck then
-            local ray = Ray.new(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit * 1000)
-            local hit, _ = workspace:FindPartOnRayWithIgnoreList(ray, {LocalPlayer.Character, character})
-            if hit then goto continue_player end
-        end
-        
-        local cursorDistance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePosition).Magnitude
-        
-        if cursorDistance < shortestDistance then
-            closestPlayer = player
-            shortestDistance = cursorDistance
-        end
-        
-        ::continue_player::
-    end
-    
-    return closestPlayer
-end
-
-local function AimAt(position)
-    local smoothness = Config.Aimbot.Smoothness
-    
-    local targetPosition = Camera:WorldToScreenPoint(position)
-    local mousePosition = UserInputService:GetMouseLocation()
-    
-    local moveVector = (Vector2.new(targetPosition.X, targetPosition.Y) - mousePosition) * smoothness
-    
-    mousemoverel(moveVector.X, moveVector.Y)
-end
-
--- Update Functions
-local function UpdateRoles()
-    MM2.Players.Murderer = nil
-    MM2.Players.Sheriff = nil
-    MM2.Players.Innocents = {}
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then goto continue_roles_player end
-        
-        local backpack = player:FindFirstChild("Backpack")
-        local character = player.Character
-        
-        if not backpack or not character then goto continue_roles_player end
-        
-        if backpack:FindFirstChild("Knife") or character:FindFirstChild("Knife") then
-            MM2.Players.Murderer = player
-        elseif backpack:FindFirstChild("Gun") or character:FindFirstChild("Gun") then
-            MM2.Players.Sheriff = player
-        else
-            table.insert(MM2.Players.Innocents, player)
-        end
-        
-        ::continue_roles_player::
-    end
-    
-    -- If player is the murderer or sheriff
-    local localBackpack = LocalPlayer:FindFirstChild("Backpack")
-    local localCharacter = LocalPlayer.Character
-    
-    if not localBackpack or not localCharacter then return end
-    
-    if localBackpack:FindFirstChild("Knife") or localCharacter:FindFirstChild("Knife") then
-        MM2.Players.Murderer = LocalPlayer
-    elseif localBackpack:FindFirstChild("Gun") or localCharacter:FindFirstChild("Gun") then
-        MM2.Players.Sheriff = LocalPlayer
-    end
-end
-
-local function UpdateCoins()
-    MM2.Coins = {}
-    MM2.Pickups = {}
-    
-    if not MM2.Map then return end
-    
-    local coins = MM2.Map:FindFirstChild("CoinContainer")
-    if not coins then return end
-    
-    for _, coin in pairs(coins:GetChildren()) do
-        if coin.Name == "Coin_Server" then
-            table.insert(MM2.Coins, coin)
-            
-            -- Check for existing ESP
-            if not ItemESPObjects[coin] then
-                CreateItemESP(coin, "Coin")
-            end
-        end
-    end
-    
-    -- Fallen weapons
-    local pickups = workspace:FindFirstChild("GunDrop")
-    if pickups then
-        MM2.GunInMap = pickups
-        if not ItemESPObjects[pickups] then
-            CreateItemESP(pickups, "Gun")
-        end
-    else
-        MM2.GunInMap = nil
-    end
-end
-
--- Game Functions
-local function TPToNearestCoin()
-    if #MM2.Coins == 0 then return end
-    
-    local closestCoin = nil
-    local shortestDistance = math.huge
-    
-    for _, coin in pairs(MM2.Coins) do
-        local distance = GetDistanceFromPlayer(coin.Position)
-        if distance < shortestDistance then
-            closestCoin = coin
-            shortestDistance = distance
-        end
-    end
-    
-    if closestCoin and IsAlive(LocalPlayer) then
-        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(closestCoin.Position)
-    end
-end
-
-local function CollectCoins()
-    for _, coin in pairs(MM2.Coins) do
-        if GetDistanceFromPlayer(coin.Position) <= 5 then
-            -- In range to collect
-            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(coin.Position)
-            wait(0.1)
-        end
-    end
-end
-
-local function AutoCoinFarm()
-    if not Config.Teleports.AutoFarm then return end
-    
-    if #MM2.Coins == 0 then return end
-    
-    for _, coin in pairs(MM2.Coins) do
-        if Config.Teleports.AutoFarm and coin and coin.Parent then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(coin.Position)
-            wait(0.2 / Config.Teleports.FarmSpeed)
-        else
-            break
-        end
-    end
-end
-
-local function KillPlayer(player)
-    if not MM2.Players.Murderer == LocalPlayer then return end
-    if not IsAlive(player) or not IsAlive(LocalPlayer) then return end
-    
-    local oldPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
-    
-    -- Teleport to player
-    LocalPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame
-    
-    -- Use knife
-    local knife = LocalPlayer.Backpack:FindFirstChild("Knife") or LocalPlayer.Character:FindFirstChild("Knife")
-    if knife and knife:IsA("Tool") then
-        if knife.Parent == LocalPlayer.Backpack then
-            knife.Parent = LocalPlayer.Character
-        end
-        
-        knife:Activate()
-    end
-    
-    wait(0.2)
-    -- Return to original position
-    LocalPlayer.Character.HumanoidRootPart.CFrame = oldPosition
-end
-
-local function KillAll()
-    if not MM2.Players.Murderer == LocalPlayer then return end
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then goto continue_kill_all end
-        if not IsAlive(player) then goto continue_kill_all end
-        
-        KillPlayer(player)
-        wait(0.5)
-        
-        ::continue_kill_all::
-    end
-end
-
-local function KillAura()
-    if not MM2.Players.Murderer == LocalPlayer then return end
-    
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then goto continue_aura end
-        if not IsAlive(player) then goto continue_aura end
-        
-        local distance = GetDistanceFromPlayer(player.Character.HumanoidRootPart.Position)
-        if distance <= Config.Knife.KnifeRange then
-            -- Use knife
-            local knife = LocalPlayer.Backpack:FindFirstChild("Knife") or LocalPlayer.Character:FindFirstChild("Knife")
-            if knife and knife:IsA("Tool") then
-                if knife.Parent == LocalPlayer.Backpack then
-                    knife.Parent = LocalPlayer.Character
-                end
-                
-                knife:Activate()
-                break -- Only kill one player at a time
-            end
-        end
-        ::continue_aura::
-    end
-end
-
-local function PickupGun()
-    if MM2.GunInMap and MM2.GunInMap.Parent then
-        local oldPosition = LocalPlayer.Character.HumanoidRootPart.CFrame
-        
-        LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(MM2.GunInMap.Position)
-        wait(0.2)
-        
-        LocalPlayer.Character.HumanoidRootPart.CFrame = oldPosition
-    end
-end
-
-local function ToggleNoclip(enabled)
-    if enabled then
-        if NoClipConnection then return end
-        
-        NoClipConnection = RunService.Stepped:Connect(function()
-            if not LocalPlayer.Character then return end
-            
-            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
-                end
-            end
-        end)
-    else
-        if NoClipConnection then
-            NoClipConnection:Disconnect()
-            NoClipConnection = nil
-        end
-        
-        if LocalPlayer.Character then
-            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = true
-                end
-            end
-        end
-    end
-end
-
-local function ToggleFly(enabled)
-    if enabled then
-        if FlyPart then return end
-        
-        -- Create fly part
-        FlyPart = Instance.new("Part")
-        FlyPart.Name = "FlyPart"
-        FlyPart.Size = Vector3.new(5, 1, 5)
-        FlyPart.Transparency = 1
-        FlyPart.Anchored = true
-        FlyPart.CanCollide = true
-        FlyPart.Parent = workspace
-        
-        -- Fly controls
-        RunService:BindToRenderStep("Fly", 0, function()
-            if not LocalPlayer.Character or not FlyPart then return end
-            
-            local humanoidRootPart = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if not humanoidRootPart then return end
-            
-            FlyPart.CFrame = humanoidRootPart.CFrame * CFrame.new(0, -3.5, 0)
-            
-            local flySpeed = Config.Character.FlySpeed / 10
-            
-            -- Movement
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then
-                FlyPart.CFrame = FlyPart.CFrame + (Camera.CFrame.LookVector * flySpeed)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then
-                FlyPart.CFrame = FlyPart.CFrame - (Camera.CFrame.LookVector * flySpeed)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then
-                FlyPart.CFrame = FlyPart.CFrame - (Camera.CFrame.RightVector * flySpeed)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then
-                FlyPart.CFrame = FlyPart.CFrame + (Camera.CFrame.RightVector * flySpeed)
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-                FlyPart.CFrame = FlyPart.CFrame + (Vector3.new(0, flySpeed, 0))
-            end
-            if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-                FlyPart.CFrame = FlyPart.CFrame - (Vector3.new(0, flySpeed, 0))
-            end
-            
-            humanoidRootPart.CFrame = FlyPart.CFrame * CFrame.new(0, 3.5, 0)
-        end)
-    else
-        if FlyPart then
-            FlyPart:Destroy()
-            FlyPart = nil
-        end
-        
-        RunService:UnbindFromRenderStep("Fly")
-    end
-end
-
-local function UpdateWalkSpeed()
-    if not LocalPlayer.Character then return end
-    
-    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = Config.Character.WalkSpeed
-    end
-end
-
-local function UpdateJumpPower()
-    if not LocalPlayer.Character then return end
-    
-    local humanoid = LocalPlayer.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.JumpPower = Config.Character.JumpPower
-    end
-end
-
-local function ToggleFullBright(enabled)
-    if enabled then
-        Lighting.Brightness = 2
-        Lighting.ClockTime = 14
-        Lighting.FogEnd = 100000
-        Lighting.GlobalShadows = false
-        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-    else
-        Lighting.Brightness = 1
-        Lighting.ClockTime = 14
-        Lighting.FogEnd = 10000
-        Lighting.GlobalShadows = true
-        Lighting.Ambient = Color3.fromRGB(127, 127, 127)
-    end
-end
-
-local function ApplyChams(enabled)
-    if not enabled then
-        -- Remove chams
-        for _, player in pairs(Players:GetPlayers()) do
-            if player == LocalPlayer then goto continue_chams_remove end
-            if not player.Character then goto continue_chams_remove end
-            
-            for _, part in pairs(player.Character:GetDescendants()) do
-                if part:IsA("BasePart") and part.Transparency < 1 then
-                    part.Material = Enum.Material.Plastic
-                    if part:FindFirstChild("Chams") then
-                        part.Chams:Destroy()
-                    end
-                end
-            end
-            ::continue_chams_remove::
-        end
-        return
-    end
-    
-    -- Apply chams
-    for _, player in pairs(Players:GetPlayers()) do
-        if player == LocalPlayer then goto continue_chams_apply end
-        if not player.Character then goto continue_chams_apply end
-        
-        local role = GetPlayerRole(player)
-        local color
-        
-        if role == "Murderer" then
-            color = Config.ESP.MurdererColor
-        elseif role == "Sheriff" then
-            color = Config.ESP.SheriffColor
-        else
-            color = Config.ESP.InnocentColor
-        end
-        
-        for _, part in pairs(player.Character:GetDescendants()) do
-            if part:IsA("BasePart") and part.Transparency < 1 then
-                part.Material = Enum.Material.ForceField
-                
-                local highlight = part:FindFirstChild("Chams") or Instance.new("SurfaceGui")
-                highlight.Name = "Chams"
-                highlight.AlwaysOnTop = true
-                highlight.ZIndexBehavior = Enum.ZIndexBehavior.Global
-                highlight.Parent = part
-                
-                local frame = highlight:FindFirstChild("Frame") or Instance.new("Frame")
-                frame.Name = "Frame"
-                frame.BackgroundColor3 = color
-                frame.BackgroundTransparency = 0.5
-                frame.Size = UDim2.fromScale(1, 1)
-                frame.Parent = highlight
-            end
-        end
-        
-        ::continue_chams_apply::
-    end
-end
-
-local function ToggleXRay(enabled)
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") and not v:IsDescendantOf(LocalPlayer.Character) and not v.Parent:FindFirstChild("Humanoid") then
-            v.LocalTransparencyModifier = enabled and 0.5 or 0
-        end
-    end
-end
-
--- UI Creation
-OrionLib:Init()
-
--- Define a better UI theme
-local SkyXTheme = {
-    Main = Color3.fromRGB(20, 25, 35),
-    Second = Color3.fromRGB(30, 35, 45),
-    Stroke = Color3.fromRGB(60, 135, 230),
-    Divider = Color3.fromRGB(60, 135, 230),
-    Text = Color3.fromRGB(240, 240, 245),
-    TextDark = Color3.fromRGB(180, 185, 195)
-}
-
--- Apply the theme
-OrionLib:ChangeTheme("Default", SkyXTheme)
-
--- Create a nice window with custom intro animation
-local Window = OrionLib:MakeWindow({
-    Name = "💀 SkyX MM2 Advanced Script v2.5",
-    HidePremium = false,
-    SaveConfig = true,
-    ConfigFolder = "SkyXMM2Script",
-    IntroEnabled = true,
-    IntroText = "SkyX MM2 Advanced Script",
-    IntroIcon = "rbxassetid://7733960981",
-    Icon = "rbxassetid://7733960981",
-    EnableAntiBan = true,
-    EnableDefaultProtections = true,
-    AnimatedIntro = true,
-    ConfigSaving = {
-        Enabled = true,
-        FolderName = "SkyXMM2Config",
-        FileName = "MM2Advanced"
-    }
+for i, item in ipairs(playerStats.inventory) do
+    print("Item in inventory:", item)
+end]],
 })
 
--- Main Tab
-local MainTab = Window:MakeTab({
-    Name = "Main",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
+Tabs.CodeTab:Code({
+    Code = [[print("WindUI on top!")]],
 })
 
-MainTab:AddSection({
-    Name = "Script Information"
-})
 
-MainTab:AddParagraph("SkyX MM2 Advanced Script", "Complete script with 50 powerful features for Murder Mystery 2")
 
-MainTab:AddSection({
-    Name = "Game Information"
-})
-
-local MurdererLabel = MainTab:AddLabel("Murderer: Unknown")
-local SheriffLabel = MainTab:AddLabel("Sheriff: Unknown")
-local GameStateLabel = MainTab:AddLabel("Game State: Waiting")
-local MapLabel = MainTab:AddLabel("Map: Unknown")
-
-MainTab:AddToggle({
-    Name = "Auto Update Roles",
-    Default = true,
-    Callback = function(Value)
-        if Value then
-            if RoleConnection then return end
-            
-            RoleConnection = RunService.Heartbeat:Connect(function()
-                UpdateRoles()
-                
-                MurdererLabel:Set("Murderer: "..(MM2.Players.Murderer and MM2.Players.Murderer.Name or "Unknown"))
-                SheriffLabel:Set("Sheriff: "..(MM2.Players.Sheriff and MM2.Players.Sheriff.Name or "Unknown"))
-            end)
-        else
-            if RoleConnection then
-                RoleConnection:Disconnect()
-                RoleConnection = nil
-            end
-        end
-    end
-})
-
--- ESP Tab
-local ESPTab = Window:MakeTab({
-    Name = "ESP",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-ESPTab:AddSection({
-    Name = "Player ESP"
-})
-
-ESPTab:AddToggle({
-    Name = "Enable ESP",
-    Default = false,
-    Callback = function(Value)
-        Config.ESP.Enabled = Value
-        
-        if Value then
-            -- Create ESP for all players
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and not ESPObjects[player] then
-                    CreateESP(player)
-                end
-            end
-            
-            -- Update coins
-            UpdateCoins()
-            
-            -- Connect ESP updater
-            if not ESPConnection then
-                ESPConnection = RunService.RenderStepped:Connect(function()
-                    UpdateESP()
-                    UpdateItemESP()
-                end)
-            end
-        else
-            -- Disconnect ESP updater
-            if ESPConnection then
-                ESPConnection:Disconnect()
-                ESPConnection = nil
-            end
-        end
-    end
-})
-
-ESPTab:AddToggle({
-    Name = "Show Boxes",
-    Default = true,
-    Callback = function(Value)
-        Config.ESP.PlayerBoxes = Value
-    end
-})
-
-ESPTab:AddToggle({
-    Name = "Show Role",
-    Default = true,
-    Callback = function(Value)
-        Config.ESP.ShowRole = Value
-    end
-})
-
-ESPTab:AddToggle({
-    Name = "Show Distance",
-    Default = true,
-    Callback = function(Value)
-        Config.ESP.ShowDistance = Value
-    end
-})
-
-ESPTab:AddToggle({
-    Name = "Show Health",
-    Default = true,
-    Callback = function(Value)
-        Config.ESP.ShowHealth = Value
-    end
-})
-
-ESPTab:AddSection({
-    Name = "Item ESP"
-})
-
-ESPTab:AddToggle({
-    Name = "Coin ESP",
-    Default = false,
-    Callback = function(Value)
-        Config.ESP.CoinESP = Value
-        
-        if Value then
-            UpdateCoins()
-            
-            if not CoinsConnection then
-                CoinsConnection = RunService.Heartbeat:Connect(function()
-                    UpdateCoins()
-                end)
-            end
-        else
-            if CoinsConnection then
-                CoinsConnection:Disconnect()
-                CoinsConnection = nil
-            end
-            
-            -- Hide coin ESP
-            for item, itemData in pairs(ItemESPObjects) do
-                if itemData.Type == "Coin" then
-                    itemData.ESP.Label.Visible = false
-                    itemData.ESP.Distance.Visible = false
-                end
-            end
-        end
-    end
-})
-
-ESPTab:AddToggle({
-    Name = "Gun ESP",
-    Default = true,
-    Callback = function(Value)
-        Config.ESP.GunESP = Value
-    end
-})
-
-ESPTab:AddSection({
-    Name = "ESP Settings"
-})
-
-ESPTab:AddColorpicker({
-    Name = "Murderer Color",
+Tabs.ColorPickerTab:Colorpicker({
+    Title = "Pick a Color",
     Default = Color3.fromRGB(255, 0, 0),
-    Callback = function(Value)
-        Config.ESP.MurdererColor = Value
-    end  
+    Callback = function(color) print("Selected color: " .. tostring(color)) end
 })
 
-ESPTab:AddColorpicker({
-    Name = "Sheriff Color",
+Tabs.ColorPickerTab:Colorpicker({
+    Title = "Transparency Color",
     Default = Color3.fromRGB(0, 0, 255),
-    Callback = function(Value)
-        Config.ESP.SheriffColor = Value
-    end  
+    Transparency = 0,
+    Callback = function(color) print("Background color: " .. tostring(color)) end
 })
 
-ESPTab:AddColorpicker({
-    Name = "Innocent Color",
-    Default = Color3.fromRGB(0, 255, 0),
-    Callback = function(Value)
-        Config.ESP.InnocentColor = Value
-    end  
-})
 
--- Aimbot Tab
-local AimbotTab = Window:MakeTab({
-    Name = "Aimbot",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-AimbotTab:AddSection({
-    Name = "Aimbot Settings"
-})
-
-AimbotTab:AddToggle({
-    Name = "Enable Aimbot",
-    Default = false,
-    Callback = function(Value)
-        Config.Aimbot.Enabled = Value
-        
-        if not Value then
-            AimbotActive = false
-            AimbotTarget = nil
-        end
-    end
-})
-
-AimbotTab:AddDropdown({
-    Name = "Target Part",
-    Default = "Head",
-    Options = {"Head", "HumanoidRootPart", "Torso"},
-    Callback = function(Value)
-        Config.Aimbot.TargetPart = Value
-    end
-})
-
-AimbotTab:AddToggle({
-    Name = "Team Check",
-    Default = true,
-    Callback = function(Value)
-        Config.Aimbot.TeamCheck = Value
-    end
-})
-
-AimbotTab:AddToggle({
-    Name = "Visibility Check",
-    Default = true,
-    Callback = function(Value)
-        Config.Aimbot.VisibilityCheck = Value
-    end
-})
-
-AimbotTab:AddToggle({
-    Name = "Target Murderer Only",
-    Default = true,
-    Callback = function(Value)
-        Config.Aimbot.TargetMurderer = Value
-    end
-})
-
-AimbotTab:AddToggle({
-    Name = "Show FOV",
-    Default = true,
-    Callback = function(Value)
-        Config.Aimbot.ShowFOV = Value
-        AimbotFOVCircle.Visible = Value
-    end
-})
-
-AimbotTab:AddSlider({
-    Name = "FOV",
-    Min = 50,
-    Max = 500,
-    Default = 200,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 10,
-    Callback = function(Value)
-        Config.Aimbot.FOV = Value
-        AimbotFOVCircle.Radius = Value
-    end
-})
-
-AimbotTab:AddSlider({
-    Name = "Smoothness",
-    Min = 0,
-    Max = 1,
-    Default = 0.5,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 0.05,
-    Callback = function(Value)
-        Config.Aimbot.Smoothness = Value
-    end
-})
-
-AimbotTab:AddColorpicker({
-    Name = "FOV Color",
-    Default = Color3.fromRGB(255, 255, 255),
-    Callback = function(Value)
-        Config.Aimbot.FOVColor = Value
-        AimbotFOVCircle.Color = Value
-    end
-})
-
-AimbotTab:AddSection({
-    Name = "Silent Aim"
-})
-
-AimbotTab:AddToggle({
-    Name = "Gun Silent Aim",
-    Default = false,
-    Callback = function(Value)
-        Config.Gun.SilentAim = Value
-    end
-})
-
-AimbotTab:AddToggle({
-    Name = "Knife Silent Aim",
-    Default = false,
-    Callback = function(Value)
-        Config.Knife.SilentAim = Value
-    end
-})
-
-AimbotTab:AddToggle({
-    Name = "Wall Bang",
-    Default = false,
-    Callback = function(Value)
-        Config.Gun.WallBang = Value
-    end
-})
-
-AimbotTab:AddToggle({
-    Name = "Throw Accuracy",
-    Default = false,
-    Callback = function(Value)
-        Config.Knife.ThrowAccuracy = Value
-    end
-})
-
--- Gun Tab
-local GunTab = Window:MakeTab({
-    Name = "Gun",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-GunTab:AddSection({
-    Name = "Gun Features"
-})
-
-GunTab:AddToggle({
-    Name = "Auto Pickup Gun",
-    Default = false,
-    Callback = function(Value)
-        Config.Gun.AutoPickup = Value
-    end
-})
-
-GunTab:AddToggle({
-    Name = "Auto Shoot",
-    Default = false,
-    Callback = function(Value)
-        Config.Gun.AutoShoot = Value
-    end
-})
-
-GunTab:AddToggle({
-    Name = "Instant Kill",
-    Default = false,
-    Callback = function(Value)
-        Config.Gun.InstantKill = Value
-    end
-})
-
-GunTab:AddButton({
-    Name = "Teleport to Gun",
+Tabs.DialogTab:Button({
+    Title = "Create Example Dialog",
     Callback = function()
-        PickupGun()
+        Window:Dialog({
+            Title = "Example Dialog",
+            Content = "Example Content. lalala",
+            Icon = "bird",
+            Buttons = {
+                {
+                    Title = "LOL!",
+                    Icon = "bird",
+                    Variant = "Tertiary",
+                    Callback = function()
+                        print("lol")
+                    end,
+                },
+                {
+                    Title = "Cool!",
+                    Icon = "bird",
+                    Variant = "Tertiary",
+                    Callback = function()
+                        print("Cool")
+                    end,
+                },
+                {
+                    Title = "Ok!",
+                    Icon = "bird",
+                    Variant = "Secondary",
+                    Callback = function()
+                        print("Ok")
+                    end,
+                },
+                {
+                    Title = "Awesome!",
+                    Icon = "bird",
+                    Variant = "Primary",
+                    Callback = function() 
+                        print("Awesome")
+                    end,
+                }
+            }
+        })
+    end,
+})
+
+
+Tabs.NotificationTab:Button({
+    Title = "Click to get Notified",
+    Callback = function() 
+        WindUI:Notify({
+            Title = "Notification Example 1",
+            Content = "Content",
+            Duration = 5,
+        })
     end
 })
 
--- Knife Tab
-local KnifeTab = Window:MakeTab({
-    Name = "Knife",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-KnifeTab:AddSection({
-    Name = "Knife Features"
-})
-
-KnifeTab:AddToggle({
-    Name = "Knife Aura",
-    Default = false,
-    Callback = function(Value)
-        Config.Knife.KnifeAura = Value
+Tabs.NotificationTab:Button({
+    Title = "Notification with icon",
+    Callback = function() 
+        WindUI:Notify({
+            Title = "Notification Example 2",
+            Content = "Content",
+            Icon = "droplet-off",
+            Duration = 5,
+        })
     end
 })
 
-KnifeTab:AddToggle({
-    Name = "Kill Aura",
-    Default = false,
-    Callback = function(Value)
-        Config.Knife.KillAura = Value
+Tabs.NotificationTab:Button({
+    Title = "Notification with BackgroundImage",
+    Callback = function() 
+        WindUI:Notify({
+            Title = "Notification Example 3",
+            Content = "with BackgroundImage",
+            Icon = "image",
+            Duration = 5,
+            Background = "rbxassetid://13511292247"
+        })
     end
 })
 
-KnifeTab:AddSlider({
-    Name = "Knife Range",
-    Min = 10,
-    Max = 100,
-    Default = 50,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 5,
-    Callback = function(Value)
-        Config.Knife.KnifeRange = Value
+
+Tabs.ToggleTab:Toggle({
+    Title = "Enable Feature",
+    --Image = "bird",
+    Value = true,
+    Callback = function(state) print("Feature enabled: " .. tostring(state)) end
+})
+
+Tabs.ToggleTab:Toggle({
+    Title = "Activate Mode",
+    Value = false,
+    Callback = function(state) print("Mode activated: " .. tostring(state)) end
+})
+Tabs.ToggleTab:Toggle({
+    Title = "Toggle with icon",
+    Icon = "check",
+    Value = false,
+    Callback = function(state) print("Toggle with icon activated: " .. tostring(state)) end
+})
+
+Tabs.ToggleTab:Toggle({
+    Title = "New Toggle Type 'Checkbox'",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state) print("'Checkbox' Toggle activated: " .. tostring(state)) end
+})
+Tabs.ToggleTab:Toggle({
+    Title = "New Toggle Type 'Checkbox' with custom icon",
+    Icon = "bird",
+    Type = "Checkbox",
+    Value = false,
+    Callback = function(state) print("'Checkbox' Toggle with icon activated: " .. tostring(state)) end
+})
+
+
+Tabs.SliderTab:Slider({
+    Title = "Volume Slider",
+    Value = {
+        Min = 0,
+        Max = 100,
+        Default = 50,
+    },
+    Callback = function(value) print("Volume set to: " .. value) end
+})
+
+Tabs.SliderTab:Slider({
+    Title = "Brightness Slider",
+    Value = {
+        Min = 1,
+        Max = 100,
+        Default = 75,
+    },
+    Callback = function(value) print("Brightness set to: " .. value) end
+})
+
+
+Tabs.InputTab:Input({
+    Title = "Username",
+    Value = "Guest",
+    Placeholder = "Enter your username",
+    Callback = function(input) print("Username: " .. input) end
+})
+
+Tabs.InputTab:Input({
+    Title = "Password",
+    Value = "",
+    Placeholder = "Enter your password",
+    Callback = function(input) print("Password entered.") end
+})
+
+
+Tabs.InputTab:Input({
+    Title = "Input with icon",
+    Value = "pisun",
+    InputIcon = "bird",
+    Placeholder = "Enter pisun",
+    Callback = function(input) print("pisun entered.") end
+})
+
+
+Tabs.KeybindTab:Keybind({
+    Title = "Keybind Example",
+    Desc = "Keybind to open ui",
+    Value = "G",
+    Callback = function(v)
+        Window:SetToggleKey(Enum.KeyCode[v])
     end
 })
 
-KnifeTab:AddButton({
-    Name = "Kill All",
-    Callback = function()
-        KillAll()
+
+Tabs.DropdownTab:Dropdown({
+    Title = "Select an Option",
+    Values = { "Option 1", "Option 2", "Option 3" },
+    Value = "Option 1",
+    Callback = function(option) print("Selected: " .. option) end
+})
+
+Tabs.DropdownTab:Dropdown({
+    Title = "Choose a Category (Multi)",
+    Values = { "Category A", "Category B", "Category C" },
+    Value = { "Category A" },
+    Multi = true,
+    AllowNone = true,
+    Callback = function(option) 
+        print("Categories selected: " .. game:GetService("HttpService"):JSONEncode(option)) 
     end
 })
 
--- Character Tab
-local CharacterTab = Window:MakeTab({
-    Name = "Character",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
 
-CharacterTab:AddSection({
-    Name = "Movement"
-})
 
-CharacterTab:AddSlider({
-    Name = "Walk Speed",
-    Min = 16,
-    Max = 200,
-    Default = 16,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 5,
-    Callback = function(Value)
-        Config.Character.WalkSpeed = Value
-        UpdateWalkSpeed()
-    end
-})
+-- Configuration
+-- Optional
 
-CharacterTab:AddSlider({
-    Name = "Jump Power",
-    Min = 50,
-    Max = 200,
-    Default = 50,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 5,
-    Callback = function(Value)
-        Config.Character.JumpPower = Value
-        UpdateJumpPower()
-    end
-})
 
-CharacterTab:AddToggle({
-    Name = "Infinite Jump",
-    Default = false,
-    Callback = function(Value)
-        Config.Character.InfiniteJump = Value
-    end
-})
+local HttpService = game:GetService("HttpService")
 
-CharacterTab:AddToggle({
-    Name = "NoClip",
-    Default = false,
-    Callback = function(Value)
-        Config.Character.NoClip = Value
-        ToggleNoclip(Value)
-    end
-})
+local folderPath = "WindUI"
+makefolder(folderPath)
 
-CharacterTab:AddToggle({
-    Name = "Fly",
-    Default = false,
-    Callback = function(Value)
-        Config.Character.FlyEnabled = Value
-        ToggleFly(Value)
-    end
-})
+local function SaveFile(fileName, data)
+    local filePath = folderPath .. "/" .. fileName .. ".json"
+    local jsonData = HttpService:JSONEncode(data)
+    writefile(filePath, jsonData)
+end
 
-CharacterTab:AddSlider({
-    Name = "Fly Speed",
-    Min = 10,
-    Max = 200,
-    Default = 50,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 5,
-    Callback = function(Value)
-        Config.Character.FlySpeed = Value
-    end
-})
-
-CharacterTab:AddSection({
-    Name = "Character Features"
-})
-
-CharacterTab:AddToggle({
-    Name = "God Mode",
-    Default = false,
-    Callback = function(Value)
-        Config.Character.GodMode = Value
-    end
-})
-
-CharacterTab:AddToggle({
-    Name = "Anti Ragdoll",
-    Default = false,
-    Callback = function(Value)
-        Config.Character.AntiRagdoll = Value
-    end
-})
-
-CharacterTab:AddToggle({
-    Name = "Unlock Emotes",
-    Default = false,
-    Callback = function(Value)
-        Config.Misc.UnlockEmotes = Value
-    end
-})
-
-CharacterTab:AddToggle({
-    Name = "Fake Emotes",
-    Default = false,
-    Callback = function(Value)
-        Config.Character.FakeEmotes = Value
-    end
-})
-
-CharacterTab:AddToggle({
-    Name = "Invisible",
-    Default = false,
-    Callback = function(Value)
-        Config.Character.Invisible = Value
-        
-        if Value then
-            if IsAlive(LocalPlayer) then
-                LocalPlayer.Character.Head.Transparency = 1
-                for _, accessory in pairs(LocalPlayer.Character:GetChildren()) do
-                    if accessory:IsA("Accessory") then
-                        accessory.Handle.Transparency = 1
-                    end
-                end
-            end
-        else
-            if IsAlive(LocalPlayer) then
-                LocalPlayer.Character.Head.Transparency = 0
-                for _, accessory in pairs(LocalPlayer.Character:GetChildren()) do
-                    if accessory:IsA("Accessory") then
-                        accessory.Handle.Transparency = 0
-                    end
-                end
-            end
-        end
-    end
-})
-
--- Teleport Tab
-local TeleportTab = Window:MakeTab({
-    Name = "Teleport",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-TeleportTab:AddSection({
-    Name = "Coin Teleports"
-})
-
-TeleportTab:AddToggle({
-    Name = "Auto Coin Farm",
-    Default = false,
-    Callback = function(Value)
-        Config.Teleports.AutoFarm = Value
-        
-        if Value then
-            if AutoFarmConnection then return end
-            
-            AutoFarmConnection = RunService.Heartbeat:Connect(function()
-                AutoCoinFarm()
-            end)
-        else
-            if AutoFarmConnection then
-                AutoFarmConnection:Disconnect()
-                AutoFarmConnection = nil
-            end
-        end
-    end
-})
-
-TeleportTab:AddSlider({
-    Name = "Farm Speed",
-    Min = 0.5,
-    Max = 5,
-    Default = 1,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 0.5,
-    Callback = function(Value)
-        Config.Teleports.FarmSpeed = Value
-    end
-})
-
-TeleportTab:AddToggle({
-    Name = "Coin Magnet",
-    Default = false,
-    Callback = function(Value)
-        Config.Teleports.CoinMagnet = Value
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Nearest Coin",
-    Callback = function()
-        TPToNearestCoin()
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Collect All Coins",
-    Callback = function()
-        CollectCoins()
-    end
-})
-
-TeleportTab:AddSection({
-    Name = "Player Teleports"
-})
-
-local PlayerDropdown = TeleportTab:AddDropdown({
-    Name = "Select Player",
-    Default = "None",
-    Options = {"None"},
-    Callback = function(Value)
-        -- Will be set up with a refresh function
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Player",
-    Callback = function()
-        local selectedPlayer = PlayerDropdown.Value
-        
-        if selectedPlayer and selectedPlayer ~= "None" then
-            for _, player in pairs(Players:GetPlayers()) do
-                if player.Name == selectedPlayer and IsAlive(player) and IsAlive(LocalPlayer) then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = player.Character.HumanoidRootPart.CFrame
-                    break
-                end
-            end
-        end
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Murderer",
-    Callback = function()
-        if MM2.Players.Murderer and IsAlive(MM2.Players.Murderer) and IsAlive(LocalPlayer) then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = MM2.Players.Murderer.Character.HumanoidRootPart.CFrame
-        end
-    end
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Sheriff",
-    Callback = function()
-        if MM2.Players.Sheriff and IsAlive(MM2.Players.Sheriff) and IsAlive(LocalPlayer) then
-            LocalPlayer.Character.HumanoidRootPart.CFrame = MM2.Players.Sheriff.Character.HumanoidRootPart.CFrame
-        end
-    end
-})
-
-TeleportTab:AddSection({
-    Name = "Map Teleports"
-})
-
-TeleportTab:AddButton({
-    Name = "Teleport to Lobby",
-    Callback = function()
-        if workspace:FindFirstChild("Lobby") then
-            local spawnLocation = workspace.Lobby:FindFirstChild("SpawnLocation")
-            if spawnLocation and IsAlive(LocalPlayer) then
-                LocalPlayer.Character.HumanoidRootPart.CFrame = spawnLocation.CFrame + Vector3.new(0, 5, 0)
-            end
-        end
-    end
-})
-
--- Visuals Tab
-local VisualsTab = Window:MakeTab({
-    Name = "Visuals",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-VisualsTab:AddSection({
-    Name = "Lighting"
-})
-
-VisualsTab:AddToggle({
-    Name = "Full Bright",
-    Default = false,
-    Callback = function(Value)
-        Config.Visuals.FullBright = Value
-        ToggleFullBright(Value)
-    end
-})
-
-VisualsTab:AddToggle({
-    Name = "No Fog",
-    Default = false,
-    Callback = function(Value)
-        Config.Visuals.NoFog = Value
-        
-        if Value then
-            Lighting.FogEnd = 100000
-        else
-            Lighting.FogEnd = 10000
-        end
-    end
-})
-
-VisualsTab:AddToggle({
-    Name = "Custom Time",
-    Default = false,
-    Callback = function(Value)
-        Config.Visuals.CustomTime = Value
-    end
-})
-
-VisualsTab:AddSlider({
-    Name = "Time Value",
-    Min = 0,
-    Max = 24,
-    Default = 14,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 1,
-    Callback = function(Value)
-        Config.Visuals.TimeValue = Value
-        
-        if Config.Visuals.CustomTime then
-            Lighting.ClockTime = Value
-        end
-    end
-})
-
-VisualsTab:AddSection({
-    Name = "Player Visuals"
-})
-
-VisualsTab:AddToggle({
-    Name = "Chams",
-    Default = false,
-    Callback = function(Value)
-        Config.Visuals.Chams = Value
-        ApplyChams(Value)
-    end
-})
-
-VisualsTab:AddToggle({
-    Name = "X-Ray",
-    Default = false,
-    Callback = function(Value)
-        Config.Visuals.XRay = Value
-        ToggleXRay(Value)
-    end
-})
-
-VisualsTab:AddToggle({
-    Name = "Third Person",
-    Default = false,
-    Callback = function(Value)
-        Config.Visuals.ThirdPerson = Value
-        
-        if Value then
-            LocalPlayer.CameraMode = Enum.CameraMode.Classic
-            LocalPlayer.CameraMaxZoomDistance = 20
-            LocalPlayer.CameraMinZoomDistance = 10
-        else
-            LocalPlayer.CameraMode = Enum.CameraMode.LockFirstPerson
-            LocalPlayer.CameraMaxZoomDistance = 0.5
-            LocalPlayer.CameraMinZoomDistance = 0.5
-        end
-    end
-})
-
-VisualsTab:AddToggle({
-    Name = "FOV Changer",
-    Default = false,
-    Callback = function(Value)
-        Config.Visuals.FOVChanger = Value
-        
-        if Value then
-            Camera.FieldOfView = Config.Visuals.FOVValue
-        else
-            Camera.FieldOfView = 70
-        end
-    end
-})
-
-VisualsTab:AddSlider({
-    Name = "FOV Value",
-    Min = 30,
-    Max = 120,
-    Default = 70,
-    Color = Color3.fromRGB(255, 255, 255),
-    Increment = 5,
-    Callback = function(Value)
-        Config.Visuals.FOVValue = Value
-        
-        if Config.Visuals.FOVChanger then
-            Camera.FieldOfView = Value
-        end
-    end
-})
-
-VisualsTab:AddToggle({
-    Name = "Rainbow Theme",
-    Default = false,
-    Callback = function(Value)
-        Config.Visuals.RainbowTheme = Value
-        
-        if Value then
-            -- Rainbow theme loop
-            spawn(function()
-                while Config.Visuals.RainbowTheme do
-                    local hue = tick() % 10 / 10
-                    local rainbow = Color3.fromHSV(hue, 1, 1)
-                    
-                    OrionLib:ChangeTheme("Main", rainbow)
-                    wait(0.1)
-                end
-            end)
-        else
-            -- Reset theme
-            OrionLib:ChangeTheme("Default")
-        end
-    end
-})
-
--- Misc Tab
-local MiscTab = Window:MakeTab({
-    Name = "Misc",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-MiscTab:AddSection({
-    Name = "Game Features"
-})
-
-MiscTab:AddToggle({
-    Name = "Auto Rejoin",
-    Default = true,
-    Callback = function(Value)
-        Config.Misc.AutoRejoin = Value
-        
-        if Value then
-            -- Set up auto rejoin
-            game:GetService("CoreGui").RobloxPromptGui.promptOverlay.ChildAdded:Connect(function(child)
-                if child.Name == 'ErrorPrompt' and Config.Misc.AutoRejoin then
-                    game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-                end
-            end)
-        end
-    end
-})
-
-MiscTab:AddToggle({
-    Name = "Chat Spam",
-    Default = false,
-    Callback = function(Value)
-        Config.Misc.ChatSpam = Value
-        
-        if Value then
-            -- Set up chat spam
-            spawn(function()
-                while Config.Misc.ChatSpam do
-                    game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer(Config.Misc.ChatSpamText, "All")
-                    wait(3) -- Prevent being kicked for spam
-                end
-            end)
-        end
-    end
-})
-
-MiscTab:AddTextbox({
-    Name = "Chat Spam Text",
-    Default = "SkyX MM2 Script is the best!",
-    TextDisappear = false,
-    Callback = function(Value)
-        Config.Misc.ChatSpamText = Value
-    end  
-})
-
-MiscTab:AddToggle({
-    Name = "Fast Drop",
-    Default = false,
-    Callback = function(Value)
-        Config.Misc.FastDrop = Value
-    end
-})
-
-MiscTab:AddButton({
-    Name = "Rejoin Server",
-    Callback = function()
-        game:GetService("TeleportService"):Teleport(game.PlaceId, LocalPlayer)
-    end
-})
-
-MiscTab:AddButton({
-    Name = "Server Hop",
-    Callback = function()
-        local TeleportService = game:GetService("TeleportService")
-        local HttpService = game:GetService("HttpService")
-        local servers = {}
-        
-        local req = game:HttpGet('https://games.roblox.com/v1/games/' .. game.PlaceId .. '/servers/Public?sortOrder=Asc&limit=100')
-        local data = HttpService:JSONDecode(req)
-        
-        for _, server in ipairs(data.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                table.insert(servers, server.id)
-            end
-        end
-        
-        if #servers > 0 then
-            TeleportService:TeleportToPlaceInstance(game.PlaceId, servers[math.random(1, #servers)])
-        else
-            OrionLib:MakeNotification({
-                Name = "Server Hop",
-                Content = "No servers found",
-                Image = "rbxassetid://4483345998",
-                Time = 5
-            })
-        end
-    end
-})
-
--- Anti-Cheat Tab
-local AntiCheatTab = Window:MakeTab({
-    Name = "Anti-Cheat",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-AntiCheatTab:AddSection({
-    Name = "Protection Features"
-})
-
-AntiCheatTab:AddToggle({
-    Name = "Enable All Protections",
-    Default = true,
-    Callback = function(Value)
-        Config.AntiCheat.Enabled = Value
-        
-        if Value then
-            -- Enable the OrionX Anti-Ban system
-            if OrionLib.AntiBan then
-                OrionLib.AntiBan:EnableAllProtections()
-            end
-        else
-            -- Disable the OrionX Anti-Ban system
-            if OrionLib.AntiBan then
-                OrionLib.AntiBan:DisableAllProtections()
-            end
-        end
-    end
-})
-
-AntiCheatTab:AddToggle({
-    Name = "Anti AFK",
-    Default = true,
-    Callback = function(Value)
-        Config.AntiCheat.AntiAFK = Value
-        
-        if Value then
-            -- Anti AFK
-            for _, connection in pairs(getconnections(LocalPlayer.Idled)) do
-                connection:Disable()
-            end
-            
-            -- Additional anti-AFK measure
-            RunService.Heartbeat:Connect(function()
-                VirtualUser:Button2Down(Vector2.new(0, 0), Camera.CFrame)
-                wait(1)
-                VirtualUser:Button2Up(Vector2.new(0, 0), Camera.CFrame)
-            end)
-        end
-    end
-})
-
-AntiCheatTab:AddToggle({
-    Name = "Anti Kick",
-    Default = true,
-    Callback = function(Value)
-        Config.AntiCheat.AntiKick = Value
-        
-        if Value and OrionLib.AntiBan then
-            OrionLib.AntiBan:EnableProtection("KickDetection")
-        elseif OrionLib.AntiBan then
-            OrionLib.AntiBan:DisableProtection("KickDetection")
-        end
-    end
-})
-
-AntiCheatTab:AddToggle({
-    Name = "Anti Report",
-    Default = true,
-    Callback = function(Value)
-        Config.AntiCheat.AntiReport = Value
-        
-        if Value and OrionLib.AntiBan then
-            OrionLib.AntiBan:EnableProtection("AntiReport")
-        elseif OrionLib.AntiBan then
-            OrionLib.AntiBan:DisableProtection("AntiReport")
-        end
-    end
-})
-
-AntiCheatTab:AddToggle({
-    Name = "Anti Spectate",
-    Default = true,
-    Callback = function(Value)
-        Config.AntiCheat.AntiSpectate = Value
-    end
-})
-
-AntiCheatTab:AddToggle({
-    Name = "Hide From Others",
-    Default = false,
-    Callback = function(Value)
-        Config.AntiCheat.HideFrom = Value
-    end
-})
-
--- Credits Tab
-local CreditsTab = Window:MakeTab({
-    Name = "Credits",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-CreditsTab:AddSection({
-    Name = "Script Information"
-})
-
-CreditsTab:AddParagraph("SkyX MM2 Advanced Script", "Version 2.0")
-CreditsTab:AddParagraph("Created by", "SkyX Development")
-
-CreditsTab:AddSection({
-    Name = "Credits"
-})
-
-CreditsTab:AddParagraph("Developer", "SkyX")
-CreditsTab:AddParagraph("UI Library", "Orion UI Library with SkyX Enhancements")
-CreditsTab:AddParagraph("Anti-Ban System", "SkyX Anti-Ban Module")
-
--- Init functions
-local function InitPlayerConnections()
-    -- Player added
-    Players.PlayerAdded:Connect(function(player)
-        if player ~= LocalPlayer and not ESPObjects[player] and Config.ESP.Enabled then
-            CreateESP(player)
-        end
-    end)
-    
-    -- Player removed
-    Players.PlayerRemoving:Connect(function(player)
-        if ESPObjects[player] then
-            RemoveESP(player)
-        end
-    end)
-    
-    -- Player dropdown update
-    local function UpdatePlayerDropdown()
-        local playerNames = {"None"}
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                table.insert(playerNames, player.Name)
-            end
-        end
-        
-        PlayerDropdown:Refresh(playerNames, true)
-    end
-    
-    Players.PlayerAdded:Connect(UpdatePlayerDropdown)
-    Players.PlayerRemoving:Connect(UpdatePlayerDropdown)
-    UpdatePlayerDropdown()
-    
-    -- Character added for local player
-    LocalPlayer.CharacterAdded:Connect(function(char)
-        Character = char
-        Humanoid = char:WaitForChild("Humanoid")
-        HumanoidRootPart = char:WaitForChild("HumanoidRootPart")
-        
-        -- Apply settings
-        wait(1)
-        UpdateWalkSpeed()
-        UpdateJumpPower()
-        
-        if Config.Character.GodMode then
-            -- Apply god mode
-            wait(0.5)
-            local clone = Humanoid:Clone()
-            Humanoid:Destroy()
-            clone.Parent = Character
-            Humanoid = clone
-        end
-        
-        if Config.Character.AntiRagdoll then
-            -- Apply anti ragdoll
-            for _, connection in pairs(getconnections(Humanoid.StateChanged)) do
-                connection:Disable()
-            end
-        end
-        
-        if Config.Character.Invisible then
-            -- Apply invisibility
-            Character.Head.Transparency = 1
-            for _, accessory in pairs(Character:GetChildren()) do
-                if accessory:IsA("Accessory") then
-                    accessory.Handle.Transparency = 1
-                end
-            end
-        end
-    end)
-    
-    -- Initialize ESP for all current players
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and not ESPObjects[player] and Config.ESP.Enabled then
-            CreateESP(player)
-        end
+local function LoadFile(fileName)
+    local filePath = folderPath .. "/" .. fileName .. ".json"
+    if isfile(filePath) then
+        local jsonData = readfile(filePath)
+        return HttpService:JSONDecode(jsonData)
     end
 end
 
-local function InitGameConnections()
-    -- Update FOV Circle position
-    RunService.RenderStepped:Connect(function()
-        if Config.Aimbot.ShowFOV then
-            AimbotFOVCircle.Position = UserInputService:GetMouseLocation()
-            AimbotFOVCircle.Visible = true
-        else
-            AimbotFOVCircle.Visible = false
+local function ListFiles()
+    local files = {}
+    for _, file in ipairs(listfiles(folderPath)) do
+        local fileName = file:match("([^/]+)%.json$")
+        if fileName then
+            table.insert(files, fileName)
         end
-        
-        -- Aimbot functionality
-        if Config.Aimbot.Enabled and UserInputService:IsKeyDown(Config.Aimbot.AimKey) then
-            AimbotActive = true
-            AimbotTarget = GetClosestPlayerToCursor(Config.Aimbot.FOV)
-            
-            if AimbotTarget and IsAlive(AimbotTarget) then
-                local targetPart = AimbotTarget.Character:FindFirstChild(Config.Aimbot.TargetPart) or AimbotTarget.Character:FindFirstChild("HumanoidRootPart")
-                if targetPart then
-                    AimAt(targetPart.Position)
-                end
-            end
-        else
-            AimbotActive = false
-            AimbotTarget = nil
-        end
-        
-        -- Infinite jump
-        if Config.Character.InfiniteJump and UserInputService:IsKeyDown(Enum.KeyCode.Space) then
-            if IsAlive(LocalPlayer) then
-                LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-        
-        -- Auto pickup gun
-        if Config.Gun.AutoPickup and MM2.GunInMap and MM2.GunInMap.Parent then
-            local distance = GetDistanceFromPlayer(MM2.GunInMap.Position)
-            if distance < 10 then
-                PickupGun()
-            end
-        end
-        
-        -- Coin magnet
-        if Config.Teleports.CoinMagnet then
-            for _, coin in pairs(MM2.Coins) do
-                local distance = GetDistanceFromPlayer(coin.Position)
-                if distance < 20 then
-                    LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(coin.Position)
-                    break
-                end
-            end
-        end
-        
-        -- Kill aura
-        if Config.Knife.KillAura and MM2.Players.Murderer == LocalPlayer then
-            KillAura()
-        end
-        
-        -- Custom time
-        if Config.Visuals.CustomTime then
-            Lighting.ClockTime = Config.Visuals.TimeValue
-        end
-    end)
-    
-    -- Refresh coins and roles periodically
-    spawn(function()
-        while wait(1) do
-            UpdateRoles()
-            UpdateCoins()
-        end
-    end)
-    
-    -- Initial update
-    UpdateRoles()
-    UpdateCoins()
-    
-    -- Infinite jump connection
-    UserInputService.JumpRequest:Connect(function()
-        if Config.Character.InfiniteJump and IsAlive(LocalPlayer) then
-            LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
+    end
+    return files
 end
 
--- Initialize the script
-InitPlayerConnections()
-InitGameConnections()
+Tabs.WindowTab:Section({ Title = "Window" })
 
--- Notification to indicate the script is loaded
-OrionLib:MakeNotification({
-    Name = "SkyX MM2 Advanced Script",
-    Content = "Script successfully loaded with 50 powerful features!",
-    Image = "rbxassetid://4483345998",
-    Time = 5
+local themeValues = {}
+for name, _ in pairs(WindUI:GetThemes()) do
+    table.insert(themeValues, name)
+end
+
+local themeDropdown = Tabs.WindowTab:Dropdown({
+    Title = "Select Theme",
+    Multi = false,
+    AllowNone = false,
+    Value = nil,
+    Values = themeValues,
+    Callback = function(theme)
+        WindUI:SetTheme(theme)
+    end
+})
+themeDropdown:Select(WindUI:GetCurrentTheme())
+
+local ToggleTransparency = Tabs.WindowTab:Toggle({
+    Title = "Toggle Window Transparency",
+    Callback = function(e)
+        Window:ToggleTransparency(e)
+    end,
+    Value = WindUI:GetTransparency()
 })
 
--- Keep the UI open
-OrionLib:Init()
+Tabs.WindowTab:Section({ Title = "Save" })
+
+local fileNameInput = ""
+Tabs.WindowTab:Input({
+    Title = "Write File Name",
+    PlaceholderText = "Enter file name",
+    Callback = function(text)
+        fileNameInput = text
+    end
+})
+
+Tabs.WindowTab:Button({
+    Title = "Save File",
+    Callback = function()
+        if fileNameInput ~= "" then
+            SaveFile(fileNameInput, { Transparent = WindUI:GetTransparency(), Theme = WindUI:GetCurrentTheme() })
+        end
+    end
+})
+
+Tabs.WindowTab:Section({ Title = "Load" })
+
+local filesDropdown
+local files = ListFiles()
+
+filesDropdown = Tabs.WindowTab:Dropdown({
+    Title = "Select File",
+    Multi = false,
+    AllowNone = true,
+    Values = files,
+    Callback = function(selectedFile)
+        fileNameInput = selectedFile
+    end
+})
+
+Tabs.WindowTab:Button({
+    Title = "Load File",
+    Callback = function()
+        if fileNameInput ~= "" then
+            local data = LoadFile(fileNameInput)
+            if data then
+                WindUI:Notify({
+                    Title = "File Loaded",
+                    Content = "Loaded data: " .. HttpService:JSONEncode(data),
+                    Duration = 5,
+                })
+                if data.Transparent then 
+                    Window:ToggleTransparency(data.Transparent)
+                    ToggleTransparency:SetValue(data.Transparent)
+                end
+                if data.Theme then WindUI:SetTheme(data.Theme) end
+            end
+        end
+    end
+})
+
+Tabs.WindowTab:Button({
+    Title = "Overwrite File",
+    Callback = function()
+        if fileNameInput ~= "" then
+            SaveFile(fileNameInput, { Transparent = WindUI:GetTransparency(), Theme = WindUI:GetCurrentTheme() })
+        end
+    end
+})
+
+Tabs.WindowTab:Button({
+    Title = "Refresh List",
+    Callback = function()
+        filesDropdown:Refresh(ListFiles())
+    end
+})
+
+local currentThemeName = WindUI:GetCurrentTheme()
+local themes = WindUI:GetThemes()
+
+local ThemeAccent = themes[currentThemeName].Accent
+local ThemeOutline = themes[currentThemeName].Outline
+local ThemeText = themes[currentThemeName].Text
+local ThemePlaceholderText = themes[currentThemeName].Placeholder
+
+function updateTheme()
+    WindUI:AddTheme({
+        Name = currentThemeName,
+        Accent = ThemeAccent,
+        Outline = ThemeOutline,
+        Text = ThemeText,
+        Placeholder = ThemePlaceholderText
+    })
+    WindUI:SetTheme(currentThemeName)
+end
+
+local CreateInput = Tabs.CreateThemeTab:Input({
+    Title = "Theme Name",
+    Value = currentThemeName,
+    Callback = function(name)
+        currentThemeName = name
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Background Color",
+    Default = Color3.fromHex(ThemeAccent),
+    Callback = function(color)
+        ThemeAccent = color:ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Outline Color",
+    Default = Color3.fromHex(ThemeOutline),
+    Callback = function(color)
+        ThemeOutline = color:ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Text Color",
+    Default = Color3.fromHex(ThemeText),
+    Callback = function(color)
+        ThemeText = color:ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Colorpicker({
+    Title = "Placeholder Text Color",
+    Default = Color3.fromHex(ThemePlaceholderText),
+    Callback = function(color)
+        ThemePlaceholderText = color:ToHex()
+    end
+})
+
+Tabs.CreateThemeTab:Button({
+    Title = "Update Theme",
+    Callback = function()
+        updateTheme()
+    end
+})
+
+local InviteCode = "ApbHXtAwU2"
+local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
+
+local Response = game:GetService("HttpService"):JSONDecode(WindUI.Creator.Request({
+    Url = DiscordAPI,
+    Method = "GET",
+    Headers = {
+        ["User-Agent"] = "RobloxBot/1.0",
+        ["Accept"] = "application/json"
+    }
+}).Body)
+
+if Response and Response.guild then
+    local DiscordInfo = Tabs.Tests:Paragraph({
+        Title = Response.guild.name,
+        Desc = 
+            ' <font color="#52525b">•</font> Member Count : ' .. tostring(Response.approximate_member_count) .. 
+            '\n <font color="#16a34a">•</font> Online Count : ' .. tostring(Response.approximate_presence_count)
+        ,
+        Image = "https://cdn.discordapp.com/icons/" .. Response.guild.id .. "/" .. Response.guild.icon .. ".png?size=1024",
+        ImageSize = 42,
+    })
+
+    Tabs.Tests:Button({
+        Title = "Update Info",
+        --Image = "refresh-ccw",
+        Callback = function()
+            local UpdatedResponse = game:GetService("HttpService"):JSONDecode(WindUI.Creator.Request({
+                Url = DiscordAPI,
+                Method = "GET",
+            }).Body)
+            
+            if UpdatedResponse and UpdatedResponse and UpdatedResponse.guild then
+                DiscordInfo:SetDesc(
+                    ' <font color="#52525b">•</font> Member Count : ' .. tostring(UpdatedResponse.approximate_member_count) .. 
+                    '\n <font color="#16a34a">•</font> Online Count : ' .. tostring(UpdatedResponse.approximate_presence_count)
+                )
+            end
+        end
+    })
+else
+    Tabs.Tests:Paragraph({
+        Title = "Error when receiving information about the Discord server",
+        Desc = game:GetService("HttpService"):JSONEncode(Response),
+        Image = "triangle-alert",
+        ImageSize = 26,
+        Color = "Red",
+    })
+end
+
+
+
+local function parseJSON(luau_table, indent, level, visited)
+    indent = indent or 2
+    level = level or 0
+    visited = visited or {}
+    
+    local currentIndent = string.rep(" ", level * indent)
+    local nextIndent = string.rep(" ", (level + 1) * indent)
+    
+    if luau_table == nil then
+        return "null"
+    end
+    
+    local dataType = type(luau_table)
+    
+    if dataType == "table" then
+        if visited[luau_table] then
+            return "\"[Circular Reference]\""
+        end
+        
+        visited[luau_table] = true
+        
+        local isArray = true
+        local maxIndex = 0
+        
+        for k, _ in pairs(luau_table) do
+            if type(k) == "number" and k > maxIndex then
+                maxIndex = k
+            end
+            if type(k) ~= "number" or k <= 0 or math.floor(k) ~= k then
+                isArray = false
+                break
+            end
+        end
+        
+        local count = 0
+        for _ in pairs(luau_table) do
+            count = count + 1
+        end
+        if count ~= maxIndex and isArray then
+            isArray = false
+        end
+        
+        if count == 0 then
+            return "{}"
+        end
+        
+        if isArray then
+            if count == 0 then
+                return "[]"
+            end
+            
+            local result = "[\n"
+            
+            for i = 1, maxIndex do
+                result = result .. nextIndent .. parseJSON(luau_table[i], indent, level + 1, visited)
+                if i < maxIndex then
+                    result = result .. ","
+                end
+                result = result .. "\n"
+            end
+            
+            result = result .. currentIndent .. "]"
+            return result
+        else
+            local result = "{\n"
+            local first = true
+            
+            local keys = {}
+            for k in pairs(luau_table) do
+                table.insert(keys, k)
+            end
+            table.sort(keys, function(a, b)
+                if type(a) == type(b) then
+                    return tostring(a) < tostring(b)
+                else
+                    return type(a) < type(b)
+                end
+            end)
+            
+            for _, k in ipairs(keys) do
+                local v = luau_table[k]
+                if not first then
+                    result = result .. ",\n"
+                else
+                    first = false
+                end
+                
+                if type(k) == "string" then
+                    result = result .. nextIndent .. "\"" .. k .. "\": "
+                else
+                    result = result .. nextIndent .. "\"" .. tostring(k) .. "\": "
+                end
+                
+                result = result .. parseJSON(v, indent, level + 1, visited)
+            end
+            
+            result = result .. "\n" .. currentIndent .. "}"
+            return result
+        end
+    elseif dataType == "string" then
+        local escaped = luau_table:gsub("\\", "\\\\")
+        escaped = escaped:gsub("\"", "\\\"")
+        escaped = escaped:gsub("\n", "\\n")
+        escaped = escaped:gsub("\r", "\\r")
+        escaped = escaped:gsub("\t", "\\t")
+        
+        return "\"" .. escaped .. "\""
+    elseif dataType == "number" then
+        return tostring(luau_table)
+    elseif dataType == "boolean" then
+        return luau_table and "true" or "false"
+    elseif dataType == "function" then
+        return "\"function\""
+    else
+        return "\"" .. dataType .. "\""
+    end
+end
+
+local function tableToClipboard(luau_table, indent)
+    indent = indent or 4
+    local jsonString = parseJSON(luau_table, indent)
+    setclipboard(jsonString)
+    return jsonString
+end
+
+Tabs.Tests:Section({
+    Title = "Get WindUI JSON"
+})
+
+Tabs.Tests:Button({
+    Title = "Get WindUI JSON",
+    Callback = function()
+        tableToClipboard(WindUI)
+    end
+})
