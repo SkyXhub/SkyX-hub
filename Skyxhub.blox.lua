@@ -1,689 +1,1085 @@
 --[[
-    SkyX UI Executor Example
+    SkyX Hub - Blade Ball Script
+    Using OrionX UI
     
-    This script is ready to be executed in any Roblox executor:
-    - Synapse X
-    - KRNL
-    - Script-Ware
-    - Fluxus
-    - Electron
-    - Oxygen U
-    - Any other executor
-    
-    Just copy this entire script and paste it into your executor.
+    Features:
+    - Multiple Auto Parry methods (Distance, Velocity, Prediction, Hybrid)
+    - Auto Ability
+    - ESP for players and ball
+    - Speed and jump modifiers
+    - Anti-AFK and Anti-Kick protection
 ]]
 
--- Detect the current game
-local gameName = "Unknown"
-local gameId = game.PlaceId
+-- Load the Orion UI Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/jensonhirst/Orion/main/source')))()
 
-local gamesList = {
-    [6284583030] = "Pet Simulator X",
-    [7449423635] = "Blade Ball",
-    [2753915549] = "Blox Fruits",
-    [1962086868] = "Tower of Hell",
-    [155615604] = "Prison Life",
-    [4623386862] = "Piggy",
-    [142823291] = "Murder Mystery 2",
-    [537413528] = "Build A Boat",
-    [189707] = "Natural Disaster Survival",
-    [8304191830] = "Anime Adventures"
+-- Initialize Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+local LocalPlayer = Players.LocalPlayer
+
+-- Configuration
+local Config = {
+    AutoParry = false,
+    ParryMethod = "Hybrid",
+    ParryDistance = 25,
+    AutoAbility = false,
+    PlayerESP = false,
+    BallESP = false,
+    SpeedHack = false,
+    SpeedMultiplier = 2,
+    JumpHack = false,
+    JumpMultiplier = 2,
+    AntiAFK = true,
+    AntiKick = true
 }
 
-gameName = gamesList[gameId] or "Unknown Game"
-
--- Get executor name
-local executor = identifyexecutor and identifyexecutor() or getexecutorname and getexecutorname() or "Unknown"
-
--- Load SkyX UI Library
-local SkyXUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI"))()
-
--- Create window
-local Window = SkyXUI:CreateWindow({
-    Title = "SkyX Hub | " .. gameName,
-    SubTitle = "v1.0.0 | " .. executor,
-    TabWidth = 160,
-    Size = UDim2.fromOffset(600, 480),
-    Acrylic = true,
-    Theme = "Ocean"
+-- Create the main window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX Hub | Blade Ball", 
+    HidePremium = false, 
+    SaveConfig = true, 
+    ConfigFolder = "SkyXHub_BladeBall",
+    IntroEnabled = true,
+    IntroText = "SkyX Hub",
+    IntroIcon = "rbxassetid://10618644218",
+    Icon = "rbxassetid://10618644218"
 })
 
--- Create main tab with welcome message
-local MainTab = Window:CreateTab({
-    Title = "Main",
-    Icon = "home"
+-- Main Tab
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "home",
+    PremiumOnly = false
 })
 
-local InfoSection = MainTab:CreateSection("Information")
-
-InfoSection:CreateParagraph({
-    Title = "Welcome to SkyX Hub",
-    Content = "SkyX Hub is a premium script hub for Roblox games. This UI is running on our custom SkyX UI Library.\n\nDetected Game: " .. gameName .. "\nExecutor: " .. executor
+local InfoSection = MainTab:AddSection({
+    Name = "Information"
 })
 
-InfoSection:CreateButton({
-    Title = "Join Discord",
+InfoSection:AddParagraph("Welcome to SkyX Hub", "The ultimate script for Blade Ball with advanced auto parry features, ESP, and more.")
+
+InfoSection:AddButton({
+    Name = "Copy Discord Invite",
     Callback = function()
-        -- Attempt to join Discord
-        local function joinDiscord()
-            if setclipboard then
-                setclipboard("https://discord.gg/SkyXHub")
-                SkyXUI:Notify({
-                    Title = "Discord Invite",
-                    Content = "Discord invite link copied to clipboard!",
-                    Duration = 5
-                })
-            else
-                SkyXUI:Notify({
-                    Title = "Error",
-                    Content = "Your executor doesn't support clipboard functions",
-                    Duration = 5
-                })
-            end
-        end
-        
-        -- Use pcall to prevent errors
-        local success, err = pcall(joinDiscord)
-        if not success then
-            SkyXUI:Notify({
-                Title = "Error",
-                Content = "Failed to copy Discord invite: " .. tostring(err),
-                Duration = 5
+        if setclipboard then
+            setclipboard("https://discord.gg/skyxhub")
+            OrionLib:MakeNotification({
+                Name = "Discord",
+                Content = "Invite link copied to clipboard!",
+                Image = "info",
+                Time = 5
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Error",
+                Content = "Your executor doesn't support clipboard functions.",
+                Image = "warning",
+                Time = 5
             })
         end
     end
 })
 
--- Create game-specific tab with features
-local GameTab = Window:CreateTab({
-    Title = gameName,
-    Icon = "world"
+-- Combat Tab
+local CombatTab = Window:MakeTab({
+    Name = "Combat",
+    Icon = "sword",
+    PremiumOnly = false
 })
 
-local FeaturesSection = GameTab:CreateSection("Game Features")
+local ParrySection = CombatTab:AddSection({
+    Name = "Auto Parry"
+})
 
--- Add different features based on the detected game
-if gameId == 6284583030 then -- Pet Simulator X
-    -- Pet Simulator X features
-    FeaturesSection:CreateToggle({
-        Title = "Auto Farm Coins",
-        Default = false,
-        Callback = function(Value)
-            SkyXUI:Notify({
-                Title = "Auto Farm",
-                Content = Value and "Started auto farming coins" or "Stopped auto farming coins",
-                Duration = 3
+-- Auto Parry Toggle
+ParrySection:AddToggle({
+    Name = "Auto Parry",
+    Default = false,
+    Flag = "AutoParry",
+    Save = true,
+    Callback = function(Value)
+        Config.AutoParry = Value
+        
+        if Value then
+            StartAutoParry()
+            OrionLib:MakeNotification({
+                Name = "Auto Parry",
+                Content = "Auto Parry has been enabled",
+                Image = "check",
+                Time = 3
             })
-            
-            -- Example implementation (would need to be replaced with actual farming code)
-            if Value then
-                -- Start auto farm
-                _G.AutoFarm = true
-                spawn(function()
-                    while _G.AutoFarm and wait(0.1) do
-                        -- Farming implementation would go here
-                        -- This is just a placeholder that would be replaced with actual game-specific code
-                    end
-                end)
-            else
-                -- Stop auto farm
-                _G.AutoFarm = false
+        else
+            StopAutoParry()
+            OrionLib:MakeNotification({
+                Name = "Auto Parry",
+                Content = "Auto Parry has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Parry Method Dropdown
+ParrySection:AddDropdown({
+    Name = "Parry Method",
+    Default = "Hybrid",
+    Flag = "ParryMethod",
+    Save = true,
+    Options = {"Distance", "Velocity", "Prediction", "Hybrid", "SlowPrediction", "FastReaction"},
+    Callback = function(Value)
+        Config.ParryMethod = Value
+        OrionLib:MakeNotification({
+            Name = "Parry Method",
+            Content = "Set to " .. Value,
+            Image = "sword",
+            Time = 3
+        })
+    end
+})
+
+-- Parry Distance Slider
+ParrySection:AddSlider({
+    Name = "Parry Distance",
+    Min = 5,
+    Max = 50,
+    Default = 25,
+    Color = Color3.fromRGB(46, 109, 188),
+    Increment = 1,
+    Flag = "ParryDistance",
+    Save = true,
+    ValueName = "studs",
+    Callback = function(Value)
+        Config.ParryDistance = Value
+    end
+})
+
+local AbilitySection = CombatTab:AddSection({
+    Name = "Abilities"
+})
+
+-- Auto Ability Toggle
+AbilitySection:AddToggle({
+    Name = "Auto Ability",
+    Default = false,
+    Flag = "AutoAbility",
+    Save = true,
+    Callback = function(Value)
+        Config.AutoAbility = Value
+        
+        if Value then
+            StartAutoAbility()
+            OrionLib:MakeNotification({
+                Name = "Auto Ability",
+                Content = "Auto Ability has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            StopAutoAbility()
+            OrionLib:MakeNotification({
+                Name = "Auto Ability",
+                Content = "Auto Ability has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Visual Tab
+local VisualTab = Window:MakeTab({
+    Name = "Visual",
+    Icon = "eye",
+    PremiumOnly = false
+})
+
+local ESPSection = VisualTab:AddSection({
+    Name = "ESP Options"
+})
+
+-- Player ESP Toggle
+ESPSection:AddToggle({
+    Name = "Player ESP",
+    Default = false,
+    Flag = "PlayerESP",
+    Save = true,
+    Callback = function(Value)
+        Config.PlayerESP = Value
+        
+        if Value then
+            EnablePlayerESP()
+            OrionLib:MakeNotification({
+                Name = "Player ESP",
+                Content = "Player ESP has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisablePlayerESP()
+            OrionLib:MakeNotification({
+                Name = "Player ESP",
+                Content = "Player ESP has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Ball ESP Toggle
+ESPSection:AddToggle({
+    Name = "Ball ESP",
+    Default = false,
+    Flag = "BallESP",
+    Save = true,
+    Callback = function(Value)
+        Config.BallESP = Value
+        
+        if Value then
+            EnableBallESP()
+            OrionLib:MakeNotification({
+                Name = "Ball ESP",
+                Content = "Ball ESP has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableBallESP()
+            OrionLib:MakeNotification({
+                Name = "Ball ESP",
+                Content = "Ball ESP has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- ESP Color Picker
+ESPSection:AddColorpicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Flag = "ESPColor",
+    Save = true,
+    Callback = function(Value)
+        UpdateESPColor(Value)
+    end
+})
+
+-- Local Player Tab
+local LocalPlayerTab = Window:MakeTab({
+    Name = "Local Player",
+    Icon = "person",
+    PremiumOnly = false
+})
+
+local MovementSection = LocalPlayerTab:AddSection({
+    Name = "Movement"
+})
+
+-- Speed Hack Toggle
+MovementSection:AddToggle({
+    Name = "Speed Hack",
+    Default = false,
+    Flag = "SpeedHack",
+    Save = true,
+    Callback = function(Value)
+        Config.SpeedHack = Value
+        
+        if Value then
+            EnableSpeedHack()
+            OrionLib:MakeNotification({
+                Name = "Speed Hack",
+                Content = "Speed Hack has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableSpeedHack()
+            OrionLib:MakeNotification({
+                Name = "Speed Hack",
+                Content = "Speed Hack has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Speed Multiplier Slider
+MovementSection:AddSlider({
+    Name = "Speed Multiplier",
+    Min = 1,
+    Max = 10,
+    Default = 2,
+    Color = Color3.fromRGB(46, 109, 188),
+    Increment = 0.1,
+    Flag = "SpeedMultiplier",
+    Save = true,
+    ValueName = "x",
+    Callback = function(Value)
+        Config.SpeedMultiplier = Value
+        if Config.SpeedHack then
+            UpdateSpeedHack()
+        end
+    end
+})
+
+-- Jump Hack Toggle
+MovementSection:AddToggle({
+    Name = "Jump Hack",
+    Default = false,
+    Flag = "JumpHack",
+    Save = true,
+    Callback = function(Value)
+        Config.JumpHack = Value
+        
+        if Value then
+            EnableJumpHack()
+            OrionLib:MakeNotification({
+                Name = "Jump Hack",
+                Content = "Jump Hack has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableJumpHack()
+            OrionLib:MakeNotification({
+                Name = "Jump Hack",
+                Content = "Jump Hack has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Jump Multiplier Slider
+MovementSection:AddSlider({
+    Name = "Jump Multiplier",
+    Min = 1,
+    Max = 10,
+    Default = 2,
+    Color = Color3.fromRGB(46, 109, 188),
+    Increment = 0.1,
+    Flag = "JumpMultiplier",
+    Save = true,
+    ValueName = "x",
+    Callback = function(Value)
+        Config.JumpMultiplier = Value
+        if Config.JumpHack then
+            UpdateJumpHack()
+        end
+    end
+})
+
+-- Protection Tab
+local ProtectionTab = Window:MakeTab({
+    Name = "Protection",
+    Icon = "shield",
+    PremiumOnly = false
+})
+
+local AntiSection = ProtectionTab:AddSection({
+    Name = "Anti-Detection"
+})
+
+-- Anti-AFK Toggle
+AntiSection:AddToggle({
+    Name = "Anti-AFK",
+    Default = true,
+    Flag = "AntiAFK",
+    Save = true,
+    Callback = function(Value)
+        Config.AntiAFK = Value
+        
+        if Value then
+            EnableAntiAFK()
+            OrionLib:MakeNotification({
+                Name = "Anti-AFK",
+                Content = "Anti-AFK has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableAntiAFK()
+            OrionLib:MakeNotification({
+                Name = "Anti-AFK",
+                Content = "Anti-AFK has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Anti-Kick Toggle
+AntiSection:AddToggle({
+    Name = "Anti-Kick",
+    Default = true,
+    Flag = "AntiKick",
+    Save = true,
+    Callback = function(Value)
+        Config.AntiKick = Value
+        
+        if Value then
+            EnableAntiKick()
+            OrionLib:MakeNotification({
+                Name = "Anti-Kick",
+                Content = "Anti-Kick has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableAntiKick()
+            OrionLib:MakeNotification({
+                Name = "Anti-Kick",
+                Content = "Anti-Kick has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Settings Tab
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "settings",
+    PremiumOnly = false
+})
+
+-- UI Theme Dropdown
+SettingsTab:AddDropdown({
+    Name = "UI Theme",
+    Default = "SkyX",
+    Flag = "UITheme",
+    Save = true,
+    Options = {"Default", "Dark", "Light", "Ocean", "Blood", "SkyX"},
+    Callback = function(Value)
+        OrionLib.Themes:SetTheme(Value)
+        OrionLib:MakeNotification({
+            Name = "Theme",
+            Content = "Theme set to " .. Value,
+            Image = "check",
+            Time = 3
+        })
+    end
+})
+
+-- Mobile Toggle Position
+SettingsTab:AddDropdown({
+    Name = "Mobile Toggle Position",
+    Default = "TopRight",
+    Flag = "MobileTogglePos",
+    Save = true,
+    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
+    Callback = function(Value)
+        OrionLib.Mobile:SetTogglePosition(Value)
+    end
+})
+
+-- Toggle Keybind
+SettingsTab:AddBind({
+    Name = "Toggle UI",
+    Default = Enum.KeyCode.RightControl,
+    Hold = false,
+    Flag = "ToggleUI",
+    Save = true,
+    Callback = function()
+        -- This is handled internally by the UI
+    end
+})
+
+-- Reset All Button
+SettingsTab:AddButton({
+    Name = "Reset All Settings",
+    Callback = function()
+        -- Reset toggle states first
+        for flag, _ in pairs(OrionLib.Flags) do
+            local toggle = OrionLib.Flags[flag]
+            if toggle.Type == "Toggle" then
+                toggle:Set(false)
             end
         end
-    })
+        
+        -- Reset Config values
+        Config = {
+            AutoParry = false,
+            ParryMethod = "Hybrid",
+            ParryDistance = 25,
+            AutoAbility = false,
+            PlayerESP = false,
+            BallESP = false,
+            SpeedHack = false,
+            SpeedMultiplier = 2,
+            JumpHack = false,
+            JumpMultiplier = 2,
+            AntiAFK = true,
+            AntiKick = true
+        }
+        
+        OrionLib:MakeNotification({
+            Name = "Reset",
+            Content = "All settings have been reset",
+            Image = "warning",
+            Time = 5
+        })
+    end
+})
+
+-- Credits Tab
+local CreditsTab = Window:MakeTab({
+    Name = "Credits",
+    Icon = "info",
+    PremiumOnly = false
+})
+
+CreditsTab:AddParagraph("SkyX Hub", "Created by the SkyX Team")
+CreditsTab:AddParagraph("UI Library", "Using OrionX UI")
+CreditsTab:AddParagraph("Credits", "Thanks to all our users and supporters!")
+
+------------------
+-- FUNCTIONALITY
+------------------
+
+-- Variables
+local autoParryConnection = nil
+local autoAbilityConnection = nil
+local antiAFKConnection = nil
+local playerESPObjects = {}
+local ballESPObject = nil
+
+-- Auto Parry Implementation
+function StartAutoParry()
+    if autoParryConnection then
+        autoParryConnection:Disconnect()
+    end
     
-    FeaturesSection:CreateToggle({
-        Title = "Auto Hatch Eggs",
-        Default = false,
-        Callback = function(Value)
-            -- Auto hatch implementation
-        end
-    })
-    
-    local EggSection = GameTab:CreateSection("Egg Settings")
-    
-    EggSection:CreateDropdown({
-        Title = "Select Egg",
-        Values = {"Basic Egg", "Rare Egg", "Epic Egg", "Legendary Egg", "Mythical Egg"},
-        Default = "Basic Egg",
-        Callback = function(Value)
-            -- Egg selection implementation
-            SkyXUI:Notify({
-                Title = "Egg Selected",
-                Content = "Selected: " .. Value,
-                Duration = 3
-            })
-        end
-    })
-    
-    EggSection:CreateToggle({
-        Title = "Triple Hatch",
-        Default = false,
-        Callback = function(Value)
-            -- Triple hatch implementation
-        end
-    })
-    
-elseif gameId == 7449423635 then -- Blade Ball
-    -- Blade Ball features
-    FeaturesSection:CreateToggle({
-        Title = "Auto Parry",
-        Default = false,
-        Callback = function(Value)
-            SkyXUI:Notify({
-                Title = "Auto Parry",
-                Content = Value and "Auto Parry Enabled" or "Auto Parry Disabled",
-                Duration = 3
-            })
+    autoParryConnection = RunService.Heartbeat:Connect(function()
+        if not Config.AutoParry then return end
+        
+        -- Find the ball
+        local ball = FindBall()
+        if not ball then return end
+        
+        -- Get player position
+        local playerPosition = GetPlayerPosition()
+        if not playerPosition then return end
+        
+        -- Calculate if we should parry based on the selected method
+        local shouldParry = false
+        
+        if Config.ParryMethod == "Distance" then
+            -- Simple distance-based method
+            local distance = (ball.Position - playerPosition).Magnitude
+            shouldParry = distance <= Config.ParryDistance
             
-            -- Example implementation
-            _G.AutoParry = Value
+        elseif Config.ParryMethod == "Velocity" then
+            -- Velocity-based method
+            local ballVelocity = GetBallVelocity(ball)
+            if not ballVelocity then return end
             
-            if Value then
-                spawn(function()
-                    -- This is just a placeholder for the actual implementation
-                    while _G.AutoParry and wait(0.1) do
-                        -- Auto parry code would go here
-                    end
-                end)
-            end
-        end
-    })
-    
-    FeaturesSection:CreateSlider({
-        Title = "Parry Range",
-        Min = 1,
-        Max = 100,
-        Default = 50,
-        Callback = function(Value)
-            _G.ParryRange = Value
-            SkyXUI:Notify({
-                Title = "Parry Range",
-                Content = "Set parry range to " .. Value,
-                Duration = 3
-            })
-        end
-    })
-    
-    FeaturesSection:CreateSlider({
-        Title = "Parry Speed",
-        Min = 0.1,
-        Max = 2,
-        Default = 0.5,
-        Callback = function(Value)
-            _G.ParrySpeed = Value
-        end
-    })
-    
-    local AbilitySection = GameTab:CreateSection("Abilities")
-    
-    AbilitySection:CreateButton({
-        Title = "Unlock All Abilities",
-        Callback = function()
-            SkyXUI:Notify({
-                Title = "Abilities",
-                Content = "Attempting to unlock all abilities...",
-                Duration = 3
-            })
+            local directionToPlayer = (playerPosition - ball.Position).Unit
+            local normalizedVelocity = ballVelocity.Unit
+            local dotProduct = directionToPlayer:Dot(normalizedVelocity)
             
-            -- Ability unlock would go here
-        end
-    })
-    
-elseif gameId == 2753915549 then -- Blox Fruits
-    -- Blox Fruits features
-    FeaturesSection:CreateToggle({
-        Title = "Auto Farm Level",
-        Default = false,
-        Callback = function(Value)
-            -- Auto farm implementation
-        end
-    })
-    
-    FeaturesSection:CreateToggle({
-        Title = "Auto Raid",
-        Default = false,
-        Callback = function(Value)
-            -- Auto raid implementation
-        end
-    })
-    
-    local TeleportSection = GameTab:CreateSection("Teleports")
-    
-    TeleportSection:CreateDropdown({
-        Title = "Teleport To",
-        Values = {"First Sea", "Second Sea", "Third Sea", "Marine Base", "Middle Town", "Jungle", "Pirate Village", "Desert", "Frozen Village", "Colosseum"},
-        Callback = function(Value)
-            SkyXUI:Notify({
-                Title = "Teleport",
-                Content = "Teleporting to " .. Value .. "...",
-                Duration = 3
-            })
+            local distance = (ball.Position - playerPosition).Magnitude
+            shouldParry = dotProduct > 0.8 and distance <= Config.ParryDistance
             
-            -- Teleport implementation would go here
-        end
-    })
-    
-    local FruitsSection = GameTab:CreateSection("Fruits")
-    
-    FruitsSection:CreateToggle({
-        Title = "Auto Buy Random Fruit",
-        Default = false,
-        Callback = function(Value)
-            -- Auto buy implementation
-        end
-    })
-    
-    FruitsSection:CreateToggle({
-        Title = "Auto Store Fruits",
-        Default = false,
-        Callback = function(Value)
-            -- Auto store implementation
-        end
-    })
-    
-else
-    -- Generic features for other games
-    FeaturesSection:CreateToggle({
-        Title = "Infinite Jump",
-        Default = false,
-        Callback = function(Value)
-            -- Enable infinite jump
-            _G.InfiniteJump = Value
+        elseif Config.ParryMethod == "Prediction" then
+            -- Prediction-based method
+            local ballVelocity = GetBallVelocity(ball)
+            if not ballVelocity then return end
             
-            if Value then
-                -- Connect jump function
-                local InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
-                    if _G.InfiniteJump then
-                        game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-                    end
-                end)
-                
-                -- Store connection for cleanup
-                _G.InfiniteJumpConnection = InfiniteJumpConnection
-            else
-                -- Disconnect if exists
-                if _G.InfiniteJumpConnection then
-                    _G.InfiniteJumpConnection:Disconnect()
-                    _G.InfiniteJumpConnection = nil
+            -- Calculate time to reach player
+            local directionToPlayer = (playerPosition - ball.Position)
+            local distance = directionToPlayer.Magnitude
+            
+            if distance <= Config.ParryDistance then
+                local velocityTowardsPlayer = ballVelocity:Dot(directionToPlayer.Unit)
+                if velocityTowardsPlayer > 0 then
+                    local timeToReach = distance / velocityTowardsPlayer
+                    shouldParry = timeToReach < 0.5
                 end
             end
             
-            SkyXUI:Notify({
-                Title = "Infinite Jump",
-                Content = Value and "Infinite Jump Enabled" or "Infinite Jump Disabled",
-                Duration = 3
-            })
-        end
-    })
-    
-    FeaturesSection:CreateToggle({
-        Title = "ESP Players",
-        Default = false,
-        Callback = function(Value)
-            -- Player ESP implementation
-            _G.ESP = Value
+        elseif Config.ParryMethod == "SlowPrediction" then
+            -- Similar to Prediction but with more buffer time
+            local ballVelocity = GetBallVelocity(ball)
+            if not ballVelocity then return end
             
-            if Value then
-                -- Simple ESP implementation (placeholder)
-                local function createESP(player)
-                    local highlight = Instance.new("Highlight")
-                    highlight.Name = "ESP_Highlight"
-                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.FillTransparency = 0.5
-                    highlight.OutlineTransparency = 0
-                    
-                    if player.Character then
-                        highlight.Parent = player.Character
-                    end
-                    
-                    player.CharacterAdded:Connect(function(character)
-                        if _G.ESP then
-                            highlight.Parent = character
-                        end
-                    end)
-                    
-                    return highlight
-                end
-                
-                _G.ESPHighlights = {}
-                
-                -- Apply ESP to existing players
-                for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-                    if player ~= game:GetService("Players").LocalPlayer then
-                        _G.ESPHighlights[player.Name] = createESP(player)
-                    end
-                end
-                
-                -- Handle new players
-                _G.ESPPlayerAddedConnection = game:GetService("Players").PlayerAdded:Connect(function(player)
-                    if _G.ESP and player ~= game:GetService("Players").LocalPlayer then
-                        _G.ESPHighlights[player.Name] = createESP(player)
-                    end
-                end)
-                
-                -- Handle players leaving
-                _G.ESPPlayerRemovingConnection = game:GetService("Players").PlayerRemoving:Connect(function(player)
-                    if _G.ESPHighlights[player.Name] then
-                        _G.ESPHighlights[player.Name]:Destroy()
-                        _G.ESPHighlights[player.Name] = nil
-                    end
-                end)
-            else
-                -- Cleanup ESP
-                if _G.ESPHighlights then
-                    for _, highlight in pairs(_G.ESPHighlights) do
-                        if highlight then
-                            highlight:Destroy()
-                        end
-                    end
-                    _G.ESPHighlights = {}
-                end
-                
-                if _G.ESPPlayerAddedConnection then
-                    _G.ESPPlayerAddedConnection:Disconnect()
-                    _G.ESPPlayerAddedConnection = nil
-                end
-                
-                if _G.ESPPlayerRemovingConnection then
-                    _G.ESPPlayerRemovingConnection:Disconnect()
-                    _G.ESPPlayerRemovingConnection = nil
+            local directionToPlayer = (playerPosition - ball.Position)
+            local distance = directionToPlayer.Magnitude
+            
+            if distance <= Config.ParryDistance * 1.2 then
+                local velocityTowardsPlayer = ballVelocity:Dot(directionToPlayer.Unit)
+                if velocityTowardsPlayer > 0 then
+                    local timeToReach = distance / velocityTowardsPlayer
+                    shouldParry = timeToReach < 0.75
                 end
             end
-        end
-    })
-    
-    FeaturesSection:CreateButton({
-        Title = "Teleport to Random Player",
-        Callback = function()
-            -- Get all players
-            local players = game:GetService("Players"):GetPlayers()
-            local localPlayer = game:GetService("Players").LocalPlayer
             
-            -- Remove local player from list
-            for i, player in pairs(players) do
-                if player == localPlayer then
-                    table.remove(players, i)
+        elseif Config.ParryMethod == "FastReaction" then
+            -- Very reactive method with minimal prediction
+            local ballVelocity = GetBallVelocity(ball)
+            if not ballVelocity then return end
+            
+            local directionToPlayer = (playerPosition - ball.Position)
+            local distance = directionToPlayer.Magnitude
+            
+            if distance <= Config.ParryDistance * 0.8 then
+                local velocityTowardsPlayer = ballVelocity:Dot(directionToPlayer.Unit)
+                if velocityTowardsPlayer > 0 then
+                    local timeToReach = distance / velocityTowardsPlayer
+                    shouldParry = timeToReach < 0.3
+                end
+            end
+            
+        else -- Hybrid (default)
+            -- Combination of distance and velocity methods
+            local ballVelocity = GetBallVelocity(ball)
+            if not ballVelocity then return end
+            
+            local directionToPlayer = (playerPosition - ball.Position).Unit
+            local normalizedVelocity = ballVelocity.Unit
+            local dotProduct = directionToPlayer:Dot(normalizedVelocity)
+            
+            local distance = (ball.Position - playerPosition).Magnitude
+            local velocityMagnitude = ballVelocity.Magnitude
+            
+            -- Calculate a dynamic parry threshold based on ball speed
+            local parryThreshold = math.max(0.7, 1 - (velocityMagnitude / 200))
+            
+            shouldParry = dotProduct > parryThreshold and distance <= Config.ParryDistance
+        end
+        
+        -- If we should parry, execute the parry
+        if shouldParry then
+            ExecuteParry()
+        end
+    end)
+end
+
+function StopAutoParry()
+    if autoParryConnection then
+        autoParryConnection:Disconnect()
+        autoParryConnection = nil
+    end
+end
+
+function FindBall()
+    -- Look for the ball in the workspace
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj.Name == "Ball" and obj:IsA("BasePart") then
+            return obj
+        end
+    end
+    
+    -- If not found by name, try to find it by properties
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("BasePart") and obj:GetAttribute("IsBall") then
+            return obj
+        end
+    end
+    
+    return nil
+end
+
+function GetPlayerPosition()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return LocalPlayer.Character.HumanoidRootPart.Position
+    end
+    return nil
+end
+
+function GetBallVelocity(ball)
+    if ball:FindFirstChild("Velocity") and ball.Velocity:IsA("VectorForce") then
+        return ball.Velocity.Velocity
+    elseif ball:FindFirstChild("LinearVelocity") and ball.LinearVelocity:IsA("VectorForce") then
+        return ball.LinearVelocity.VectorVelocity
+    elseif ball:FindFirstChild("BodyVelocity") and ball.BodyVelocity:IsA("BodyVelocity") then
+        return ball.BodyVelocity.Velocity
+    end
+    
+    -- If no velocity object is found, use CFrame comparison
+    if not ball.lastPosition then
+        ball.lastPosition = ball.Position
+        return Vector3.new(0, 0, 0)
+    else
+        local velocity = (ball.Position - ball.lastPosition) * 60
+        ball.lastPosition = ball.Position
+        return velocity
+    end
+end
+
+function ExecuteParry()
+    -- Common remote paths
+    local parryRemote = ReplicatedStorage:FindFirstChild("Remotes") and
+                         ReplicatedStorage.Remotes:FindFirstChild("ParryAttempt")
+                         
+    if not parryRemote then
+        -- Alternative paths
+        parryRemote = ReplicatedStorage:FindFirstChild("RemoteEvent") or
+                      ReplicatedStorage:FindFirstChild("ParryEvent") or
+                      ReplicatedStorage:FindFirstChild("Remote") and ReplicatedStorage.Remote:FindFirstChild("ParryAttempt")
+    end
+    
+    -- If remote is found, fire it
+    if parryRemote then
+        parryRemote:FireServer()
+    else
+        -- If no remote is found, try key press simulation
+        local VIM = game:GetService("VirtualInputManager")
+        VIM:SendKeyEvent(true, Enum.KeyCode.F, false, game)
+        task.wait()
+        VIM:SendKeyEvent(false, Enum.KeyCode.F, false, game)
+    end
+end
+
+-- Auto Ability Implementation
+function StartAutoAbility()
+    if autoAbilityConnection then
+        autoAbilityConnection:Disconnect()
+    end
+    
+    autoAbilityConnection = RunService.Heartbeat:Connect(function()
+        if not Config.AutoAbility then return end
+        
+        -- Find the ability remote
+        local abilityRemote = ReplicatedStorage:FindFirstChild("Remotes") and
+                             ReplicatedStorage.Remotes:FindFirstChild("UseAbility")
+                             
+        if not abilityRemote then
+            -- Alternative paths
+            abilityRemote = ReplicatedStorage:FindFirstChild("RemoteEvent") or
+                           ReplicatedStorage:FindFirstChild("AbilityEvent") or
+                           ReplicatedStorage:FindFirstChild("Remote") and ReplicatedStorage.Remote:FindFirstChild("UseAbility")
+        end
+        
+        -- Check if the ability is ready
+        local isAbilityReady = false
+        
+        -- Try to find ability state in player
+        if LocalPlayer:FindFirstChild("Abilities") then
+            for _, ability in pairs(LocalPlayer.Abilities:GetChildren()) do
+                if ability:FindFirstChild("Cooldown") and ability.Cooldown.Value == 0 then
+                    isAbilityReady = true
                     break
                 end
             end
-            
-            -- Check if there are other players
-            if #players > 0 then
-                -- Select random player
-                local randomPlayer = players[math.random(1, #players)]
-                
-                -- Teleport to them
-                if randomPlayer.Character and randomPlayer.Character:FindFirstChild("HumanoidRootPart") and
-                   localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    
-                    localPlayer.Character.HumanoidRootPart.CFrame = randomPlayer.Character.HumanoidRootPart.CFrame
-                    
-                    SkyXUI:Notify({
-                        Title = "Teleport",
-                        Content = "Teleported to " .. randomPlayer.Name,
-                        Duration = 3
-                    })
-                else
-                    SkyXUI:Notify({
-                        Title = "Error",
-                        Content = "Failed to teleport to player",
-                        Duration = 3
-                    })
-                end
-            else
-                SkyXUI:Notify({
-                    Title = "Error",
-                    Content = "No other players to teleport to",
-                    Duration = 3
-                })
+        end
+        
+        -- Try alternative ways to check if ability is ready
+        if not isAbilityReady then
+            -- Check if there's a UI element indicating ability is ready
+            local abilitiesUI = LocalPlayer.PlayerGui:FindFirstChild("AbilitiesUI")
+            if abilitiesUI and abilitiesUI:FindFirstChild("Frame") and abilitiesUI.Frame:FindFirstChild("Ready") then
+                isAbilityReady = abilitiesUI.Frame.Ready.Visible
             end
         end
-    })
-    
-    local CharacterSection = GameTab:CreateSection("Character Modifications")
-    
-    CharacterSection:CreateSlider({
-        Title = "WalkSpeed",
-        Min = 16,
-        Max = 250,
-        Default = 16,
-        Callback = function(Value)
-            -- Set walk speed
-            if game:GetService("Players").LocalPlayer.Character and 
-               game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Value
-            end
+        
+        -- If ability is ready and remote is found, use it
+        if isAbilityReady and abilityRemote then
+            abilityRemote:FireServer()
+        elseif isAbilityReady then
+            -- If no remote is found, try key press simulation
+            local VIM = game:GetService("VirtualInputManager")
+            VIM:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+            task.wait()
+            VIM:SendKeyEvent(false, Enum.KeyCode.E, false, game)
         end
-    })
-    
-    CharacterSection:CreateSlider({
-        Title = "JumpPower",
-        Min = 50,
-        Max = 300,
-        Default = 50,
-        Callback = function(Value)
-            -- Set jump power
-            if game:GetService("Players").LocalPlayer.Character and 
-               game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid").JumpPower = Value
-            end
-        end
-    })
-    
-    CharacterSection:CreateToggle({
-        Title = "Noclip",
-        Default = false,
-        Callback = function(Value)
-            _G.Noclip = Value
-            
-            if Value then
-                -- Enable noclip
-                _G.NoclipLoop = game:GetService("RunService").Stepped:Connect(function()
-                    if _G.Noclip then
-                        if game:GetService("Players").LocalPlayer.Character then
-                            for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
-                                if part:IsA("BasePart") and part.CanCollide then
-                                    part.CanCollide = false
-                                end
-                            end
-                        end
-                    end
-                end)
-                
-                SkyXUI:Notify({
-                    Title = "Noclip",
-                    Content = "Noclip Enabled - Walk through walls",
-                    Duration = 3
-                })
-            else
-                -- Disable noclip
-                if _G.NoclipLoop then
-                    _G.NoclipLoop:Disconnect()
-                    _G.NoclipLoop = nil
-                end
-                
-                -- Reset collision
-                if game:GetService("Players").LocalPlayer.Character then
-                    for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = true
-                        end
-                    end
-                end
-                
-                SkyXUI:Notify({
-                    Title = "Noclip",
-                    Content = "Noclip Disabled",
-                    Duration = 3
-                })
-            end
-        end
-    })
+        
+        -- Add delay to prevent spamming
+        task.wait(0.5)
+    end)
 end
 
--- Create settings tab
-local SettingsTab = Window:CreateTab({
-    Title = "Settings",
-    Icon = "settings"
-})
-
-local UISection = SettingsTab:CreateSection("UI Settings")
-
-UISection:CreateDropdown({
-    Title = "Theme",
-    Values = {"Default", "Ocean", "Forest", "Sunset", "Monochrome"},
-    Default = "Ocean",
-    Callback = function(Value)
-        -- Theme implementation
-        SkyXUI:Notify({
-            Title = "Theme Changed",
-            Content = "Changed theme to " .. Value,
-            Duration = 3
-        })
+function StopAutoAbility()
+    if autoAbilityConnection then
+        autoAbilityConnection:Disconnect()
+        autoAbilityConnection = nil
     end
-})
+end
 
-UISection:CreateKeybind({
-    Title = "Toggle UI",
-    Default = "RightControl",
-    Callback = function()
-        -- This is handled automatically by the UI library
+-- Player ESP Implementation
+function EnablePlayerESP()
+    DisablePlayerESP() -- Clear existing ESP
+    
+    -- Create ESP for all players
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            CreatePlayerESP(player)
+        end
     end
-})
-
--- Create Anti-Ban tab
-local AntiBanTab = Window:CreateTab({
-    Title = "Anti-Ban",
-    Icon = "shield"
-})
-
-local ProtectionSection = AntiBanTab:CreateSection("Protections")
-
-ProtectionSection:CreateToggle({
-    Title = "Anti-Kick",
-    Default = true,
-    Callback = function(Value)
-        -- Implementation would depend on our Anti-Ban system
-        SkyXUI:Notify({
-            Title = "Anti-Ban",
-            Content = Value and "Anti-Kick Enabled" or "Anti-Kick Disabled",
-            Duration = 3
-        })
-    end
-})
-
-ProtectionSection:CreateToggle({
-    Title = "Anti-Report",
-    Default = true,
-    Callback = function(Value)
-        -- Implementation
-    end
-})
-
-ProtectionSection:CreateToggle({
-    Title = "Admin Detection",
-    Default = true,
-    Callback = function(Value)
-        -- Implementation
-    end
-})
-
-ProtectionSection:CreateToggle({
-    Title = "Screenshot Protection",
-    Default = true,
-    Callback = function(Value)
-        -- Implementation
-    end
-})
-
-local ActionsSection = AntiBanTab:CreateSection("Actions")
-
-ActionsSection:CreateButton({
-    Title = "Enable All Protections",
-    Callback = function()
-        -- Set all protection toggles to true
-        for _, toggle in ipairs(ProtectionSection:GetChildren()) do
-            if toggle.ClassName == "Toggle" then
-                toggle:SetValue(true)
+    
+    -- Connect events for new players
+    playerESPConnections = {
+        Players.PlayerAdded:Connect(function(player)
+            CreatePlayerESP(player)
+        end),
+        
+        Players.PlayerRemoving:Connect(function(player)
+            if playerESPObjects[player.Name] then
+                playerESPObjects[player.Name]:Destroy()
+                playerESPObjects[player.Name] = nil
             end
+        end)
+    }
+end
+
+function DisablePlayerESP()
+    -- Disconnect events
+    if playerESPConnections then
+        for _, connection in pairs(playerESPConnections) do
+            connection:Disconnect()
+        end
+        playerESPConnections = nil
+    end
+    
+    -- Remove ESP from all players
+    for _, highlight in pairs(playerESPObjects) do
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+    
+    playerESPObjects = {}
+end
+
+function CreatePlayerESP(player)
+    if playerESPObjects[player.Name] then
+        playerESPObjects[player.Name]:Destroy()
+    end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SkyXESP"
+    highlight.FillColor = OrionLib.Flags["ESPColor"].Value
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = player.Character
+    highlight.Parent = player.Character
+    
+    playerESPObjects[player.Name] = highlight
+    
+    -- Update when character changes
+    player.CharacterAdded:Connect(function(character)
+        if playerESPObjects[player.Name] then
+            playerESPObjects[player.Name].Adornee = character
+            playerESPObjects[player.Name].Parent = character
+        end
+    end)
+end
+
+function UpdateESPColor(color)
+    for _, highlight in pairs(playerESPObjects) do
+        if highlight then
+            highlight.FillColor = color
+        end
+    end
+    
+    if ballESPObject then
+        ballESPObject.FillColor = color
+    end
+end
+
+-- Ball ESP Implementation
+function EnableBallESP()
+    DisableBallESP() -- Clear existing ESP
+    
+    -- Create ESP for the ball
+    local ball = FindBall()
+    if ball then
+        CreateBallESP(ball)
+    end
+    
+    -- Connect event for new balls
+    ballESPConnections = {
+        workspace.ChildAdded:Connect(function(child)
+            if child.Name == "Ball" or child:GetAttribute("IsBall") then
+                task.wait(0.1)
+                CreateBallESP(child)
+            end
+        end)
+    }
+end
+
+function DisableBallESP()
+    -- Disconnect events
+    if ballESPConnections then
+        for _, connection in pairs(ballESPConnections) do
+            connection:Disconnect()
+        end
+        ballESPConnections = nil
+    end
+    
+    -- Remove ESP from ball
+    if ballESPObject then
+        ballESPObject:Destroy()
+        ballESPObject = nil
+    end
+end
+
+function CreateBallESP(ball)
+    if ballESPObject then
+        ballESPObject:Destroy()
+    end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SkyXBallESP"
+    highlight.FillColor = OrionLib.Flags["ESPColor"].Value
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = ball
+    highlight.Parent = ball
+    
+    ballESPObject = highlight
+end
+
+-- Speed Hack Implementation
+function EnableSpeedHack()
+    UpdateSpeedHack()
+    
+    -- Connect to character added event
+    speedHackConnection = LocalPlayer.CharacterAdded:Connect(function(character)
+        if Config.SpeedHack then
+            task.wait(0.5)
+            UpdateSpeedHack()
+        end
+    end)
+end
+
+function DisableSpeedHack()
+    if speedHackConnection then
+        speedHackConnection:Disconnect()
+        speedHackConnection = nil
+    end
+    
+    -- Reset walkspeed
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16
+    end
+end
+
+function UpdateSpeedHack()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16 * Config.SpeedMultiplier
+    end
+end
+
+-- Jump Hack Implementation
+function EnableJumpHack()
+    UpdateJumpHack()
+    
+    -- Connect to character added event
+    jumpHackConnection = LocalPlayer.CharacterAdded:Connect(function(character)
+        if Config.JumpHack then
+            task.wait(0.5)
+            UpdateJumpHack()
+        end
+    end)
+end
+
+function DisableJumpHack()
+    if jumpHackConnection then
+        jumpHackConnection:Disconnect()
+        jumpHackConnection = nil
+    end
+    
+    -- Reset jump power
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = 50
+    end
+end
+
+function UpdateJumpHack()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = 50 * Config.JumpMultiplier
+    end
+end
+
+-- Anti-AFK Implementation
+function EnableAntiAFK()
+    if antiAFKConnection then
+        antiAFKConnection:Disconnect()
+    end
+    
+    antiAFKConnection = LocalPlayer.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+        
+        OrionLib:MakeNotification({
+            Name = "Anti-AFK",
+            Content = "Prevented AFK kick",
+            Image = "check",
+            Time = 3
+        })
+    end)
+end
+
+function DisableAntiAFK()
+    if antiAFKConnection then
+        antiAFKConnection:Disconnect()
+        antiAFKConnection = nil
+    end
+end
+
+-- Anti-Kick Implementation
+function EnableAntiKick()
+    -- Hook the kick function
+    local mt = getrawmetatable(game)
+    local oldNamecall = mt.__namecall
+    
+    if setreadonly then
+        setreadonly(mt, false)
+    else
+        make_writeable(mt)
+    end
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local method = getnamecallmethod()
+        local args = {...}
+        
+        if method == "Kick" and Config.AntiKick then
+            OrionLib:MakeNotification({
+                Name = "Anti-Kick",
+                Content = "Blocked kick attempt: " .. tostring(args[1] or "No reason provided"),
+                Image = "check",
+                Time = 5
+            })
+            return
         end
         
-        SkyXUI:Notify({
-            Title = "Anti-Ban",
-            Content = "All protections enabled",
-            Duration = 3
-        })
+        return oldNamecall(self, ...)
+    end)
+    
+    if setreadonly then
+        setreadonly(mt, true)
+    else
+        make_readonly(mt)
     end
-})
+end
 
-ActionsSection:CreateButton({
-    Title = "Disable All Protections",
-    Callback = function()
-        -- Set all protection toggles to false
-        for _, toggle in ipairs(ProtectionSection:GetChildren()) do
-            if toggle.ClassName == "Toggle" then
-                toggle:SetValue(false)
-            end
-        end
-        
-        SkyXUI:Notify({
-            Title = "Anti-Ban",
-            Content = "All protections disabled",
-            Duration = 3
-        })
-    end
-})
+function DisableAntiKick()
+    -- Since we can't easily undo the metatable hook, we just set the config value to false
+    Config.AntiKick = false
+end
 
-local InfoSection = AntiBanTab:CreateSection("Information")
+-- Initialize features based on saved settings
+if Config.AntiAFK then
+    EnableAntiAFK()
+end
 
-InfoSection:CreateParagraph({
-    Title = "Anti-Ban System",
-    Content = "SkyX Anti-Ban system helps protect you from being banned or kicked while using exploits. It includes various protection mechanisms to keep you safe while exploiting."
-})
+if Config.AntiKick then
+    EnableAntiKick()
+end
 
--- Create credits tab
-local CreditsTab = Window:CreateTab({
-    Title = "Credits",
-    Icon = "credit"
-})
-
-local CreditsSection = CreditsTab:CreateSection("Credits")
-
-CreditsSection:CreateParagraph({
-    Title = "SkyX Team",
-    Content = "UI Development: SkyX Team\nScript Development: SkyX Team\nUI Design: Inspired by Luna UI"
-})
-
-CreditsSection:CreateParagraph({
-    Title = "Special Thanks",
-    Content = "Thanks to all the members of our Discord community for their support and feedback!"
-})
-
-CreditsSection:CreateButton({
-    Title = "Copy Discord Invite",
-    Callback = function()
-        if setclipboard then
-            setclipboard("https://discord.gg/SkyXHub")
-            SkyXUI:Notify({
-                Title = "Discord",
-                Content = "Discord invite copied to clipboard!",
-                Duration = 3
-            })
-        else
-            SkyXUI:Notify({
-                Title = "Error",
-                Content = "Your executor doesn't support clipboard functions",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Welcome notification
-SkyXUI:Notify({
-    Title = "SkyX Hub Loaded",
-    Content = "Welcome to SkyX Hub | Game: " .. gameName .. " | Executor: " .. executor,
-    Duration = 5
-})
+-- Initialize the UI
+OrionLib:Init()
