@@ -1,303 +1,1792 @@
---[[    dd
-    OrionX GitHub Example
-    This script demonstrates how to use OrionX UI according to the official GitHub documentation
+--[[
+    SkyX Hub - Murder Mystery 2 Script
+    Using OrionX UI
+    
+    Features:
+    - ESP for all players (murderer, sheriff, innocents)
+    - Auto coin collect
+    - Silent aim for sheriff/gun
+    - Teleport to various locations
+    - Murderer detection (who has the knife)
+    - Speed and jump modifiers
+    - Item/gun ESP
+    - Anti-AFK and anti-detection
 ]]
 
--- Load the OrionX UI Library from GitHub
-local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI'))() 
+-- Load the OrionX UI Library
+local OrionLib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/SkyXhub/skyx-all-ui-/refs/heads/main/OrionX-UI')))()
 
--- Create a window with all options
+-- Initialize Services
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser = game:GetService("VirtualUser")
+local Workspace = game:GetService("Workspace")
+local LocalPlayer = Players.LocalPlayer
+
+-- Configuration
+local Config = {
+    -- ESP
+    PlayerESP = false,
+    MurdererColor = Color3.fromRGB(255, 0, 0),    -- Red
+    SheriffColor = Color3.fromRGB(0, 0, 255),     -- Blue
+    InnocentColor = Color3.fromRGB(0, 255, 0),    -- Green
+    ItemESP = false,
+    GunESP = false,
+    CoinESP = false,
+    
+    -- Features
+    AutoCollect = false,
+    SilentAim = false,
+    KillerDetection = false,
+    
+    -- Character
+    SpeedHack = false,
+    SpeedMultiplier = 2,
+    JumpHack = false,
+    JumpMultiplier = 2,
+    NoClip = false,
+    
+    -- Protection
+    AntiAFK = true,
+    SpectateProtection = true
+}
+
+-- Create the main window
 local Window = OrionLib:MakeWindow({
-    Name = "OrionX GitHub Example",
-    HidePremium = false,
+    Name = "SkyX Hub | Murder Mystery 2",
+    HidePremium = true,
     SaveConfig = true,
-    ConfigFolder = "OrionXGitHub",
-    IntroEnabled = true,
-    IntroText = "OrionX UI",
-    IntroIcon = "home", -- Using named icon
-    Icon = "home", -- Using named icon
-    CloseCallback = function()
-        print("Window closed")
-    end
+    ConfigFolder = "SkyXHub_MM2",
+    IntroText = "SkyX Hub"
 })
 
--- Create Main Tab
+-- Create a custom theme
+OrionLib.Themes:AddTheme("SkyX", {
+    Main = Color3.fromRGB(24, 28, 39),
+    Second = Color3.fromRGB(32, 36, 48),
+    Stroke = Color3.fromRGB(46, 109, 188),
+    Divider = Color3.fromRGB(46, 109, 188),
+    Text = Color3.fromRGB(225, 235, 245),
+    TextDark = Color3.fromRGB(175, 185, 210)
+})
+
+-- Set the theme
+OrionLib.Themes:SetTheme("SkyX")
+
+-- Main Tab
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "home", -- Using named icon
+    Icon = "home",
     PremiumOnly = false
 })
 
--- Add a section
 local InfoSection = MainTab:AddSection({
     Name = "Information"
 })
 
--- Add a label
-InfoSection:AddLabel("Welcome to OrionX UI")
+InfoSection:AddParagraph("Welcome to SkyX Hub", "The ultimate script for Murder Mystery 2 with ESP, silent aim, murderer detection and more.")
 
--- Add a paragraph
-InfoSection:AddParagraph("GitHub Example", "This example demonstrates OrionX UI features based on GitHub documentation")
+InfoSection:AddButton({
+    Name = "Copy Discord Invite",
+    Callback = function()
+        if setclipboard then
+            setclipboard("https://discord.gg/skyxhub")
+            OrionLib:MakeNotification({
+                Name = "Discord",
+                Content = "Invite link copied to clipboard!",
+                Image = "info",
+                Time = 5
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Error",
+                Content = "Your executor doesn't support clipboard functions.",
+                Image = "warning",
+                Time = 5
+            })
+        end
+    end
+})
 
--- Create Controls Tab
-local ControlsTab = Window:MakeTab({
-    Name = "Controls",
-    Icon = "settings", -- Using named icon
+-- ESP Tab
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "eye",
     PremiumOnly = false
 })
 
--- Add a basic section
-local BasicSection = ControlsTab:AddSection({
-    Name = "Basic Controls"
+local PlayerESPSection = ESPTab:AddSection({
+    Name = "Player ESP"
 })
 
--- Add a button
-BasicSection:AddButton({
-    Name = "Click Me",
-    Callback = function()
-        OrionLib:MakeNotification({
-            Name = "Button Pressed",
-            Content = "You clicked the button!",
-            Image = "check", -- Using named icon
-            Time = 5
-        })
-    end    
-})
-
--- Add a toggle with flag for config saving
-local toggle = BasicSection:AddToggle({
-    Name = "Toggle Feature",
+-- Player ESP Toggle
+PlayerESPSection:AddToggle({
+    Name = "Player ESP",
     Default = false,
+    Flag = "PlayerESP",
     Save = true,
-    Flag = "featureToggle",
     Callback = function(Value)
-        print("Toggle value:", Value)
-    end    
-})
-
--- Add a slider with config saving
-local slider = BasicSection:AddSlider({
-    Name = "Speed Adjustment",
-    Min = 0,
-    Max = 100,
-    Default = 50,
-    Color = Color3.fromRGB(255, 100, 100),
-    Increment = 1,
-    ValueName = "speed",
-    Save = true,
-    Flag = "speedSlider",
-    Callback = function(Value)
-        print("Speed value:", Value)
-    end    
-})
-
--- Add a dropdown with config saving
-local dropdown = BasicSection:AddDropdown({
-    Name = "Select Option",
-    Default = "Option 1",
-    Options = {"Option 1", "Option 2", "Option 3", "Option 4"},
-    Save = true,
-    Flag = "optionDropdown",
-    Callback = function(Option)
-        print("Selected option:", Option)
-    end    
-})
-
--- Add a color picker with config saving
-local colorpicker = BasicSection:AddColorpicker({
-    Name = "UI Color",
-    Default = Color3.fromRGB(0, 120, 255),
-    Save = true,
-    Flag = "uiColor",
-    Callback = function(Value)
-        print("Selected color:", Value)
-    end    
-})
-
--- Create Themes Tab
-local ThemesTab = Window:MakeTab({
-    Name = "Themes",
-    Icon = "brush", -- Using named icon
-    PremiumOnly = false
-})
-
--- Add themes section
-local ThemesSection = ThemesTab:AddSection({
-    Name = "Theme Selection"
-})
-
--- Add buttons for different built-in themes
-ThemesSection:AddButton({
-    Name = "Default Theme",
-    Callback = function()
-        OrionLib.Themes:SetTheme("Default")
-        OrionLib:MakeNotification({
-            Name = "Theme Changed",
-            Content = "Applied Default theme",
-            Image = "check",
-            Time = 3
-        })
-    end    
-})
-
-ThemesSection:AddButton({
-    Name = "Dark Theme",
-    Callback = function()
-        OrionLib.Themes:SetTheme("Dark")
-        OrionLib:MakeNotification({
-            Name = "Theme Changed",
-            Content = "Applied Dark theme",
-            Image = "check",
-            Time = 3
-        })
-    end    
-})
-
-ThemesSection:AddButton({
-    Name = "Ocean Theme",
-    Callback = function()
-        OrionLib.Themes:SetTheme("Ocean")
-        OrionLib:MakeNotification({
-            Name = "Theme Changed",
-            Content = "Applied Ocean theme",
-            Image = "check",
-            Time = 3
-        })
-    end    
-})
-
--- Create a custom theme
-ThemesSection:AddButton({
-    Name = "Custom Purple Theme",
-    Callback = function()
-        -- Create a custom theme if it doesn't exist
-        OrionLib.Themes:AddTheme("Purple", {
-            Main = Color3.fromRGB(40, 25, 70),
-            Second = Color3.fromRGB(50, 35, 90),
-            Stroke = Color3.fromRGB(80, 60, 120),
-            Divider = Color3.fromRGB(80, 60, 120),
-            Text = Color3.fromRGB(240, 230, 255),
-            TextDark = Color3.fromRGB(170, 160, 190)
-        })
+        Config.PlayerESP = Value
         
-        -- Apply the custom theme
-        OrionLib.Themes:SetTheme("Purple")
-        OrionLib:MakeNotification({
-            Name = "Theme Changed",
-            Content = "Applied custom Purple theme",
-            Image = "check",
-            Time = 3
-        })
-    end    
+        if Value then
+            EnablePlayerESP()
+            OrionLib:MakeNotification({
+                Name = "Player ESP",
+                Content = "Player ESP has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisablePlayerESP()
+            OrionLib:MakeNotification({
+                Name = "Player ESP",
+                Content = "Player ESP has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
 })
 
--- Create Mobile Tab
-local MobileTab = Window:MakeTab({
-    Name = "Mobile",
-    Icon = "phone", -- Using named icon
+-- ESP Colors
+PlayerESPSection:AddColorpicker({
+    Name = "Murderer Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Flag = "MurdererColor",
+    Save = true,
+    Callback = function(Value)
+        Config.MurdererColor = Value
+        UpdateESPColors()
+    end
+})
+
+PlayerESPSection:AddColorpicker({
+    Name = "Sheriff Color",
+    Default = Color3.fromRGB(0, 0, 255),
+    Flag = "SheriffColor",
+    Save = true,
+    Callback = function(Value)
+        Config.SheriffColor = Value
+        UpdateESPColors()
+    end
+})
+
+PlayerESPSection:AddColorpicker({
+    Name = "Innocent Color",
+    Default = Color3.fromRGB(0, 255, 0),
+    Flag = "InnocentColor",
+    Save = true,
+    Callback = function(Value)
+        Config.InnocentColor = Value
+        UpdateESPColors()
+    end
+})
+
+local ItemESPSection = ESPTab:AddSection({
+    Name = "Item ESP"
+})
+
+-- Item ESP Toggle
+ItemESPSection:AddToggle({
+    Name = "Item ESP",
+    Default = false,
+    Flag = "ItemESP",
+    Save = true,
+    Callback = function(Value)
+        Config.ItemESP = Value
+        
+        if Value then
+            EnableItemESP()
+            OrionLib:MakeNotification({
+                Name = "Item ESP",
+                Content = "Item ESP has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableItemESP()
+            OrionLib:MakeNotification({
+                Name = "Item ESP",
+                Content = "Item ESP has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Gun ESP Toggle
+ItemESPSection:AddToggle({
+    Name = "Gun ESP",
+    Default = false,
+    Flag = "GunESP",
+    Save = true,
+    Callback = function(Value)
+        Config.GunESP = Value
+        
+        if Value then
+            EnableGunESP()
+            OrionLib:MakeNotification({
+                Name = "Gun ESP",
+                Content = "Gun ESP has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableGunESP()
+            OrionLib:MakeNotification({
+                Name = "Gun ESP",
+                Content = "Gun ESP has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Coin ESP Toggle
+ItemESPSection:AddToggle({
+    Name = "Coin ESP",
+    Default = false,
+    Flag = "CoinESP",
+    Save = true,
+    Callback = function(Value)
+        Config.CoinESP = Value
+        
+        if Value then
+            EnableCoinESP()
+            OrionLib:MakeNotification({
+                Name = "Coin ESP",
+                Content = "Coin ESP has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableCoinESP()
+            OrionLib:MakeNotification({
+                Name = "Coin ESP",
+                Content = "Coin ESP has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Features Tab
+local FeaturesTab = Window:MakeTab({
+    Name = "Features",
+    Icon = "sword",
     PremiumOnly = false
 })
 
--- Add mobile settings section
-local MobileSection = MobileTab:AddSection({
-    Name = "Mobile Settings"
+local GameplaySection = FeaturesTab:AddSection({
+    Name = "Gameplay"
 })
 
--- Add toggle button for mobile toggle visibility
-MobileSection:AddToggle({
-    Name = "Show Mobile Toggle",
+-- Auto Collect Coins Toggle
+GameplaySection:AddToggle({
+    Name = "Auto Collect Coins",
+    Default = false,
+    Flag = "AutoCollect",
+    Save = true,
+    Callback = function(Value)
+        Config.AutoCollect = Value
+        
+        if Value then
+            StartAutoCollect()
+            OrionLib:MakeNotification({
+                Name = "Auto Collect",
+                Content = "Auto Collect has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            StopAutoCollect()
+            OrionLib:MakeNotification({
+                Name = "Auto Collect",
+                Content = "Auto Collect has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Silent Aim Toggle
+GameplaySection:AddToggle({
+    Name = "Silent Aim",
+    Default = false,
+    Flag = "SilentAim",
+    Save = true,
+    Callback = function(Value)
+        Config.SilentAim = Value
+        
+        if Value then
+            EnableSilentAim()
+            OrionLib:MakeNotification({
+                Name = "Silent Aim",
+                Content = "Silent Aim has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableSilentAim()
+            OrionLib:MakeNotification({
+                Name = "Silent Aim",
+                Content = "Silent Aim has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Killer Detection Toggle
+GameplaySection:AddToggle({
+    Name = "Murderer Detection",
+    Default = false,
+    Flag = "KillerDetection",
+    Save = true,
+    Callback = function(Value)
+        Config.KillerDetection = Value
+        
+        if Value then
+            EnableKillerDetection()
+            OrionLib:MakeNotification({
+                Name = "Murderer Detection",
+                Content = "Murderer Detection has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableKillerDetection()
+            OrionLib:MakeNotification({
+                Name = "Murderer Detection",
+                Content = "Murderer Detection has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Teleport Tab
+local TeleportTab = Window:MakeTab({
+    Name = "Teleport",
+    Icon = "teleport",
+    PremiumOnly = false
+})
+
+local TeleportSection = TeleportTab:AddSection({
+    Name = "Map Locations"
+})
+
+-- Get map name (if possible)
+local mapName = "Unknown"
+if workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Lobby") then
+    mapName = "Lobby"
+elseif workspace:FindFirstChild("Map") then
+    for _, part in pairs(workspace.Map:GetChildren()) do
+        if part:IsA("Model") and part.Name ~= "Lobby" then
+            mapName = part.Name
+            break
+        end
+    end
+end
+
+-- Add common teleports
+TeleportSection:AddParagraph("Current Map", "Map: " .. mapName)
+
+-- Teleport to Lobby
+TeleportSection:AddButton({
+    Name = "Teleport to Lobby",
+    Callback = function()
+        TeleportToLocation("Lobby")
+    end
+})
+
+-- Teleport to Map
+TeleportSection:AddButton({
+    Name = "Teleport to Map Center",
+    Callback = function()
+        TeleportToMapCenter()
+    end
+})
+
+-- Teleport to players
+local PlayerTeleportSection = TeleportTab:AddSection({
+    Name = "Player Teleports"
+})
+
+-- Get player list
+local playerList = {}
+for _, player in pairs(Players:GetPlayers()) do
+    if player ~= LocalPlayer then
+        table.insert(playerList, player.Name)
+    end
+end
+
+-- Player teleport dropdown
+PlayerTeleportSection:AddDropdown({
+    Name = "Select Player",
+    Default = playerList[1] or "No players",
+    Flag = "SelectedPlayer",
+    Save = false,
+    Options = playerList,
+    Callback = function(Value)
+        -- Store selected player
+        _G.SelectedPlayer = Value
+    end
+})
+
+-- Teleport to selected player button
+PlayerTeleportSection:AddButton({
+    Name = "Teleport to Player",
+    Callback = function()
+        if _G.SelectedPlayer then
+            local targetPlayer = Players:FindFirstChild(_G.SelectedPlayer)
+            if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character:SetPrimaryPartCFrame(targetPlayer.Character.HumanoidRootPart.CFrame)
+                
+                OrionLib:MakeNotification({
+                    Name = "Teleport",
+                    Content = "Teleported to " .. _G.SelectedPlayer,
+                    Image = "teleport",
+                    Time = 3
+                })
+            else
+                OrionLib:MakeNotification({
+                    Name = "Teleport",
+                    Content = "Could not teleport to " .. _G.SelectedPlayer,
+                    Image = "warning",
+                    Time = 3
+                })
+            end
+        else
+            OrionLib:MakeNotification({
+                Name = "Teleport",
+                Content = "No player selected",
+                Image = "warning",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Role Teleports
+local RoleTeleportSection = TeleportTab:AddSection({
+    Name = "Role Teleports"
+})
+
+-- Teleport to Sheriff button
+RoleTeleportSection:AddButton({
+    Name = "Teleport to Sheriff",
+    Callback = function()
+        local sheriff = FindPlayerByRole("Sheriff")
+        if sheriff then
+            LocalPlayer.Character:SetPrimaryPartCFrame(sheriff.Character.HumanoidRootPart.CFrame)
+            
+            OrionLib:MakeNotification({
+                Name = "Teleport",
+                Content = "Teleported to Sheriff: " .. sheriff.Name,
+                Image = "teleport",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Teleport",
+                Content = "Could not find the Sheriff",
+                Image = "warning",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Teleport to Murderer button
+RoleTeleportSection:AddButton({
+    Name = "Teleport to Murderer",
+    Callback = function()
+        local murderer = FindPlayerByRole("Murderer")
+        if murderer then
+            LocalPlayer.Character:SetPrimaryPartCFrame(murderer.Character.HumanoidRootPart.CFrame)
+            
+            OrionLib:MakeNotification({
+                Name = "Teleport",
+                Content = "Teleported to Murderer: " .. murderer.Name,
+                Image = "teleport",
+                Time = 3
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Teleport",
+                Content = "Could not find the Murderer",
+                Image = "warning",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Character Tab
+local CharacterTab = Window:MakeTab({
+    Name = "Character",
+    Icon = "person",
+    PremiumOnly = false
+})
+
+local MovementSection = CharacterTab:AddSection({
+    Name = "Movement"
+})
+
+-- Speed Hack Toggle
+MovementSection:AddToggle({
+    Name = "Speed Hack",
+    Default = false,
+    Flag = "SpeedHack",
+    Save = true,
+    Callback = function(Value)
+        Config.SpeedHack = Value
+        
+        if Value then
+            EnableSpeedHack()
+            OrionLib:MakeNotification({
+                Name = "Speed Hack",
+                Content = "Speed Hack has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableSpeedHack()
+            OrionLib:MakeNotification({
+                Name = "Speed Hack",
+                Content = "Speed Hack has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Speed Multiplier Slider
+MovementSection:AddSlider({
+    Name = "Speed Multiplier",
+    Min = 1,
+    Max = 10,
+    Default = 2,
+    Color = Color3.fromRGB(46, 109, 188),
+    Increment = 0.1,
+    Flag = "SpeedMultiplier",
+    Save = true,
+    ValueName = "x",
+    Callback = function(Value)
+        Config.SpeedMultiplier = Value
+        if Config.SpeedHack then
+            UpdateSpeedHack()
+        end
+    end
+})
+
+-- Jump Hack Toggle
+MovementSection:AddToggle({
+    Name = "Jump Hack",
+    Default = false,
+    Flag = "JumpHack",
+    Save = true,
+    Callback = function(Value)
+        Config.JumpHack = Value
+        
+        if Value then
+            EnableJumpHack()
+            OrionLib:MakeNotification({
+                Name = "Jump Hack",
+                Content = "Jump Hack has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableJumpHack()
+            OrionLib:MakeNotification({
+                Name = "Jump Hack",
+                Content = "Jump Hack has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Jump Multiplier Slider
+MovementSection:AddSlider({
+    Name = "Jump Multiplier",
+    Min = 1,
+    Max = 10,
+    Default = 2,
+    Color = Color3.fromRGB(46, 109, 188),
+    Increment = 0.1,
+    Flag = "JumpMultiplier",
+    Save = true,
+    ValueName = "x",
+    Callback = function(Value)
+        Config.JumpMultiplier = Value
+        if Config.JumpHack then
+            UpdateJumpHack()
+        end
+    end
+})
+
+-- NoClip Toggle
+MovementSection:AddToggle({
+    Name = "NoClip",
+    Default = false,
+    Flag = "NoClip",
+    Save = true,
+    Callback = function(Value)
+        Config.NoClip = Value
+        
+        if Value then
+            EnableNoClip()
+            OrionLib:MakeNotification({
+                Name = "NoClip",
+                Content = "NoClip has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableNoClip()
+            OrionLib:MakeNotification({
+                Name = "NoClip",
+                Content = "NoClip has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Protection Tab
+local ProtectionTab = Window:MakeTab({
+    Name = "Protection",
+    Icon = "shield",
+    PremiumOnly = false
+})
+
+local AntiSection = ProtectionTab:AddSection({
+    Name = "Anti-Detection"
+})
+
+-- Anti-AFK Toggle
+AntiSection:AddToggle({
+    Name = "Anti-AFK",
     Default = true,
+    Flag = "AntiAFK",
+    Save = true,
     Callback = function(Value)
-        OrionLib.Mobile:SetToggleVisibility(Value)
-        OrionLib:MakeNotification({
-            Name = "Mobile Setting Changed",
-            Content = "Mobile toggle is now " .. (Value and "visible" or "hidden"),
-            Image = "info",
-            Time = 3
-        })
-    end    
+        Config.AntiAFK = Value
+        
+        if Value then
+            EnableAntiAFK()
+            OrionLib:MakeNotification({
+                Name = "Anti-AFK",
+                Content = "Anti-AFK has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableAntiAFK()
+            OrionLib:MakeNotification({
+                Name = "Anti-AFK",
+                Content = "Anti-AFK has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
 })
 
--- Add a dropdown for mobile toggle position
-MobileSection:AddDropdown({
-    Name = "Toggle Position",
-    Default = "TopRight",
-    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
-    Callback = function(Position)
-        OrionLib.Mobile:SetTogglePosition(Position)
-        OrionLib:MakeNotification({
-            Name = "Mobile Setting Changed",
-            Content = "Mobile toggle position set to " .. Position,
-            Image = "info",
-            Time = 3
-        })
-    end    
+-- Spectate Protection Toggle
+AntiSection:AddToggle({
+    Name = "Spectate Protection",
+    Default = true,
+    Flag = "SpectateProtection",
+    Save = true,
+    Callback = function(Value)
+        Config.SpectateProtection = Value
+        
+        if Value then
+            EnableSpectateProtection()
+            OrionLib:MakeNotification({
+                Name = "Spectate Protection",
+                Content = "Spectate Protection has been enabled",
+                Image = "check",
+                Time = 3
+            })
+        else
+            DisableSpectateProtection()
+            OrionLib:MakeNotification({
+                Name = "Spectate Protection",
+                Content = "Spectate Protection has been disabled",
+                Image = "close",
+                Time = 3
+            })
+        end
+    end
 })
 
--- Using flags to access values
-local FlagsTab = Window:MakeTab({
-    Name = "Flags",
-    Icon = "flag", -- Using named icon
+-- Settings Tab
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "settings",
     PremiumOnly = false
 })
 
--- Add flags demo section
-local FlagsSection = FlagsTab:AddSection({
-    Name = "Flags Demonstration"
+-- UI Theme Dropdown
+SettingsTab:AddDropdown({
+    Name = "UI Theme",
+    Default = "SkyX",
+    Flag = "UITheme",
+    Save = true,
+    Options = {"Default", "Dark", "Light", "Ocean", "Blood", "SkyX"},
+    Callback = function(Value)
+        OrionLib.Themes:SetTheme(Value)
+        OrionLib:MakeNotification({
+            Name = "Theme",
+            Content = "Theme set to " .. Value,
+            Image = "check",
+            Time = 3
+        })
+    end
 })
 
--- Add button to show how to access flag values
-FlagsSection:AddButton({
-    Name = "Show All Values",
+-- Mobile Toggle Position
+SettingsTab:AddDropdown({
+    Name = "Mobile Toggle Position",
+    Default = "TopRight",
+    Flag = "MobileTogglePos",
+    Save = true,
+    Options = {"TopRight", "TopLeft", "BottomRight", "BottomLeft"},
+    Callback = function(Value)
+        OrionLib.Mobile:SetTogglePosition(Value)
+    end
+})
+
+-- Toggle Keybind
+SettingsTab:AddBind({
+    Name = "Toggle UI",
+    Default = Enum.KeyCode.RightControl,
+    Hold = false,
+    Flag = "ToggleUI",
+    Save = true,
     Callback = function()
-        -- Access and print all flag values
-        local toggleValue = OrionLib.Flags["featureToggle"].Value
-        local sliderValue = OrionLib.Flags["speedSlider"].Value
-        local dropdownValue = OrionLib.Flags["optionDropdown"].Value
+        -- This is handled internally by the UI
+    end
+})
+
+-- Reset All Button
+SettingsTab:AddButton({
+    Name = "Reset All Settings",
+    Callback = function()
+        -- Reset toggle states first
+        for flag, _ in pairs(OrionLib.Flags) do
+            local toggle = OrionLib.Flags[flag]
+            if toggle.Type == "Toggle" then
+                toggle:Set(false)
+            end
+        end
         
-        -- Create a notification showing the values
+        -- Reset Config values
+        Config = {
+            -- ESP
+            PlayerESP = false,
+            MurdererColor = Color3.fromRGB(255, 0, 0),
+            SheriffColor = Color3.fromRGB(0, 0, 255),
+            InnocentColor = Color3.fromRGB(0, 255, 0),
+            ItemESP = false,
+            GunESP = false,
+            CoinESP = false,
+            
+            -- Features
+            AutoCollect = false,
+            SilentAim = false,
+            KillerDetection = false,
+            
+            -- Character
+            SpeedHack = false,
+            SpeedMultiplier = 2,
+            JumpHack = false,
+            JumpMultiplier = 2,
+            NoClip = false,
+            
+            -- Protection
+            AntiAFK = true,
+            SpectateProtection = true
+        }
+        
         OrionLib:MakeNotification({
-            Name = "Current Values",
-            Content = "Toggle: " .. tostring(toggleValue) .. 
-                     "\nSlider: " .. tostring(sliderValue) .. 
-                     "\nDropdown: " .. tostring(dropdownValue),
-            Image = "info",
+            Name = "Reset",
+            Content = "All settings have been reset",
+            Image = "warning",
             Time = 5
         })
-    end    
+    end
 })
 
--- Add buttons to manipulate UI elements using flags
-FlagsSection:AddButton({
-    Name = "Toggle Feature On",
-    Callback = function()
-        toggle:Set(true) -- Using the toggle variable
-    end    
+-- Credits Tab
+local CreditsTab = Window:MakeTab({
+    Name = "Credits",
+    Icon = "info",
+    PremiumOnly = false
 })
 
-FlagsSection:AddButton({
-    Name = "Set Speed to 75",
-    Callback = function()
-        slider:Set(75) -- Using the slider variable
-    end    
-})
+CreditsTab:AddParagraph("SkyX Hub", "Created by the SkyX Team")
+CreditsTab:AddParagraph("UI Library", "Using OrionX UI")
+CreditsTab:AddParagraph("Credits", "Thanks to all our users and supporters!")
 
-FlagsSection:AddButton({
-    Name = "Change Dropdown to Option 3",
-    Callback = function()
-        dropdown:Set("Option 3") -- Using the dropdown variable
-    end    
-})
+------------------
+-- FUNCTIONALITY
+------------------
 
-FlagsSection:AddButton({
-    Name = "Change Color to Green",
-    Callback = function()
-        colorpicker:Set(Color3.fromRGB(0, 255, 0)) -- Using the colorpicker variable
-    end    
-})
+-- Variables
+local playerESPObjects = {}
+local itemESPObjects = {}
+local gunESPObjects = {}
+local coinESPObjects = {}
+local autoCollectConnection = nil
+local silentAimConnection = nil
+local killerDetectionConnection = nil
+local speedHackConnection = nil
+local jumpHackConnection = nil
+local noClipConnection = nil
+local antiAFKConnection = nil
 
--- Initialize the UI (REQUIRED)
+-- Helper functions
+function GetPlayerRole(player)
+    -- Try to find role through backpack/tools
+    if player.Character then
+        -- Check if player has knife
+        for _, item in pairs(player.Backpack:GetChildren()) do
+            if item.Name == "Knife" then
+                return "Murderer"
+            end
+        end
+        
+        -- Check if player has gun
+        for _, item in pairs(player.Backpack:GetChildren()) do
+            if item.Name == "Gun" or item.Name == "Revolver" then
+                return "Sheriff"
+            end
+        end
+        
+        -- Check character for held items
+        for _, item in pairs(player.Character:GetChildren()) do
+            if item.Name == "Knife" then
+                return "Murderer"
+            elseif item.Name == "Gun" or item.Name == "Revolver" then
+                return "Sheriff"
+            end
+        end
+    end
+    
+    -- Try to find role through player attributes
+    if player:GetAttribute("Role") then
+        return player:GetAttribute("Role")
+    end
+    
+    -- If we couldn't determine the role, assume innocent
+    return "Innocent"
+end
+
+function FindPlayerByRole(role)
+    for _, player in pairs(Players:GetPlayers()) do
+        if GetPlayerRole(player) == role then
+            return player
+        end
+    end
+    return nil
+end
+
+function GetRoleColor(role)
+    if role == "Murderer" then
+        return Config.MurdererColor
+    elseif role == "Sheriff" then
+        return Config.SheriffColor
+    else
+        return Config.InnocentColor
+    end
+end
+
+-- Player ESP Implementation
+function EnablePlayerESP()
+    DisablePlayerESP() -- Clear existing ESP
+    
+    -- Create ESP for all players
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            CreatePlayerESP(player)
+        end
+    end
+    
+    -- Connect events for new players
+    playerESPConnections = {
+        Players.PlayerAdded:Connect(function(player)
+            CreatePlayerESP(player)
+        end),
+        
+        Players.PlayerRemoving:Connect(function(player)
+            if playerESPObjects[player.Name] then
+                playerESPObjects[player.Name]:Destroy()
+                playerESPObjects[player.Name] = nil
+            end
+        end)
+    }
+    
+    -- Update ESP periodically to reflect role changes
+    table.insert(playerESPConnections, RunService.Heartbeat:Connect(function()
+        UpdatePlayerESP()
+    end))
+end
+
+function DisablePlayerESP()
+    -- Disconnect events
+    if playerESPConnections then
+        for _, connection in pairs(playerESPConnections) do
+            connection:Disconnect()
+        end
+        playerESPConnections = nil
+    end
+    
+    -- Remove ESP from all players
+    for _, highlight in pairs(playerESPObjects) do
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+    
+    playerESPObjects = {}
+end
+
+function CreatePlayerESP(player)
+    if playerESPObjects[player.Name] then
+        playerESPObjects[player.Name]:Destroy()
+    end
+    
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SkyXESP"
+    
+    -- Set color based on role
+    local role = GetPlayerRole(player)
+    highlight.FillColor = GetRoleColor(role)
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = player.Character
+    highlight.Parent = player.Character
+    
+    playerESPObjects[player.Name] = highlight
+    
+    -- Update when character changes
+    player.CharacterAdded:Connect(function(character)
+        if playerESPObjects[player.Name] then
+            playerESPObjects[player.Name].Adornee = character
+            playerESPObjects[player.Name].Parent = character
+        end
+    end)
+end
+
+function UpdatePlayerESP()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and playerESPObjects[player.Name] then
+            local role = GetPlayerRole(player)
+            playerESPObjects[player.Name].FillColor = GetRoleColor(role)
+        end
+    end
+end
+
+function UpdateESPColors()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and playerESPObjects[player.Name] then
+            local role = GetPlayerRole(player)
+            playerESPObjects[player.Name].FillColor = GetRoleColor(role)
+        end
+    end
+end
+
+-- Item ESP Implementation
+function EnableItemESP()
+    DisableItemESP() -- Clear existing ESP
+    
+    -- Find items in workspace
+    FindAndHighlightItems()
+    
+    -- Connect to added objects event to catch new items
+    itemESPConnections = {
+        workspace.ChildAdded:Connect(function(child)
+            if child:IsA("Model") and child.Name == "Item" then
+                HighlightItem(child)
+            end
+        end)
+    }
+    
+    -- Periodically scan for items
+    table.insert(itemESPConnections, RunService.Heartbeat:Connect(function()
+        FindAndHighlightItems()
+    end))
+end
+
+function DisableItemESP()
+    -- Disconnect events
+    if itemESPConnections then
+        for _, connection in pairs(itemESPConnections) do
+            connection:Disconnect()
+        end
+        itemESPConnections = nil
+    end
+    
+    -- Remove ESP from all items
+    for itemId, highlight in pairs(itemESPObjects) do
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+    
+    itemESPObjects = {}
+end
+
+function FindAndHighlightItems()
+    -- Look for items in workspace
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and obj.Name == "Item" then
+            HighlightItem(obj)
+        end
+    end
+    
+    -- Also check map
+    if workspace:FindFirstChild("Map") then
+        for _, obj in pairs(workspace.Map:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name == "Item" then
+                HighlightItem(obj)
+            end
+        end
+    end
+end
+
+function HighlightItem(item)
+    -- Skip if we already have this item
+    local itemId = item:GetFullName()
+    if itemESPObjects[itemId] then
+        return
+    end
+    
+    -- Create highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SkyXItemESP"
+    highlight.FillColor = Color3.fromRGB(255, 165, 0) -- Orange for items
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = item
+    highlight.Parent = item
+    
+    itemESPObjects[itemId] = highlight
+end
+
+-- Gun ESP Implementation
+function EnableGunESP()
+    DisableGunESP() -- Clear existing ESP
+    
+    -- Find guns in workspace
+    FindAndHighlightGuns()
+    
+    -- Connect to added objects event to catch new guns
+    gunESPConnections = {
+        workspace.ChildAdded:Connect(function(child)
+            if child:IsA("Model") and (child.Name == "Gun" or child.Name == "GunDrop") then
+                HighlightGun(child)
+            end
+        end)
+    }
+    
+    -- Periodically scan for guns
+    table.insert(gunESPConnections, RunService.Heartbeat:Connect(function()
+        FindAndHighlightGuns()
+    end))
+end
+
+function DisableGunESP()
+    -- Disconnect events
+    if gunESPConnections then
+        for _, connection in pairs(gunESPConnections) do
+            connection:Disconnect()
+        end
+        gunESPConnections = nil
+    end
+    
+    -- Remove ESP from all guns
+    for gunId, highlight in pairs(gunESPObjects) do
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+    
+    gunESPObjects = {}
+end
+
+function FindAndHighlightGuns()
+    -- Look for guns in workspace
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and (obj.Name == "Gun" or obj.Name == "GunDrop") then
+            HighlightGun(obj)
+        end
+    end
+    
+    -- Also check map
+    if workspace:FindFirstChild("Map") then
+        for _, obj in pairs(workspace.Map:GetDescendants()) do
+            if obj:IsA("Model") and (obj.Name == "Gun" or obj.Name == "GunDrop") then
+                HighlightGun(obj)
+            end
+        end
+    end
+end
+
+function HighlightGun(gun)
+    -- Skip if we already have this gun
+    local gunId = gun:GetFullName()
+    if gunESPObjects[gunId] then
+        return
+    end
+    
+    -- Create highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SkyXGunESP"
+    highlight.FillColor = Color3.fromRGB(0, 0, 255) -- Blue for guns
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = gun
+    highlight.Parent = gun
+    
+    gunESPObjects[gunId] = highlight
+end
+
+-- Coin ESP Implementation
+function EnableCoinESP()
+    DisableCoinESP() -- Clear existing ESP
+    
+    -- Find coins in workspace
+    FindAndHighlightCoins()
+    
+    -- Connect to added objects event to catch new coins
+    coinESPConnections = {
+        workspace.ChildAdded:Connect(function(child)
+            if child:IsA("Model") and child.Name == "Coin" then
+                HighlightCoin(child)
+            end
+        end)
+    }
+    
+    -- Periodically scan for coins
+    table.insert(coinESPConnections, RunService.Heartbeat:Connect(function()
+        FindAndHighlightCoins()
+    end))
+end
+
+function DisableCoinESP()
+    -- Disconnect events
+    if coinESPConnections then
+        for _, connection in pairs(coinESPConnections) do
+            connection:Disconnect()
+        end
+        coinESPConnections = nil
+    end
+    
+    -- Remove ESP from all coins
+    for coinId, highlight in pairs(coinESPObjects) do
+        if highlight then
+            highlight:Destroy()
+        end
+    end
+    
+    coinESPObjects = {}
+end
+
+function FindAndHighlightCoins()
+    -- Look for coins in workspace
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and obj.Name == "Coin" then
+            HighlightCoin(obj)
+        end
+    end
+    
+    -- Also check map
+    if workspace:FindFirstChild("Map") then
+        for _, obj in pairs(workspace.Map:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name == "Coin" then
+                HighlightCoin(obj)
+            end
+            
+            -- Check for coin container
+            if obj.Name == "CoinContainer" then
+                for _, coin in pairs(obj:GetChildren()) do
+                    if coin:IsA("Model") and coin.Name == "Coin" then
+                        HighlightCoin(coin)
+                    end
+                end
+            end
+        end
+    end
+end
+
+function HighlightCoin(coin)
+    -- Skip if we already have this coin
+    local coinId = coin:GetFullName()
+    if coinESPObjects[coinId] then
+        return
+    end
+    
+    -- Create highlight
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "SkyXCoinESP"
+    highlight.FillColor = Color3.fromRGB(255, 215, 0) -- Gold for coins
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+    highlight.FillTransparency = 0.3
+    highlight.OutlineTransparency = 0
+    highlight.Adornee = coin
+    highlight.Parent = coin
+    
+    coinESPObjects[coinId] = highlight
+end
+
+-- Auto Collect Implementation
+function StartAutoCollect()
+    if autoCollectConnection then
+        autoCollectConnection:Disconnect()
+    end
+    
+    autoCollectConnection = RunService.Heartbeat:Connect(function()
+        if not Config.AutoCollect then return end
+        
+        -- Find and collect coins
+        CollectCoins()
+        
+        -- Short delay to prevent overwhelming
+        task.wait(0.5)
+    end)
+end
+
+function StopAutoCollect()
+    if autoCollectConnection then
+        autoCollectConnection:Disconnect()
+        autoCollectConnection = nil
+    end
+end
+
+function CollectCoins()
+    -- Find coins in the map
+    local coins = {}
+    
+    -- Check direct children of workspace
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and obj.Name == "Coin" then
+            table.insert(coins, obj)
+        end
+    end
+    
+    -- Check map and coin container
+    if workspace:FindFirstChild("Map") then
+        for _, obj in pairs(workspace.Map:GetDescendants()) do
+            if obj:IsA("Model") and obj.Name == "Coin" then
+                table.insert(coins, obj)
+            end
+        end
+        
+        -- Check for coin container
+        local coinContainer = workspace.Map:FindFirstChild("CoinContainer")
+        if coinContainer then
+            for _, coin in pairs(coinContainer:GetChildren()) do
+                if coin:IsA("Model") and coin.Name == "Coin" then
+                    table.insert(coins, coin)
+                end
+            end
+        end
+    end
+    
+    -- Collect the coins
+    for _, coin in pairs(coins) do
+        -- Check if coin is within reasonable distance
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local distance = (coin.PrimaryPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+            if distance < 20 then
+                -- Find the remote for collecting coins
+                local collectRemote = ReplicatedStorage:FindFirstChild("CollectCoin") or 
+                                    ReplicatedStorage:FindFirstChild("Remotes") and 
+                                    ReplicatedStorage.Remotes:FindFirstChild("CollectCoin")
+                
+                if collectRemote then
+                    collectRemote:FireServer(coin)
+                else
+                    -- Try alternative methods
+                    local playerScripts = LocalPlayer:FindFirstChild("PlayerScripts")
+                    if playerScripts and playerScripts:FindFirstChild("CoinCollector") then
+                        -- Simulate coin collection by firing remote from CoinCollector module
+                        require(playerScripts.CoinCollector).CollectCoin(coin)
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Silent Aim Implementation
+function EnableSilentAim()
+    if silentAimConnection then
+        silentAimConnection:Disconnect()
+    end
+    
+    -- Hook the mouse event or remote
+    local mt = getrawmetatable(game)
+    local oldNamecall = mt.__namecall
+    
+    if setreadonly then
+        setreadonly(mt, false)
+    end
+    
+    mt.__namecall = newcclosure(function(self, ...)
+        local args = {...}
+        local method = getnamecallmethod()
+        
+        -- Check if this is a shooting remote
+        if Config.SilentAim and method == "FireServer" and (self.Name == "ShootGun" or self.Name == "Shoot") then
+            -- Find the murderer
+            local murderer = FindPlayerByRole("Murderer")
+            if murderer and murderer.Character and murderer.Character:FindFirstChild("HumanoidRootPart") then
+                -- Override target to murderer
+                args[1] = murderer.Character.HumanoidRootPart.Position
+                
+                OrionLib:MakeNotification({
+                    Name = "Silent Aim",
+                    Content = "Targeted murderer: " .. murderer.Name,
+                    Image = "check",
+                    Time = 1
+                })
+                
+                return oldNamecall(self, unpack(args))
+            end
+        end
+        
+        return oldNamecall(self, ...)
+    end)
+    
+    if setreadonly then
+        setreadonly(mt, true)
+    end
+    
+    -- Also check for gun pickup
+    silentAimConnection = RunService.Heartbeat:Connect(function()
+        if not Config.SilentAim then return end
+        
+        -- Check if we have a gun
+        local hasGun = false
+        if LocalPlayer.Character then
+            for _, item in pairs(LocalPlayer.Character:GetChildren()) do
+                if item.Name == "Gun" or item.Name == "Revolver" then
+                    hasGun = true
+                    break
+                end
+            end
+        end
+        
+        if LocalPlayer.Backpack then
+            for _, item in pairs(LocalPlayer.Backpack:GetChildren()) do
+                if item.Name == "Gun" or item.Name == "Revolver" then
+                    hasGun = true
+                    break
+                end
+            end
+        end
+        
+        -- If we don't have a gun, try to find it
+        if not hasGun then
+            FindAndPickupGun()
+        end
+    end)
+end
+
+function DisableSilentAim()
+    if silentAimConnection then
+        silentAimConnection:Disconnect()
+        silentAimConnection = nil
+    end
+    
+    -- Restore original namecall (if possible)
+    -- Note: This is a limitation, as we can't fully restore the metatable after hooking
+}
+
+function FindAndPickupGun()
+    -- Find gun in workspace
+    local gun = nil
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and (obj.Name == "Gun" or obj.Name == "GunDrop") then
+            gun = obj
+            break
+        end
+    end
+    
+    -- Also check map
+    if not gun and workspace:FindFirstChild("Map") then
+        for _, obj in pairs(workspace.Map:GetDescendants()) do
+            if obj:IsA("Model") and (obj.Name == "Gun" or obj.Name == "GunDrop") then
+                gun = obj
+                break
+            end
+        end
+    end
+    
+    -- If gun found and we're close enough, pick it up
+    if gun and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local distance = (gun.PrimaryPart.Position - LocalPlayer.Character.HumanoidRootPart.Position).Magnitude
+        if distance < 5 then
+            -- Try to find pickup remote
+            local pickupRemote = ReplicatedStorage:FindFirstChild("PickupGun") or 
+                               ReplicatedStorage:FindFirstChild("Remotes") and 
+                               ReplicatedStorage.Remotes:FindFirstChild("PickupGun")
+            
+            if pickupRemote then
+                pickupRemote:FireServer(gun)
+            end
+        end
+    end
+}
+
+-- Killer Detection Implementation
+function EnableKillerDetection()
+    if killerDetectionConnection then
+        killerDetectionConnection:Disconnect()
+    end
+    
+    -- Periodically check for murderer
+    killerDetectionConnection = RunService.Heartbeat:Connect(function()
+        if not Config.KillerDetection then return end
+        
+        -- Find the murderer
+        local murderer = FindPlayerByRole("Murderer")
+        if murderer and not _G.NotifiedMurderer then
+            -- Notify who the murderer is
+            OrionLib:MakeNotification({
+                Name = "Murderer Detection",
+                Content = "Murderer is: " .. murderer.Name,
+                Image = "warning",
+                Time = 5
+            })
+            
+            -- Set flag to avoid spam
+            _G.NotifiedMurderer = true
+            
+            -- Reset flag after round likely ends
+            task.delay(60, function()
+                _G.NotifiedMurderer = nil
+            end)
+        end
+    end)
+}
+
+function DisableKillerDetection()
+    if killerDetectionConnection then
+        killerDetectionConnection:Disconnect()
+        killerDetectionConnection = nil
+    end
+}
+
+-- Speed Hack Implementation
+function EnableSpeedHack()
+    UpdateSpeedHack()
+    
+    -- Connect to character added event
+    speedHackConnection = LocalPlayer.CharacterAdded:Connect(function(character)
+        if Config.SpeedHack then
+            task.wait(0.5)
+            UpdateSpeedHack()
+        end
+    end)
+}
+
+function DisableSpeedHack()
+    if speedHackConnection then
+        speedHackConnection:Disconnect()
+        speedHackConnection = nil
+    end
+    
+    -- Reset walkspeed
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16
+    end
+}
+
+function UpdateSpeedHack()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.WalkSpeed = 16 * Config.SpeedMultiplier
+    end
+}
+
+-- Jump Hack Implementation
+function EnableJumpHack()
+    UpdateJumpHack()
+    
+    -- Connect to character added event
+    jumpHackConnection = LocalPlayer.CharacterAdded:Connect(function(character)
+        if Config.JumpHack then
+            task.wait(0.5)
+            UpdateJumpHack()
+        end
+    end)
+}
+
+function DisableJumpHack()
+    if jumpHackConnection then
+        jumpHackConnection:Disconnect()
+        jumpHackConnection = nil
+    end
+    
+    -- Reset jump power
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = 50
+    end
+}
+
+function UpdateJumpHack()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        LocalPlayer.Character.Humanoid.JumpPower = 50 * Config.JumpMultiplier
+    end
+}
+
+-- NoClip Implementation
+function EnableNoClip()
+    if noClipConnection then
+        noClipConnection:Disconnect()
+    end
+    
+    -- Turn off collision for all parts
+    if LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+    
+    -- Connect to heartbeat to maintain noclip
+    noClipConnection = RunService.Heartbeat:Connect(function()
+        if not Config.NoClip then return end
+        
+        if LocalPlayer.Character then
+            for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+}
+
+function DisableNoClip()
+    if noClipConnection then
+        noClipConnection:Disconnect()
+        noClipConnection = nil
+    end
+    
+    -- Reset collision
+    if LocalPlayer.Character then
+        for _, part in pairs(LocalPlayer.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                part.CanCollide = true
+            end
+        end
+    end
+}
+
+-- Anti-AFK Implementation
+function EnableAntiAFK()
+    if antiAFKConnection then
+        antiAFKConnection:Disconnect()
+    end
+    
+    antiAFKConnection = LocalPlayer.Idled:Connect(function()
+        VirtualUser:CaptureController()
+        VirtualUser:ClickButton2(Vector2.new())
+        
+        OrionLib:MakeNotification({
+            Name = "Anti-AFK",
+            Content = "Prevented AFK kick",
+            Image = "check",
+            Time = 3
+        })
+    end)
+}
+
+function DisableAntiAFK()
+    if antiAFKConnection then
+        antiAFKConnection:Disconnect()
+        antiAFKConnection = nil
+    end
+}
+
+-- Spectate Protection Implementation
+function EnableSpectateProtection()
+    -- Hook camera scripts to prevent others from spectating you
+    -- This works by blocking certain remote events or manipulating camera properties
+    
+    local mt = getrawmetatable(game)
+    local oldIndex = mt.__index
+    
+    if setreadonly then
+        setreadonly(mt, false)
+    end
+    
+    mt.__index = newcclosure(function(self, key)
+        if Config.SpectateProtection then
+            -- Block spectate-related properties
+            if key == "CameraSubject" and self == workspace.CurrentCamera then
+                if LocalPlayer.Character and 
+                   LocalPlayer.Character:FindFirstChild("Humanoid") and 
+                   self.CameraSubject ~= LocalPlayer.Character.Humanoid then
+                    return LocalPlayer.Character.Humanoid
+                end
+            end
+        end
+        
+        return oldIndex(self, key)
+    end)
+    
+    if setreadonly then
+        setreadonly(mt, true)
+    end
+}
+
+function DisableSpectateProtection()
+    -- We can't fully restore the metatable after hooking
+    -- But we can set the flag to false so our hook won't do anything
+    Config.SpectateProtection = false
+}
+
+-- Teleport Functions
+function TeleportToLocation(locationName)
+    local location = nil
+    
+    -- Find the location
+    if workspace:FindFirstChild("Map") then
+        if locationName == "Lobby" and workspace.Map:FindFirstChild("Lobby") then
+            location = workspace.Map.Lobby
+        else
+            -- Search for the specified location in the map
+            for _, part in pairs(workspace.Map:GetDescendants()) do
+                if part.Name == locationName and (part:IsA("BasePart") or part:IsA("Model")) then
+                    location = part
+                    break
+                end
+            end
+        end
+    end
+    
+    -- If location found, teleport to it
+    if location and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        if location:IsA("Model") and location.PrimaryPart then
+            LocalPlayer.Character:SetPrimaryPartCFrame(location.PrimaryPart.CFrame + Vector3.new(0, 5, 0))
+        elseif location:IsA("BasePart") then
+            LocalPlayer.Character:SetPrimaryPartCFrame(location.CFrame + Vector3.new(0, 5, 0))
+        else
+            -- Find a suitable part to teleport to
+            for _, part in pairs(location:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    LocalPlayer.Character:SetPrimaryPartCFrame(part.CFrame + Vector3.new(0, 5, 0))
+                    break
+                end
+            end
+        end
+        
+        OrionLib:MakeNotification({
+            Name = "Teleport",
+            Content = "Teleported to " .. locationName,
+            Image = "teleport",
+            Time = 3
+        })
+    else
+        OrionLib:MakeNotification({
+            Name = "Teleport",
+            Content = "Could not find location: " .. locationName,
+            Image = "warning",
+            Time = 3
+        })
+    end
+}
+
+function TeleportToMapCenter()
+    -- Find the map center
+    if workspace:FindFirstChild("Map") then
+        -- Try to find the primary part
+        if workspace.Map.PrimaryPart then
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character:SetPrimaryPartCFrame(workspace.Map.PrimaryPart.CFrame + Vector3.new(0, 5, 0))
+                
+                OrionLib:MakeNotification({
+                    Name = "Teleport",
+                    Content = "Teleported to map center",
+                    Image = "teleport",
+                    Time = 3
+                })
+            end
+        else
+            -- Calculate center based on bounds
+            local minX, minY, minZ = math.huge, math.huge, math.huge
+            local maxX, maxY, maxZ = -math.huge, -math.huge, -math.huge
+            
+            for _, part in pairs(workspace.Map:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    minX = math.min(minX, part.Position.X)
+                    minY = math.min(minY, part.Position.Y)
+                    minZ = math.min(minZ, part.Position.Z)
+                    
+                    maxX = math.max(maxX, part.Position.X)
+                    maxY = math.max(maxY, part.Position.Y)
+                    maxZ = math.max(maxZ, part.Position.Z)
+                end
+            end
+            
+            local centerX = (minX + maxX) / 2
+            local centerY = (minY + maxY) / 2
+            local centerZ = (minZ + maxZ) / 2
+            
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character:SetPrimaryPartCFrame(CFrame.new(centerX, centerY + 5, centerZ))
+                
+                OrionLib:MakeNotification({
+                    Name = "Teleport",
+                    Content = "Teleported to map center",
+                    Image = "teleport",
+                    Time = 3
+                })
+            end
+        end
+    else
+        OrionLib:MakeNotification({
+            Name = "Teleport",
+            Content = "Could not find map",
+            Image = "warning",
+            Time = 3
+        })
+    end
+}
+
+-- Initialize features based on saved settings
+if Config.AntiAFK then
+    EnableAntiAFK()
+end
+
+if Config.SpectateProtection then
+    EnableSpectateProtection()
+end
+
+-- Initialize the UI
 OrionLib:Init()
-
--- Add a friendly completion message
-print("OrionX GitHub example initialized!")
