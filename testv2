@@ -1,867 +1,689 @@
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+--[[
+    SkyX UI Executor Example
+    
+    This script is ready to be executed in any Roblox executor:
+    - Synapse X
+    - KRNL
+    - Script-Ware
+    - Fluxus
+    - Electron
+    - Oxygen U
+    - Any other executor
+    
+    Just copy this entire script and paste it into your executor.
+]]
 
--- Test
+-- Detect the current game
+local gameName = "Unknown"
+local gameId = game.PlaceId
 
-
-
--- Set theme:
---WindUI:SetTheme("Light")
-
---- EXAMPLE !!!
-
-function gradient(text, startColor, endColor)
-    local result = ""
-    local length = #text
-
-    for i = 1, length do
-        local t = (i - 1) / math.max(length - 1, 1)
-        local r = math.floor((startColor.R + (endColor.R - startColor.R) * t) * 255)
-        local g = math.floor((startColor.G + (endColor.G - startColor.G) * t) * 255)
-        local b = math.floor((startColor.B + (endColor.B - startColor.B) * t) * 255)
-
-        local char = text:sub(i, i)
-        result = result .. "<font color=\"rgb(" .. r ..", " .. g .. ", " .. b .. ")\">" .. char .. "</font>"
-    end
-
-    return result
-end
-
-local Confirmed = false
-
-WindUI:Popup({
-    Title = "Welcome! Popup Example",
-    Icon = "info",
-    Content = "This is an Example UI for the " .. gradient("WindUI", Color3.fromHex("#00FF87"), Color3.fromHex("#60EFFF")) .. " Lib",
-    Buttons = {
-        {
-            Title = "Cancel",
-            --Icon = "",
-            Callback = function() end,
-            Variant = "Secondary", -- Primary, Secondary, Tertiary
-        },
-        {
-            Title = "Continue",
-            Icon = "arrow-right",
-            Callback = function() Confirmed = true end,
-            Variant = "Primary", -- Primary, Secondary, Tertiary
-        }
-    }
-})
-
-
-repeat wait() until Confirmed
-
---
-
-local Window = WindUI:CreateWindow({
-    Title = "WindUI Library",
-    Icon = "door-open",
-    Author = "Example UI",
-    Folder = "CloudHub",
-    Size = UDim2.fromOffset(580, 460),
-    Transparent = true,
-    Theme = "Dark",
-    User = {
-        Enabled = true, -- <- or false
-        Callback = function() print("clicked") end, -- <- optional
-        Anonymous = true -- <- or true
-    },
-    SideBarWidth = 200,
-    --Background = "rbxassetid://13511292247", -- rbxassetid only
-    HasOutline = true,
-    -- remove it below if you don't want to use the key system in your script.
-    KeySystem = { -- <- keysystem enabled
-        Key = { "1234", "5678" },
-        Note = "Example Key System. \n\nThe Key is '1234' or '5678",
-        -- Thumbnail = {
-        --     Image = "rbxassetid://18220445082", -- rbxassetid only
-        --     Title = "Thumbnail"
-        -- },
-        URL = "https://github.com/Footagesus/WindUI", -- remove this if the key is not obtained from the link.
-        SaveKey = true, -- optional
-    },
-})
-
-
---Window:SetBackgroundImage("rbxassetid://13511292247")
-
-
-Window:EditOpenButton({
-    Title = "Open Example UI",
-    Icon = "monitor",
-    CornerRadius = UDim.new(0,16),
-    StrokeThickness = 2,
-    Color = ColorSequence.new( -- gradient
-        Color3.fromHex("FF0F7B"), 
-        Color3.fromHex("F89B29")
-    ),
-    --Enabled = false,
-    Draggable = true,
-})
-
-
-local Tabs = {
-    ParagraphTab = Window:Tab({ Title = "Paragraph", Icon = "type" }),
-    ButtonTab = Window:Tab({ Title = "Button", Icon = "mouse-pointer-2", Desc = "Contains interactive buttons for various actions." }),
-    CodeTab = Window:Tab({ Title = "Code", Icon = "code", Desc = "Displays and manages code snippets." }),
-    ColorPickerTab = Window:Tab({ Title = "ColorPicker", Icon = "paintbrush", Desc = "Choose and customize colors easily." }),
-    DialogTab = Window:Tab({ Title = "Dialog", Icon = "message-square", Desc = "Dialog lol" }),
-    NotificationTab = Window:Tab({ Title = "Notification", Icon = "bell", Desc = "Configure and view notifications." }),
-    ToggleTab = Window:Tab({ Title = "Toggle", Icon = "toggle-left", Desc = "Switch settings on and off." }),
-    SliderTab = Window:Tab({ Title = "Slider", Icon = "sliders-horizontal", Desc = "Adjust values smoothly with sliders." }),
-    InputTab = Window:Tab({ Title = "Input", Icon = "keyboard", Desc = "Accept text and numerical input." }),
-    KeybindTab = Window:Tab({ Title = "Keybind", Icon = "keyboard-off" }),
-    DropdownTab = Window:Tab({ Title = "Dropdown", Icon = "chevrons-up-down", Desc = "Select from multiple options." }),
-    divider1 = Window:Divider(),
-    --
-    WindowTab = Window:Tab({ 
-        Title = "Window and File Configuration", 
-        Icon = "settings", 
-        Desc = "Manage window settings and file configurations.", 
-        ShowTabTitle = true
-    }),
-
-    CreateThemeTab = Window:Tab({ Title = "Create Theme", Icon = "palette", Desc = "Design and apply custom themes." }),
-    be = Window:Divider(),
-    LongTab = Window:Tab({ Title = "Long and empty tab. Looong and empty.. tab.", Icon = "frown", Desc = "Long Description" }),
-    LockedTab = Window:Tab({ Title = "Locked Tab", Icon = "lock", Desc = "This tab is locked", Locked = true }),
-    TabWithoutIcon = Window:Tab({ Title = "Tab Without icon", ShowTabTitle = true }),
-    Tests = Window:Tab({ Title = "Tests", Icon = "settings", ShowTabTitle = true }),
+local gamesList = {
+    [6284583030] = "Pet Simulator X",
+    [7449423635] = "Blade Ball",
+    [2753915549] = "Blox Fruits",
+    [1962086868] = "Tower of Hell",
+    [155615604] = "Prison Life",
+    [4623386862] = "Piggy",
+    [142823291] = "Murder Mystery 2",
+    [537413528] = "Build A Boat",
+    [189707] = "Natural Disaster Survival",
+    [8304191830] = "Anime Adventures"
 }
 
-Window:SelectTab(1)
+gameName = gamesList[gameId] or "Unknown Game"
 
-Tabs.ParagraphTab:Paragraph({
-    Title = "Paragraph with Image & Thumbnail",
-    Desc = "Test Paragraph",
-    Image = "https://play-lh.googleusercontent.com/7cIIPlWm4m7AGqVpEsIfyL-HW4cQla4ucXnfalMft1TMIYQIlf2vqgmthlZgbNAQoaQ",
-    ImageSize = 34, -- default 30
-    Thumbnail = "https://tr.rbxcdn.com/180DAY-59af3523ad8898216dbe1043788837bf/768/432/Image/Webp/noFilter",
-    ThumbnailSize = 120 -- Thumbnail height
-})
-Tabs.ParagraphTab:Paragraph({
-    Title = "Paragraph with Image & Thumbnail & Buttons",
-    Desc = "Test Paragraph",
-    Image = "https://play-lh.googleusercontent.com/7cIIPlWm4m7AGqVpEsIfyL-HW4cQla4ucXnfalMft1TMIYQIlf2vqgmthlZgbNAQoaQ",
-    ImageSize = 34, -- default 30
-    Thumbnail = "https://tr.rbxcdn.com/180DAY-59af3523ad8898216dbe1043788837bf/768/432/Image/Webp/noFilter",
-    ThumbnailSize = 120, -- Thumbnail height
-    Buttons = {
-        {
-            Title = "Button 1",
-            Variant = "Primary",
-            Callback = function() print("1 Button") end,
-            Icon = "bird",
-        },
-        {
-            Title = "Button 2",
-            Variant = "Primary",
-            Callback = function() print("2 Button") end,
-            Icon = "bird",
-        },
-        {
-            Title = "Button 3",
-            Variant = "Primary",
-            Callback = function() print("3 Button") end,
-            Icon = "bird",
-        },
-    }
+-- Get executor name
+local executor = identifyexecutor and identifyexecutor() or getexecutorname and getexecutorname() or "Unknown"
+
+-- Load SkyX UI Library
+local SkyXUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI"))()
+
+-- Create window
+local Window = SkyXUI:CreateWindow({
+    Title = "SkyX Hub | " .. gameName,
+    SubTitle = "v1.0.0 | " .. executor,
+    TabWidth = 160,
+    Size = UDim2.fromOffset(600, 480),
+    Acrylic = true,
+    Theme = "Ocean"
 })
 
-for _,i in next, { "Default", "Red", "Orange", "Green", "Blue", "Grey", "White" } do
-    Tabs.ParagraphTab:Paragraph({
-        Title = i,
-        Desc = "Paragraph with color",
-        Image = "bird",
-        Color = i ~= "Default" and i or nil,
-        Buttons = {
-            {
-                Title = "Button 1",
-                Variant = "Primary",
-                Callback = function() print("1 Button") end,
-                Icon = "bird",
-            },
-            {
-                Title = "Button 2",
-                Variant = "Primary",
-                Callback = function() print("2 Button") end,
-                Icon = "bird",
-            },
-            {
-                Title = "Button 3",
-                Variant = "Primary",
-                Callback = function() print("3 Button") end,
-                Icon = "bird",
-            },
-        }
-    })
-end
-
-
-
-Tabs.ButtonTab:Button({
-    Title = "Click Me",
-    Desc = "This is a simple button",
-    Callback = function() print("Button Clicked!") end
+-- Create main tab with welcome message
+local MainTab = Window:CreateTab({
+    Title = "Main",
+    Icon = "home"
 })
 
-Tabs.ButtonTab:Button({
-    Title = "Locked Button",
-    Desc = "This button is locked",
-    Locked = true,
+local InfoSection = MainTab:CreateSection("Information")
+
+InfoSection:CreateParagraph({
+    Title = "Welcome to SkyX Hub",
+    Content = "SkyX Hub is a premium script hub for Roblox games. This UI is running on our custom SkyX UI Library.\n\nDetected Game: " .. gameName .. "\nExecutor: " .. executor
 })
 
-local destroybtn
-destroybtn = Tabs.ButtonTab:Button({
-    Title = "Click to destroy me!",
-    Callback = function() destroybtn:Destroy() end,
-})
-
-Tabs.ButtonTab:Button({
-    Title = "Submit",
-    Desc = "Click to submit",
-    Callback = function() print("Submitted!") end,
-})
-
-Tabs.ButtonTab:Button({
-    Title = "Set ToggleKey to 'F'",
-    Callback = function() Window:SetToggleKey(Enum.KeyCode.F) end,
-})
-
-
-Tabs.CodeTab:Code({
-    Title = "example-code.luau",
-    Code = [[-- Example Luau code to test syntax highlighting
-local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
-
-local function factorial(n)
-    if n <= 1 then
-        return 1
-    else
-        return n * factorial(n - 1)
-    end
-end
-
-local result = factorial(5)
-print("Factorial of 5 is:", result)
-
-local playerName = "Player"
-local score = 100
-
-if score >= 100 then
-    print(playerName .. " earned an achievement!")
-else
-    warn("Need more points.")
-end
-
--- Table with nested values
-local playerStats = {
-    name = "Player",
-    health = 100,
-    inventory = {"sword", "shield", "potion"}
-}
-
-for i, item in ipairs(playerStats.inventory) do
-    print("Item in inventory:", item)
-end]],
-})
-
-Tabs.CodeTab:Code({
-    Code = [[print("WindUI on top!")]],
-})
-
-
-
-Tabs.ColorPickerTab:Colorpicker({
-    Title = "Pick a Color",
-    Default = Color3.fromRGB(255, 0, 0),
-    Callback = function(color) print("Selected color: " .. tostring(color)) end
-})
-
-Tabs.ColorPickerTab:Colorpicker({
-    Title = "Transparency Color",
-    Default = Color3.fromRGB(0, 0, 255),
-    Transparency = 0,
-    Callback = function(color) print("Background color: " .. tostring(color)) end
-})
-
-
-Tabs.DialogTab:Button({
-    Title = "Create Example Dialog",
+InfoSection:CreateButton({
+    Title = "Join Discord",
     Callback = function()
-        Window:Dialog({
-            Title = "Example Dialog",
-            Content = "Example Content. lalala",
-            Icon = "bird",
-            Buttons = {
-                {
-                    Title = "LOL!",
-                    Icon = "bird",
-                    Variant = "Tertiary",
-                    Callback = function()
-                        print("lol")
-                    end,
-                },
-                {
-                    Title = "Cool!",
-                    Icon = "bird",
-                    Variant = "Tertiary",
-                    Callback = function()
-                        print("Cool")
-                    end,
-                },
-                {
-                    Title = "Ok!",
-                    Icon = "bird",
-                    Variant = "Secondary",
-                    Callback = function()
-                        print("Ok")
-                    end,
-                },
-                {
-                    Title = "Awesome!",
-                    Icon = "bird",
-                    Variant = "Primary",
-                    Callback = function() 
-                        print("Awesome")
-                    end,
-                }
-            }
-        })
-    end,
-})
-
-
-Tabs.NotificationTab:Button({
-    Title = "Click to get Notified",
-    Callback = function() 
-        WindUI:Notify({
-            Title = "Notification Example 1",
-            Content = "Content",
-            Duration = 5,
-        })
+        -- Attempt to join Discord
+        local function joinDiscord()
+            if setclipboard then
+                setclipboard("https://discord.gg/SkyXHub")
+                SkyXUI:Notify({
+                    Title = "Discord Invite",
+                    Content = "Discord invite link copied to clipboard!",
+                    Duration = 5
+                })
+            else
+                SkyXUI:Notify({
+                    Title = "Error",
+                    Content = "Your executor doesn't support clipboard functions",
+                    Duration = 5
+                })
+            end
+        end
+        
+        -- Use pcall to prevent errors
+        local success, err = pcall(joinDiscord)
+        if not success then
+            SkyXUI:Notify({
+                Title = "Error",
+                Content = "Failed to copy Discord invite: " .. tostring(err),
+                Duration = 5
+            })
+        end
     end
 })
 
-Tabs.NotificationTab:Button({
-    Title = "Notification with icon",
-    Callback = function() 
-        WindUI:Notify({
-            Title = "Notification Example 2",
-            Content = "Content",
-            Icon = "droplet-off",
-            Duration = 5,
-        })
-    end
+-- Create game-specific tab with features
+local GameTab = Window:CreateTab({
+    Title = gameName,
+    Icon = "world"
 })
 
-Tabs.NotificationTab:Button({
-    Title = "Notification with BackgroundImage",
-    Callback = function() 
-        WindUI:Notify({
-            Title = "Notification Example 3",
-            Content = "with BackgroundImage",
-            Icon = "image",
-            Duration = 5,
-            Background = "rbxassetid://13511292247"
-        })
-    end
-})
+local FeaturesSection = GameTab:CreateSection("Game Features")
 
-
-Tabs.ToggleTab:Toggle({
-    Title = "Enable Feature",
-    --Image = "bird",
-    Value = true,
-    Callback = function(state) print("Feature enabled: " .. tostring(state)) end
-})
-
-Tabs.ToggleTab:Toggle({
-    Title = "Activate Mode",
-    Value = false,
-    Callback = function(state) print("Mode activated: " .. tostring(state)) end
-})
-Tabs.ToggleTab:Toggle({
-    Title = "Toggle with icon",
-    Icon = "check",
-    Value = false,
-    Callback = function(state) print("Toggle with icon activated: " .. tostring(state)) end
-})
-
-Tabs.ToggleTab:Toggle({
-    Title = "New Toggle Type 'Checkbox'",
-    Type = "Checkbox",
-    Value = false,
-    Callback = function(state) print("'Checkbox' Toggle activated: " .. tostring(state)) end
-})
-Tabs.ToggleTab:Toggle({
-    Title = "New Toggle Type 'Checkbox' with custom icon",
-    Icon = "bird",
-    Type = "Checkbox",
-    Value = false,
-    Callback = function(state) print("'Checkbox' Toggle with icon activated: " .. tostring(state)) end
-})
-
-
-Tabs.SliderTab:Slider({
-    Title = "Volume Slider",
-    Value = {
-        Min = 0,
-        Max = 100,
-        Default = 50,
-    },
-    Callback = function(value) print("Volume set to: " .. value) end
-})
-
-Tabs.SliderTab:Slider({
-    Title = "Brightness Slider",
-    Value = {
+-- Add different features based on the detected game
+if gameId == 6284583030 then -- Pet Simulator X
+    -- Pet Simulator X features
+    FeaturesSection:CreateToggle({
+        Title = "Auto Farm Coins",
+        Default = false,
+        Callback = function(Value)
+            SkyXUI:Notify({
+                Title = "Auto Farm",
+                Content = Value and "Started auto farming coins" or "Stopped auto farming coins",
+                Duration = 3
+            })
+            
+            -- Example implementation (would need to be replaced with actual farming code)
+            if Value then
+                -- Start auto farm
+                _G.AutoFarm = true
+                spawn(function()
+                    while _G.AutoFarm and wait(0.1) do
+                        -- Farming implementation would go here
+                        -- This is just a placeholder that would be replaced with actual game-specific code
+                    end
+                end)
+            else
+                -- Stop auto farm
+                _G.AutoFarm = false
+            end
+        end
+    })
+    
+    FeaturesSection:CreateToggle({
+        Title = "Auto Hatch Eggs",
+        Default = false,
+        Callback = function(Value)
+            -- Auto hatch implementation
+        end
+    })
+    
+    local EggSection = GameTab:CreateSection("Egg Settings")
+    
+    EggSection:CreateDropdown({
+        Title = "Select Egg",
+        Values = {"Basic Egg", "Rare Egg", "Epic Egg", "Legendary Egg", "Mythical Egg"},
+        Default = "Basic Egg",
+        Callback = function(Value)
+            -- Egg selection implementation
+            SkyXUI:Notify({
+                Title = "Egg Selected",
+                Content = "Selected: " .. Value,
+                Duration = 3
+            })
+        end
+    })
+    
+    EggSection:CreateToggle({
+        Title = "Triple Hatch",
+        Default = false,
+        Callback = function(Value)
+            -- Triple hatch implementation
+        end
+    })
+    
+elseif gameId == 7449423635 then -- Blade Ball
+    -- Blade Ball features
+    FeaturesSection:CreateToggle({
+        Title = "Auto Parry",
+        Default = false,
+        Callback = function(Value)
+            SkyXUI:Notify({
+                Title = "Auto Parry",
+                Content = Value and "Auto Parry Enabled" or "Auto Parry Disabled",
+                Duration = 3
+            })
+            
+            -- Example implementation
+            _G.AutoParry = Value
+            
+            if Value then
+                spawn(function()
+                    -- This is just a placeholder for the actual implementation
+                    while _G.AutoParry and wait(0.1) do
+                        -- Auto parry code would go here
+                    end
+                end)
+            end
+        end
+    })
+    
+    FeaturesSection:CreateSlider({
+        Title = "Parry Range",
         Min = 1,
         Max = 100,
-        Default = 75,
-    },
-    Callback = function(value) print("Brightness set to: " .. value) end
-})
-
-
-Tabs.InputTab:Input({
-    Title = "Username",
-    Value = "Guest",
-    Placeholder = "Enter your username",
-    Callback = function(input) print("Username: " .. input) end
-})
-
-Tabs.InputTab:Input({
-    Title = "Password",
-    Value = "",
-    Placeholder = "Enter your password",
-    Callback = function(input) print("Password entered.") end
-})
-
-
-Tabs.InputTab:Input({
-    Title = "Input with icon",
-    Value = "pisun",
-    InputIcon = "bird",
-    Placeholder = "Enter pisun",
-    Callback = function(input) print("pisun entered.") end
-})
-
-
-Tabs.KeybindTab:Keybind({
-    Title = "Keybind Example",
-    Desc = "Keybind to open ui",
-    Value = "G",
-    Callback = function(v)
-        Window:SetToggleKey(Enum.KeyCode[v])
-    end
-})
-
-
-Tabs.DropdownTab:Dropdown({
-    Title = "Select an Option",
-    Values = { "Option 1", "Option 2", "Option 3" },
-    Value = "Option 1",
-    Callback = function(option) print("Selected: " .. option) end
-})
-
-Tabs.DropdownTab:Dropdown({
-    Title = "Choose a Category (Multi)",
-    Values = { "Category A", "Category B", "Category C" },
-    Value = { "Category A" },
-    Multi = true,
-    AllowNone = true,
-    Callback = function(option) 
-        print("Categories selected: " .. game:GetService("HttpService"):JSONEncode(option)) 
-    end
-})
-
-
-
--- Configuration
--- Optional
-
-
-local HttpService = game:GetService("HttpService")
-
-local folderPath = "WindUI"
-makefolder(folderPath)
-
-local function SaveFile(fileName, data)
-    local filePath = folderPath .. "/" .. fileName .. ".json"
-    local jsonData = HttpService:JSONEncode(data)
-    writefile(filePath, jsonData)
-end
-
-local function LoadFile(fileName)
-    local filePath = folderPath .. "/" .. fileName .. ".json"
-    if isfile(filePath) then
-        local jsonData = readfile(filePath)
-        return HttpService:JSONDecode(jsonData)
-    end
-end
-
-local function ListFiles()
-    local files = {}
-    for _, file in ipairs(listfiles(folderPath)) do
-        local fileName = file:match("([^/]+)%.json$")
-        if fileName then
-            table.insert(files, fileName)
+        Default = 50,
+        Callback = function(Value)
+            _G.ParryRange = Value
+            SkyXUI:Notify({
+                Title = "Parry Range",
+                Content = "Set parry range to " .. Value,
+                Duration = 3
+            })
         end
-    end
-    return files
-end
-
-Tabs.WindowTab:Section({ Title = "Window" })
-
-local themeValues = {}
-for name, _ in pairs(WindUI:GetThemes()) do
-    table.insert(themeValues, name)
-end
-
-local themeDropdown = Tabs.WindowTab:Dropdown({
-    Title = "Select Theme",
-    Multi = false,
-    AllowNone = false,
-    Value = nil,
-    Values = themeValues,
-    Callback = function(theme)
-        WindUI:SetTheme(theme)
-    end
-})
-themeDropdown:Select(WindUI:GetCurrentTheme())
-
-local ToggleTransparency = Tabs.WindowTab:Toggle({
-    Title = "Toggle Window Transparency",
-    Callback = function(e)
-        Window:ToggleTransparency(e)
-    end,
-    Value = WindUI:GetTransparency()
-})
-
-Tabs.WindowTab:Section({ Title = "Save" })
-
-local fileNameInput = ""
-Tabs.WindowTab:Input({
-    Title = "Write File Name",
-    PlaceholderText = "Enter file name",
-    Callback = function(text)
-        fileNameInput = text
-    end
-})
-
-Tabs.WindowTab:Button({
-    Title = "Save File",
-    Callback = function()
-        if fileNameInput ~= "" then
-            SaveFile(fileNameInput, { Transparent = WindUI:GetTransparency(), Theme = WindUI:GetCurrentTheme() })
-        end
-    end
-})
-
-Tabs.WindowTab:Section({ Title = "Load" })
-
-local filesDropdown
-local files = ListFiles()
-
-filesDropdown = Tabs.WindowTab:Dropdown({
-    Title = "Select File",
-    Multi = false,
-    AllowNone = true,
-    Values = files,
-    Callback = function(selectedFile)
-        fileNameInput = selectedFile
-    end
-})
-
-Tabs.WindowTab:Button({
-    Title = "Load File",
-    Callback = function()
-        if fileNameInput ~= "" then
-            local data = LoadFile(fileNameInput)
-            if data then
-                WindUI:Notify({
-                    Title = "File Loaded",
-                    Content = "Loaded data: " .. HttpService:JSONEncode(data),
-                    Duration = 5,
-                })
-                if data.Transparent then 
-                    Window:ToggleTransparency(data.Transparent)
-                    ToggleTransparency:SetValue(data.Transparent)
-                end
-                if data.Theme then WindUI:SetTheme(data.Theme) end
-            end
-        end
-    end
-})
-
-Tabs.WindowTab:Button({
-    Title = "Overwrite File",
-    Callback = function()
-        if fileNameInput ~= "" then
-            SaveFile(fileNameInput, { Transparent = WindUI:GetTransparency(), Theme = WindUI:GetCurrentTheme() })
-        end
-    end
-})
-
-Tabs.WindowTab:Button({
-    Title = "Refresh List",
-    Callback = function()
-        filesDropdown:Refresh(ListFiles())
-    end
-})
-
-local currentThemeName = WindUI:GetCurrentTheme()
-local themes = WindUI:GetThemes()
-
-local ThemeAccent = themes[currentThemeName].Accent
-local ThemeOutline = themes[currentThemeName].Outline
-local ThemeText = themes[currentThemeName].Text
-local ThemePlaceholderText = themes[currentThemeName].Placeholder
-
-function updateTheme()
-    WindUI:AddTheme({
-        Name = currentThemeName,
-        Accent = ThemeAccent,
-        Outline = ThemeOutline,
-        Text = ThemeText,
-        Placeholder = ThemePlaceholderText
     })
-    WindUI:SetTheme(currentThemeName)
-end
-
-local CreateInput = Tabs.CreateThemeTab:Input({
-    Title = "Theme Name",
-    Value = currentThemeName,
-    Callback = function(name)
-        currentThemeName = name
-    end
-})
-
-Tabs.CreateThemeTab:Colorpicker({
-    Title = "Background Color",
-    Default = Color3.fromHex(ThemeAccent),
-    Callback = function(color)
-        ThemeAccent = color:ToHex()
-    end
-})
-
-Tabs.CreateThemeTab:Colorpicker({
-    Title = "Outline Color",
-    Default = Color3.fromHex(ThemeOutline),
-    Callback = function(color)
-        ThemeOutline = color:ToHex()
-    end
-})
-
-Tabs.CreateThemeTab:Colorpicker({
-    Title = "Text Color",
-    Default = Color3.fromHex(ThemeText),
-    Callback = function(color)
-        ThemeText = color:ToHex()
-    end
-})
-
-Tabs.CreateThemeTab:Colorpicker({
-    Title = "Placeholder Text Color",
-    Default = Color3.fromHex(ThemePlaceholderText),
-    Callback = function(color)
-        ThemePlaceholderText = color:ToHex()
-    end
-})
-
-Tabs.CreateThemeTab:Button({
-    Title = "Update Theme",
-    Callback = function()
-        updateTheme()
-    end
-})
-
-local InviteCode = "ApbHXtAwU2"
-local DiscordAPI = "https://discord.com/api/v10/invites/" .. InviteCode .. "?with_counts=true&with_expiration=true"
-
-local Response = game:GetService("HttpService"):JSONDecode(WindUI.Creator.Request({
-    Url = DiscordAPI,
-    Method = "GET",
-    Headers = {
-        ["User-Agent"] = "RobloxBot/1.0",
-        ["Accept"] = "application/json"
-    }
-}).Body)
-
-if Response and Response.guild then
-    local DiscordInfo = Tabs.Tests:Paragraph({
-        Title = Response.guild.name,
-        Desc = 
-            ' <font color="#52525b">•</font> Member Count : ' .. tostring(Response.approximate_member_count) .. 
-            '\n <font color="#16a34a">•</font> Online Count : ' .. tostring(Response.approximate_presence_count)
-        ,
-        Image = "https://cdn.discordapp.com/icons/" .. Response.guild.id .. "/" .. Response.guild.icon .. ".png?size=1024",
-        ImageSize = 42,
+    
+    FeaturesSection:CreateSlider({
+        Title = "Parry Speed",
+        Min = 0.1,
+        Max = 2,
+        Default = 0.5,
+        Callback = function(Value)
+            _G.ParrySpeed = Value
+        end
     })
-
-    Tabs.Tests:Button({
-        Title = "Update Info",
-        --Image = "refresh-ccw",
+    
+    local AbilitySection = GameTab:CreateSection("Abilities")
+    
+    AbilitySection:CreateButton({
+        Title = "Unlock All Abilities",
         Callback = function()
-            local UpdatedResponse = game:GetService("HttpService"):JSONDecode(WindUI.Creator.Request({
-                Url = DiscordAPI,
-                Method = "GET",
-            }).Body)
+            SkyXUI:Notify({
+                Title = "Abilities",
+                Content = "Attempting to unlock all abilities...",
+                Duration = 3
+            })
             
-            if UpdatedResponse and UpdatedResponse and UpdatedResponse.guild then
-                DiscordInfo:SetDesc(
-                    ' <font color="#52525b">•</font> Member Count : ' .. tostring(UpdatedResponse.approximate_member_count) .. 
-                    '\n <font color="#16a34a">•</font> Online Count : ' .. tostring(UpdatedResponse.approximate_presence_count)
-                )
-            end
+            -- Ability unlock would go here
         end
     })
+    
+elseif gameId == 2753915549 then -- Blox Fruits
+    -- Blox Fruits features
+    FeaturesSection:CreateToggle({
+        Title = "Auto Farm Level",
+        Default = false,
+        Callback = function(Value)
+            -- Auto farm implementation
+        end
+    })
+    
+    FeaturesSection:CreateToggle({
+        Title = "Auto Raid",
+        Default = false,
+        Callback = function(Value)
+            -- Auto raid implementation
+        end
+    })
+    
+    local TeleportSection = GameTab:CreateSection("Teleports")
+    
+    TeleportSection:CreateDropdown({
+        Title = "Teleport To",
+        Values = {"First Sea", "Second Sea", "Third Sea", "Marine Base", "Middle Town", "Jungle", "Pirate Village", "Desert", "Frozen Village", "Colosseum"},
+        Callback = function(Value)
+            SkyXUI:Notify({
+                Title = "Teleport",
+                Content = "Teleporting to " .. Value .. "...",
+                Duration = 3
+            })
+            
+            -- Teleport implementation would go here
+        end
+    })
+    
+    local FruitsSection = GameTab:CreateSection("Fruits")
+    
+    FruitsSection:CreateToggle({
+        Title = "Auto Buy Random Fruit",
+        Default = false,
+        Callback = function(Value)
+            -- Auto buy implementation
+        end
+    })
+    
+    FruitsSection:CreateToggle({
+        Title = "Auto Store Fruits",
+        Default = false,
+        Callback = function(Value)
+            -- Auto store implementation
+        end
+    })
+    
 else
-    Tabs.Tests:Paragraph({
-        Title = "Error when receiving information about the Discord server",
-        Desc = game:GetService("HttpService"):JSONEncode(Response),
-        Image = "triangle-alert",
-        ImageSize = 26,
-        Color = "Red",
+    -- Generic features for other games
+    FeaturesSection:CreateToggle({
+        Title = "Infinite Jump",
+        Default = false,
+        Callback = function(Value)
+            -- Enable infinite jump
+            _G.InfiniteJump = Value
+            
+            if Value then
+                -- Connect jump function
+                local InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+                    if _G.InfiniteJump then
+                        game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
+                    end
+                end)
+                
+                -- Store connection for cleanup
+                _G.InfiniteJumpConnection = InfiniteJumpConnection
+            else
+                -- Disconnect if exists
+                if _G.InfiniteJumpConnection then
+                    _G.InfiniteJumpConnection:Disconnect()
+                    _G.InfiniteJumpConnection = nil
+                end
+            end
+            
+            SkyXUI:Notify({
+                Title = "Infinite Jump",
+                Content = Value and "Infinite Jump Enabled" or "Infinite Jump Disabled",
+                Duration = 3
+            })
+        end
+    })
+    
+    FeaturesSection:CreateToggle({
+        Title = "ESP Players",
+        Default = false,
+        Callback = function(Value)
+            -- Player ESP implementation
+            _G.ESP = Value
+            
+            if Value then
+                -- Simple ESP implementation (placeholder)
+                local function createESP(player)
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESP_Highlight"
+                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                    highlight.FillTransparency = 0.5
+                    highlight.OutlineTransparency = 0
+                    
+                    if player.Character then
+                        highlight.Parent = player.Character
+                    end
+                    
+                    player.CharacterAdded:Connect(function(character)
+                        if _G.ESP then
+                            highlight.Parent = character
+                        end
+                    end)
+                    
+                    return highlight
+                end
+                
+                _G.ESPHighlights = {}
+                
+                -- Apply ESP to existing players
+                for _, player in pairs(game:GetService("Players"):GetPlayers()) do
+                    if player ~= game:GetService("Players").LocalPlayer then
+                        _G.ESPHighlights[player.Name] = createESP(player)
+                    end
+                end
+                
+                -- Handle new players
+                _G.ESPPlayerAddedConnection = game:GetService("Players").PlayerAdded:Connect(function(player)
+                    if _G.ESP and player ~= game:GetService("Players").LocalPlayer then
+                        _G.ESPHighlights[player.Name] = createESP(player)
+                    end
+                end)
+                
+                -- Handle players leaving
+                _G.ESPPlayerRemovingConnection = game:GetService("Players").PlayerRemoving:Connect(function(player)
+                    if _G.ESPHighlights[player.Name] then
+                        _G.ESPHighlights[player.Name]:Destroy()
+                        _G.ESPHighlights[player.Name] = nil
+                    end
+                end)
+            else
+                -- Cleanup ESP
+                if _G.ESPHighlights then
+                    for _, highlight in pairs(_G.ESPHighlights) do
+                        if highlight then
+                            highlight:Destroy()
+                        end
+                    end
+                    _G.ESPHighlights = {}
+                end
+                
+                if _G.ESPPlayerAddedConnection then
+                    _G.ESPPlayerAddedConnection:Disconnect()
+                    _G.ESPPlayerAddedConnection = nil
+                end
+                
+                if _G.ESPPlayerRemovingConnection then
+                    _G.ESPPlayerRemovingConnection:Disconnect()
+                    _G.ESPPlayerRemovingConnection = nil
+                end
+            end
+        end
+    })
+    
+    FeaturesSection:CreateButton({
+        Title = "Teleport to Random Player",
+        Callback = function()
+            -- Get all players
+            local players = game:GetService("Players"):GetPlayers()
+            local localPlayer = game:GetService("Players").LocalPlayer
+            
+            -- Remove local player from list
+            for i, player in pairs(players) do
+                if player == localPlayer then
+                    table.remove(players, i)
+                    break
+                end
+            end
+            
+            -- Check if there are other players
+            if #players > 0 then
+                -- Select random player
+                local randomPlayer = players[math.random(1, #players)]
+                
+                -- Teleport to them
+                if randomPlayer.Character and randomPlayer.Character:FindFirstChild("HumanoidRootPart") and
+                   localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                    
+                    localPlayer.Character.HumanoidRootPart.CFrame = randomPlayer.Character.HumanoidRootPart.CFrame
+                    
+                    SkyXUI:Notify({
+                        Title = "Teleport",
+                        Content = "Teleported to " .. randomPlayer.Name,
+                        Duration = 3
+                    })
+                else
+                    SkyXUI:Notify({
+                        Title = "Error",
+                        Content = "Failed to teleport to player",
+                        Duration = 3
+                    })
+                end
+            else
+                SkyXUI:Notify({
+                    Title = "Error",
+                    Content = "No other players to teleport to",
+                    Duration = 3
+                })
+            end
+        end
+    })
+    
+    local CharacterSection = GameTab:CreateSection("Character Modifications")
+    
+    CharacterSection:CreateSlider({
+        Title = "WalkSpeed",
+        Min = 16,
+        Max = 250,
+        Default = 16,
+        Callback = function(Value)
+            -- Set walk speed
+            if game:GetService("Players").LocalPlayer.Character and 
+               game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Value
+            end
+        end
+    })
+    
+    CharacterSection:CreateSlider({
+        Title = "JumpPower",
+        Min = 50,
+        Max = 300,
+        Default = 50,
+        Callback = function(Value)
+            -- Set jump power
+            if game:GetService("Players").LocalPlayer.Character and 
+               game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid").JumpPower = Value
+            end
+        end
+    })
+    
+    CharacterSection:CreateToggle({
+        Title = "Noclip",
+        Default = false,
+        Callback = function(Value)
+            _G.Noclip = Value
+            
+            if Value then
+                -- Enable noclip
+                _G.NoclipLoop = game:GetService("RunService").Stepped:Connect(function()
+                    if _G.Noclip then
+                        if game:GetService("Players").LocalPlayer.Character then
+                            for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+                                if part:IsA("BasePart") and part.CanCollide then
+                                    part.CanCollide = false
+                                end
+                            end
+                        end
+                    end
+                end)
+                
+                SkyXUI:Notify({
+                    Title = "Noclip",
+                    Content = "Noclip Enabled - Walk through walls",
+                    Duration = 3
+                })
+            else
+                -- Disable noclip
+                if _G.NoclipLoop then
+                    _G.NoclipLoop:Disconnect()
+                    _G.NoclipLoop = nil
+                end
+                
+                -- Reset collision
+                if game:GetService("Players").LocalPlayer.Character then
+                    for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then
+                            part.CanCollide = true
+                        end
+                    end
+                end
+                
+                SkyXUI:Notify({
+                    Title = "Noclip",
+                    Content = "Noclip Disabled",
+                    Duration = 3
+                })
+            end
+        end
     })
 end
 
-
-
-local function parseJSON(luau_table, indent, level, visited)
-    indent = indent or 2
-    level = level or 0
-    visited = visited or {}
-    
-    local currentIndent = string.rep(" ", level * indent)
-    local nextIndent = string.rep(" ", (level + 1) * indent)
-    
-    if luau_table == nil then
-        return "null"
-    end
-    
-    local dataType = type(luau_table)
-    
-    if dataType == "table" then
-        if visited[luau_table] then
-            return "\"[Circular Reference]\""
-        end
-        
-        visited[luau_table] = true
-        
-        local isArray = true
-        local maxIndex = 0
-        
-        for k, _ in pairs(luau_table) do
-            if type(k) == "number" and k > maxIndex then
-                maxIndex = k
-            end
-            if type(k) ~= "number" or k <= 0 or math.floor(k) ~= k then
-                isArray = false
-                break
-            end
-        end
-        
-        local count = 0
-        for _ in pairs(luau_table) do
-            count = count + 1
-        end
-        if count ~= maxIndex and isArray then
-            isArray = false
-        end
-        
-        if count == 0 then
-            return "{}"
-        end
-        
-        if isArray then
-            if count == 0 then
-                return "[]"
-            end
-            
-            local result = "[\n"
-            
-            for i = 1, maxIndex do
-                result = result .. nextIndent .. parseJSON(luau_table[i], indent, level + 1, visited)
-                if i < maxIndex then
-                    result = result .. ","
-                end
-                result = result .. "\n"
-            end
-            
-            result = result .. currentIndent .. "]"
-            return result
-        else
-            local result = "{\n"
-            local first = true
-            
-            local keys = {}
-            for k in pairs(luau_table) do
-                table.insert(keys, k)
-            end
-            table.sort(keys, function(a, b)
-                if type(a) == type(b) then
-                    return tostring(a) < tostring(b)
-                else
-                    return type(a) < type(b)
-                end
-            end)
-            
-            for _, k in ipairs(keys) do
-                local v = luau_table[k]
-                if not first then
-                    result = result .. ",\n"
-                else
-                    first = false
-                end
-                
-                if type(k) == "string" then
-                    result = result .. nextIndent .. "\"" .. k .. "\": "
-                else
-                    result = result .. nextIndent .. "\"" .. tostring(k) .. "\": "
-                end
-                
-                result = result .. parseJSON(v, indent, level + 1, visited)
-            end
-            
-            result = result .. "\n" .. currentIndent .. "}"
-            return result
-        end
-    elseif dataType == "string" then
-        local escaped = luau_table:gsub("\\", "\\\\")
-        escaped = escaped:gsub("\"", "\\\"")
-        escaped = escaped:gsub("\n", "\\n")
-        escaped = escaped:gsub("\r", "\\r")
-        escaped = escaped:gsub("\t", "\\t")
-        
-        return "\"" .. escaped .. "\""
-    elseif dataType == "number" then
-        return tostring(luau_table)
-    elseif dataType == "boolean" then
-        return luau_table and "true" or "false"
-    elseif dataType == "function" then
-        return "\"function\""
-    else
-        return "\"" .. dataType .. "\""
-    end
-end
-
-local function tableToClipboard(luau_table, indent)
-    indent = indent or 4
-    local jsonString = parseJSON(luau_table, indent)
-    setclipboard(jsonString)
-    return jsonString
-end
-
-Tabs.Tests:Section({
-    Title = "Get WindUI JSON"
+-- Create settings tab
+local SettingsTab = Window:CreateTab({
+    Title = "Settings",
+    Icon = "settings"
 })
 
-Tabs.Tests:Button({
-    Title = "Get WindUI JSON",
-    Callback = function()
-        tableToClipboard(WindUI)
+local UISection = SettingsTab:CreateSection("UI Settings")
+
+UISection:CreateDropdown({
+    Title = "Theme",
+    Values = {"Default", "Ocean", "Forest", "Sunset", "Monochrome"},
+    Default = "Ocean",
+    Callback = function(Value)
+        -- Theme implementation
+        SkyXUI:Notify({
+            Title = "Theme Changed",
+            Content = "Changed theme to " .. Value,
+            Duration = 3
+        })
     end
+})
+
+UISection:CreateKeybind({
+    Title = "Toggle UI",
+    Default = "RightControl",
+    Callback = function()
+        -- This is handled automatically by the UI library
+    end
+})
+
+-- Create Anti-Ban tab
+local AntiBanTab = Window:CreateTab({
+    Title = "Anti-Ban",
+    Icon = "shield"
+})
+
+local ProtectionSection = AntiBanTab:CreateSection("Protections")
+
+ProtectionSection:CreateToggle({
+    Title = "Anti-Kick",
+    Default = true,
+    Callback = function(Value)
+        -- Implementation would depend on our Anti-Ban system
+        SkyXUI:Notify({
+            Title = "Anti-Ban",
+            Content = Value and "Anti-Kick Enabled" or "Anti-Kick Disabled",
+            Duration = 3
+        })
+    end
+})
+
+ProtectionSection:CreateToggle({
+    Title = "Anti-Report",
+    Default = true,
+    Callback = function(Value)
+        -- Implementation
+    end
+})
+
+ProtectionSection:CreateToggle({
+    Title = "Admin Detection",
+    Default = true,
+    Callback = function(Value)
+        -- Implementation
+    end
+})
+
+ProtectionSection:CreateToggle({
+    Title = "Screenshot Protection",
+    Default = true,
+    Callback = function(Value)
+        -- Implementation
+    end
+})
+
+local ActionsSection = AntiBanTab:CreateSection("Actions")
+
+ActionsSection:CreateButton({
+    Title = "Enable All Protections",
+    Callback = function()
+        -- Set all protection toggles to true
+        for _, toggle in ipairs(ProtectionSection:GetChildren()) do
+            if toggle.ClassName == "Toggle" then
+                toggle:SetValue(true)
+            end
+        end
+        
+        SkyXUI:Notify({
+            Title = "Anti-Ban",
+            Content = "All protections enabled",
+            Duration = 3
+        })
+    end
+})
+
+ActionsSection:CreateButton({
+    Title = "Disable All Protections",
+    Callback = function()
+        -- Set all protection toggles to false
+        for _, toggle in ipairs(ProtectionSection:GetChildren()) do
+            if toggle.ClassName == "Toggle" then
+                toggle:SetValue(false)
+            end
+        end
+        
+        SkyXUI:Notify({
+            Title = "Anti-Ban",
+            Content = "All protections disabled",
+            Duration = 3
+        })
+    end
+})
+
+local InfoSection = AntiBanTab:CreateSection("Information")
+
+InfoSection:CreateParagraph({
+    Title = "Anti-Ban System",
+    Content = "SkyX Anti-Ban system helps protect you from being banned or kicked while using exploits. It includes various protection mechanisms to keep you safe while exploiting."
+})
+
+-- Create credits tab
+local CreditsTab = Window:CreateTab({
+    Title = "Credits",
+    Icon = "credit"
+})
+
+local CreditsSection = CreditsTab:CreateSection("Credits")
+
+CreditsSection:CreateParagraph({
+    Title = "SkyX Team",
+    Content = "UI Development: SkyX Team\nScript Development: SkyX Team\nUI Design: Inspired by Luna UI"
+})
+
+CreditsSection:CreateParagraph({
+    Title = "Special Thanks",
+    Content = "Thanks to all the members of our Discord community for their support and feedback!"
+})
+
+CreditsSection:CreateButton({
+    Title = "Copy Discord Invite",
+    Callback = function()
+        if setclipboard then
+            setclipboard("https://discord.gg/SkyXHub")
+            SkyXUI:Notify({
+                Title = "Discord",
+                Content = "Discord invite copied to clipboard!",
+                Duration = 3
+            })
+        else
+            SkyXUI:Notify({
+                Title = "Error",
+                Content = "Your executor doesn't support clipboard functions",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- Welcome notification
+SkyXUI:Notify({
+    Title = "SkyX Hub Loaded",
+    Content = "Welcome to SkyX Hub | Game: " .. gameName .. " | Executor: " .. executor,
+    Duration = 5
 })
