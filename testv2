@@ -1,23 +1,19 @@
 --[[
-    SkyX UI Executor Example
+    SkyX Hub - Orion UI Example
     
-    This script is ready to be executed in any Roblox executor:
-    - Synapse X
-    - KRNL
-    - Script-Ware
-    - Fluxus
-    - Electron
-    - Oxygen U
-    - Any other executor
-    
-    Just copy this entire script and paste it into your executor.
+    This example shows how to use the custom-themed Orion UI
+    The UI uses a sky-themed color scheme that's easy on the eyes
 ]]
 
--- Detect the current game
-local gameName = "Unknown"
-local gameId = game.PlaceId
+-- Load the custom-themed Orion UI library
+local OrionLib = loadstring(game:HttpGet('https://raw.githubusercontent.com/SkyXhub/skyx-all-ui-/refs/heads/main/OrionX-UI'))()
 
-local gamesList = {
+-- Detect the current game
+local gameID = game.PlaceId
+local gameName = "Unknown Game"
+
+-- Game detection dictionary
+local games = {
     [6284583030] = "Pet Simulator X",
     [7449423635] = "Blade Ball",
     [2753915549] = "Blox Fruits",
@@ -30,460 +26,474 @@ local gamesList = {
     [8304191830] = "Anime Adventures"
 }
 
-gameName = gamesList[gameId] or "Unknown Game"
+-- Set game name if detected
+if games[gameID] then
+    gameName = games[gameID]
+end
 
--- Get executor name
-local executor = identifyexecutor and identifyexecutor() or getexecutorname and getexecutorname() or "Unknown"
-
--- Load SkyX UI Library
-local SkyXUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/SkyXhub/OrionX-UI/refs/heads/main/OrionX-UI"))()
-
--- Create window
-local Window = SkyXUI:CreateWindow({
-    Title = "SkyX Hub | " .. gameName,
-    SubTitle = "v1.0.0 | " .. executor,
-    TabWidth = 160,
-    Size = UDim2.fromOffset(600, 480),
-    Acrylic = true,
-    Theme = "Ocean"
+-- Create the main window
+local Window = OrionLib:MakeWindow({
+    Name = "SkyX Hub | " .. gameName,
+    HidePremium = true,
+    SaveConfig = true,
+    ConfigFolder = "SkyXHub",
+    IntroText = "SkyX Hub",
+    IntroIcon = "rbxassetid://10618644218" -- Replace with SkyX logo if available
 })
 
--- Create main tab with welcome message
-local MainTab = Window:CreateTab({
-    Title = "Main",
-    Icon = "home"
+-- Create the main tab
+local MainTab = Window:MakeTab({
+    Name = "Main",
+    Icon = "rbxassetid://4483345998", -- Default home icon
+    PremiumOnly = false
 })
 
-local InfoSection = MainTab:CreateSection("Information")
+-- Add a welcome message to the main tab
+MainTab:AddParagraph("Welcome to SkyX Hub", "The ultimate script hub for " .. gameName)
 
-InfoSection:CreateParagraph({
-    Title = "Welcome to SkyX Hub",
-    Content = "SkyX Hub is a premium script hub for Roblox games. This UI is running on our custom SkyX UI Library.\n\nDetected Game: " .. gameName .. "\nExecutor: " .. executor
-})
-
-InfoSection:CreateButton({
-    Title = "Join Discord",
+-- Add a button to copy Discord invite
+MainTab:AddButton({
+    Name = "Copy Discord Invite",
     Callback = function()
-        -- Attempt to join Discord
-        local function joinDiscord()
-            if setclipboard then
-                setclipboard("https://discord.gg/SkyXHub")
-                SkyXUI:Notify({
-                    Title = "Discord Invite",
-                    Content = "Discord invite link copied to clipboard!",
-                    Duration = 5
-                })
-            else
-                SkyXUI:Notify({
-                    Title = "Error",
-                    Content = "Your executor doesn't support clipboard functions",
-                    Duration = 5
-                })
-            end
-        end
-        
-        -- Use pcall to prevent errors
-        local success, err = pcall(joinDiscord)
-        if not success then
-            SkyXUI:Notify({
-                Title = "Error",
-                Content = "Failed to copy Discord invite: " .. tostring(err),
-                Duration = 5
+        if setclipboard then
+            setclipboard("https://discord.gg/skyxhub")
+            OrionLib:MakeNotification({
+                Name = "SkyX Hub",
+                Content = "Discord invite copied to clipboard!",
+                Image = "rbxassetid://4483345998",
+                Time = 5
+            })
+        else
+            OrionLib:MakeNotification({
+                Name = "Error",
+                Content = "Your executor doesn't support clipboard functions.",
+                Image = "rbxassetid://4483345998",
+                Time = 5
             })
         end
     end
 })
 
--- Create game-specific tab with features
-local GameTab = Window:CreateTab({
-    Title = gameName,
-    Icon = "world"
+-- Create Anti-Ban tab
+local AntiBanTab = Window:MakeTab({
+    Name = "Anti-Ban",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
 })
 
-local FeaturesSection = GameTab:CreateSection("Game Features")
+-- Anti-Ban features
+AntiBanTab:AddToggle({
+    Name = "Anti-Kick",
+    Default = true,
+    Callback = function(Value)
+        -- Implementation would go here
+        _G.AntiKick = Value
+        OrionLib:MakeNotification({
+            Name = "Anti-Ban",
+            Content = "Anti-Kick " .. (Value and "enabled" or "disabled"),
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
 
--- Add different features based on the detected game
-if gameId == 6284583030 then -- Pet Simulator X
-    -- Pet Simulator X features
-    FeaturesSection:CreateToggle({
-        Title = "Auto Farm Coins",
+AntiBanTab:AddToggle({
+    Name = "Anti-Report",
+    Default = true,
+    Callback = function(Value)
+        -- Implementation would go here
+        _G.AntiReport = Value
+    end
+})
+
+AntiBanTab:AddToggle({
+    Name = "Admin Detection",
+    Default = true,
+    Callback = function(Value)
+        -- Implementation would go here
+        _G.AdminDetection = Value
+    end
+})
+
+AntiBanTab:AddToggle({
+    Name = "Screenshot Protection",
+    Default = true,
+    Callback = function(Value)
+        -- Implementation would go here
+        _G.ScreenshotProtection = Value
+    end
+})
+
+-- Anti-Ban action buttons
+AntiBanTab:AddButton({
+    Name = "Enable All Protections",
+    Callback = function()
+        -- Enable all protections
+        _G.AntiKick = true
+        _G.AntiReport = true
+        _G.AdminDetection = true
+        _G.ScreenshotProtection = true
+        
+        -- Update toggle UI elements (implementation would vary)
+        
+        OrionLib:MakeNotification({
+            Name = "Anti-Ban",
+            Content = "All protections enabled",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+AntiBanTab:AddButton({
+    Name = "Disable All Protections",
+    Callback = function()
+        -- Disable all protections
+        _G.AntiKick = false
+        _G.AntiReport = false
+        _G.AdminDetection = false
+        _G.ScreenshotProtection = false
+        
+        -- Update toggle UI elements (implementation would vary)
+        
+        OrionLib:MakeNotification({
+            Name = "Anti-Ban",
+            Content = "All protections disabled",
+            Image = "rbxassetid://4483345998",
+            Time = 3
+        })
+    end
+})
+
+-- Create game-specific features based on the detected game
+if gameID == 6284583030 then -- Pet Simulator X
+    -- Create Pet Simulator X tab
+    local PSXTab = Window:MakeTab({
+        Name = "Pet Simulator X",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    -- Add Auto Farm toggle
+    PSXTab:AddToggle({
+        Name = "Auto Farm Coins",
         Default = false,
         Callback = function(Value)
-            SkyXUI:Notify({
-                Title = "Auto Farm",
-                Content = Value and "Started auto farming coins" or "Stopped auto farming coins",
-                Duration = 3
-            })
+            -- Auto farm implementation would go here
+            _G.AutoFarm = Value
             
-            -- Example implementation (would need to be replaced with actual farming code)
             if Value then
-                -- Start auto farm
-                _G.AutoFarm = true
+                OrionLib:MakeNotification({
+                    Name = "Pet Simulator X",
+                    Content = "Auto Farm enabled",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+                
+                -- Auto farm code would start here
+                -- This is just a placeholder loop
                 spawn(function()
-                    while _G.AutoFarm and wait(0.1) do
-                        -- Farming implementation would go here
-                        -- This is just a placeholder that would be replaced with actual game-specific code
+                    while _G.AutoFarm and wait() do
+                        -- Actual farming code would go here
                     end
                 end)
             else
-                -- Stop auto farm
-                _G.AutoFarm = false
-            end
-        end
-    })
-    
-    FeaturesSection:CreateToggle({
-        Title = "Auto Hatch Eggs",
-        Default = false,
-        Callback = function(Value)
-            -- Auto hatch implementation
-        end
-    })
-    
-    local EggSection = GameTab:CreateSection("Egg Settings")
-    
-    EggSection:CreateDropdown({
-        Title = "Select Egg",
-        Values = {"Basic Egg", "Rare Egg", "Epic Egg", "Legendary Egg", "Mythical Egg"},
-        Default = "Basic Egg",
-        Callback = function(Value)
-            -- Egg selection implementation
-            SkyXUI:Notify({
-                Title = "Egg Selected",
-                Content = "Selected: " .. Value,
-                Duration = 3
-            })
-        end
-    })
-    
-    EggSection:CreateToggle({
-        Title = "Triple Hatch",
-        Default = false,
-        Callback = function(Value)
-            -- Triple hatch implementation
-        end
-    })
-    
-elseif gameId == 7449423635 then -- Blade Ball
-    -- Blade Ball features
-    FeaturesSection:CreateToggle({
-        Title = "Auto Parry",
-        Default = false,
-        Callback = function(Value)
-            SkyXUI:Notify({
-                Title = "Auto Parry",
-                Content = Value and "Auto Parry Enabled" or "Auto Parry Disabled",
-                Duration = 3
-            })
-            
-            -- Example implementation
-            _G.AutoParry = Value
-            
-            if Value then
-                spawn(function()
-                    -- This is just a placeholder for the actual implementation
-                    while _G.AutoParry and wait(0.1) do
-                        -- Auto parry code would go here
-                    end
-                end)
-            end
-        end
-    })
-    
-    FeaturesSection:CreateSlider({
-        Title = "Parry Range",
-        Min = 1,
-        Max = 100,
-        Default = 50,
-        Callback = function(Value)
-            _G.ParryRange = Value
-            SkyXUI:Notify({
-                Title = "Parry Range",
-                Content = "Set parry range to " .. Value,
-                Duration = 3
-            })
-        end
-    })
-    
-    FeaturesSection:CreateSlider({
-        Title = "Parry Speed",
-        Min = 0.1,
-        Max = 2,
-        Default = 0.5,
-        Callback = function(Value)
-            _G.ParrySpeed = Value
-        end
-    })
-    
-    local AbilitySection = GameTab:CreateSection("Abilities")
-    
-    AbilitySection:CreateButton({
-        Title = "Unlock All Abilities",
-        Callback = function()
-            SkyXUI:Notify({
-                Title = "Abilities",
-                Content = "Attempting to unlock all abilities...",
-                Duration = 3
-            })
-            
-            -- Ability unlock would go here
-        end
-    })
-    
-elseif gameId == 2753915549 then -- Blox Fruits
-    -- Blox Fruits features
-    FeaturesSection:CreateToggle({
-        Title = "Auto Farm Level",
-        Default = false,
-        Callback = function(Value)
-            -- Auto farm implementation
-        end
-    })
-    
-    FeaturesSection:CreateToggle({
-        Title = "Auto Raid",
-        Default = false,
-        Callback = function(Value)
-            -- Auto raid implementation
-        end
-    })
-    
-    local TeleportSection = GameTab:CreateSection("Teleports")
-    
-    TeleportSection:CreateDropdown({
-        Title = "Teleport To",
-        Values = {"First Sea", "Second Sea", "Third Sea", "Marine Base", "Middle Town", "Jungle", "Pirate Village", "Desert", "Frozen Village", "Colosseum"},
-        Callback = function(Value)
-            SkyXUI:Notify({
-                Title = "Teleport",
-                Content = "Teleporting to " .. Value .. "...",
-                Duration = 3
-            })
-            
-            -- Teleport implementation would go here
-        end
-    })
-    
-    local FruitsSection = GameTab:CreateSection("Fruits")
-    
-    FruitsSection:CreateToggle({
-        Title = "Auto Buy Random Fruit",
-        Default = false,
-        Callback = function(Value)
-            -- Auto buy implementation
-        end
-    })
-    
-    FruitsSection:CreateToggle({
-        Title = "Auto Store Fruits",
-        Default = false,
-        Callback = function(Value)
-            -- Auto store implementation
-        end
-    })
-    
-else
-    -- Generic features for other games
-    FeaturesSection:CreateToggle({
-        Title = "Infinite Jump",
-        Default = false,
-        Callback = function(Value)
-            -- Enable infinite jump
-            _G.InfiniteJump = Value
-            
-            if Value then
-                -- Connect jump function
-                local InfiniteJumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
-                    if _G.InfiniteJump then
-                        game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState("Jumping")
-                    end
-                end)
-                
-                -- Store connection for cleanup
-                _G.InfiniteJumpConnection = InfiniteJumpConnection
-            else
-                -- Disconnect if exists
-                if _G.InfiniteJumpConnection then
-                    _G.InfiniteJumpConnection:Disconnect()
-                    _G.InfiniteJumpConnection = nil
-                end
-            end
-            
-            SkyXUI:Notify({
-                Title = "Infinite Jump",
-                Content = Value and "Infinite Jump Enabled" or "Infinite Jump Disabled",
-                Duration = 3
-            })
-        end
-    })
-    
-    FeaturesSection:CreateToggle({
-        Title = "ESP Players",
-        Default = false,
-        Callback = function(Value)
-            -- Player ESP implementation
-            _G.ESP = Value
-            
-            if Value then
-                -- Simple ESP implementation (placeholder)
-                local function createESP(player)
-                    local highlight = Instance.new("Highlight")
-                    highlight.Name = "ESP_Highlight"
-                    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-                    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-                    highlight.FillTransparency = 0.5
-                    highlight.OutlineTransparency = 0
-                    
-                    if player.Character then
-                        highlight.Parent = player.Character
-                    end
-                    
-                    player.CharacterAdded:Connect(function(character)
-                        if _G.ESP then
-                            highlight.Parent = character
-                        end
-                    end)
-                    
-                    return highlight
-                end
-                
-                _G.ESPHighlights = {}
-                
-                -- Apply ESP to existing players
-                for _, player in pairs(game:GetService("Players"):GetPlayers()) do
-                    if player ~= game:GetService("Players").LocalPlayer then
-                        _G.ESPHighlights[player.Name] = createESP(player)
-                    end
-                end
-                
-                -- Handle new players
-                _G.ESPPlayerAddedConnection = game:GetService("Players").PlayerAdded:Connect(function(player)
-                    if _G.ESP and player ~= game:GetService("Players").LocalPlayer then
-                        _G.ESPHighlights[player.Name] = createESP(player)
-                    end
-                end)
-                
-                -- Handle players leaving
-                _G.ESPPlayerRemovingConnection = game:GetService("Players").PlayerRemoving:Connect(function(player)
-                    if _G.ESPHighlights[player.Name] then
-                        _G.ESPHighlights[player.Name]:Destroy()
-                        _G.ESPHighlights[player.Name] = nil
-                    end
-                end)
-            else
-                -- Cleanup ESP
-                if _G.ESPHighlights then
-                    for _, highlight in pairs(_G.ESPHighlights) do
-                        if highlight then
-                            highlight:Destroy()
-                        end
-                    end
-                    _G.ESPHighlights = {}
-                end
-                
-                if _G.ESPPlayerAddedConnection then
-                    _G.ESPPlayerAddedConnection:Disconnect()
-                    _G.ESPPlayerAddedConnection = nil
-                end
-                
-                if _G.ESPPlayerRemovingConnection then
-                    _G.ESPPlayerRemovingConnection:Disconnect()
-                    _G.ESPPlayerRemovingConnection = nil
-                end
-            end
-        end
-    })
-    
-    FeaturesSection:CreateButton({
-        Title = "Teleport to Random Player",
-        Callback = function()
-            -- Get all players
-            local players = game:GetService("Players"):GetPlayers()
-            local localPlayer = game:GetService("Players").LocalPlayer
-            
-            -- Remove local player from list
-            for i, player in pairs(players) do
-                if player == localPlayer then
-                    table.remove(players, i)
-                    break
-                end
-            end
-            
-            -- Check if there are other players
-            if #players > 0 then
-                -- Select random player
-                local randomPlayer = players[math.random(1, #players)]
-                
-                -- Teleport to them
-                if randomPlayer.Character and randomPlayer.Character:FindFirstChild("HumanoidRootPart") and
-                   localPlayer.Character and localPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                    
-                    localPlayer.Character.HumanoidRootPart.CFrame = randomPlayer.Character.HumanoidRootPart.CFrame
-                    
-                    SkyXUI:Notify({
-                        Title = "Teleport",
-                        Content = "Teleported to " .. randomPlayer.Name,
-                        Duration = 3
-                    })
-                else
-                    SkyXUI:Notify({
-                        Title = "Error",
-                        Content = "Failed to teleport to player",
-                        Duration = 3
-                    })
-                end
-            else
-                SkyXUI:Notify({
-                    Title = "Error",
-                    Content = "No other players to teleport to",
-                    Duration = 3
+                OrionLib:MakeNotification({
+                    Name = "Pet Simulator X",
+                    Content = "Auto Farm disabled",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
                 })
             end
         end
     })
     
-    local CharacterSection = GameTab:CreateSection("Character Modifications")
-    
-    CharacterSection:CreateSlider({
-        Title = "WalkSpeed",
-        Min = 16,
-        Max = 250,
-        Default = 16,
-        Callback = function(Value)
-            -- Set walk speed
-            if game:GetService("Players").LocalPlayer.Character and 
-               game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Value
-            end
-        end
-    })
-    
-    CharacterSection:CreateSlider({
-        Title = "JumpPower",
-        Min = 50,
-        Max = 300,
-        Default = 50,
-        Callback = function(Value)
-            -- Set jump power
-            if game:GetService("Players").LocalPlayer.Character and 
-               game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid").JumpPower = Value
-            end
-        end
-    })
-    
-    CharacterSection:CreateToggle({
-        Title = "Noclip",
+    -- Add Auto Hatch toggle
+    PSXTab:AddToggle({
+        Name = "Auto Hatch Eggs",
         Default = false,
         Callback = function(Value)
+            -- Auto hatch implementation would go here
+            _G.AutoHatch = Value
+        end
+    })
+    
+    -- Add Egg selector dropdown
+    PSXTab:AddDropdown({
+        Name = "Select Egg",
+        Default = "Basic Egg",
+        Options = {"Basic Egg", "Rare Egg", "Epic Egg", "Legendary Egg", "Mythical Egg"},
+        Callback = function(Value)
+            -- Egg selection implementation would go here
+            _G.SelectedEgg = Value
+        end
+    })
+    
+elseif gameID == 7449423635 then -- Blade Ball
+    -- Create Blade Ball tab
+    local BBTab = Window:MakeTab({
+        Name = "Blade Ball",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    -- Add Auto Parry toggle
+    BBTab:AddToggle({
+        Name = "Auto Parry",
+        Default = false,
+        Callback = function(Value)
+            -- Auto parry implementation would go here
+            _G.AutoParry = Value
+            
+            if Value then
+                OrionLib:MakeNotification({
+                    Name = "Blade Ball",
+                    Content = "Auto Parry enabled",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+                
+                -- Auto parry code would start here
+                spawn(function()
+                    while _G.AutoParry and wait() do
+                        -- Actual parry code would go here
+                    end
+                end)
+            else
+                OrionLib:MakeNotification({
+                    Name = "Blade Ball",
+                    Content = "Auto Parry disabled",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end
+    })
+    
+    -- Add Parry Distance slider
+    BBTab:AddSlider({
+        Name = "Parry Distance",
+        Min = 10,
+        Max = 100,
+        Default = 50,
+        Color = Color3.fromRGB(65, 109, 175),
+        Increment = 1,
+        ValueName = "studs",
+        Callback = function(Value)
+            -- Parry distance implementation would go here
+            _G.ParryDistance = Value
+        end    
+    })
+    
+    -- Add Auto Ability toggle
+    BBTab:AddToggle({
+        Name = "Auto Ability",
+        Default = false,
+        Callback = function(Value)
+            -- Auto ability implementation would go here
+            _G.AutoAbility = Value
+        end
+    })
+    
+elseif gameID == 2753915549 then -- Blox Fruits
+    -- Create Blox Fruits tab
+    local BFTab = Window:MakeTab({
+        Name = "Blox Fruits",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    -- Add Auto Farm toggle
+    BFTab:AddToggle({
+        Name = "Auto Farm Level",
+        Default = false,
+        Callback = function(Value)
+            -- Auto farm implementation would go here
+            _G.AutoFarm = Value
+        end
+    })
+    
+    -- Add Auto Raid toggle
+    BFTab:AddToggle({
+        Name = "Auto Raid",
+        Default = false,
+        Callback = function(Value)
+            -- Auto raid implementation would go here
+            _G.AutoRaid = Value
+        end
+    })
+    
+    -- Add Teleport dropdown
+    BFTab:AddDropdown({
+        Name = "Teleport To",
+        Default = "First Sea",
+        Options = {"First Sea", "Second Sea", "Third Sea", "Marine Base", "Middle Town", "Jungle", "Pirate Village", "Desert", "Frozen Village", "Colosseum"},
+        Callback = function(Value)
+            -- Teleport implementation would go here
+            _G.TeleportDestination = Value
+            
+            OrionLib:MakeNotification({
+                Name = "Blox Fruits",
+                Content = "Teleporting to " .. Value,
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    })
+    
+    -- Create Fruits section for Blox Fruits
+    local FruitsTab = Window:MakeTab({
+        Name = "Fruits",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    -- Add fruit-related toggles
+    FruitsTab:AddToggle({
+        Name = "Auto Buy Random Fruit",
+        Default = false,
+        Callback = function(Value)
+            -- Auto buy implementation would go here
+            _G.AutoBuyFruit = Value
+        end
+    })
+    
+    FruitsTab:AddToggle({
+        Name = "Auto Store Fruits",
+        Default = false,
+        Callback = function(Value)
+            -- Auto store implementation would go here
+            _G.AutoStoreFruit = Value
+        end
+    })
+    
+else
+    -- Create universal tab for unrecognized games
+    local UniversalTab = Window:MakeTab({
+        Name = "Universal",
+        Icon = "rbxassetid://4483345998",
+        PremiumOnly = false
+    })
+    
+    -- Add universal features
+    UniversalTab:AddToggle({
+        Name = "Speed Hack",
+        Default = false,
+        Callback = function(Value)
+            -- Speed hack implementation
+            _G.SpeedHack = Value
+            
+            if Value then
+                -- Get the player's humanoid
+                local plr = game.Players.LocalPlayer
+                if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                    plr.Character.Humanoid.WalkSpeed = 100
+                end
+                
+                -- Apply speed hack to future characters
+                plr.CharacterAdded:Connect(function(char)
+                    if _G.SpeedHack and char:WaitForChild("Humanoid") then
+                        char.Humanoid.WalkSpeed = 100
+                    end
+                end)
+            else
+                -- Reset speed
+                local plr = game.Players.LocalPlayer
+                if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                    plr.Character.Humanoid.WalkSpeed = 16
+                end
+            end
+        end
+    })
+    
+    -- Add Jump Power toggle
+    UniversalTab:AddToggle({
+        Name = "Jump Power",
+        Default = false,
+        Callback = function(Value)
+            -- Jump power implementation
+            _G.JumpPower = Value
+            
+            if Value then
+                -- Get the player's humanoid
+                local plr = game.Players.LocalPlayer
+                if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                    plr.Character.Humanoid.JumpPower = 150
+                end
+                
+                -- Apply jump power to future characters
+                plr.CharacterAdded:Connect(function(char)
+                    if _G.JumpPower and char:WaitForChild("Humanoid") then
+                        char.Humanoid.JumpPower = 150
+                    end
+                end)
+            else
+                -- Reset jump power
+                local plr = game.Players.LocalPlayer
+                if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                    plr.Character.Humanoid.JumpPower = 50
+                end
+            end
+        end
+    })
+    
+    -- Add Infinite Jump toggle
+    UniversalTab:AddToggle({
+        Name = "Infinite Jump",
+        Default = false,
+        Callback = function(Value)
+            -- Infinite jump implementation
+            _G.InfiniteJump = Value
+            
+            if Value then
+                -- Connect jump input
+                _G.JumpConnection = game:GetService("UserInputService").JumpRequest:Connect(function()
+                    if _G.InfiniteJump then
+                        local plr = game.Players.LocalPlayer
+                        if plr.Character and plr.Character:FindFirstChild("Humanoid") then
+                            plr.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        end
+                    end
+                end)
+                
+                OrionLib:MakeNotification({
+                    Name = "Universal",
+                    Content = "Infinite Jump enabled",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            else
+                -- Disconnect jump input
+                if _G.JumpConnection then
+                    _G.JumpConnection:Disconnect()
+                    _G.JumpConnection = nil
+                end
+                
+                OrionLib:MakeNotification({
+                    Name = "Universal",
+                    Content = "Infinite Jump disabled",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
+                })
+            end
+        end
+    })
+    
+    -- Add Noclip toggle
+    UniversalTab:AddToggle({
+        Name = "Noclip",
+        Default = false,
+        Callback = function(Value)
+            -- Noclip implementation
             _G.Noclip = Value
             
             if Value then
-                -- Enable noclip
+                -- Setup noclip
                 _G.NoclipLoop = game:GetService("RunService").Stepped:Connect(function()
                     if _G.Noclip then
-                        if game:GetService("Players").LocalPlayer.Character then
-                            for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
+                        local plr = game.Players.LocalPlayer
+                        if plr.Character then
+                            for _, part in pairs(plr.Character:GetDescendants()) do
                                 if part:IsA("BasePart") and part.CanCollide then
                                     part.CanCollide = false
                                 end
@@ -492,198 +502,198 @@ else
                     end
                 end)
                 
-                SkyXUI:Notify({
-                    Title = "Noclip",
-                    Content = "Noclip Enabled - Walk through walls",
-                    Duration = 3
+                OrionLib:MakeNotification({
+                    Name = "Universal",
+                    Content = "Noclip enabled",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
                 })
             else
                 -- Disable noclip
                 if _G.NoclipLoop then
                     _G.NoclipLoop:Disconnect()
                     _G.NoclipLoop = nil
-                end
-                
-                -- Reset collision
-                if game:GetService("Players").LocalPlayer.Character then
-                    for _, part in pairs(game:GetService("Players").LocalPlayer.Character:GetDescendants()) do
-                        if part:IsA("BasePart") then
-                            part.CanCollide = true
+                    
+                    -- Reset collision
+                    local plr = game.Players.LocalPlayer
+                    if plr.Character then
+                        for _, part in pairs(plr.Character:GetDescendants()) do
+                            if part:IsA("BasePart") then
+                                part.CanCollide = true
+                            end
                         end
                     end
                 end
                 
-                SkyXUI:Notify({
-                    Title = "Noclip",
-                    Content = "Noclip Disabled",
-                    Duration = 3
+                OrionLib:MakeNotification({
+                    Name = "Universal",
+                    Content = "Noclip disabled",
+                    Image = "rbxassetid://4483345998",
+                    Time = 3
                 })
             end
         end
     })
 end
 
+-- Create ESP tab (universal feature)
+local ESPTab = Window:MakeTab({
+    Name = "ESP",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+-- Add ESP features
+ESPTab:AddToggle({
+    Name = "Player ESP",
+    Default = false,
+    Callback = function(Value)
+        -- Player ESP implementation
+        _G.PlayerESP = Value
+        
+        if Value then
+            -- Setup ESP
+            _G.ESPEnabled = true
+            _G.ESPHighlights = {}
+            
+            -- Function to create ESP for a player
+            local function createESP(player)
+                if player == game.Players.LocalPlayer then return end
+                
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "ESP_Highlight"
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.FillTransparency = 0.5
+                highlight.OutlineTransparency = 0
+                
+                if player.Character then
+                    highlight.Parent = player.Character
+                end
+                
+                player.CharacterAdded:Connect(function(character)
+                    if _G.ESPEnabled then
+                        highlight.Parent = character
+                    end
+                end)
+                
+                return highlight
+            end
+            
+            -- Apply ESP to all players
+            for _, player in pairs(game.Players:GetPlayers()) do
+                if player ~= game.Players.LocalPlayer then
+                    _G.ESPHighlights[player.Name] = createESP(player)
+                end
+            end
+            
+            -- Handle new players
+            _G.ESPConnection = game.Players.PlayerAdded:Connect(function(player)
+                if _G.ESPEnabled and player ~= game.Players.LocalPlayer then
+                    _G.ESPHighlights[player.Name] = createESP(player)
+                end
+            end)
+            
+            -- Handle players leaving
+            _G.ESPRemovingConnection = game.Players.PlayerRemoving:Connect(function(player)
+                if _G.ESPHighlights[player.Name] then
+                    _G.ESPHighlights[player.Name]:Destroy()
+                    _G.ESPHighlights[player.Name] = nil
+                end
+            end)
+            
+            OrionLib:MakeNotification({
+                Name = "ESP",
+                Content = "Player ESP enabled",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        else
+            -- Disable ESP
+            _G.ESPEnabled = false
+            
+            -- Remove all highlights
+            if _G.ESPHighlights then
+                for _, highlight in pairs(_G.ESPHighlights) do
+                    if highlight then
+                        highlight:Destroy()
+                    end
+                end
+                _G.ESPHighlights = {}
+            end
+            
+            -- Disconnect events
+            if _G.ESPConnection then
+                _G.ESPConnection:Disconnect()
+                _G.ESPConnection = nil
+            end
+            
+            if _G.ESPRemovingConnection then
+                _G.ESPRemovingConnection:Disconnect()
+                _G.ESPRemovingConnection = nil
+            end
+            
+            OrionLib:MakeNotification({
+                Name = "ESP",
+                Content = "Player ESP disabled",
+                Image = "rbxassetid://4483345998",
+                Time = 3
+            })
+        end
+    end
+})
+
+-- Add ESP Color picker
+ESPTab:AddColorpicker({
+    Name = "ESP Color",
+    Default = Color3.fromRGB(255, 0, 0),
+    Callback = function(Value)
+        -- Update ESP color
+        if _G.ESPHighlights then
+            for _, highlight in pairs(_G.ESPHighlights) do
+                if highlight then
+                    highlight.FillColor = Value
+                end
+            end
+        end
+    end
+})
+
 -- Create settings tab
-local SettingsTab = Window:CreateTab({
-    Title = "Settings",
-    Icon = "settings"
+local SettingsTab = Window:MakeTab({
+    Name = "Settings",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
 })
 
-local UISection = SettingsTab:CreateSection("UI Settings")
-
-UISection:CreateDropdown({
-    Title = "Theme",
-    Values = {"Default", "Ocean", "Forest", "Sunset", "Monochrome"},
-    Default = "Ocean",
-    Callback = function(Value)
-        -- Theme implementation
-        SkyXUI:Notify({
-            Title = "Theme Changed",
-            Content = "Changed theme to " .. Value,
-            Duration = 3
-        })
-    end
-})
-
-UISection:CreateKeybind({
-    Title = "Toggle UI",
-    Default = "RightControl",
+-- Add keybind for UI toggle
+SettingsTab:AddKeybind({
+    Name = "Toggle UI",
+    Default = Enum.KeyCode.RightControl,
+    Hold = false,
     Callback = function()
-        -- This is handled automatically by the UI library
+        -- This is handled by Orion UI internally
     end
-})
-
--- Create Anti-Ban tab
-local AntiBanTab = Window:CreateTab({
-    Title = "Anti-Ban",
-    Icon = "shield"
-})
-
-local ProtectionSection = AntiBanTab:CreateSection("Protections")
-
-ProtectionSection:CreateToggle({
-    Title = "Anti-Kick",
-    Default = true,
-    Callback = function(Value)
-        -- Implementation would depend on our Anti-Ban system
-        SkyXUI:Notify({
-            Title = "Anti-Ban",
-            Content = Value and "Anti-Kick Enabled" or "Anti-Kick Disabled",
-            Duration = 3
-        })
-    end
-})
-
-ProtectionSection:CreateToggle({
-    Title = "Anti-Report",
-    Default = true,
-    Callback = function(Value)
-        -- Implementation
-    end
-})
-
-ProtectionSection:CreateToggle({
-    Title = "Admin Detection",
-    Default = true,
-    Callback = function(Value)
-        -- Implementation
-    end
-})
-
-ProtectionSection:CreateToggle({
-    Title = "Screenshot Protection",
-    Default = true,
-    Callback = function(Value)
-        -- Implementation
-    end
-})
-
-local ActionsSection = AntiBanTab:CreateSection("Actions")
-
-ActionsSection:CreateButton({
-    Title = "Enable All Protections",
-    Callback = function()
-        -- Set all protection toggles to true
-        for _, toggle in ipairs(ProtectionSection:GetChildren()) do
-            if toggle.ClassName == "Toggle" then
-                toggle:SetValue(true)
-            end
-        end
-        
-        SkyXUI:Notify({
-            Title = "Anti-Ban",
-            Content = "All protections enabled",
-            Duration = 3
-        })
-    end
-})
-
-ActionsSection:CreateButton({
-    Title = "Disable All Protections",
-    Callback = function()
-        -- Set all protection toggles to false
-        for _, toggle in ipairs(ProtectionSection:GetChildren()) do
-            if toggle.ClassName == "Toggle" then
-                toggle:SetValue(false)
-            end
-        end
-        
-        SkyXUI:Notify({
-            Title = "Anti-Ban",
-            Content = "All protections disabled",
-            Duration = 3
-        })
-    end
-})
-
-local InfoSection = AntiBanTab:CreateSection("Information")
-
-InfoSection:CreateParagraph({
-    Title = "Anti-Ban System",
-    Content = "SkyX Anti-Ban system helps protect you from being banned or kicked while using exploits. It includes various protection mechanisms to keep you safe while exploiting."
 })
 
 -- Create credits tab
-local CreditsTab = Window:CreateTab({
-    Title = "Credits",
-    Icon = "credit"
+local CreditsTab = Window:MakeTab({
+    Name = "Credits",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
 })
 
-local CreditsSection = CreditsTab:CreateSection("Credits")
+-- Add credits
+CreditsTab:AddParagraph("SkyX Hub", "Created by the SkyX Team")
+CreditsTab:AddParagraph("UI Library", "Using customized OrionX UI")
 
-CreditsSection:CreateParagraph({
-    Title = "SkyX Team",
-    Content = "UI Development: SkyX Team\nScript Development: SkyX Team\nUI Design: Inspired by Luna UI"
-})
+-- Initialize the UI
+OrionLib:Init()
 
-CreditsSection:CreateParagraph({
-    Title = "Special Thanks",
-    Content = "Thanks to all the members of our Discord community for their support and feedback!"
-})
-
-CreditsSection:CreateButton({
-    Title = "Copy Discord Invite",
-    Callback = function()
-        if setclipboard then
-            setclipboard("https://discord.gg/SkyXHub")
-            SkyXUI:Notify({
-                Title = "Discord",
-                Content = "Discord invite copied to clipboard!",
-                Duration = 3
-            })
-        else
-            SkyXUI:Notify({
-                Title = "Error",
-                Content = "Your executor doesn't support clipboard functions",
-                Duration = 3
-            })
-        end
-    end
-})
-
--- Welcome notification
-SkyXUI:Notify({
-    Title = "SkyX Hub Loaded",
-    Content = "Welcome to SkyX Hub | Game: " .. gameName .. " | Executor: " .. executor,
-    Duration = 5
+-- Launch notification
+OrionLib:MakeNotification({
+    Name = "SkyX Hub",
+    Content = "Successfully loaded for " .. gameName,
+    Image = "rbxassetid://4483345998",
+    Time = 5
 })
