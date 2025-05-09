@@ -1,4 +1,4 @@
---[[
+--[[  ccccccccc
     SkyX Hub - Blade Ball Script
     Using OrionX UI
     
@@ -52,7 +52,7 @@ local Window = OrionLib:MakeWindow({
 -- Main Tab
 local MainTab = Window:MakeTab({
     Name = "Main",
-    Icon = "home",
+    Icon = "rbxassetid://4483345998", -- Home icon
     PremiumOnly = false
 })
 
@@ -70,14 +70,14 @@ InfoSection:AddButton({
             OrionLib:MakeNotification({
                 Name = "Discord",
                 Content = "Invite link copied to clipboard!",
-                Image = "info",
+                Image = "rbxassetid://7734053465", -- Info icon
                 Time = 5
             })
         else
             OrionLib:MakeNotification({
                 Name = "Error",
                 Content = "Your executor doesn't support clipboard functions.",
-                Image = "warning",
+                Image = "rbxassetid://7733658133", -- Warning icon
                 Time = 5
             })
         end
@@ -87,7 +87,7 @@ InfoSection:AddButton({
 -- Combat Tab
 local CombatTab = Window:MakeTab({
     Name = "Combat",
-    Icon = "sword",
+    Icon = "rbxassetid://7733674079", -- Sword icon
     PremiumOnly = false
 })
 
@@ -109,7 +109,7 @@ ParrySection:AddToggle({
             OrionLib:MakeNotification({
                 Name = "Auto Parry",
                 Content = "Auto Parry has been enabled",
-                Image = "check",
+                Image = "rbxassetid://7733715400", -- Check icon
                 Time = 3
             })
         else
@@ -117,7 +117,7 @@ ParrySection:AddToggle({
             OrionLib:MakeNotification({
                 Name = "Auto Parry",
                 Content = "Auto Parry has been disabled",
-                Image = "close",
+                Image = "rbxassetid://7733799170", -- Close icon
                 Time = 3
             })
         end
@@ -194,7 +194,7 @@ AbilitySection:AddToggle({
 -- Visual Tab
 local VisualTab = Window:MakeTab({
     Name = "Visual",
-    Icon = "eye",
+    Icon = "rbxassetid://7733966754", -- Eye icon
     PremiumOnly = false
 })
 
@@ -274,7 +274,7 @@ ESPSection:AddColorpicker({
 -- Local Player Tab
 local LocalPlayerTab = Window:MakeTab({
     Name = "Local Player",
-    Icon = "person",
+    Icon = "rbxassetid://7734053495", -- Person icon
     PremiumOnly = false
 })
 
@@ -381,7 +381,7 @@ MovementSection:AddSlider({
 -- Protection Tab
 local ProtectionTab = Window:MakeTab({
     Name = "Protection",
-    Icon = "shield",
+    Icon = "rbxassetid://7734056608", -- Shield icon
     PremiumOnly = false
 })
 
@@ -450,7 +450,7 @@ AntiSection:AddToggle({
 -- Settings Tab
 local SettingsTab = Window:MakeTab({
     Name = "Settings",
-    Icon = "settings",
+    Icon = "rbxassetid://7733717424", -- Settings icon
     PremiumOnly = false
 })
 
@@ -536,7 +536,7 @@ SettingsTab:AddButton({
 -- Credits Tab
 local CreditsTab = Window:MakeTab({
     Name = "Credits",
-    Icon = "info",
+    Icon = "rbxassetid://7734053465", -- Info icon
     PremiumOnly = false
 })
 
